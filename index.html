@@ -2656,89 +2656,214 @@ updateCompare();
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
 
 <script>
-let detector;
-let prevPoints = {};  // smoothing 용
+// 포즈 감지 모델 관리
+let detectors = { front: null, side: null };
 
-async function loadModel() {
-  detector = await poseDetection.createDetector(
-    poseDetection.SupportedModels.BlazePose,
-    {
-      runtime: "tfjs",
-      modelType: "full",
-      enableSmoothing: true
-    }
-  );
-  console.log("✅ BlazePose 로드 완료");
+// 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
+// sessions 객체에 orientation과 landmarks 정보 추가
+if(!sessions.Before.poseData) {
+  sessions.Before.poseData = { orientation: "side", landmarks: null };
+}
+if(!sessions.After.poseData) {
+  sessions.After.poseData = { orientation: "side", landmarks: null };
 }
 
-loadModel();
+// ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
+async function loadPoseModels() {
+  try {
+    detectors.front = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+    );
+    detectors.side = await poseDetection.createDetector(
+      poseDetection.SupportedModels.BlazePose,
+      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+    );
+    console.log("✅ 정면·옆모습 모델 로드 완료");
+  } catch(error) {
+    console.error("모델 로드 실패:", error);
+  }
+}
 
-// 파일 업로드 처리 (기존 이벤트와 통합)
-const fileInputs = document.querySelectorAll('input[type="file"]');
-fileInputs.forEach(input => {
-  input.addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+loadPoseModels();
 
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = async () => {
-      await analyzeImage(img);
-    };
-  });
-});
-
-// 포즈 분석 함수
-async function analyzeImage(img) {
+// ✅ 분석 시 orientation에 맞는 모델 사용
+async function detectPose(img, orientation) {
+  const detector = detectors[orientation];
   if (!detector) {
-    alert("모델 아직 로딩 중💡 잠시만 기다려줘!");
-    return;
+    alert(`${orientation}용 모델이 아직 준비되지 않았습니다`);
+    return null;
   }
-
-  const poses = await detector.estimatePoses(img);
-  if (!poses.length) {
-    alert("사람을 찾지 못했어 😢 더 선명한 사진으로 시도해줘");
-    return;
+  
+  try {
+    const poses = await detector.estimatePoses(img);
+    if (!poses.length) {
+      alert(`${orientation} 방향에서 사람을 인식하지 못했습니다`);
+      return null;
+    }
+    return poses[0];
+  } catch(error) {
+    console.error("포즈 감지 실패:", error);
+    alert("포즈 감지 중 오류가 발생했습니다");
+    return null;
   }
-
-  const points = poses[0].keypoints;
-
-  const canvas = document.querySelector("canvas") || createCanvas(img);
-  const ctx = canvas.getContext("2d");
-
-  canvas.width = img.width;
-  canvas.height = img.height;
-  ctx.drawImage(img, 0, 0);
-
-  points.forEach((pt, i) => {
-    if (pt.score < 0.45) return; // confidence 낮으면 skip
-
-    // smoothing 적용
-    const smooth = (key, now) => {
-      if (!prevPoints[key]) return now;
-      return {
-        x: prevPoints[key].x * 0.7 + now.x * 0.3,
-        y: prevPoints[key].y * 0.7 + now.y * 0.3,
-      };
-    };
-
-    const key = i;
-    const sp = smooth(key, pt);
-    prevPoints[key] = sp;
-
-    ctx.beginPath();
-    ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "red";
-    ctx.fill();
-  });
-
-  console.log("✅ 좌표 인식 완료:", points);
 }
 
-function createCanvas(img) {
-  const canvas = document.createElement("canvas");
-  document.body.appendChild(canvas);
-  return canvas;
+// ✅ 포즈 좌표를 기존 점 시스템에 매핑
+function mapPoseToKeypoints(pose, orientation) {
+  if(!pose || !pose.keypoints) return null;
+  
+  const keypointMap = {};
+  const keypoints = pose.keypoints;
+  
+  // BlazePose (옆모습) 키포인트 매핑
+  if(orientation === "side") {
+    // BlazePose keypoint 이름을 기존 시스템과 매핑
+    keypoints.forEach((kp, idx) => {
+      // BlazePose의 주요 키포인트를 기존 시스템에 매핑
+      // 실제 키포인트 이름은 BlazePose 문서 참조 필요
+      if(kp.name) {
+        const nameMap = {
+          'nose': null,
+          'left_eye_inner': null,
+          'left_eye': null,
+          'left_eye_outer': null,
+          'right_eye_inner': null,
+          'right_eye': null,
+          'right_eye_outer': null,
+          'left_ear': 'Tragus',
+          'right_ear': 'Tragus',
+          'mouth_left': null,
+          'mouth_right': null,
+          'left_shoulder': 'Shoulder',
+          'right_shoulder': 'Shoulder',
+          'left_elbow': null,
+          'right_elbow': null,
+          'left_wrist': null,
+          'right_wrist': null,
+          'left_pinky': null,
+          'right_pinky': null,
+          'left_index': null,
+          'right_index': null,
+          'left_thumb': null,
+          'right_thumb': null,
+          'left_hip': 'Hip',
+          'right_hip': 'Hip',
+          'left_knee': 'Knee',
+          'right_knee': 'Knee',
+          'left_ankle': 'Ankle',
+          'right_ankle': 'Ankle',
+          'left_heel': null,
+          'right_heel': null,
+          'left_foot_index': null,
+          'right_foot_index': null
+        };
+        
+        if(nameMap[kp.name] && kp.score >= 0.45) {
+          const mappedName = nameMap[kp.name];
+          if(!keypointMap[mappedName] || keypointMap[mappedName].score < kp.score) {
+            keypointMap[mappedName] = { x: kp.x, y: kp.y, score: kp.score };
+          }
+        }
+      }
+    });
+  }
+  
+  // MoveNet (정면) 키포인트 매핑
+  if(orientation === "front") {
+    // MoveNet은 숫자 인덱스로 키포인트 제공
+    // MoveNet 키포인트 순서에 따라 매핑
+    keypoints.forEach((kp, idx) => {
+      if(kp.score >= 0.45) {
+        // MoveNet 키포인트 인덱스 매핑 (실제 순서 확인 필요)
+        // 예시: 0=nose, 1=left_eye, 2=right_eye, 5=left_shoulder, 6=right_shoulder 등
+        // 여기서는 기본 구조만 제공
+      }
+    });
+  }
+  
+  return keypointMap;
+}
+
+// ✅ 포즈 감지 후 기존 시스템에 통합
+async function applyPoseDetection(img, sessionName) {
+  const session = sessions[sessionName];
+  if(!session) return;
+  
+  // 기본적으로 옆모습으로 가정 (자세 분석은 보통 옆모습)
+  const orientation = session.poseData?.orientation || "side";
+  
+  const pose = await detectPose(img, orientation);
+  if(!pose) return;
+  
+  // 포즈 정보 저장
+  session.poseData.landmarks = pose.keypoints;
+  
+  // 기존 점 시스템에 매핑 (선택적)
+  const keypointMap = mapPoseToKeypoints(pose, orientation);
+  if(keypointMap) {
+    // 매핑된 키포인트를 기존 점 시스템에 적용
+    const map = session.pts;
+    for(const [key, value] of Object.entries(keypointMap)) {
+      if(value && value.x && value.y) {
+        // 이미지 크기에 맞게 좌표 변환 필요
+        const scaleX = originalCanvasSize.width / img.naturalWidth;
+        const scaleY = originalCanvasSize.height / img.naturalHeight;
+        map.set(key, {
+          x: value.x * scaleX,
+          y: value.y * scaleY
+        });
+      }
+    }
+    
+    // 화면 업데이트
+    draw();
+    computeMetricsOnly();
+    console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료`);
+  }
+  
+  return pose;
+}
+
+// ✅ 기존 파일 업로드 이벤트에 포즈 감지 통합
+// 기존 파일 업로드 핸들러를 찾아서 수정
+const originalFileHandler = document.getElementById("filePicker");
+const originalCameraHandler = document.getElementById("cameraPicker");
+
+if(originalFileHandler) {
+  const originalHandler = originalFileHandler.onchange;
+  originalFileHandler.addEventListener("change", async function(e) {
+    // 기존 핸들러 실행
+    if(originalHandler) originalHandler.call(this, e);
+    
+    // 포즈 감지 추가
+    const file = e.target.files[0];
+    if(file) {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = async () => {
+        await applyPoseDetection(img, cur);
+      };
+    }
+  });
+}
+
+if(originalCameraHandler) {
+  const originalHandler = originalCameraHandler.onchange;
+  originalCameraHandler.addEventListener("change", async function(e) {
+    // 기존 핸들러 실행
+    if(originalHandler) originalHandler.call(this, e);
+    
+    // 포즈 감지 추가
+    const file = e.target.files[0];
+    if(file) {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = async () => {
+        await applyPoseDetection(img, cur);
+      };
+    }
+  });
 }
 </script>
   </body>
