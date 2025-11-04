@@ -248,6 +248,13 @@ canvas {
     <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
     <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5;"></div>
   </div>
+  
+  <!-- 실시간 분석 결과 패널 -->
+  <div id="liveAnalysisPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📊 실시간 AI 분석 결과</div>
+    <div id="livePDS" style="font-size:16px; font-weight:700; margin-bottom:8px; color:#7c9cff;">PDS: —</div>
+    <div id="livePatterns" style="font-size:12px; line-height:1.6;"></div>
+  </div>
 
   <div id="musclePanel" style="margin-top:12px; padding:12px; background:rgba(255,184,108,0.1); border-radius:10px; display:none;">
     <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#ffb86c;">💪 근육 상태 분석</div>
@@ -1221,6 +1228,126 @@ function analyzePostureAutoWithRecommendation(options = {}) {
   
   return result;
 }
+
+// ✅ 실시간 분석 엔진 (Stream 기반)
+class LivePostureAnalyzer {
+  constructor() {
+    this.listeners = [];
+    this.isAnalyzing = false;
+    this.lastResult = null;
+  }
+  
+  // 리스너 추가 (실시간 결과 수신)
+  addListener(callback) {
+    this.listeners.push(callback);
+  }
+  
+  // 리스너 제거
+  removeListener(callback) {
+    const index = this.listeners.indexOf(callback);
+    if (index > -1) {
+      this.listeners.splice(index, 1);
+    }
+  }
+  
+  // 결과 브로드캐스트
+  _broadcast(result) {
+    this.lastResult = result;
+    this.listeners.forEach(callback => {
+      try {
+        callback(result);
+      } catch (error) {
+        console.error('Listener error:', error);
+      }
+    });
+  }
+  
+  // 실시간 분석 실행 (매 프레임/좌표 변경 시)
+  analyzeFrame(options = {}) {
+    if (this.isAnalyzing) {
+      return this.lastResult; // 이미 분석 중이면 마지막 결과 반환
+    }
+    
+    this.isAnalyzing = true;
+    
+    try {
+      const {
+        sidePts = null,
+        frontPts = null,
+        pxPerCm = 50.0
+      } = options;
+      
+      // 통합 분석 실행
+      const analysisResult = analyzePostureAutoWithRecommendation({
+        sidePts: sidePts,
+        frontPts: frontPts,
+        pxPerCm: pxPerCm
+      });
+      
+      // 실시간 결과 포맷 (JSON 출력 예시 구조)
+      const result = {
+        timestamp: new Date().toISOString(),
+        analysis: {
+          side: analysisResult.side,
+          front: analysisResult.front,
+          summary: analysisResult.summary
+        },
+        recommendations: analysisResult.recommendations || { patterns: [] }
+      };
+      
+      // 주요 지표 추출 (실시간 표시용)
+      const sideMetrics = analysisResult.side || {};
+      const frontMetrics = analysisResult.front || {};
+      const summary = analysisResult.summary || {};
+      
+      result.liveMetrics = {
+        CVA: sideMetrics.CVA ? { value: sideMetrics.CVA.value_deg, status: sideMetrics.CVA.status } : null,
+        PTA: sideMetrics.PTA ? { value: sideMetrics.PTA.value_deg, status: sideMetrics.PTA.status } : null,
+        KA: sideMetrics.KA ? { value: sideMetrics.KA.value_deg, status: sideMetrics.KA.status } : (frontMetrics.KA ? { value: frontMetrics.KA.value_deg, status: frontMetrics.KA.status } : null),
+        PDS: summary.PDS_total ? parseFloat(summary.PDS_total) : 0,
+        risk_level: summary.risk_level || 'unknown'
+      };
+      
+      // 브로드캐스트
+      this._broadcast(result);
+      
+      return result;
+    } finally {
+      this.isAnalyzing = false;
+    }
+  }
+  
+  // 현재 세션의 키포인트로 실시간 분석
+  analyzeCurrentSession() {
+    const S = sessions[cur];
+    const pxPerCm = S.pxPerCm || 50.0;
+    
+    // 측면 및 정면 키포인트 변환
+    const sidePoints = {};
+    const frontPoints = {};
+    
+    for(const [key, value] of S.sidePoints.entries()) {
+      if(value && value.x != null && value.y != null) {
+        sidePoints[key] = { x: value.x, y: value.y };
+      }
+    }
+    
+    for(const [key, value] of S.frontPoints.entries()) {
+      if(value && value.x != null && value.y != null) {
+        frontPoints[key] = { x: value.x, y: value.y };
+      }
+    }
+    
+    return this.analyzeFrame({
+      sidePts: Object.keys(sidePoints).length > 0 ? sidePoints : null,
+      frontPts: Object.keys(frontPoints).length > 0 ? frontPoints : null,
+      pxPerCm: pxPerCm
+    });
+  }
+}
+
+// 전역 실시간 분석기 인스턴스
+const liveAnalyzer = new LivePostureAnalyzer();
 
 // 필라테스 동작 데이터
 const pilatesData = {
@@ -4191,11 +4318,23 @@ document.getElementById("btnShare").onclick = async () => {
   }
 };
 
+// 실시간 분석 리스너 등록 (UI 업데이트)
+liveAnalyzer.addListener((result) => {
+  updateLiveAnalysisUI(result);
+});
+
 // 초기화
 resizeCanvasFor(null);
 draw();
 computeMetricsOnly(); // 초기화 시에는 AI 분석 안 함
 updateCompare();
+
+// 초기 실시간 분석 실행
+setTimeout(() => {
+  if(typeof liveAnalyzer !== 'undefined') {
+    liveAnalyzer.analyzeCurrentSession();
+  }
+}, 500);
 </script>
 
 <!-- ✅ Pose Detection Libraries -->
