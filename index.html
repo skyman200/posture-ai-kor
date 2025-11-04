@@ -1402,6 +1402,10 @@ function getEventPos(e) {
 }
 
 function startDrag(e) {
+  // 이전 드래그 상태 완전히 초기화
+  dragKey = null;
+  isScrolling = false;
+  
   const pos = getEventPos(e);
   const P = getPts(cur);
   
@@ -1426,7 +1430,8 @@ function startDrag(e) {
   let bestPoint = null;
   let bestDistance = 1e9;
   // 확대 모드에서는 감지 범위를 넓게 (원본 좌표 기준이므로 확대 배율에 따라 조정)
-  const threshold = editMode && currentZoom > 1 ? 50 / currentZoom : 40;
+  // threshold는 화면 픽셀 기준이 아니라 원본 좌표 기준이므로, 확대 배율에 따라 조정
+  const threshold = editMode && currentZoom > 1 ? 50 / currentZoom : 50;
   
   // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
@@ -1456,11 +1461,12 @@ function startDrag(e) {
   // 점 근처를 터치했으면 즉시 드래그 모드로 전환 (Long press 제거)
   if(bestPoint) {
     e.preventDefault();
+    e.stopPropagation();
     isScrolling = false;
     dragKey = bestPoint;
     
     // 스크롤 시작 위치 저장 (드래그 중에도 사용)
-    if(e.touches) {
+    if(e.touches && e.touches.length > 0) {
       scrollStartX = e.touches[0].clientX;
       scrollStartY = e.touches[0].clientY;
     } else {
@@ -1468,6 +1474,7 @@ function startDrag(e) {
       scrollStartY = e.clientY;
     }
     
+    console.log('드래그 시작:', bestPoint, pos);
     return true;
   }
   
@@ -1475,7 +1482,8 @@ function startDrag(e) {
   // 확대 모드일 때만 스크롤 활성화
   if(editMode && currentZoom > 1) {
     isScrolling = true;
-    if(e.touches) {
+    dragKey = null; // 명시적으로 드래그 아님
+    if(e.touches && e.touches.length > 0) {
       scrollStartX = e.touches[0].clientX;
       scrollStartY = e.touches[0].clientY;
     } else {
@@ -1487,6 +1495,7 @@ function startDrag(e) {
   
   // 확대 모드가 아니거나 일반 모드에서는 아무 동작도 하지 않음
   isScrolling = false;
+  dragKey = null;
   return false;
 }
 
@@ -1504,19 +1513,23 @@ function doDrag(e) {
     const y = clamp(pos.y, 0, originalH);
     const map = sessions[cur].pts;
     const p = map.get(dragKey);
+    
     if(!p) {
-      dragKey = null;
+      // 점이 없으면 드래그 종료
+      endDrag(e);
       return;
     }
     
     // 좌표 수정 모드에서는 선택된 점만 이동
-    if(editMode) {
+    if(editMode && selectedPoint) {
       if(dragKey !== selectedPoint) {
-        dragKey = null;
+        // 선택된 점이 아니면 드래그 종료
+        endDrag(e);
         return;
       }
     }
     
+    // 좌표 업데이트
     p.x = x;
     p.y = y;
     
@@ -1531,8 +1544,9 @@ function doDrag(e) {
     return; // 드래그 모드에서는 스크롤 완전 차단
   }
   
+  // 드래그 모드가 아니면 스크롤 모드 체크
   // 스크롤 모드인 경우 - 빈 화면 터치 시 스크롤만 수행
-  if(isScrolling && editMode && currentZoom > 1) {
+  if(isScrolling && editMode && currentZoom > 1 && !dragKey) {
     let currentX, currentY;
     if(e.touches && e.touches.length > 0) {
       currentX = e.touches[0].clientX;
@@ -1564,8 +1578,10 @@ function endDrag(e) {
     longPressTimer = null;
   }
   
-  // 드래그가 끝나면 상태만 초기화 (다음 드래그를 위해)
-  // dragKey는 다음 startDrag에서 다시 설정될 수 있도록 초기화
+  // 드래그가 끝나면 상태 완전히 초기화 (다음 드래그를 위해)
+  if(dragKey) {
+    console.log('드래그 종료:', dragKey);
+  }
   dragKey = null;
   isScrolling = false;
   scrollDistance = 0;
@@ -1576,10 +1592,29 @@ function endDrag(e) {
 }
 
 // 마우스 이벤트
-cv.addEventListener('mousedown', startDrag);
-window.addEventListener('mousemove', doDrag);
-window.addEventListener('mouseup', endDrag);
-window.addEventListener('mouseleave', endDrag);
+cv.addEventListener('mousedown', (e) => {
+  startDrag(e);
+});
+
+// 마우스 이동은 전역으로 처리하되, 캔버스 밖에서도 드래그가 계속되도록
+let isMouseDown = false;
+cv.addEventListener('mousedown', () => {
+  isMouseDown = true;
+});
+window.addEventListener('mouseup', () => {
+  isMouseDown = false;
+  endDrag();
+});
+window.addEventListener('mouseleave', () => {
+  isMouseDown = false;
+  endDrag();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if(isMouseDown || dragKey) {
+    doDrag(e);
+  }
+});
 
 // 터치 이벤트 (모바일 지원)
 cv.addEventListener('touchstart', (e) => {
@@ -1594,15 +1629,20 @@ cv.addEventListener('touchstart', (e) => {
 
 window.addEventListener('touchmove', (e) => {
   // dragKey가 설정되어 있으면 드래그 모드이므로 preventDefault
-  if(dragKey) {
+  // 또는 isScrolling이 true이면 스크롤 모드
+  if(dragKey || (isScrolling && editMode && currentZoom > 1)) {
     e.preventDefault();
     e.stopPropagation();
   }
   doDrag(e);
 }, {passive: false});
 
-window.addEventListener('touchend', endDrag);
-window.addEventListener('touchcancel', endDrag);
+window.addEventListener('touchend', (e) => {
+  endDrag(e);
+});
+window.addEventListener('touchcancel', (e) => {
+  endDrag(e);
+});
 
 // 업로드
 ["filePicker","cameraPicker"].forEach(id => {
