@@ -1541,7 +1541,11 @@ function startDrag(e) {
   // endDrag가 호출되지 않은 경우를 대비하여 여기서도 초기화
   if(dragKey) {
     console.log('이전 드래그 상태가 남아있음, 초기화:', dragKey);
+    dragKey = null;
+    isScrolling = false;
   }
+  
+  // 상태 초기화
   dragKey = null;
   isScrolling = false;
   scrollDistance = 0;
@@ -1553,9 +1557,6 @@ function startDrag(e) {
   if(e.touches) {
     touchStartTime = Date.now();
   }
-  
-  // 스크롤 거리 초기화
-  scrollDistance = 0;
   
   // Long press 관련 상태 초기화 (더 이상 사용하지 않지만 정리용)
   if(longPressTimer) {
@@ -1575,7 +1576,6 @@ function startDrag(e) {
   // 실제 화면 크기를 고려하여 더 정확하게 계산
   const r = cv.getBoundingClientRect();
   const screenWidth = r.width; // CSS 픽셀
-  const screenHeight = r.height;
   
   // 1cm를 픽셀로 변환 (96 DPI 기준: 1cm ≈ 37.8px)
   // 하지만 실제 화면에서는 devicePixelRatio를 고려해야 함
@@ -1594,6 +1594,8 @@ function startDrag(e) {
     // 일반 모드: 화면 픽셀 기준 (라벨 영역 포함)
     threshold = baseThreshold * 1.5; // 라벨 영역 포함을 위해 약간 더 크게
   }
+  
+  console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom);
   
   // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
@@ -1719,10 +1721,8 @@ function doDrag(e) {
     // 좌표 수정 모드에서는 선택된 점만 이동
     if(editMode && selectedPoint) {
       if(dragKey !== selectedPoint) {
-        // 선택된 점이 아니면 드래그 종료
-        console.log('선택된 점이 아니어서 드래그 종료:', dragKey, selectedPoint);
-        dragKey = null;
-        isScrolling = false;
+        // 선택된 점이 아니면 드래그 종료하지 않고 계속 진행
+        // (다른 점을 드래그하는 경우를 허용)
         return;
       }
     }
