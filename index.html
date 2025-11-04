@@ -1431,12 +1431,16 @@ function doDrag(e) {
     const pt = P[selectedPoint];
     if(pt) {
       // 현재 위치가 점 근처인지 확인 (확대된 좌표 기준)
-      const threshold = 40; // 감지 범위를 넓게 (30 -> 40)
+      const threshold = 50; // 감지 범위를 더 넓게 (40 -> 50)
       const scaleX = currentZoom;
       const scaleY = currentZoom;
-      const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
+      // 점의 실제 화면 좌표 (확대된 상태)
+      const ptScreenX = pt.x * scaleX;
+      const ptScreenY = pt.y * scaleY;
+      // 현재 마우스/터치 위치와의 거리
+      const d = Math.hypot(ptScreenX - pos.x, ptScreenY - pos.y);
       
-      // 이동 거리 계산
+      // 이동 거리 계산 (디버깅용)
       let currentX, currentY;
       if(e.touches && e.touches.length > 0) {
         currentX = e.touches[0].clientX;
@@ -1448,11 +1452,9 @@ function doDrag(e) {
         return;
       }
       
-      const moveX = currentX - scrollStartX;
-      const moveY = currentY - scrollStartY;
-      scrollDistance = Math.hypot(moveX, moveY);
+      scrollDistance = Math.hypot(currentX - scrollStartX, currentY - scrollStartY);
       
-      // 점 근처에 있으면 드래그로 전환 (이동 거리 제한 완화)
+      // 점 근처에 있으면 무조건 드래그로 전환
       if(d < threshold) {
         // 드래그 모드로 전환
         isScrolling = false;
