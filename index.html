@@ -1458,18 +1458,18 @@ if(coordXInc) {
   };
 }
 
-// Y 좌표 증감 버튼
+// Y 좌표 증감 버튼 (Y는 화면 아래로 갈수록 값이 커지므로 반대로)
 const coordYDec = document.getElementById("coordYDec");
 const coordYInc = document.getElementById("coordYInc");
 if(coordYDec) {
   coordYDec.onmousedown = () => {
-    if(coordY) startIncrement(coordY, -0.1);
+    if(coordY) startIncrement(coordY, 0.1); // Y는 위로 가려면 값이 증가해야 함
   };
   coordYDec.onmouseup = stopIncrement;
   coordYDec.onmouseleave = stopIncrement;
   coordYDec.ontouchstart = (e) => {
     e.preventDefault();
-    if(coordY) startIncrement(coordY, -0.1);
+    if(coordY) startIncrement(coordY, 0.1);
   };
   coordYDec.ontouchend = (e) => {
     e.preventDefault();
@@ -1482,13 +1482,13 @@ if(coordYDec) {
 }
 if(coordYInc) {
   coordYInc.onmousedown = () => {
-    if(coordY) startIncrement(coordY, 0.1);
+    if(coordY) startIncrement(coordY, -0.1); // Y는 아래로 가려면 값이 감소해야 함
   };
   coordYInc.onmouseup = stopIncrement;
   coordYInc.onmouseleave = stopIncrement;
   coordYInc.ontouchstart = (e) => {
     e.preventDefault();
-    if(coordY) startIncrement(coordY, 0.1);
+    if(coordY) startIncrement(coordY, -0.1);
   };
   coordYInc.ontouchend = (e) => {
     e.preventDefault();
@@ -1777,6 +1777,8 @@ function endDrag(e) {
   if(dragKey) {
     console.log('드래그 종료:', dragKey);
   }
+  
+  // 모든 상태 완전히 초기화
   dragKey = null;
   isScrolling = false;
   scrollDistance = 0;
@@ -1784,6 +1786,11 @@ function endDrag(e) {
   scrollStartY = 0;
   longPressDetected = false;
   longPressNearPoint = null;
+  
+  // 마우스 상태도 초기화
+  if(typeof isMouseDown !== 'undefined') {
+    isMouseDown = false;
+  }
 }
 
 // 마우스 이벤트
