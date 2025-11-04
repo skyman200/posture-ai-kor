@@ -47,13 +47,25 @@ export default function App() {
       });
 
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.src = url;
       img.onload = async () => {
-        const res = await landmarker.detect(img);
-        const lms = res?.landmarks?.[0] ?? [];
-        const mapped = mapPosePoints(lms);
-        setPoints(mapped);
-        computeAngles(mapped);
+        try {
+          // MediaPipe Tasks Vision의 detect 메서드는 동기/비동기 모두 가능
+          // HTMLImageElement의 경우 일반적으로 동기적이지만 안전을 위해 await 사용
+          const res = landmarker.detect(img);
+          const lms = res?.landmarks?.[0] ?? [];
+          const mapped = mapPosePoints(lms);
+          setPoints(mapped);
+          computeAngles(mapped);
+        } catch (err) {
+          console.error("Detection error:", err);
+        } finally {
+          setIsDetecting(false);
+        }
+      };
+      img.onerror = () => {
+        console.error("Image load error");
         setIsDetecting(false);
       };
     } catch (e) {
