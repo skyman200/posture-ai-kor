@@ -110,11 +110,34 @@ canvas { max-width:100%; max-height:100%; border-radius:var(--radius); backgroun
     <button class="btn" id="coordCancel" style="width:100%; margin-top:6px; background:rgba(255,255,255,0.05);">취소</button>
   </div>
 
-  <div style="margin-top:12px;">
+  <div style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
     <div class="muted" style="margin-bottom:6px;">현재 세션: <span id="currentSession">Before</span></div>
     <div class="muted" style="margin-bottom:6px;">CVA: <span id="dispCva">—</span></div>
     <div class="muted" style="margin-bottom:6px;">TRUNK: <span id="dispPel">—</span></div>
     <div class="muted" style="margin-bottom:8px;">KNEE: <span id="dispKnee">—</span></div>
+    
+    <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="font-size:14px; font-weight:600; margin-bottom:8px;">📊 체형 종합 점수</div>
+      <div id="totalScore" style="font-size:32px; font-weight:800; margin-bottom:8px;">—</div>
+      <div id="scoreReason" class="muted" style="font-size:11px; line-height:1.4; margin-bottom:8px;"></div>
+    </div>
+  </div>
+
+  <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
+    <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5;"></div>
+  </div>
+
+  <div id="musclePanel" style="margin-top:12px; padding:12px; background:rgba(255,184,108,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#ffb86c;">💪 근육 상태 분석</div>
+    <div id="muscleTight" style="margin-bottom:8px;">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">🔴 긴장된 근육:</div>
+      <div id="muscleTightList" style="font-size:12px; color:#ff6b6b;"></div>
+    </div>
+    <div id="muscleWeak">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">🔵 약화된 근육:</div>
+      <div id="muscleWeakList" style="font-size:12px; color:#7c9cff;"></div>
+    </div>
   </div>
 
   <div style="margin-top:12px;">
@@ -155,8 +178,8 @@ const keypoints = [
 ];
 
 const sessions = {
-  Before: { img:null, pts:new Map(), metrics:{} },
-  After: { img:null, pts:new Map(), metrics:{} }
+  Before: { img:null, pts:new Map(), metrics:{}, score:null, analysis:null },
+  After: { img:null, pts:new Map(), metrics:{}, score:null, analysis:null }
 };
 let cur = "Before";
 
@@ -333,8 +356,177 @@ function computeAll() {
   }
 
   S.metrics = { cva, pelvic, knee };
+  const score = computeScore(cva, pelvic, knee);
+  S.score = score;
+  const analysis = analyzeMuscles(cva, pelvic, knee);
+  S.analysis = analysis;
+  
   updateDisplay();
   updateCompare();
+  updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
+}
+
+function computeScore(cva, pelvic, knee) {
+  let penalties = 0;
+  let reasons = [];
+  
+  if(cva != null) {
+    const target = 50;
+    const delta = Math.max(0, target - cva);
+    const penalty = Math.min(40, delta * 1.6);
+    penalties += penalty;
+    if(penalty > 0) {
+      reasons.push(`CVA ${cva.toFixed(1)}° (목표 ${target}°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  if(pelvic != null) {
+    const abs = Math.abs(pelvic);
+    const target = 0;
+    const penalty = Math.min(30, abs * 2.0);
+    penalties += penalty;
+    if(penalty > 0) {
+      reasons.push(`골반 기울기 ${pelvic.toFixed(1)}° (목표 ${target}°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  if(knee != null) {
+    const target = 180;
+    const delta = Math.max(0, target - knee);
+    const penalty = Math.min(30, delta * 1.0);
+    penalties += penalty;
+    if(penalty > 0) {
+      reasons.push(`무릎 각 ${knee.toFixed(1)}° (목표 ${target}°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  const score = Math.round(clamp(100 - penalties, 0, 100));
+  return { score, reasons, penalties };
+}
+
+function analyzeMuscles(cva, pelvic, knee) {
+  const tight = [];
+  const weak = [];
+  const comments = [];
+  
+  // CVA 분석
+  if(cva != null) {
+    if(cva < 50) {
+      if(cva < 45) {
+        tight.push('상부승모근', '견갑거근', 'SCM');
+        weak.push('심부경부굴근', '하부승모근');
+        comments.push(`전방두 자세 심각: CVA ${cva.toFixed(1)}°로 목표 50°보다 낮습니다.`);
+      } else {
+        tight.push('상부승모근', '견갑거근');
+        weak.push('심부경부굴근');
+        comments.push(`전방두 자세 경미: CVA ${cva.toFixed(1)}°로 목표에 근접합니다.`);
+      }
+    } else {
+      comments.push(`경추 정렬 양호: CVA ${cva.toFixed(1)}°`);
+    }
+  }
+  
+  // 골반 기울기 분석
+  if(pelvic != null) {
+    const abs = Math.abs(pelvic);
+    if(abs > 5) {
+      if(pelvic > 0) {
+        tight.push('장요근', '요추기립근');
+        weak.push('복횡근', '둔근');
+        comments.push(`골반 전방경사: ${pelvic.toFixed(1)}°로 목표 0°보다 큽니다.`);
+      } else {
+        tight.push('둔근', '햄스트링');
+        weak.push('복직근', '장요근');
+        comments.push(`골반 후방경사: ${pelvic.toFixed(1)}°로 목표 0°보다 작습니다.`);
+      }
+    } else {
+      comments.push(`골반 정렬 양호: ${pelvic.toFixed(1)}°`);
+    }
+  }
+  
+  // 무릎 각도 분석
+  if(knee != null) {
+    if(knee < 175) {
+      if(knee < 165) {
+        tight.push('햄스트링', '비복근', '가자미근');
+        weak.push('대퇴사두근', '둔근');
+        comments.push(`무릎 과굴곡: ${knee.toFixed(1)}°로 목표 180°보다 낮습니다.`);
+      } else {
+        tight.push('햄스트링', '비복근');
+        weak.push('대퇴사두근');
+        comments.push(`무릎 약간 굴곡: ${knee.toFixed(1)}°로 목표에 근접합니다.`);
+      }
+    } else if(knee <= 185) {
+      comments.push(`무릎 정렬 양호: ${knee.toFixed(1)}°`);
+    } else {
+      comments.push(`무릎 과신전: ${knee.toFixed(1)}°로 목표를 초과합니다.`);
+    }
+  }
+  
+  return { tight: [...new Set(tight)], weak: [...new Set(weak)], comments };
+}
+
+function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
+  const scoreEl = document.getElementById("totalScore");
+  const reasonEl = document.getElementById("scoreReason");
+  const commentEl = document.getElementById("aiComment");
+  const commentPanel = document.getElementById("aiCommentPanel");
+  const musclePanel = document.getElementById("musclePanel");
+  const tightList = document.getElementById("muscleTightList");
+  const weakList = document.getElementById("muscleWeakList");
+  
+  if(scoreData && scoreData.score != null) {
+    const score = scoreData.score;
+    scoreEl.textContent = score;
+    
+    // 점수 색상
+    if(score >= 85) {
+      scoreEl.style.color = "#2ec4b6";
+    } else if(score >= 70) {
+      scoreEl.style.color = "#ffd166";
+    } else {
+      scoreEl.style.color = "#ff6b6b";
+    }
+    
+    // 점수 근거
+    if(scoreData.reasons && scoreData.reasons.length > 0) {
+      reasonEl.textContent = "감점 근거: " + scoreData.reasons.join(", ");
+    } else {
+      reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
+    }
+  } else {
+    scoreEl.textContent = "—";
+    reasonEl.textContent = "";
+  }
+  
+  // AI 코멘트
+  if(analysis && analysis.comments && analysis.comments.length > 0) {
+    commentEl.textContent = analysis.comments.join(" ");
+    commentPanel.style.display = "block";
+  } else {
+    commentPanel.style.display = "none";
+  }
+  
+  // 근육 분석
+  if(analysis && (analysis.tight.length > 0 || analysis.weak.length > 0)) {
+    if(analysis.tight.length > 0) {
+      tightList.textContent = analysis.tight.join(", ");
+    } else {
+      tightList.textContent = "없음";
+      tightList.style.color = "var(--muted)";
+    }
+    
+    if(analysis.weak.length > 0) {
+      weakList.textContent = analysis.weak.join(", ");
+    } else {
+      weakList.textContent = "없음";
+      weakList.style.color = "var(--muted)";
+    }
+    
+    musclePanel.style.display = "block";
+  } else {
+    musclePanel.style.display = "none";
+  }
 }
 
 function updateDisplay() {
@@ -371,6 +563,25 @@ function updateCompare() {
   document.getElementById("cmpKneeB").textContent = fmtDeg(kB);
   document.getElementById("cmpKneeA").textContent = fmtDeg(kA);
   document.getElementById("cmpKneeD").textContent = deltaStr(kB, kA, "°");
+  
+  // 점수 비교 추가
+  const sB = B.score ? B.score.score : null, sA = A.score ? A.score.score : null;
+  if(!document.getElementById("cmpScoreRow")) {
+    const tbody = document.querySelector(".tbl tbody");
+    const row = document.createElement("tr");
+    row.id = "cmpScoreRow";
+    row.innerHTML = `
+      <td>체형 점수</td>
+      <td id="cmpScoreB">—</td>
+      <td id="cmpScoreA">—</td>
+      <td id="cmpScoreD">—</td>
+      <td>0–100</td>
+    `;
+    tbody.appendChild(row);
+  }
+  document.getElementById("cmpScoreB").textContent = sB != null ? sB : "—";
+  document.getElementById("cmpScoreA").textContent = sA != null ? sA : "—";
+  document.getElementById("cmpScoreD").textContent = deltaStr(sB, sA, "");
 }
 
 // 좌표 수정 모드 토글
