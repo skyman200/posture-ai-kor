@@ -783,7 +783,25 @@ function computeMetricsOnly() {
     cva = cvaDeg;
   }
   if(P.ASIS && P.PSIS) {
-    pelvic = rad2deg(angleBetween(P.ASIS, P.PSIS));
+    // TRUNK 각도: 수평선과 ASIS-PSIS 선 사이의 각도
+    // ASIS에서 PSIS로 가는 벡터의 각도를 계산
+    const dx = P.PSIS.x - P.ASIS.x;
+    const dy = P.PSIS.y - P.ASIS.y;
+    const angle = Math.atan2(dy, dx);
+    let pelvicDeg = rad2deg(angle);
+    
+    // 수평선 기준으로 각도 정규화 (-90~90도 범위)
+    // -176.4도는 180 + (-176.4) = 3.6도로 변환되어야 함
+    // 각도를 -180~180 범위에서 -90~90 범위로 변환
+    if(pelvicDeg < -90) {
+      // -176.4도 같은 경우: 180 + (-176.4) = 3.6도
+      pelvicDeg = 180 + pelvicDeg;
+    } else if(pelvicDeg > 90) {
+      // 176.4도 같은 경우: 176.4 - 180 = -3.6도
+      pelvicDeg = pelvicDeg - 180;
+    }
+    
+    pelvic = pelvicDeg;
   }
   if(P.Hip && P.Knee && P.Ankle) {
     knee = rad2deg(internalAngle(P.Hip, P.Knee, P.Ankle));
@@ -840,7 +858,25 @@ function computeAll() {
     cva = cvaDeg;
   }
   if(P.ASIS && P.PSIS) {
-    pelvic = rad2deg(angleBetween(P.ASIS, P.PSIS));
+    // TRUNK 각도: 수평선과 ASIS-PSIS 선 사이의 각도
+    // ASIS에서 PSIS로 가는 벡터의 각도를 계산
+    const dx = P.PSIS.x - P.ASIS.x;
+    const dy = P.PSIS.y - P.ASIS.y;
+    const angle = Math.atan2(dy, dx);
+    let pelvicDeg = rad2deg(angle);
+    
+    // 수평선 기준으로 각도 정규화 (-90~90도 범위)
+    // -176.4도는 180 + (-176.4) = 3.6도로 변환되어야 함
+    // 각도를 -180~180 범위에서 -90~90 범위로 변환
+    if(pelvicDeg < -90) {
+      // -176.4도 같은 경우: 180 + (-176.4) = 3.6도
+      pelvicDeg = 180 + pelvicDeg;
+    } else if(pelvicDeg > 90) {
+      // 176.4도 같은 경우: 176.4 - 180 = -3.6도
+      pelvicDeg = pelvicDeg - 180;
+    }
+    
+    pelvic = pelvicDeg;
   }
   if(P.Hip && P.Knee && P.Ankle) {
     knee = rad2deg(internalAngle(P.Hip, P.Knee, P.Ankle));
@@ -1612,13 +1648,33 @@ function startDrag(e) {
   isScrolling = false;
   scrollDistance = 0;
   
-  const pos = getEventPos(e);
-  const P = getPts(cur);
-  
-  // 터치 시작 시간 기록
+  // 터치 이벤트인 경우 손가락 개수 확인
+  let touchCount = 0;
   if(e.touches) {
+    touchCount = e.touches.length;
     touchStartTime = Date.now();
   }
+  
+  // 확대 모드에서 스크롤은 두 손가락만 허용
+  if(editMode && currentZoom > 1 && touchCount === 2) {
+    // 두 손가락 터치: 스크롤 모드만 허용 (점 드래그 불가)
+    isScrolling = true;
+    dragKey = null;
+    if(e.touches && e.touches.length > 0) {
+      scrollStartX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      scrollStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }
+    return false;
+  }
+  
+  // 한 손가락 터치만 점 드래그 허용
+  if(touchCount > 1 && !(editMode && currentZoom > 1)) {
+    // 확대 모드가 아닌데 두 손가락 이상이면 무시
+    return false;
+  }
+  
+  const pos = getEventPos(e);
+  const P = getPts(cur);
   
   // Long press 관련 상태 초기화 (더 이상 사용하지 않지만 정리용)
   if(longPressTimer) {
@@ -1639,11 +1695,11 @@ function startDrag(e) {
   const r = cv.getBoundingClientRect();
   const screenWidth = r.width; // CSS 픽셀
   
-  // 1cm를 픽셀로 변환 (96 DPI 기준: 1cm ≈ 37.8px)
+  // 2cm를 픽셀로 변환 (96 DPI 기준: 1cm ≈ 37.8px, 2cm ≈ 75.6px)
   // 하지만 실제 화면에서는 devicePixelRatio를 고려해야 함
-  // 간단하게 화면 크기 기준으로 1cm를 추정 (화면 너비의 약 2.5% 정도)
-  const cmToPixel = screenWidth * 0.025; // 화면 너비의 2.5%를 1cm로 추정
-  const baseThreshold = Math.max(30, Math.min(60, cmToPixel)); // 최소 30px, 최대 60px
+  // 간단하게 화면 크기 기준으로 2cm를 추정 (화면 너비의 약 5% 정도)
+  const cmToPixel = screenWidth * 0.05; // 화면 너비의 5%를 2cm로 추정
+  const baseThreshold = Math.max(60, Math.min(120, cmToPixel)); // 최소 60px, 최대 120px (2cm)
   
   // 확대 모드에서는 원본 크기 기준으로 threshold를 계산한 후 확대 배율로 나눔
   // 즉, 확대되어도 실제 화면에서의 1cm 감지 영역을 유지
@@ -1736,28 +1792,48 @@ function startDrag(e) {
     return true;
   }
   
-  // 점이 아닌 빈 화면을 터치했으면 스크롤 모드로 시작
-  // 확대 모드일 때만 스크롤 활성화
-  if(editMode && currentZoom > 1) {
-    isScrolling = true;
-    dragKey = null; // 명시적으로 드래그 아님
-    if(e.touches && e.touches.length > 0) {
-      scrollStartX = e.touches[0].clientX;
-      scrollStartY = e.touches[0].clientY;
-    } else {
-      scrollStartX = e.clientX;
-      scrollStartY = e.clientY;
-    }
-    return false;
-  }
-  
-  // 확대 모드가 아니거나 일반 모드에서는 아무 동작도 하지 않음
+  // 점이 아닌 빈 화면을 터치했으면
+  // 확대 모드에서 한 손가락 터치는 스크롤 불가 (두 손가락만 스크롤)
+  // 일반 모드에서는 아무 동작도 하지 않음
   isScrolling = false;
   dragKey = null;
   return false;
 }
 
 function doDrag(e) {
+  // 터치 이벤트인 경우 손가락 개수 확인
+  let touchCount = 0;
+  if(e.touches) {
+    touchCount = e.touches.length;
+  }
+  
+  // 두 손가락 터치: 스크롤만 허용 (확대 모드에서만)
+  if(touchCount === 2 && editMode && currentZoom > 1) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 두 손가락의 중심점 계산
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const currentX = (touch1.clientX + touch2.clientX) / 2;
+    const currentY = (touch1.clientY + touch2.clientY) / 2;
+    
+    // 스크롤만 수행
+    const canvasWrap = cv.parentElement;
+    const deltaX = scrollStartX - currentX;
+    const deltaY = scrollStartY - currentY;
+    canvasWrap.scrollLeft += deltaX;
+    canvasWrap.scrollTop += deltaY;
+    scrollStartX = currentX;
+    scrollStartY = currentY;
+    return;
+  }
+  
+  // 한 손가락만 드래그 허용 (두 손가락 이상이면 무시)
+  if(touchCount > 1 && !(editMode && currentZoom > 1 && touchCount === 2)) {
+    return;
+  }
+  
   // 드래그 모드가 이미 활성화되어 있으면 드래그 처리만 수행 (스크롤 완전 차단)
   if(dragKey) {
     e.preventDefault(); // 스크롤 방지
@@ -1808,32 +1884,6 @@ function doDrag(e) {
     draw();
     computeMetricsOnly(); // 실시간 분석 없음 (저장 버튼 클릭 시에만 AI 분석)
     return; // 드래그 모드에서는 스크롤 완전 차단
-  }
-  
-  // 드래그 모드가 아니면 스크롤 모드 체크
-  // 스크롤 모드인 경우 - 빈 화면 터치 시 스크롤만 수행
-  if(isScrolling && editMode && currentZoom > 1 && !dragKey) {
-    let currentX, currentY;
-    if(e.touches && e.touches.length > 0) {
-      currentX = e.touches[0].clientX;
-      currentY = e.touches[0].clientY;
-    } else if(e.clientX !== undefined) {
-      currentX = e.clientX;
-      currentY = e.clientY;
-    } else {
-      return;
-    }
-    
-    // 스크롤만 수행 (점 체크 없이)
-    e.preventDefault();
-    const canvasWrap = cv.parentElement;
-    const deltaX = scrollStartX - currentX;
-    const deltaY = scrollStartY - currentY;
-    canvasWrap.scrollLeft += deltaX;
-    canvasWrap.scrollTop += deltaY;
-    scrollStartX = currentX;
-    scrollStartY = currentY;
-    return;
   }
 }
 
@@ -1899,6 +1949,15 @@ cv.addEventListener('touchstart', (e) => {
 }, {passive: false});
 
 window.addEventListener('touchmove', (e) => {
+  // 두 손가락 터치인 경우 스크롤 모드
+  if(e.touches && e.touches.length === 2 && editMode && currentZoom > 1) {
+    e.preventDefault();
+    e.stopPropagation();
+    isScrolling = true;
+    doDrag(e);
+    return;
+  }
+  
   // dragKey가 설정되어 있으면 드래그 모드이므로 preventDefault
   // 또는 isScrolling이 true이면 스크롤 모드
   if(dragKey || (isScrolling && editMode && currentZoom > 1)) {
