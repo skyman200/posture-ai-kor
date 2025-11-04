@@ -298,10 +298,11 @@ function draw() {
 }
 
 function drawHandle(x, y, label, color) {
+  // 점을 더 크게 그리고 드래그 영역을 넓게
   ctx.fillStyle = color;
   ctx.strokeStyle = 'rgba(0,0,0,0.8)';
   ctx.beginPath();
-  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.arc(x, y, 8, 0, Math.PI * 2);  // 6 -> 8로 증가
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -441,18 +442,36 @@ document.getElementById("coordCancel").onclick = () => {
   document.getElementById("coordY").value = "";
 };
 
-// 드래그 기능
-cv.addEventListener('mousedown', e => {
-  const r = cv.getBoundingClientRect();
-  const x = (e.clientX - r.left);
-  const y = (e.clientY - r.top);
+// 드래그 기능 (마우스 + 터치)
+function getEventPos(e) {
+  if(e.touches && e.touches.length > 0) {
+    const r = cv.getBoundingClientRect();
+    return {
+      x: e.touches[0].clientX - r.left,
+      y: e.touches[0].clientY - r.top
+    };
+  } else {
+    const r = cv.getBoundingClientRect();
+    return {
+      x: e.clientX - r.left,
+      y: e.clientY - r.top
+    };
+  }
+}
+
+function startDrag(e) {
+  e.preventDefault();
+  const pos = getEventPos(e);
   const P = getPts(cur);
   let best = null, bestD = 1e9;
+  
+  // 드래그 범위를 넓게 (20px)
+  const threshold = 20;
+  
   for(const k of keypoints) {
     const p = P[k.key];
     if(!p) continue;
-    const d = Math.hypot(p.x - x, p.y - y);
-    const threshold = editMode ? 15 : 12;
+    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
     if(d < threshold && d < bestD) {
       best = k.key;
       bestD = d;
@@ -470,17 +489,23 @@ cv.addEventListener('mousedown', e => {
       document.getElementById("coordX").value = pt.x.toFixed(1);
       document.getElementById("coordY").value = pt.y.toFixed(1);
     }
+    
+    // 드래그 시작
+    return true;
   }
-});
+  return false;
+}
 
-window.addEventListener('mousemove', e => {
+function doDrag(e) {
   if(!dragKey) return;
-  const r = cv.getBoundingClientRect();
-  const x = clamp(e.clientX - r.left, 0, cv.width / DPR);
-  const y = clamp(e.clientY - r.top, 0, cv.height / DPR);
+  e.preventDefault();
+  const pos = getEventPos(e);
+  const x = clamp(pos.x, 0, cv.width / DPR);
+  const y = clamp(pos.y, 0, cv.height / DPR);
   const map = sessions[cur].pts;
   const p = map.get(dragKey);
   if(!p) return;
+  
   p.x = x;
   p.y = y;
   
@@ -492,11 +517,23 @@ window.addEventListener('mousemove', e => {
   
   draw();
   computeAll();
-});
+}
 
-window.addEventListener('mouseup', () => {
+function endDrag(e) {
   dragKey = null;
-});
+}
+
+// 마우스 이벤트
+cv.addEventListener('mousedown', startDrag);
+window.addEventListener('mousemove', doDrag);
+window.addEventListener('mouseup', endDrag);
+window.addEventListener('mouseleave', endDrag);
+
+// 터치 이벤트 (모바일 지원)
+cv.addEventListener('touchstart', startDrag, {passive: false});
+window.addEventListener('touchmove', doDrag, {passive: false});
+window.addEventListener('touchend', endDrag);
+window.addEventListener('touchcancel', endDrag);
 
 // 업로드
 ["filePicker","cameraPicker"].forEach(id => {
