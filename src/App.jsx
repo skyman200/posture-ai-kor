@@ -3,7 +3,6 @@ import PoseCanvas from "./components/PoseCanvas";
 import AiPostureReport from "./components/AiPostureReport";
 import BeforeAfterCompare from "./components/BeforeAfterCompare";
 import { analysisRules, generateSummary } from "./utils/analysisRules";
-import { exportPDF } from "./utils/pdfReport";
 import ScoreChart from "./components/ScoreChart";
 
 export default function App() {
@@ -63,11 +62,13 @@ export default function App() {
       </h1>
       <PoseCanvas onAnalysisChange={handleAnalysisChange} />
 
-      <AiPostureReport
-        cvaAngle={angles.cva}
-        trunkTilt={angles.trunk}
-        kneeAngle={angles.knee}
-      />
+      <div id="capture-area">
+        <AiPostureReport
+          cvaAngle={angles.cva}
+          trunkTilt={angles.trunk}
+          kneeAngle={angles.knee}
+        />
+      </div>
 
       <div className="flex justify-center gap-4 mt-4 flex-wrap">
         <button
@@ -80,7 +81,13 @@ export default function App() {
           📷 Before 저장
         </button>
         <button
-          onClick={() => exportPDF("ai-report", "Posture_AI_Report.pdf")}
+          onClick={() => {
+            if (window.exportPDF) {
+              window.exportPDF();
+            } else {
+              alert("PDF 내보내기 기능을 로드하는 중입니다. 잠시 후 다시 시도해주세요.");
+            }
+          }}
           className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition"
         >
           📄 PDF 저장
