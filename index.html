@@ -1155,13 +1155,19 @@ if(btnEditCoords && coordEditPanel) {
 
 // 확대 적용 함수
 function applyZoom() {
-  if(!editMode || !sessions[cur].img) return;
+  if(!editMode || !sessions[cur].img) {
+    return;
+  }
   const zoomEl = document.getElementById("zoomLevel");
   if(zoomEl) {
-    currentZoom = parseInt(zoomEl.value) || 1;
+    const newZoom = parseInt(zoomEl.value) || 1;
+    currentZoom = clamp(newZoom, 1, 4); // 1~4배로 제한
   }
-  resizeCanvasFor(sessions[cur].img);
-  draw();
+  
+  // 원본 이미지로 확대 적용 (비율 유지)
+  const img = sessions[cur].img;
+  resizeCanvasFor(img);
+  
   // 좌표 입력 필드 업데이트
   if(selectedPoint) {
     const P = getPts(cur);
