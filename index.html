@@ -443,33 +443,6 @@ document.getElementById("coordCancel").onclick = () => {
 
 // 드래그 기능
 cv.addEventListener('mousedown', e => {
-  if(editMode) {
-    // 수정 모드에서는 클릭한 점을 선택
-    const r = cv.getBoundingClientRect();
-    const x = (e.clientX - r.left);
-    const y = (e.clientY - r.top);
-    const P = getPts(cur);
-    let best = null, bestD = 1e9;
-    for(const k of keypoints) {
-      const p = P[k.key];
-      if(!p) continue;
-      const d = Math.hypot(p.x - x, p.y - y);
-      if(d < 15 && d < bestD) {
-        best = k.key;
-        bestD = d;
-      }
-    }
-    if(best) {
-      selectedPoint = best;
-      document.getElementById("coordSelectPoint").value = best;
-      const pt = P[best];
-      document.getElementById("coordX").value = pt.x.toFixed(1);
-      document.getElementById("coordY").value = pt.y.toFixed(1);
-    }
-    return;
-  }
-  
-  // 일반 드래그 모드
   const r = cv.getBoundingClientRect();
   const x = (e.clientX - r.left);
   const y = (e.clientY - r.top);
@@ -479,12 +452,25 @@ cv.addEventListener('mousedown', e => {
     const p = P[k.key];
     if(!p) continue;
     const d = Math.hypot(p.x - x, p.y - y);
-    if(d < 12 && d < bestD) {
+    const threshold = editMode ? 15 : 12;
+    if(d < threshold && d < bestD) {
       best = k.key;
       bestD = d;
     }
   }
-  if(best) dragKey = best;
+  
+  if(best) {
+    dragKey = best;
+    
+    // 좌표 수정 모드에서는 선택한 점 정보도 업데이트
+    if(editMode) {
+      selectedPoint = best;
+      document.getElementById("coordSelectPoint").value = best;
+      const pt = P[best];
+      document.getElementById("coordX").value = pt.x.toFixed(1);
+      document.getElementById("coordY").value = pt.y.toFixed(1);
+    }
+  }
 });
 
 window.addEventListener('mousemove', e => {
@@ -497,6 +483,13 @@ window.addEventListener('mousemove', e => {
   if(!p) return;
   p.x = x;
   p.y = y;
+  
+  // 좌표 수정 모드에서는 입력 필드도 실시간 업데이트
+  if(editMode && selectedPoint === dragKey) {
+    document.getElementById("coordX").value = x.toFixed(1);
+    document.getElementById("coordY").value = y.toFixed(1);
+  }
+  
   draw();
   computeAll();
 });
