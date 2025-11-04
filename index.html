@@ -1430,15 +1430,16 @@ function doDrag(e) {
   if(isScrolling && editMode && currentZoom > 1 && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
-      // 현재 위치가 점 근처인지 확인 (확대된 좌표 기준)
-      const threshold = 50; // 감지 범위를 더 넓게 (40 -> 50)
-      const scaleX = currentZoom;
-      const scaleY = currentZoom;
-      // 점의 실제 화면 좌표 (확대된 상태)
-      const ptScreenX = pt.x * scaleX;
-      const ptScreenY = pt.y * scaleY;
-      // 현재 마우스/터치 위치와의 거리
-      const d = Math.hypot(ptScreenX - pos.x, ptScreenY - pos.y);
+      // 현재 위치가 점 근처인지 확인 (화면 좌표 기준)
+      const threshold = 50; // 감지 범위를 더 넓게
+      // pos는 원본 크기 기준이므로, 화면 좌표로 변환
+      const posScreenX = pos.x * currentZoom;
+      const posScreenY = pos.y * currentZoom;
+      // 점의 화면 좌표 (확대된 상태)
+      const ptScreenX = pt.x * currentZoom;
+      const ptScreenY = pt.y * currentZoom;
+      // 현재 마우스/터치 위치와의 거리 (화면 좌표 기준)
+      const d = Math.hypot(ptScreenX - posScreenX, ptScreenY - posScreenY);
       
       // 이동 거리 계산 (디버깅용)
       let currentX, currentY;
