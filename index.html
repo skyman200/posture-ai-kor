@@ -428,6 +428,304 @@ function calibratePxPerCm(pointA, pointB, realLengthCm) {
   return distPx / realLengthCm;
 }
 
+// ✅ 측면 자세 분석 (전체 지표 포함)
+function analyzeFullPosture(points, pxPerCm = 50.0) {
+  function p(k) {
+    const v = points[k];
+    if (!v || v.x == null || v.y == null) return null;
+    return { x: Number(v.x), y: Number(v.y) };
+  }
+  
+  const result = {};
+  
+  const tragus = p("Tragus") || p("tragus");
+  const C7 = p("C7") || p("c7");
+  const acromion = p("Shoulder") || p("Acromion") || p("acromion");
+  const ASIS = p("ASIS") || p("asis");
+  const PSIS = p("PSIS") || p("psis");
+  const hip = p("Hip") || p("hip");
+  const knee = p("Knee") || p("knee");
+  const ankle = p("Ankle") || p("ankle");
+  
+  // 1️⃣ CVA (Craniovertebral Angle): tragus–C7 라인과 수평선의 각도
+  if (tragus && C7) {
+    const angle = angleToHorizontal(tragus, C7);
+    // CVA는 실제로는 90도에서 각도를 빼야 함 (수평선 기준)
+    const cva = 90 - Math.abs(angleP1P2(tragus, C7));
+    result.CVA = {
+      value_deg: cva >= 0 ? cva : 90 + cva,
+      status: classifyRange({
+        v: cva >= 0 ? cva : 90 + cva,
+        nMin: 50, nMax: null,
+        mildMin: 45, mildMax: 50,
+        modMin: 40, modMax: 45,
+        sevMin: null, sevMax: 40,
+        higherIsWorse: false
+      }),
+      meaning: "경추 정렬 각도 (≥50° 정상)"
+    };
+  }
+  
+  // 2️⃣ HPD (Head Protrusion Distance): tragus와 acromion 수평 거리
+  if (tragus && acromion) {
+    const distPx = Math.abs(tragus.x - acromion.x);
+    const distCm = pxToCm(distPx, pxPerCm);
+    result.HPD = {
+      value_cm: distCm,
+      status: classifyRange({
+        v: distCm,
+        nMin: null, nMax: 2,
+        mildMin: 2, mildMax: 3,
+        modMin: 3, modMax: 4,
+        sevMin: 4, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "머리 전방 돌출 거리 (≤2cm 정상)"
+    };
+  }
+  
+  // 3️⃣ NIA (Neck Inclination Angle): tragus–acromion 라인과 수평선
+  if (tragus && acromion) {
+    const angle = angleToHorizontal(tragus, acromion);
+    result.NIA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 10, nMax: 20,
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "목 경사 각도 (10–20° 정상)"
+    };
+  }
+  
+  // 4️⃣ TIA (Trunk Inclination Angle): acromion–hip 라인과 수직선
+  if (acromion && hip) {
+    const angle = angleToVertical(acromion, hip);
+    result.TIA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 0, nMax: 5,
+        mildMin: 5, mildMax: 10,
+        modMin: 10, modMax: 15,
+        sevMin: 15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "몸통 전방 기울임 (0–5° 정상)"
+    };
+  }
+  
+  // 5️⃣ SAA (Scapular Alignment Angle): acromion–PSIS 라인과 수평선
+  if (acromion && PSIS) {
+    const angle = angleToHorizontal(acromion, PSIS);
+    result.SAA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 0, nMax: 10,
+        mildMin: 10, mildMax: 15,
+        modMin: 15, modMax: 20,
+        sevMin: 20, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "견갑골 정렬 각도 (0–10° 정상)"
+    };
+  }
+  
+  // 6️⃣ PTA (Pelvic Tilt Angle): ASIS–PSIS 라인과 수평선의 각도
+  if (ASIS && PSIS) {
+    const dx = PSIS.x - ASIS.x;
+    const dy = PSIS.y - ASIS.y;
+    const angle = Math.atan2(dy, dx);
+    let ptaDeg = rad2deg(angle);
+    
+    // 수평선 기준으로 각도 정규화
+    if(ptaDeg < -90) {
+      ptaDeg = 180 + ptaDeg;
+    } else if(ptaDeg > 90) {
+      ptaDeg = ptaDeg - 180;
+    }
+    
+    // PTA는 전경사가 양수 (ASIS가 PSIS보다 낮으면 전경사)
+    const pta = Math.abs(ptaDeg);
+    result.PTA = {
+      value_deg: pta,
+      status: classifyRange({
+        v: pta,
+        nMin: 5, nMax: 15,
+        mildMin: 15, mildMax: 20,
+        modMin: 0, modMax: 5,
+        sevMin: null, sevMax: null,
+        higherIsWorse: false // 전경사는 5–15도가 정상, 과도하면 문제
+      }),
+      meaning: "골반 전경사 각도 (5–15° 정상)"
+    };
+  }
+  
+  // 7️⃣ KA (Knee Alignment Angle): hip–knee–ankle 세 점 각도
+  if (hip && knee && ankle) {
+    const ka = angleAt(knee, hip, ankle);
+    result.KA = {
+      value_deg: ka,
+      status: classifyRange({
+        v: ka,
+        nMin: 175, nMax: 180,
+        mildMin: 170, mildMax: 175,
+        modMin: null, modMax: null,
+        sevMin: null, sevMax: 170,
+        higherIsWorse: false
+      }),
+      meaning: "무릎 정렬 각도 (175–180° 정상)"
+    };
+  }
+  
+  // 8️⃣ Tibial Inclination Angle: knee–ankle 라인과 수직선
+  if (knee && ankle) {
+    const angle = angleToVertical(knee, ankle);
+    result.Tibial_Inclination = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 85, nMax: 90,
+        mildMin: 80, mildMax: 85,
+        modMin: 75, modMax: 80,
+        sevMin: null, sevMax: 75,
+        higherIsWorse: false
+      }),
+      meaning: "하퇴 전방 경사 (85–90° 정상)"
+    };
+  }
+  
+  // 9️⃣ GSB (Global Sagittal Balance): tragus–ankle 라인의 수직 편차(cm)
+  if (tragus && ankle) {
+    // 수직선과의 편차 계산 (x 좌표 차이)
+    const devPx = Math.abs(tragus.x - ankle.x);
+    const devCm = pxToCm(devPx, pxPerCm);
+    result.GSB = {
+      value_cm: devCm,
+      status: classifyRange({
+        v: devCm,
+        nMin: null, nMax: 2,
+        mildMin: 2, mildMax: 4,
+        modMin: 4, modMax: 6,
+        sevMin: 6, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "전신 시상면 균형 (≤2cm 정상)"
+    };
+  }
+  
+  // 🔟 BVA (Body Vertical Alignment): tragus–C7–acromion–hip–knee–ankle가 수직선상에 있는가
+  if (tragus && C7 && acromion && hip && knee && ankle) {
+    // 모든 점의 x 좌표 표준편차 계산
+    const points = [tragus, C7, acromion, hip, knee, ankle];
+    const xCoords = points.map(p => p.x);
+    const meanX = xCoords.reduce((a, b) => a + b, 0) / xCoords.length;
+    const variance = xCoords.reduce((sum, x) => sum + Math.pow(x - meanX, 2), 0) / xCoords.length;
+    const stdDev = Math.sqrt(variance);
+    const stdDevCm = pxToCm(stdDev, pxPerCm);
+    
+    // 각도로 변환 (대략적인 각도 편차)
+    const angleDev = rad2deg(Math.atan(stdDev / (Math.abs(tragus.y - ankle.y) || 1)));
+    
+    result.BVA = {
+      value_deg: angleDev,
+      status: classifyRange({
+        v: angleDev,
+        nMin: null, nMax: 2,
+        mildMin: 2, mildMax: 4,
+        modMin: 4, modMax: 6,
+        sevMin: 6, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "전신 수직 정렬 (±2° 정상)"
+    };
+  }
+  
+  // 1️⃣1️⃣ SCI (Spinal Curvature Index): C7–PSIS–ankle 세 점 간 곡률 비율
+  if (C7 && PSIS && ankle) {
+    const d1 = dist(C7, PSIS);
+    const d2 = dist(PSIS, ankle);
+    const dTotal = dist(C7, ankle);
+    const sci = dTotal > 0 ? (d1 + d2) / dTotal : 1.0;
+    result.SCI = {
+      value: sci,
+      status: classifyRange({
+        v: Math.abs(sci - 1.0),
+        nMin: null, nMax: 0.05,
+        mildMin: 0.05, mildMax: 0.1,
+        modMin: 0.1, modMax: 0.15,
+        sevMin: 0.15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "척추 곡률 지수 (1.0 근처 정상)"
+    };
+  }
+  
+  // 1️⃣2️⃣ HPA (Head-to-Pelvis Angle): tragus–PSIS 라인과 수직선
+  if (tragus && PSIS) {
+    const angle = angleToVertical(tragus, PSIS);
+    result.HPA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 0, nMax: 5,
+        mildMin: 5, mildMax: 10,
+        modMin: 10, modMax: 15,
+        sevMin: 15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "머리-골반 각도 (0–5° 정상)"
+    };
+  }
+  
+  // 1️⃣3️⃣ PDS (Postural Deviation Score): CVA, PTA, KA, BVA 등 합산지수
+  let pdsScore = 0;
+  let pdsMax = 10;
+  if (result.CVA) {
+    const s = result.CVA.status;
+    if (s === "severe") pdsScore += 3;
+    else if (s === "moderate") pdsScore += 2;
+    else if (s === "mild") pdsScore += 1;
+  }
+  if (result.PTA) {
+    const s = result.PTA.status;
+    if (s === "severe") pdsScore += 2;
+    else if (s === "moderate") pdsScore += 1.5;
+    else if (s === "mild") pdsScore += 1;
+  }
+  if (result.KA) {
+    const s = result.KA.status;
+    if (s === "severe") pdsScore += 2;
+    else if (s === "moderate") pdsScore += 1.5;
+    else if (s === "mild") pdsScore += 1;
+  }
+  if (result.BVA) {
+    const s = result.BVA.status;
+    if (s === "severe") pdsScore += 2;
+    else if (s === "moderate") pdsScore += 1.5;
+    else if (s === "mild") pdsScore += 1;
+  }
+  
+  result.PDS = {
+    value: pdsScore,
+    status: classifyRange({
+      v: pdsScore,
+      nMin: null, nMax: 2,
+      mildMin: 2, mildMax: 4,
+      modMin: 4, modMax: 6,
+      sevMin: 6, sevMax: null,
+      higherIsWorse: true
+    }),
+    meaning: "자세 편차 점수 (0–10점, 낮을수록 정상)"
+  };
+  
+  return result;
+}
+
 // ✅ 정면 자세 분석
 function analyzeFrontPosture(points, pxPerCm = 50.0) {
   // 안전 접근 헬퍼
@@ -515,6 +813,71 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
             ? "moderate"
             : "severe",
       meaning: "다리 길이 차이 (1cm 이하 정상)",
+    };
+  }
+  
+  // 5️⃣ PRA (Pelvic Rotation Angle): 좌·우 ASIS 간 수평면 회전각
+  if (L_asis && R_asis) {
+    // 수평 거리와 수직 거리 비율로 회전 각도 추정
+    const dx = Math.abs(L_asis.x - R_asis.x);
+    const dy = Math.abs(L_asis.y - R_asis.y);
+    const angle = rad2deg(Math.atan2(dy, dx));
+    // 수평선에서 벗어난 각도 (0도에 가까울수록 정상)
+    const rotationAngle = Math.abs(angle - 0);
+    result.PRA = {
+      value_deg: rotationAngle,
+      status: classifyRange({
+        v: rotationAngle,
+        nMin: null, nMax: 5,
+        mildMin: 5, mildMax: 10,
+        modMin: 10, modMax: 15,
+        sevMin: 15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "골반 회전 각도 (≤5° 정상)"
+    };
+  }
+  
+  // 6️⃣ Knee Deviation (Front): 좌우 knee 높이 차이
+  const L_knee = p("L_knee") || p("L_Knee");
+  const R_knee = p("R_knee") || p("R_Knee");
+  if (L_knee && R_knee) {
+    const diffPx = Math.abs(L_knee.y - R_knee.y);
+    const diffCm = pxToCm(diffPx, pxPerCm);
+    const angle = rad2deg(Math.atan2(diffPx, Math.abs(L_knee.x - R_knee.x) || 1));
+    result.Knee_Deviation = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: null, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "무릎 높이 차이 (≤3° 정상)"
+    };
+  }
+  
+  // 7️⃣ Q-Angle: ASIS → patella 중심 → tibial tuberosity
+  // (정면에서만 측정 가능, 측면 분석에는 포함하지 않음)
+  const L_patella = p("L_patella") || p("L_Patella") || L_knee;
+  const R_patella = p("R_patella") || p("R_Patella") || R_knee;
+  if (L_asis && L_patella && L_ankle) {
+    // Q-Angle은 ASIS에서 무릎까지의 선과 무릎에서 발목까지의 선 사이의 각도
+    // 실제로는 무릎에서 ASIS와 발목으로 가는 각도
+    const qAngle = angleAt(L_patella, L_asis, L_ankle);
+    result.Q_Angle = {
+      value_deg: qAngle,
+      status: classifyRange({
+        v: qAngle,
+        nMin: 10, nMax: 20, // 일반적으로 여성이 더 큼
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "Q-Angle (10–20° 정상, 여성이 더 큼)"
     };
   }
   
@@ -1385,6 +1748,125 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
   const comments = [];
   const details = [];
   const exercises = [];
+  
+  // ⚙️ 해석 요약 패턴 분석
+  const patterns = [];
+  
+  // 패턴 1: 거북목(FHP): CVA↓, NIA↑, HPD↑
+  if(fullMetrics) {
+    const cvaVal = fullMetrics.CVA?.value_deg;
+    const niaVal = fullMetrics.NIA?.value_deg;
+    const hpdVal = fullMetrics.HPD?.value_cm;
+    
+    if(cvaVal != null && cvaVal < 50 && niaVal != null && niaVal > 20 && hpdVal != null && hpdVal > 2) {
+      patterns.push({
+        name: "거북목(FHP)",
+        description: `CVA↓(${cvaVal.toFixed(1)}°), NIA↑(${niaVal.toFixed(1)}°), HPD↑(${hpdVal.toFixed(1)}cm)`,
+        meaning: "경추 신전, 심부 굴근 약화",
+        priority: "high"
+      });
+      tight.push('상부승모근', '견갑거근', 'SCM', '흉쇄유돌근');
+      weak.push('심부경부굴근', '전거근');
+    }
+    
+    // 패턴 2: 라운드 숄더(RSP): acromion 전방 이동, SAA↑
+    const saaVal = fullMetrics.SAA?.value_deg;
+    if(saaVal != null && saaVal > 10) {
+      patterns.push({
+        name: "라운드 숄더(RSP)",
+        description: `SAA↑(${saaVal.toFixed(1)}°)`,
+        meaning: "흉근 단축, 하부승모 약화",
+        priority: "high"
+      });
+      tight.push('흉근', '소흉근');
+      weak.push('하부승모', '전거근', '중부승모');
+    }
+    
+    // 패턴 3: 과전경사 골반: PTA↑ (>15°), ASIS↓(하강)
+    const ptaVal = fullMetrics.PTA?.value_deg;
+    if(ptaVal != null && ptaVal > 15) {
+      patterns.push({
+        name: "과전경사 골반(Anterior Tilt)",
+        description: `PTA↑(${ptaVal.toFixed(1)}°)`,
+        meaning: "요추 전만 증가, hip flexor 단축",
+        priority: "high"
+      });
+      tight.push('장요근', '요추기립근', '대퇴직근', '흉요근막');
+      weak.push('복횡근', '둔근', '대둔근', '중둔근', '하둔근');
+    }
+    
+    // 패턴 4: 후경사 골반: PTA↓ (<5°), PSIS↓(하강)
+    if(ptaVal != null && ptaVal < 5) {
+      patterns.push({
+        name: "후경사 골반(Posterior Tilt)",
+        description: `PTA↓(${ptaVal.toFixed(1)}°)`,
+        meaning: "햄스트링/복근 단축",
+        priority: "medium"
+      });
+      tight.push('햄스트링', '복직근', '복횡근');
+      weak.push('장요근', '요추기립근');
+    }
+    
+    // 패턴 5: X자 다리(Valgus): KA↓ (<175°), Q-angle↑
+    const kaVal = fullMetrics.KA?.value_deg;
+    const qAngleVal = fullMetrics.Q_Angle?.value_deg;
+    if(kaVal != null && kaVal < 175) {
+      patterns.push({
+        name: "X자 다리(Valgus)",
+        description: `KA↓(${kaVal.toFixed(1)}°)${qAngleVal != null ? `, Q-angle↑(${qAngleVal.toFixed(1)}°)` : ''}`,
+        meaning: "내측 무릎 부하 증가",
+        priority: "high"
+      });
+      tight.push('대퇴내전근', '비복근');
+      weak.push('대둔근', '중둔근', '대퇴외전근');
+    }
+    
+    // 패턴 6: O자 다리(Varus): KA↑ (>180°)
+    if(kaVal != null && kaVal > 180) {
+      patterns.push({
+        name: "O자 다리(Varus)",
+        description: `KA↑(${kaVal.toFixed(1)}°)`,
+        meaning: "외측 무릎 부하 증가",
+        priority: "high"
+      });
+      tight.push('대퇴외전근', '비복근');
+      weak.push('대둔근', '중둔근', '대퇴내전근');
+    }
+    
+    // 패턴 7: 체중 중심 전방 이동: BVA↑, GSB↑
+    const bvaVal = fullMetrics.BVA?.value_deg;
+    const gsbVal = fullMetrics.GSB?.value_cm;
+    if(bvaVal != null && bvaVal > 2 && gsbVal != null && gsbVal > 2) {
+      patterns.push({
+        name: "체중 중심 전방 이동",
+        description: `BVA↑(${bvaVal.toFixed(1)}°), GSB↑(${gsbVal.toFixed(1)}cm)`,
+        meaning: "요추 전만, 종골 스트레스",
+        priority: "medium"
+      });
+      tight.push('장요근', '요추기립근');
+      weak.push('복횡근', '둔근');
+    }
+    
+    // 패턴 8: 체중 중심 후방 이동: BVA↓, GSB↓
+    if(bvaVal != null && bvaVal < -2 || (gsbVal != null && gsbVal < -2)) {
+      patterns.push({
+        name: "체중 중심 후방 이동",
+        description: `BVA↓(${bvaVal.toFixed(1)}°), GSB↓(${gsbVal.toFixed(1)}cm)`,
+        meaning: "둔근 긴장, 햄스트링 단축",
+        priority: "medium"
+      });
+      tight.push('둔근', '햄스트링');
+      weak.push('대퇴사두근', '장요근');
+    }
+    
+    // 패턴 정보를 comments에 추가
+    if(patterns.length > 0) {
+      comments.push(`\n📊 자세 패턴 분석:`);
+      patterns.forEach((p, idx) => {
+        comments.push(`${idx + 1}. ${p.name}: ${p.description} → ${p.meaning}`);
+      });
+    }
+  }
   
   // CVA 분석 (상세)
   // CVA >= 50도는 정상 범위
