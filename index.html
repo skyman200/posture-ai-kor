@@ -169,6 +169,7 @@ canvas {
     <button class="btn" id="btnSaveJSON">💾 좌표 저장</button>
     <button class="btn" id="btnLoadJSON">📂 좌표 불러오기</button>
     <button class="btn" id="btnPDF">📄 PDF 저장</button>
+    <button class="btn" id="btnImage">🖼️ 그림으로 저장</button>
   </div>
 
   <div id="coordEditPanel" style="margin-top:12px; padding:10px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
@@ -1825,6 +1826,176 @@ document.getElementById("btnPDF").onclick = async () => {
     alert("PDF 생성에 실패했습니다: " + error.message);
     const btn = document.getElementById("btnPDF");
     btn.textContent = "📄 PDF 저장";
+    btn.disabled = false;
+  }
+};
+
+// 그림으로 저장 (PDF와 동일한 형식)
+document.getElementById("btnImage").onclick = async () => {
+  try {
+    // 모바일에서 로딩 표시
+    const btn = document.getElementById("btnImage");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ 이미지 생성 중...";
+    btn.disabled = true;
+    
+    const S = sessions[cur];
+    const M = S.metrics || {};
+    const scoreData = S.score || {};
+    const analysis = S.analysis || {};
+    
+    // 첫 페이지: 제목과 이미지
+    const page1Container = document.createElement("div");
+    page1Container.style.position = "fixed";
+    page1Container.style.left = "-9999px";
+    page1Container.style.top = "0";
+    page1Container.style.width = "794px"; // A4 너비 @96dpi
+    page1Container.style.padding = "30px 25px";
+    page1Container.style.paddingBottom = "40px";
+    page1Container.style.background = "#ffffff";
+    page1Container.style.color = "#111";
+    page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    page1Container.style.fontSize = "12px";
+    page1Container.style.lineHeight = "1.6";
+    page1Container.style.boxSizing = "border-box";
+    page1Container.style.overflow = "hidden";
+    page1Container.style.wordWrap = "break-word";
+    
+    // 캔버스 이미지 가져오기
+    const cvImg = cv.toDataURL("image/png");
+    
+    page1Container.innerHTML = `
+      <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
+      <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
+      <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:950px; object-fit:contain;" />
+    `;
+    
+    document.body.appendChild(page1Container);
+    
+    // 첫 페이지 캡처
+    const canvas1 = await html2canvas(page1Container, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page1Container.scrollWidth,
+      windowHeight: page1Container.scrollHeight
+    });
+    
+    document.body.removeChild(page1Container);
+    
+    // 두 번째 페이지: 체형 종합 점수부터 시작
+    const page2Container = document.createElement("div");
+    page2Container.style.position = "fixed";
+    page2Container.style.left = "-9999px";
+    page2Container.style.top = "0";
+    page2Container.style.width = "794px";
+    page2Container.style.padding = "30px 25px";
+    page2Container.style.paddingBottom = "40px";
+    page2Container.style.background = "#ffffff";
+    page2Container.style.color = "#111";
+    page2Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    page2Container.style.fontSize = "12px";
+    page2Container.style.lineHeight = "1.6";
+    page2Container.style.boxSizing = "border-box";
+    page2Container.style.overflow = "hidden";
+    page2Container.style.wordWrap = "break-word";
+    
+    page2Container.innerHTML = `
+      <div style="margin-bottom:25px; padding:18px; background:#f5f5f5; border-radius:10px; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:16px; font-weight:700; margin-bottom:12px; line-height:1.4; word-wrap:break-word;">📊 체형 종합 점수</div>
+        <div style="font-size:42px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:10px; line-height:1.2;">${scoreData.score != null ? scoreData.score : '—'}</div>
+        <div style="font-size:11px; color:#666; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join(", ") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
+      </div>
+      
+      <div style="margin-bottom:25px; box-sizing:border-box;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📐 측정 각도</div>
+        <table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed;">
+          <tr style="background:#f0f0f0;"><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">측정값</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">정상 범위</th></tr>
+          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">CVA</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.cva != null ? M.cva.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">≥50°</td></tr>
+          <tr style="background:#fafafa;"><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">TRUNK</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">|0–5°|</td></tr>
+          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">KNEE</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.knee != null ? M.knee.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">175–185°</td></tr>
+        </table>
+      </div>
+      
+      ${analysis.comments && analysis.comments.length > 0 ? `
+      <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🤖 AI 실시간 분석</div>
+        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
+        ${analysis.details && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
+      <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c; line-height:1.4; word-wrap:break-word;">💪 근육 상태 분석</div>
+        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${analysis.exercises && analysis.exercises.length > 0 ? `
+      <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🏋️ 추천 운동</div>
+        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+      </div>
+      ` : ""}
+      
+      <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
+        <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
+        <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
+      </div>
+      
+      <div style="margin-top:20px; font-size:10px; color:#999; text-align:center; line-height:1.5;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
+    `;
+    
+    document.body.appendChild(page2Container);
+    
+    // 두 번째 페이지 캡처
+    const canvas2 = await html2canvas(page2Container, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page2Container.scrollWidth,
+      windowHeight: page2Container.scrollHeight
+    });
+    
+    document.body.removeChild(page2Container);
+    
+    // 두 이미지를 세로로 합치기
+    const totalHeight = canvas1.height + canvas2.height + 20; // 20px 여백
+    const combinedCanvas = document.createElement("canvas");
+    combinedCanvas.width = canvas1.width;
+    combinedCanvas.height = totalHeight;
+    const ctx = combinedCanvas.getContext("2d");
+    
+    // 첫 번째 이미지 그리기
+    ctx.drawImage(canvas1, 0, 0);
+    // 두 번째 이미지 그리기 (여백 포함)
+    ctx.drawImage(canvas2, 0, canvas1.height + 20);
+    
+    // 이미지 다운로드
+    const imgData = combinedCanvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = imgData;
+    link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+    link.click();
+    
+    btn.textContent = originalText;
+    btn.disabled = false;
+    
+    // 모바일에서 성공 메시지
+    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      alert("이미지가 저장되었습니다!");
+    }
+  } catch(error) {
+    console.error("이미지 생성 실패:", error);
+    alert("이미지 생성에 실패했습니다: " + error.message);
+    const btn = document.getElementById("btnImage");
+    btn.textContent = "🖼️ 그림으로 저장";
     btn.disabled = false;
   }
 };
