@@ -211,12 +211,21 @@ canvas {
     <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#ffb86c;">💪 근육 상태 분석</div>
     <div id="muscleTight" style="margin-bottom:8px;">
       <div class="muted" style="font-size:11px; margin-bottom:4px;">🔴 긴장된 근육:</div>
-      <div id="muscleTightList" style="font-size:12px; color:#ff6b6b;"></div>
+      <div id="muscleTightList" style="font-size:12px; color:#ff6b6b; line-height:1.5;"></div>
     </div>
-    <div id="muscleWeak">
+    <div id="muscleWeak" style="margin-bottom:8px;">
       <div class="muted" style="font-size:11px; margin-bottom:4px;">🔵 약화된 근육:</div>
-      <div id="muscleWeakList" style="font-size:12px; color:#7c9cff;"></div>
+      <div id="muscleWeakList" style="font-size:12px; color:#7c9cff; line-height:1.5;"></div>
     </div>
+    <div id="muscleDetail" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">📋 상세 분석:</div>
+      <div id="muscleDetailList" style="font-size:11px; line-height:1.6; color:var(--ink);"></div>
+    </div>
+  </div>
+
+  <div id="exercisePanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.15); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🏋️ 추천 운동</div>
+    <div id="exerciseList" style="font-size:12px; line-height:1.6;"></div>
   </div>
 
   <div style="margin-top:12px;">
@@ -487,62 +496,125 @@ function analyzeMuscles(cva, pelvic, knee) {
   const tight = [];
   const weak = [];
   const comments = [];
+  const details = [];
+  const exercises = [];
   
-  // CVA 분석
+  // CVA 분석 (상세)
   if(cva != null) {
     if(cva < 50) {
       if(cva < 45) {
-        tight.push('상부승모근', '견갑거근', 'SCM');
-        weak.push('심부경부굴근', '하부승모근');
-        comments.push(`전방두 자세 심각: CVA ${cva.toFixed(1)}°로 목표 50°보다 낮습니다.`);
+        tight.push('상부승모근', '견갑거근', 'SCM', '흉쇄유돌근');
+        weak.push('심부경부굴근', '하부승모근', '전거근');
+        comments.push(`전방두 자세 심각: CVA ${cva.toFixed(1)}°로 목표 50°보다 ${(50-cva).toFixed(1)}° 낮습니다.`);
+        details.push(`• 상부승모근과 견갑거근이 지속적으로 수축되어 목과 어깨 통증을 유발할 수 있습니다.`);
+        details.push(`• 심부경부굴근이 약화되어 머리 무게를 지지하지 못해 전방 이동이 가속화됩니다.`);
+        details.push(`• 장기적으로 경추 디스크 압력 증가 및 두통, 어깨 뻣뻣함이 발생할 수 있습니다.`);
+        exercises.push('1. 턱 당기기 운동: 벽에 등을 대고 턱을 뒤로 당기며 10초 유지 (3세트)');
+        exercises.push('2. 심부경부굴근 활성화: 누워서 턱을 가슴에 가깝게 당기며 머리만 살짝 들어올리기 (10회×3세트)');
+        exercises.push('3. 하부승모근 강화: 팔을 30도 각도로 올리며 어깨뼈를 아래로 눌러 모으기 (15회×3세트)');
+        exercises.push('4. 상부승모근 스트레칭: 머리를 옆으로 기울여 반대편 어깨 방향으로 스트레칭 (좌우 각 30초)');
       } else {
         tight.push('상부승모근', '견갑거근');
         weak.push('심부경부굴근');
         comments.push(`전방두 자세 경미: CVA ${cva.toFixed(1)}°로 목표에 근접합니다.`);
+        details.push(`• 상부승모근과 견갑거근에 약간의 긴장이 있습니다.`);
+        details.push(`• 심부경부굴근 활성화가 필요합니다.`);
+        exercises.push('1. 턱 당기기 운동: 벽에 등을 대고 턱을 뒤로 당기기 (10초×3세트)');
+        exercises.push('2. 심부경부굴근 강화: 누워서 머리만 살짝 들어올리기 (10회×2세트)');
+        exercises.push('3. 상부승모근 스트레칭: 좌우 각 30초씩 스트레칭');
       }
-    } else {
+    } else if(cva <= 55) {
       comments.push(`경추 정렬 양호: CVA ${cva.toFixed(1)}°`);
+      details.push(`• 경추 정렬이 양호한 상태입니다.`);
+      details.push(`• 현재 상태를 유지하기 위한 정기적인 스트레칭을 권장합니다.`);
+    } else {
+      comments.push(`경추 후방 경사: CVA ${cva.toFixed(1)}°로 목표보다 높습니다.`);
+      details.push(`• 경추가 과도하게 후방으로 기울어져 있습니다.`);
+      exercises.push('1. 경추 전방 굴곡 운동: 천천히 턱을 가슴 방향으로 내리기 (10회×2세트)');
     }
   }
   
-  // 골반 기울기 분석
+  // 골반 기울기 분석 (상세)
   if(pelvic != null) {
     const abs = Math.abs(pelvic);
     if(abs > 5) {
       if(pelvic > 0) {
-        tight.push('장요근', '요추기립근');
-        weak.push('복횡근', '둔근');
-        comments.push(`골반 전방경사: ${pelvic.toFixed(1)}°로 목표 0°보다 큽니다.`);
+        tight.push('장요근', '요추기립근', '대퇴직근', '흉요근막');
+        weak.push('복횡근', '둔근', '대둔근', '중둔근', '하둔근');
+        comments.push(`골반 전방경사 심각: ${pelvic.toFixed(1)}°로 목표 0°보다 ${pelvic.toFixed(1)}° 큽니다.`);
+        details.push(`• 장요근이 단축되어 골반을 앞으로 당기고 있습니다.`);
+        details.push(`• 요추 전만이 증가하여 허리 통증 위험이 높습니다.`);
+        details.push(`• 복횡근과 둔근이 약화되어 골반 안정성이 떨어집니다.`);
+        exercises.push('1. 장요근 스트레칭: 한쪽 무릎을 앞으로 내밀고 반대편 다리를 뒤로 뻗어 스트레칭 (좌우 각 30초×3회)');
+        exercises.push('2. 둔근 강화: 누워서 엉덩이를 들어올리며 둔근 수축 (15회×3세트)');
+        exercises.push('3. 복횡근 활성화: 네 발로 엎드려서 복부를 안으로 당기며 호흡 (10회×3세트)');
+        exercises.push('4. 힙 브릿지: 누워서 무릎을 구부리고 엉덩이를 들어올리기 (15회×3세트)');
       } else {
-        tight.push('둔근', '햄스트링');
-        weak.push('복직근', '장요근');
+        tight.push('둔근', '햄스트링', '요추신근');
+        weak.push('복직근', '장요근', '대퇴사두근');
         comments.push(`골반 후방경사: ${pelvic.toFixed(1)}°로 목표 0°보다 작습니다.`);
+        details.push(`• 둔근과 햄스트링이 과도하게 긴장되어 있습니다.`);
+        details.push(`• 복직근과 장요근이 약화되어 골반이 뒤로 기울어집니다.`);
+        exercises.push('1. 둔근 스트레칭: 앉아서 한쪽 무릎을 가슴에 당기기 (좌우 각 30초)');
+        exercises.push('2. 햄스트링 스트레칭: 다리를 뻗고 앞으로 숙이기 (30초×3회)');
+        exercises.push('3. 복직근 강화: 크런치 운동 (15회×3세트)');
+        exercises.push('4. 장요근 강화: 무릎 당기기 운동 (10회×3세트)');
       }
     } else {
       comments.push(`골반 정렬 양호: ${pelvic.toFixed(1)}°`);
+      details.push(`• 골반 정렬이 양호한 상태입니다.`);
     }
   }
   
-  // 무릎 각도 분석
+  // 무릎 각도 분석 (상세)
   if(knee != null) {
     if(knee < 175) {
       if(knee < 165) {
-        tight.push('햄스트링', '비복근', '가자미근');
-        weak.push('대퇴사두근', '둔근');
-        comments.push(`무릎 과굴곡: ${knee.toFixed(1)}°로 목표 180°보다 낮습니다.`);
+        tight.push('햄스트링', '비복근', '가자미근', '슬와근');
+        weak.push('대퇴사두근', '둔근', '대퇴직근');
+        comments.push(`무릎 과굴곡 심각: ${knee.toFixed(1)}°로 목표 180°보다 ${(180-knee).toFixed(1)}° 낮습니다.`);
+        details.push(`• 햄스트링과 비복근이 심각하게 단축되어 무릎을 구부리고 있습니다.`);
+        details.push(`• 대퇴사두근이 약화되어 무릎을 펴지 못합니다.`);
+        details.push(`• 장기적으로 무릎 관절 압력 증가 및 전방 십자인대 부상 위험이 있습니다.`);
+        exercises.push('1. 햄스트링 스트레칭: 서서 다리를 올리고 앞으로 숙이기 (좌우 각 30초×3회)');
+        exercises.push('2. 비복근 스트레칭: 벽에 손을 대고 한쪽 다리를 뒤로 내밀며 스트레칭 (좌우 각 30초)');
+        exercises.push('3. 대퇴사두근 강화: 의자에 앉아 다리를 펴며 무릎 락 (10초 유지×10회)');
+        exercises.push('4. 스쿼트: 천천히 앉았다 일어서기 (10회×3세트)');
       } else {
         tight.push('햄스트링', '비복근');
         weak.push('대퇴사두근');
         comments.push(`무릎 약간 굴곡: ${knee.toFixed(1)}°로 목표에 근접합니다.`);
+        details.push(`• 햄스트링과 비복근에 약간의 긴장이 있습니다.`);
+        details.push(`• 대퇴사두근 강화가 필요합니다.`);
+        exercises.push('1. 햄스트링 스트레칭: 좌우 각 30초씩 스트레칭');
+        exercises.push('2. 대퇴사두근 강화: 의자에 앉아 다리 펴기 (10회×2세트)');
+        exercises.push('3. 스쿼트: 10회×2세트');
       }
     } else if(knee <= 185) {
       comments.push(`무릎 정렬 양호: ${knee.toFixed(1)}°`);
+      details.push(`• 무릎 정렬이 양호한 상태입니다.`);
     } else {
       comments.push(`무릎 과신전: ${knee.toFixed(1)}°로 목표를 초과합니다.`);
+      details.push(`• 무릎이 과도하게 펴져 있어 후방 십자인대 부상 위험이 있습니다.`);
+      exercises.push('1. 무릎 미세 굴곡 연습: 서서 무릎을 살짝 구부리기 (10회×2세트)');
+      exercises.push('2. 대퇴사두근 이완: 누워서 무릎 아래에 베개를 넣고 스트레칭');
     }
   }
   
-  return { tight: [...new Set(tight)], weak: [...new Set(weak)], comments };
+  // 종합 운동 추천
+  if(exercises.length === 0 && (tight.length > 0 || weak.length > 0)) {
+    exercises.push('1. 전신 스트레칭: 매일 아침 10분간 전신 스트레칭');
+    exercises.push('2. 코어 강화: 플랭크 30초 유지 (3세트)');
+    exercises.push('3. 자세 교정 운동: 벽에 등을 대고 서서 몸 정렬 유지 (1분×3회)');
+  }
+  
+  return { 
+    tight: [...new Set(tight)], 
+    weak: [...new Set(weak)], 
+    comments,
+    details,
+    exercises: [...new Set(exercises)]
+  };
 }
 
 function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
@@ -553,6 +625,9 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const musclePanel = document.getElementById("musclePanel");
   const tightList = document.getElementById("muscleTightList");
   const weakList = document.getElementById("muscleWeakList");
+  const detailList = document.getElementById("muscleDetailList");
+  const exercisePanel = document.getElementById("exercisePanel");
+  const exerciseList = document.getElementById("exerciseList");
   
   if(scoreData && scoreData.score != null) {
     const score = scoreData.score;
@@ -578,33 +653,52 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     reasonEl.textContent = "";
   }
   
-  // AI 코멘트
+  // AI 코멘트 (더 상세하게)
   if(analysis && analysis.comments && analysis.comments.length > 0) {
-    commentEl.textContent = analysis.comments.join(" ");
+    let commentText = analysis.comments.join(" ");
+    if(analysis.details && analysis.details.length > 0) {
+      commentText += "\n\n" + analysis.details.join("\n");
+    }
+    commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
     commentPanel.style.display = "block";
   } else {
     commentPanel.style.display = "none";
   }
   
-  // 근육 분석
+  // 근육 분석 (상세)
   if(analysis && (analysis.tight.length > 0 || analysis.weak.length > 0)) {
     if(analysis.tight.length > 0) {
-      tightList.textContent = analysis.tight.join(", ");
+      tightList.innerHTML = analysis.tight.join(", ").replace(/,/g, ', ');
     } else {
       tightList.textContent = "없음";
       tightList.style.color = "var(--muted)";
     }
     
     if(analysis.weak.length > 0) {
-      weakList.textContent = analysis.weak.join(", ");
+      weakList.innerHTML = analysis.weak.join(", ").replace(/,/g, ', ');
     } else {
       weakList.textContent = "없음";
       weakList.style.color = "var(--muted)";
     }
     
+    // 상세 분석 표시
+    if(analysis.details && analysis.details.length > 0) {
+      detailList.innerHTML = analysis.details.join("<br>");
+    } else {
+      detailList.textContent = "상세 분석 없음";
+    }
+    
     musclePanel.style.display = "block";
   } else {
     musclePanel.style.display = "none";
+  }
+  
+  // 운동 추천
+  if(analysis && analysis.exercises && analysis.exercises.length > 0) {
+    exerciseList.innerHTML = analysis.exercises.map(ex => `<div style="margin-bottom:6px;">${ex}</div>`).join("");
+    exercisePanel.style.display = "block";
+  } else {
+    exercisePanel.style.display = "none";
   }
 }
 
@@ -887,35 +981,155 @@ document.getElementById("btnLoadJSON").onclick = () => {
   inp.click();
 };
 
-// PDF 저장
+// PDF 저장 (모바일 최적화)
 document.getElementById("btnPDF").onclick = async () => {
-  const target = document.body;
-  const canvas = await html2canvas(target, {scale:2, backgroundColor:"#fff", useCORS:true});
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const imgW = pageW - 40, imgH = canvas.height * (imgW / canvas.width);
-  let y = 20;
-  if(imgH < pageH - 40) {
-    pdf.addImage(imgData, "PNG", 20, y, imgW, imgH);
-  } else {
-    let remaining = imgH, sY = 0;
-    const onePageH = pageH - 40, sliceH = canvas.height * (onePageH / imgH);
-    while(remaining > 0) {
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = Math.min(sliceH, canvas.height - sY);
-      const pctx = pageCanvas.getContext("2d");
-      pctx.drawImage(canvas, 0, sY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
-      const pageImg = pageCanvas.toDataURL("image/png");
-      pdf.addImage(pageImg, "PNG", 20, 20, imgW, onePageH * (pageCanvas.height / sliceH));
-      remaining -= onePageH;
-      sY += sliceH;
-      if(remaining > 0) pdf.addPage();
+  try {
+    // 모바일에서 로딩 표시
+    const btn = document.getElementById("btnPDF");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ PDF 생성 중...";
+    btn.disabled = true;
+    
+    // 리포트용 임시 컨테이너 생성
+    const reportContainer = document.createElement("div");
+    reportContainer.style.position = "fixed";
+    reportContainer.style.left = "-9999px";
+    reportContainer.style.top = "0";
+    reportContainer.style.width = "794px"; // A4 너비 @96dpi
+    reportContainer.style.padding = "20px";
+    reportContainer.style.background = "#ffffff";
+    reportContainer.style.color = "#111";
+    reportContainer.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    reportContainer.style.fontSize = "12px";
+    reportContainer.style.lineHeight = "1.6";
+    
+    const S = sessions[cur];
+    const M = S.metrics || {};
+    const scoreData = S.score || {};
+    const analysis = S.analysis || {};
+    
+    // 리포트 HTML 구성
+    reportContainer.innerHTML = `
+      <h1 style="margin:0 0 10px 0; font-size:20px; font-weight:800; color:#0b0f14;">DIT 자세 분석 리포트</h1>
+      <div style="font-size:11px; color:#666; margin-bottom:20px;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
+      
+      <div style="margin-bottom:20px; padding:15px; background:#f5f5f5; border-radius:10px;">
+        <div style="font-size:16px; font-weight:700; margin-bottom:10px;">📊 체형 종합 점수</div>
+        <div style="font-size:36px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:8px;">${scoreData.score != null ? scoreData.score : '—'}</div>
+        <div style="font-size:11px; color:#666;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join(", ") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
+      </div>
+      
+      <div style="margin-bottom:20px;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px;">📐 측정 각도</div>
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <tr style="background:#f0f0f0;"><th style="padding:8px; text-align:left; border:1px solid #ddd;">항목</th><th style="padding:8px; text-align:left; border:1px solid #ddd;">측정값</th><th style="padding:8px; text-align:left; border:1px solid #ddd;">정상 범위</th></tr>
+          <tr><td style="padding:8px; border:1px solid #ddd;">CVA</td><td style="padding:8px; border:1px solid #ddd;">${M.cva != null ? M.cva.toFixed(1) + "°" : "—"}</td><td style="padding:8px; border:1px solid #ddd;">≥50°</td></tr>
+          <tr style="background:#fafafa;"><td style="padding:8px; border:1px solid #ddd;">TRUNK</td><td style="padding:8px; border:1px solid #ddd;">${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"}</td><td style="padding:8px; border:1px solid #ddd;">|0–5°|</td></tr>
+          <tr><td style="padding:8px; border:1px solid #ddd;">KNEE</td><td style="padding:8px; border:1px solid #ddd;">${M.knee != null ? M.knee.toFixed(1) + "°" : "—"}</td><td style="padding:8px; border:1px solid #ddd;">175–185°</td></tr>
+        </table>
+      </div>
+      
+      ${analysis.comments && analysis.comments.length > 0 ? `
+      <div style="margin-bottom:20px; padding:15px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
+        <div style="font-size:12px; line-height:1.6;">${analysis.comments.join(" ")}</div>
+        ${analysis.details && analysis.details.length > 0 ? `<div style="margin-top:10px; font-size:11px; line-height:1.6; color:#555;">${analysis.details.join("<br>")}</div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
+      <div style="margin-bottom:20px; padding:15px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#ffb86c;">💪 근육 상태 분석</div>
+        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:8px;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && analysis.weak.length > 0 ? `<div><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${analysis.exercises && analysis.exercises.length > 0 ? `
+      <div style="margin-bottom:20px; padding:15px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">🏋️ 추천 운동</div>
+        <div style="font-size:12px; line-height:1.8;">${analysis.exercises.map(ex => `<div style="margin-bottom:6px;">${ex}</div>`).join("")}</div>
+      </div>
+      ` : ""}
+      
+      <div style="margin-top:20px; padding:15px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666;">
+        <div style="margin-bottom:5px;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
+        <div><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
+      </div>
+      
+      <div style="margin-top:15px; font-size:10px; color:#999; text-align:center;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
+    `;
+    
+    document.body.appendChild(reportContainer);
+    
+    // 캔버스 이미지 추가
+    const cvImg = cv.toDataURL("image/png");
+    const imgEl = document.createElement("img");
+    imgEl.src = cvImg;
+    imgEl.style.width = "100%";
+    imgEl.style.height = "auto";
+    imgEl.style.borderRadius = "8px";
+    imgEl.style.marginTop = "20px";
+    imgEl.style.border = "1px solid #ddd";
+    reportContainer.insertBefore(imgEl, reportContainer.firstChild.nextSibling);
+    
+    // html2canvas로 캡처 (모바일 최적화)
+    const canvas = await html2canvas(reportContainer, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: reportContainer.scrollWidth,
+      windowHeight: reportContainer.scrollHeight
+    });
+    
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW - 40;
+    const imgH = canvas.height * (imgW / canvas.width);
+    
+    let y = 20;
+    if(imgH < pageH - 40) {
+      pdf.addImage(imgData, "PNG", 20, y, imgW, imgH);
+    } else {
+      let remaining = imgH, sY = 0;
+      const onePageH = pageH - 40;
+      const sliceH = canvas.height * (onePageH / imgH);
+      while(remaining > 0) {
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = Math.min(sliceH, canvas.height - sY);
+        const pctx = pageCanvas.getContext("2d");
+        pctx.drawImage(canvas, 0, sY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+        const pageImg = pageCanvas.toDataURL("image/png");
+        pdf.addImage(pageImg, "PNG", 20, 20, imgW, onePageH * (pageCanvas.height / sliceH));
+        remaining -= onePageH;
+        sY += sliceH;
+        if(remaining > 0) pdf.addPage();
+      }
     }
+    
+    pdf.save(`DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    // 정리
+    document.body.removeChild(reportContainer);
+    btn.textContent = originalText;
+    btn.disabled = false;
+    
+    // 모바일에서 성공 메시지
+    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      alert("PDF가 저장되었습니다!");
+    }
+  } catch(error) {
+    console.error("PDF 생성 실패:", error);
+    alert("PDF 생성에 실패했습니다: " + error.message);
+    const btn = document.getElementById("btnPDF");
+    btn.textContent = "📄 PDF 저장";
+    btn.disabled = false;
   }
-  pdf.save("DIT_자세_분석_리포트.pdf");
 };
 
 // 초기화
