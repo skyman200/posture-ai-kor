@@ -3,11 +3,19 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main  # main 브랜치에 push될 때 자동 배포
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout code
@@ -17,6 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
@@ -24,22 +33,14 @@ jobs:
       - name: Build project
         run: npm run build
 
-      # 🧑‍💻 GitHub Actions가 commit/push할 때 필요한 사용자 정보 설정
-      - name: Configure git identity
-        run: |
-          git config --global user.name "skyman200"
-          git config --global user.email "skyman200@users.noreply.github.com"
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
-      # 🚀 GitHub Pages 배포
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
       - name: Deploy to GitHub Pages
-        run: npm run deploy
-
-      # (선택) 캐시를 유지하고 싶다면 아래 주석 해제
-      # - name: Cache node modules
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.npm
-      #     key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-node-
-
+        id: deployment
+        uses: actions/deploy-pages@v4
