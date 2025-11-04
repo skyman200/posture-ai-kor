@@ -2649,5 +2649,97 @@ draw();
 computeMetricsOnly(); // 초기화 시에는 AI 분석 안 함
 updateCompare();
 </script>
+
+<!-- ✅ Pose Detection Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+
+<script>
+let detector;
+let prevPoints = {};  // smoothing 용
+
+async function loadModel() {
+  detector = await poseDetection.createDetector(
+    poseDetection.SupportedModels.BlazePose,
+    {
+      runtime: "tfjs",
+      modelType: "full",
+      enableSmoothing: true
+    }
+  );
+  console.log("✅ BlazePose 로드 완료");
+}
+
+loadModel();
+
+// 파일 업로드 처리 (기존 이벤트와 통합)
+const fileInputs = document.querySelectorAll('input[type="file"]');
+fileInputs.forEach(input => {
+  input.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = async () => {
+      await analyzeImage(img);
+    };
+  });
+});
+
+// 포즈 분석 함수
+async function analyzeImage(img) {
+  if (!detector) {
+    alert("모델 아직 로딩 중💡 잠시만 기다려줘!");
+    return;
+  }
+
+  const poses = await detector.estimatePoses(img);
+  if (!poses.length) {
+    alert("사람을 찾지 못했어 😢 더 선명한 사진으로 시도해줘");
+    return;
+  }
+
+  const points = poses[0].keypoints;
+
+  const canvas = document.querySelector("canvas") || createCanvas(img);
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+
+  points.forEach((pt, i) => {
+    if (pt.score < 0.45) return; // confidence 낮으면 skip
+
+    // smoothing 적용
+    const smooth = (key, now) => {
+      if (!prevPoints[key]) return now;
+      return {
+        x: prevPoints[key].x * 0.7 + now.x * 0.3,
+        y: prevPoints[key].y * 0.7 + now.y * 0.3,
+      };
+    };
+
+    const key = i;
+    const sp = smooth(key, pt);
+    prevPoints[key] = sp;
+
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "red";
+    ctx.fill();
+  });
+
+  console.log("✅ 좌표 인식 완료:", points);
+}
+
+function createCanvas(img) {
+  const canvas = document.createElement("canvas");
+  document.body.appendChild(canvas);
+  return canvas;
+}
+</script>
   </body>
 </html>
