@@ -1356,13 +1356,13 @@ function startDrag(e) {
   // 스크롤 거리 초기화
   scrollDistance = 0;
   
-  // Long press 상태 초기화
-  longPressDetected = false;
-  longPressNearPoint = null;
+  // Long press 관련 상태 초기화 (더 이상 사용하지 않지만 정리용)
   if(longPressTimer) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
   }
+  longPressDetected = false;
+  longPressNearPoint = null;
   
   // 먼저 모든 점을 체크하여 점을 터치했는지 확인
   let bestPoint = null;
@@ -1395,33 +1395,22 @@ function startDrag(e) {
     }
   }
   
-  // 점 근처를 터치했으면 Long Press 타이머 시작
+  // 점 근처를 터치했으면 즉시 드래그 모드로 전환 (Long press 제거)
   if(bestPoint) {
-    // 터치 이벤트인 경우 long press 적용
+    e.preventDefault();
+    isScrolling = false;
+    dragKey = bestPoint;
+    
+    // 스크롤 시작 위치 저장 (드래그 중에도 사용)
     if(e.touches) {
-      // Long press 타이머 설정 (500ms)
-      longPressTimer = setTimeout(() => {
-        longPressDetected = true;
-        longPressNearPoint = bestPoint;
-        // Long press 감지 시 드래그 모드로 전환
-        isScrolling = false;
-        dragKey = bestPoint;
-      }, 500);
-      
-      // 스크롤 시작 위치 저장
       scrollStartX = e.touches[0].clientX;
       scrollStartY = e.touches[0].clientY;
-      
-      // Long press 대기 중이므로 스크롤 방지
-      e.preventDefault();
-      return true; // 이벤트 처리 완료
     } else {
-      // 마우스 이벤트는 즉시 드래그
-      e.preventDefault();
-      isScrolling = false;
-      dragKey = bestPoint;
-      return true;
+      scrollStartX = e.clientX;
+      scrollStartY = e.clientY;
     }
+    
+    return true;
   }
   
   // 점이 아닌 빈 화면을 터치했으면 스크롤 모드로 시작
@@ -1444,17 +1433,6 @@ function startDrag(e) {
 }
 
 function doDrag(e) {
-  // Long press가 감지되었으면 드래그 모드로 전환
-  if(longPressDetected && longPressNearPoint && !dragKey) {
-    dragKey = longPressNearPoint;
-    isScrolling = false;
-    // Long press 타이머 정리
-    if(longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-  }
-  
   // 드래그 모드가 이미 활성화되어 있으면 드래그 처리만 수행 (스크롤 완전 차단)
   if(dragKey) {
     e.preventDefault(); // 스크롤 방지
@@ -1487,29 +1465,6 @@ function doDrag(e) {
     return; // 드래그 모드에서는 스크롤 완전 차단
   }
   
-  // Long press 타이머가 실행 중이면 스크롤 방지 (점을 길게 누르는 중)
-  if(longPressTimer) {
-    if(e.touches && e.touches.length > 0) {
-      const moveX = Math.abs(e.touches[0].clientX - scrollStartX);
-      const moveY = Math.abs(e.touches[0].clientY - scrollStartY);
-      const moveDistance = Math.hypot(moveX, moveY);
-      
-      // 이동 거리가 15px 이상이면 long press 취소하고 스크롤 허용
-      if(moveDistance > 15) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-        longPressDetected = false;
-        longPressNearPoint = null;
-        // 스크롤 모드로 전환
-        isScrolling = true;
-      } else {
-        // Long press 대기 중이면 스크롤 방지
-        e.preventDefault();
-        return;
-      }
-    }
-  }
-  
   // 스크롤 모드인 경우 - 빈 화면 터치 시 스크롤만 수행
   if(isScrolling && editMode && currentZoom > 1) {
     let currentX, currentY;
@@ -1537,19 +1492,16 @@ function doDrag(e) {
 }
 
 function endDrag(e) {
-  // Long press 타이머 정리
+  // Long press 타이머 정리 (더 이상 사용하지 않지만 정리용)
   if(longPressTimer) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
   }
   
-  // 드래그가 끝나면 상태 초기화
-  if(dragKey) {
-    dragKey = null;
-  }
-  if(isScrolling) {
-    isScrolling = false;
-  }
+  // 드래그가 끝나면 상태만 초기화 (다음 드래그를 위해)
+  // dragKey는 다음 startDrag에서 다시 설정될 수 있도록 초기화
+  dragKey = null;
+  isScrolling = false;
   scrollDistance = 0;
   scrollStartX = 0;
   scrollStartY = 0;
@@ -1566,8 +1518,8 @@ window.addEventListener('mouseleave', endDrag);
 // 터치 이벤트 (모바일 지원)
 cv.addEventListener('touchstart', (e) => {
   const result = startDrag(e);
-  // 점을 터치했거나 long press가 시작되면 preventDefault
-  if(result || longPressTimer) {
+  // 점을 터치했으면 preventDefault (드래그 모드)
+  if(result) {
     e.preventDefault();
   }
 }, {passive: false});
