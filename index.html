@@ -1344,6 +1344,9 @@ function startDrag(e) {
     touchStartTime = Date.now();
   }
   
+  // 스크롤 거리 초기화
+  scrollDistance = 0;
+  
   // 좌표 수정 모드일 때는 선택된 점만 드래그 가능
   if(editMode) {
     if(!selectedPoint) {
@@ -1377,7 +1380,7 @@ function startDrag(e) {
       dragKey = selectedPoint;
       return true;
     }
-    // 점이 아니면 스크롤 모드
+    // 점이 아니면 스크롤 모드 (하지만 점 근처로 이동하면 드래그로 전환 가능)
     isScrolling = true;
     if(e.touches) {
       scrollStartX = e.touches[0].clientX;
@@ -1415,27 +1418,82 @@ function startDrag(e) {
 }
 
 function doDrag(e) {
-  // 스크롤 모드인 경우 스크롤 처리
-  if(isScrolling && editMode && currentZoom > 1) {
-    if(e.touches && e.touches.length > 0) {
-      e.preventDefault();
-      const canvasWrap = cv.parentElement;
-      const deltaX = scrollStartX - e.touches[0].clientX;
-      const deltaY = scrollStartY - e.touches[0].clientY;
-      canvasWrap.scrollLeft += deltaX;
-      canvasWrap.scrollTop += deltaY;
-      scrollStartX = e.touches[0].clientX;
-      scrollStartY = e.touches[0].clientY;
-    } else if(e.clientX !== undefined && e.clientY !== undefined) {
-      // 마우스 스크롤도 지원
-      e.preventDefault();
-      const canvasWrap = cv.parentElement;
-      const deltaX = scrollStartX - e.clientX;
-      const deltaY = scrollStartY - e.clientY;
-      canvasWrap.scrollLeft += deltaX;
-      canvasWrap.scrollTop += deltaY;
-      scrollStartX = e.clientX;
-      scrollStartY = e.clientY;
+  const pos = getEventPos(e);
+  const P = getPts(cur);
+  
+  // 스크롤 모드인 경우 - 점 근처로 이동했는지 계속 체크
+  if(isScrolling && editMode && currentZoom > 1 && selectedPoint) {
+    const pt = P[selectedPoint];
+    if(pt) {
+      // 현재 위치가 점 근처인지 확인
+      const threshold = 30;
+      const scaleX = currentZoom;
+      const scaleY = currentZoom;
+      const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
+      
+      // 이동 거리 계산
+      let currentX, currentY;
+      if(e.touches && e.touches.length > 0) {
+        currentX = e.touches[0].clientX;
+        currentY = e.touches[0].clientY;
+      } else if(e.clientX !== undefined) {
+        currentX = e.clientX;
+        currentY = e.clientY;
+      } else {
+        return;
+      }
+      
+      const moveX = currentX - scrollStartX;
+      const moveY = currentY - scrollStartY;
+      scrollDistance = Math.hypot(moveX, moveY);
+      
+      // 점 근처이고 이동 거리가 작으면(5px 이내) 드래그로 전환
+      if(d < threshold && scrollDistance < 5) {
+        // 드래그 모드로 전환
+        isScrolling = false;
+        dragKey = selectedPoint;
+        e.preventDefault();
+        // 즉시 드래그 처리하도록 재귀 호출하지 않고 여기서 처리
+        const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+        const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+        const x = clamp(pos.x, 0, originalW);
+        const y = clamp(pos.y, 0, originalH);
+        const map = sessions[cur].pts;
+        const p = map.get(dragKey);
+        if(p) {
+          p.x = x;
+          p.y = y;
+          if(coordX && coordY) {
+            coordX.value = x.toFixed(1);
+            coordY.value = y.toFixed(1);
+          }
+          draw();
+          computeAll();
+        }
+        return;
+      }
+      
+      // 점 근처가 아니거나 이동 거리가 크면 스크롤 계속
+      if(e.touches && e.touches.length > 0) {
+        e.preventDefault();
+        const canvasWrap = cv.parentElement;
+        const deltaX = scrollStartX - currentX;
+        const deltaY = scrollStartY - currentY;
+        canvasWrap.scrollLeft += deltaX;
+        canvasWrap.scrollTop += deltaY;
+        scrollStartX = currentX;
+        scrollStartY = currentY;
+      } else if(e.clientX !== undefined) {
+        // 마우스 스크롤도 지원
+        e.preventDefault();
+        const canvasWrap = cv.parentElement;
+        const deltaX = scrollStartX - currentX;
+        const deltaY = scrollStartY - currentY;
+        canvasWrap.scrollLeft += deltaX;
+        canvasWrap.scrollTop += deltaY;
+        scrollStartX = currentX;
+        scrollStartY = currentY;
+      }
     }
     return;
   }
@@ -1443,7 +1501,6 @@ function doDrag(e) {
   // 드래그 모드
   if(!dragKey) return;
   e.preventDefault();
-  const pos = getEventPos(e);
   // 좌표는 항상 원본 크기 기준으로 저장
   const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
   const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
@@ -1474,6 +1531,7 @@ function doDrag(e) {
 function endDrag(e) {
   dragKey = null;
   isScrolling = false;
+  scrollDistance = 0;
 }
 
 // 마우스 이벤트
