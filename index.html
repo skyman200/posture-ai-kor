@@ -1423,11 +1423,41 @@ function startDrag(e) {
 }
 
 function doDrag(e) {
-  const pos = getEventPos(e);
-  const P = getPts(cur);
+  // 드래그 모드가 이미 활성화되어 있으면 드래그 처리만 수행
+  if(dragKey) {
+    e.preventDefault();
+    const pos = getEventPos(e);
+    // 좌표는 항상 원본 크기 기준으로 저장
+    const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+    const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+    const x = clamp(pos.x, 0, originalW);
+    const y = clamp(pos.y, 0, originalH);
+    const map = sessions[cur].pts;
+    const p = map.get(dragKey);
+    if(!p) return;
+    
+    // 좌표 수정 모드에서는 선택된 점만 이동
+    if(editMode) {
+      if(dragKey !== selectedPoint) return;
+    }
+    
+    p.x = x;
+    p.y = y;
+    
+    // 좌표 수정 모드에서는 입력 필드도 실시간 업데이트 (원본 크기 기준)
+    if(editMode && selectedPoint === dragKey && coordX && coordY) {
+      coordX.value = x.toFixed(1);
+      coordY.value = y.toFixed(1);
+    }
+    
+    draw();
+    computeAll();
+    return;
+  }
   
   // 스크롤 모드인 경우 - 점 근처로 이동했는지 계속 체크
   if(isScrolling && editMode && currentZoom > 1 && selectedPoint) {
+    const P = getPts(cur);
     const pt = P[selectedPoint];
     if(pt) {
       // 실제 화면 좌표로 변환 (캔버스의 getBoundingClientRect 기준)
@@ -1461,13 +1491,14 @@ function doDrag(e) {
       
       scrollDistance = Math.hypot(currentX - scrollStartX, currentY - scrollStartY);
       
-      // 점 근처에 있으면 무조건 드래그로 전환
+      // 점 근처에 있으면 드래그로 전환
       if(d < threshold) {
         // 드래그 모드로 전환
         isScrolling = false;
         dragKey = selectedPoint;
         e.preventDefault();
         // 즉시 드래그 처리
+        const pos = getEventPos(e);
         const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
         const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
         const x = clamp(pos.x, 0, originalW);
@@ -1512,41 +1543,19 @@ function doDrag(e) {
     }
     return;
   }
-  
-  // 드래그 모드
-  if(!dragKey) return;
-  e.preventDefault();
-  // 좌표는 항상 원본 크기 기준으로 저장
-  const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
-  const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-  const x = clamp(pos.x, 0, originalW);
-  const y = clamp(pos.y, 0, originalH);
-  const map = sessions[cur].pts;
-  const p = map.get(dragKey);
-  if(!p) return;
-  
-  // 좌표 수정 모드에서는 선택된 점만 이동
-  if(editMode) {
-    if(dragKey !== selectedPoint) return;
-  }
-  
-  p.x = x;
-  p.y = y;
-  
-  // 좌표 수정 모드에서는 입력 필드도 실시간 업데이트 (원본 크기 기준)
-  if(editMode && selectedPoint === dragKey && coordX && coordY) {
-    coordX.value = x.toFixed(1);
-    coordY.value = y.toFixed(1);
-  }
-  
-  draw();
-  computeAll();
 }
 
 function endDrag(e) {
-  dragKey = null;
-  isScrolling = false;
+  // 드래그가 끝나면 상태 초기화
+  if(dragKey) {
+    dragKey = null;
+  }
+  if(isScrolling) {
+    isScrolling = false;
+  }
   scrollDistance = 0;
+  scrollStartX = 0;
+  scrollStartY = 0;
 }
 
 // 마우스 이벤트
