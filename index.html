@@ -1702,7 +1702,9 @@ function startDrag(e) {
   // 하지만 실제 화면에서는 devicePixelRatio를 고려해야 함
   // 간단하게 화면 크기 기준으로 2cm를 추정 (화면 너비의 약 5% 정도)
   const cmToPixel = screenWidth * 0.05; // 화면 너비의 5%를 2cm로 추정
-  const baseThreshold = Math.max(60, Math.min(120, cmToPixel)); // 최소 60px, 최대 120px (2cm)
+  // 확대 모드에서는 원본 좌표 기준이므로 threshold를 적절히 설정
+  // 너무 크면 빈 화면을 눌러도 드래그가 시작될 수 있으므로 적절한 범위 유지
+  const baseThreshold = Math.max(50, Math.min(100, cmToPixel)); // 최소 50px, 최대 100px (2cm)
   
   // 확대 모드에서는 원본 크기 기준으로 threshold를 계산
   // 모든 확대 배율에서 동일한 인식 범위를 유지하기 위해 원본 좌표 기준으로 threshold 사용
@@ -1780,8 +1782,9 @@ function startDrag(e) {
     }
   }
   
-  // 점 근처를 터치했으면 즉시 드래그 모드로 전환 (Long press 제거)
-  if(bestPoint) {
+  // 점 근처를 터치했을 때만 드래그 모드로 전환
+  // bestPoint가 설정되고 threshold 내에 있을 때만 드래그 시작
+  if(bestPoint && bestDistance < threshold) {
     // preventDefault는 이벤트 리스너에서 처리하므로 여기서는 하지 않음
     isScrolling = false;
     dragKey = bestPoint; // 확실하게 설정
@@ -1795,17 +1798,18 @@ function startDrag(e) {
       scrollStartY = e.clientY;
     }
     
-    console.log('✅ 드래그 시작 성공:', bestPoint, 'pos:', pos, 'dragKey:', dragKey, 'editMode:', editMode, 'zoom:', currentZoom);
+    console.log('✅ 드래그 시작 성공:', bestPoint, '거리:', bestDistance.toFixed(2), 'threshold:', threshold, 'pos:', pos, 'dragKey:', dragKey, 'editMode:', editMode, 'zoom:', currentZoom);
     return true;
   } else {
-    console.log('❌ 점을 찾지 못함, bestPoint:', bestPoint, 'pos:', pos, 'editMode:', editMode, 'zoom:', currentZoom);
+    // 점 근처를 누르지 않았으면 드래그 시작하지 않음
+    console.log('❌ 점 근처를 누르지 않음, bestPoint:', bestPoint, '거리:', bestDistance < 1e9 ? bestDistance.toFixed(2) : 'N/A', 'threshold:', threshold, 'pos:', pos);
   }
   
-  // 점이 아닌 빈 화면을 터치했으면
+  // 점이 아닌 빈 화면을 터치했으면 드래그 시작하지 않음
   // 확대 모드에서 한 손가락 터치는 스크롤 불가 (두 손가락만 스크롤)
   // 일반 모드에서는 아무 동작도 하지 않음
   isScrolling = false;
-  dragKey = null;
+  dragKey = null; // 명시적으로 null로 설정
   return false;
 }
 
@@ -1991,7 +1995,7 @@ window.addEventListener('touchmove', (e) => {
   
   // 한 손가락 터치인 경우
   if(e.touches && e.touches.length === 1) {
-    // dragKey가 설정되어 있으면 드래그 모드
+    // dragKey가 설정되어 있으면 드래그 모드 (점 근처를 눌렀을 때만)
     if(dragKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -2000,8 +2004,9 @@ window.addEventListener('touchmove', (e) => {
       return;
     }
     
-    // dragKey가 없으면 드래그 처리 안 함
-    // 하지만 확대 모드에서는 스크롤도 아니므로 아무것도 하지 않음
+    // dragKey가 없으면 드래그 처리 안 함 (점 근처를 누르지 않았음)
+    // 확대 모드에서도 빈 화면을 누르면 아무것도 하지 않음
+    return;
   }
   
   // 스크롤 모드인 경우 (이미 설정된 경우)
