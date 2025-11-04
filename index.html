@@ -281,6 +281,11 @@ let editMode = false;
 let selectedPoint = null;
 let originalCanvasSize = { width: 0, height: 0, styleWidth: 0, styleHeight: 0 };
 let currentZoom = 1;
+let isScrolling = false;
+let scrollStartX = 0;
+let scrollStartY = 0;
+let touchStartTime = 0;
+let scrollDistance = 0; // 스크롤 시작 후 이동 거리
 
 const keypoints = [
   {key:'Tragus', color:'#7c9cff'},
