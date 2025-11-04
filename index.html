@@ -75,9 +75,39 @@ canvas { max-width:100%; max-height:100%; border-radius:var(--radius); backgroun
   </div>
 
   <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+    <button class="btn" id="btnEditCoords" style="background: rgba(124,156,255,0.2);">✏️ 좌표 수정 모드</button>
     <button class="btn" id="btnSaveJSON">💾 좌표 저장</button>
     <button class="btn" id="btnLoadJSON">📂 좌표 불러오기</button>
     <button class="btn" id="btnPDF">📄 PDF 저장</button>
+  </div>
+
+  <div id="coordEditPanel" style="margin-top:12px; padding:10px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
+    <div class="muted" style="margin-bottom:8px; font-weight:600;">좌표 수정</div>
+    <div style="margin-bottom:8px;">
+      <select id="coordSelectPoint" class="btn" style="width:100%; padding:6px; margin-bottom:6px;">
+        <option value="">점 선택...</option>
+        <option value="Tragus">Tragus</option>
+        <option value="C7">C7</option>
+        <option value="Shoulder">Shoulder</option>
+        <option value="Hip">Hip</option>
+        <option value="Knee">Knee</option>
+        <option value="Ankle">Ankle</option>
+        <option value="ASIS">ASIS</option>
+        <option value="PSIS">PSIS</option>
+      </select>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:6px;">
+      <div>
+        <div class="muted" style="font-size:11px; margin-bottom:4px;">X 좌표</div>
+        <input type="number" id="coordX" class="btn" style="width:100%; padding:6px; background:rgba(255,255,255,0.1);" step="0.1" placeholder="X">
+      </div>
+      <div>
+        <div class="muted" style="font-size:11px; margin-bottom:4px;">Y 좌표</div>
+        <input type="number" id="coordY" class="btn" style="width:100%; padding:6px; background:rgba(255,255,255,0.1);" step="0.1" placeholder="Y">
+      </div>
+    </div>
+    <button class="btn" id="coordApply" style="width:100%; background:rgba(124,156,255,0.3);">적용</button>
+    <button class="btn" id="coordCancel" style="width:100%; margin-top:6px; background:rgba(255,255,255,0.05);">취소</button>
   </div>
 
   <div style="margin-top:12px;">
@@ -110,6 +140,8 @@ const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
 let DPR = window.devicePixelRatio || 1;
 let dragKey = null;
+let editMode = false;
+let selectedPoint = null;
 
 const keypoints = [
   {key:'Tragus', color:'#7c9cff'},
@@ -340,8 +372,104 @@ function updateCompare() {
   document.getElementById("cmpKneeD").textContent = deltaStr(kB, kA, "°");
 }
 
+// 좌표 수정 모드 토글
+document.getElementById("btnEditCoords").onclick = () => {
+  editMode = !editMode;
+  const panel = document.getElementById("coordEditPanel");
+  const btn = document.getElementById("btnEditCoords");
+  if(editMode) {
+    panel.style.display = "block";
+    btn.style.background = "rgba(124,156,255,0.4)";
+    btn.textContent = "✏️ 좌표 수정 모드 (활성)";
+  } else {
+    panel.style.display = "none";
+    btn.style.background = "rgba(124,156,255,0.2)";
+    btn.textContent = "✏️ 좌표 수정 모드";
+    selectedPoint = null;
+    document.getElementById("coordSelectPoint").value = "";
+    document.getElementById("coordX").value = "";
+    document.getElementById("coordY").value = "";
+  }
+};
+
+// 점 선택 드롭다운 변경
+document.getElementById("coordSelectPoint").addEventListener("change", e => {
+  selectedPoint = e.target.value;
+  if(selectedPoint) {
+    const P = getPts(cur);
+    const pt = P[selectedPoint];
+    if(pt) {
+      document.getElementById("coordX").value = pt.x.toFixed(1);
+      document.getElementById("coordY").value = pt.y.toFixed(1);
+    } else {
+      document.getElementById("coordX").value = "";
+      document.getElementById("coordY").value = "";
+    }
+  }
+});
+
+// 좌표 적용
+document.getElementById("coordApply").onclick = () => {
+  if(!selectedPoint) {
+    alert("점을 선택해주세요.");
+    return;
+  }
+  const x = parseFloat(document.getElementById("coordX").value);
+  const y = parseFloat(document.getElementById("coordY").value);
+  if(isNaN(x) || isNaN(y)) {
+    alert("올바른 좌표를 입력해주세요.");
+    return;
+  }
+  const W = cv.width / DPR, H = cv.height / DPR;
+  const map = sessions[cur].pts;
+  map.set(selectedPoint, {
+    x: clamp(x, 0, W),
+    y: clamp(y, 0, H)
+  });
+  draw();
+  computeAll();
+  // 입력 필드 업데이트
+  document.getElementById("coordX").value = map.get(selectedPoint).x.toFixed(1);
+  document.getElementById("coordY").value = map.get(selectedPoint).y.toFixed(1);
+};
+
+// 취소
+document.getElementById("coordCancel").onclick = () => {
+  selectedPoint = null;
+  document.getElementById("coordSelectPoint").value = "";
+  document.getElementById("coordX").value = "";
+  document.getElementById("coordY").value = "";
+};
+
 // 드래그 기능
 cv.addEventListener('mousedown', e => {
+  if(editMode) {
+    // 수정 모드에서는 클릭한 점을 선택
+    const r = cv.getBoundingClientRect();
+    const x = (e.clientX - r.left);
+    const y = (e.clientY - r.top);
+    const P = getPts(cur);
+    let best = null, bestD = 1e9;
+    for(const k of keypoints) {
+      const p = P[k.key];
+      if(!p) continue;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if(d < 15 && d < bestD) {
+        best = k.key;
+        bestD = d;
+      }
+    }
+    if(best) {
+      selectedPoint = best;
+      document.getElementById("coordSelectPoint").value = best;
+      const pt = P[best];
+      document.getElementById("coordX").value = pt.x.toFixed(1);
+      document.getElementById("coordY").value = pt.y.toFixed(1);
+    }
+    return;
+  }
+  
+  // 일반 드래그 모드
   const r = cv.getBoundingClientRect();
   const x = (e.clientX - r.left);
   const y = (e.clientY - r.top);
