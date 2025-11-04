@@ -1215,40 +1215,45 @@ if(zoomLevel) {
 const coordSelectPoint = document.getElementById("coordSelectPoint");
 const coordX = document.getElementById("coordX");
 const coordY = document.getElementById("coordY");
+
+// 점 선택 시 좌표 표시 함수
+function updateCoordDisplay() {
+  if(!coordX || !coordY) return;
+  
+  if(selectedPoint) {
+    const P = getPts(cur);
+    const pt = P[selectedPoint];
+    if(pt) {
+      // 원본 크기 기준 좌표 표시
+      coordX.value = pt.x.toFixed(1);
+      coordY.value = pt.y.toFixed(1);
+    } else {
+      // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
+      if(sessions[cur].img) {
+        const originalW = originalCanvasSize.width || (cv.width / DPR);
+        const originalH = originalCanvasSize.height || (cv.height / DPR);
+        const defaultX = (originalW / 2).toFixed(1);
+        const defaultY = (originalH / 2).toFixed(1);
+        coordX.value = defaultX;
+        coordY.value = defaultY;
+      } else {
+        coordX.value = "";
+        coordY.value = "";
+      }
+    }
+    draw();
+  } else {
+    coordX.value = "";
+    coordY.value = "";
+    draw();
+  }
+}
+
 if(coordSelectPoint && coordX && coordY) {
   coordSelectPoint.addEventListener("change", e => {
     selectedPoint = e.target.value || null;
     console.log("선택된 점:", selectedPoint);
-    if(selectedPoint) {
-      const P = getPts(cur);
-      const pt = P[selectedPoint];
-      if(pt) {
-        coordX.value = pt.x.toFixed(1);
-        coordY.value = pt.y.toFixed(1);
-        console.log("점 좌표:", pt.x, pt.y);
-      } else {
-        // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
-        const W = cv.width / DPR, H = cv.height / DPR;
-        if(sessions[cur].img) {
-          // 이미지가 있으면 중앙 좌표를 기본값으로 설정
-          const defaultX = (W / 2).toFixed(1);
-          const defaultY = (H / 2).toFixed(1);
-          coordX.value = defaultX;
-          coordY.value = defaultY;
-          console.log("기본 좌표 설정:", defaultX, defaultY);
-        } else {
-          coordX.value = "";
-          coordY.value = "";
-          console.log("이미지가 없어 좌표를 설정할 수 없습니다.");
-        }
-      }
-      // 선택된 점을 시각적으로 강조하기 위해 다시 그리기
-      draw();
-    } else {
-      coordX.value = "";
-      coordY.value = "";
-      draw();
-    }
+    updateCoordDisplay();
   });
 } else {
   console.error("좌표 입력 요소를 찾을 수 없습니다:", {coordSelectPoint, coordX, coordY});
