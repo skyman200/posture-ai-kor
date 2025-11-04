@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
+  <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DIT 자세 분석 AI (최종 통합버전)</title>
@@ -133,8 +133,8 @@ canvas {
   touch-action: none;
 }
 </style>
-</head>
-<body>
+  </head>
+  <body>
 <aside class="panel sidebar" style="order: 1;">
   <div class="title">📸 DIT 자세 분석 AI</div>
   <div class="muted">파일 업로드 → 점을 드래그로 조정 → 각도 자동 계산</div>
@@ -784,106 +784,126 @@ function updateCompare() {
 }
 
 // 좌표 수정 모드 토글
-document.getElementById("btnEditCoords").onclick = () => {
-  editMode = !editMode;
-  const panel = document.getElementById("coordEditPanel");
-  const btn = document.getElementById("btnEditCoords");
-  if(editMode) {
-    panel.style.display = "block";
-    btn.style.background = "rgba(124,156,255,0.4)";
-    btn.textContent = "✏️ 좌표 수정 모드 (활성)";
-  } else {
-    panel.style.display = "none";
-    btn.style.background = "rgba(124,156,255,0.2)";
-    btn.textContent = "✏️ 좌표 수정 모드";
-    selectedPoint = null;
-    document.getElementById("coordSelectPoint").value = "";
-    document.getElementById("coordX").value = "";
-    document.getElementById("coordY").value = "";
-  }
-};
+const btnEditCoords = document.getElementById("btnEditCoords");
+const coordEditPanel = document.getElementById("coordEditPanel");
+if(btnEditCoords && coordEditPanel) {
+  btnEditCoords.onclick = () => {
+    editMode = !editMode;
+    if(editMode) {
+      coordEditPanel.style.display = "block";
+      btnEditCoords.style.background = "rgba(124,156,255,0.4)";
+      btnEditCoords.textContent = "✏️ 좌표 수정 모드 (활성)";
+      draw(); // 다시 그리기
+    } else {
+      coordEditPanel.style.display = "none";
+      btnEditCoords.style.background = "rgba(124,156,255,0.2)";
+      btnEditCoords.textContent = "✏️ 좌표 수정 모드";
+      selectedPoint = null;
+      const selectEl = document.getElementById("coordSelectPoint");
+      const xEl = document.getElementById("coordX");
+      const yEl = document.getElementById("coordY");
+      if(selectEl) selectEl.value = "";
+      if(xEl) xEl.value = "";
+      if(yEl) yEl.value = "";
+      draw(); // 다시 그리기
+    }
+  };
+}
 
 // 점 선택 드롭다운 변경
-document.getElementById("coordSelectPoint").addEventListener("change", e => {
-  selectedPoint = e.target.value || null;
-  if(selectedPoint) {
-    const P = getPts(cur);
-    const pt = P[selectedPoint];
-    if(pt) {
-      document.getElementById("coordX").value = pt.x.toFixed(1);
-      document.getElementById("coordY").value = pt.y.toFixed(1);
-    } else {
-      // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
-      const W = cv.width / DPR, H = cv.height / DPR;
-      if(sessions[cur].img) {
-        // 이미지가 있으면 중앙 좌표를 기본값으로 설정
-        const defaultX = (W / 2).toFixed(1);
-        const defaultY = (H / 2).toFixed(1);
-        document.getElementById("coordX").value = defaultX;
-        document.getElementById("coordY").value = defaultY;
-        // 자동으로 점 생성 (선택사항)
-        // map.set(selectedPoint, { x: parseFloat(defaultX), y: parseFloat(defaultY) });
+const coordSelectPoint = document.getElementById("coordSelectPoint");
+const coordX = document.getElementById("coordX");
+const coordY = document.getElementById("coordY");
+if(coordSelectPoint && coordX && coordY) {
+  coordSelectPoint.addEventListener("change", e => {
+    selectedPoint = e.target.value || null;
+    if(selectedPoint) {
+      const P = getPts(cur);
+      const pt = P[selectedPoint];
+      if(pt) {
+        coordX.value = pt.x.toFixed(1);
+        coordY.value = pt.y.toFixed(1);
       } else {
-        document.getElementById("coordX").value = "";
-        document.getElementById("coordY").value = "";
+        // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
+        const W = cv.width / DPR, H = cv.height / DPR;
+        if(sessions[cur].img) {
+          // 이미지가 있으면 중앙 좌표를 기본값으로 설정
+          const defaultX = (W / 2).toFixed(1);
+          const defaultY = (H / 2).toFixed(1);
+          coordX.value = defaultX;
+          coordY.value = defaultY;
+        } else {
+          coordX.value = "";
+          coordY.value = "";
+        }
       }
+      // 선택된 점을 시각적으로 강조하기 위해 다시 그리기
+      draw();
+    } else {
+      coordX.value = "";
+      coordY.value = "";
+      draw();
     }
-    // 선택된 점을 시각적으로 강조하기 위해 다시 그리기
-    draw();
-  } else {
-    document.getElementById("coordX").value = "";
-    document.getElementById("coordY").value = "";
-    draw();
-  }
-});
+  });
+}
 
 // 좌표 적용
-document.getElementById("coordApply").onclick = () => {
-  if(!selectedPoint) {
-    alert("점을 선택해주세요.");
-    return;
-  }
-  const x = parseFloat(document.getElementById("coordX").value);
-  const y = parseFloat(document.getElementById("coordY").value);
-  if(isNaN(x) || isNaN(y)) {
-    alert("올바른 좌표를 입력해주세요.");
-    return;
-  }
-  const W = cv.width / DPR, H = cv.height / DPR;
-  const map = sessions[cur].pts;
-  const clampedX = clamp(x, 0, W);
-  const clampedY = clamp(y, 0, H);
-  map.set(selectedPoint, {
-    x: clampedX,
-    y: clampedY
-  });
-  draw();
-  computeAll();
-  // 입력 필드 업데이트
-  document.getElementById("coordX").value = clampedX.toFixed(1);
-  document.getElementById("coordY").value = clampedY.toFixed(1);
-};
+const coordApply = document.getElementById("coordApply");
+if(coordApply) {
+  coordApply.onclick = () => {
+    if(!selectedPoint) {
+      alert("점을 선택해주세요.");
+      return;
+    }
+    const x = parseFloat(coordX.value);
+    const y = parseFloat(coordY.value);
+    if(isNaN(x) || isNaN(y)) {
+      alert("올바른 좌표를 입력해주세요.");
+      return;
+    }
+    const W = cv.width / DPR, H = cv.height / DPR;
+    const map = sessions[cur].pts;
+    const clampedX = clamp(x, 0, W);
+    const clampedY = clamp(y, 0, H);
+    map.set(selectedPoint, {
+      x: clampedX,
+      y: clampedY
+    });
+    draw();
+    computeAll();
+    // 입력 필드 업데이트
+    coordX.value = clampedX.toFixed(1);
+    coordY.value = clampedY.toFixed(1);
+  };
+}
 
 // 취소
-document.getElementById("coordCancel").onclick = () => {
-  selectedPoint = null;
-  document.getElementById("coordSelectPoint").value = "";
-  document.getElementById("coordX").value = "";
-  document.getElementById("coordY").value = "";
-  draw();
-};
+const coordCancel = document.getElementById("coordCancel");
+if(coordCancel) {
+  coordCancel.onclick = () => {
+    selectedPoint = null;
+    if(coordSelectPoint) coordSelectPoint.value = "";
+    if(coordX) coordX.value = "";
+    if(coordY) coordY.value = "";
+    draw();
+  };
+}
 
 // X, Y 좌표 입력 필드에서 Enter 키로도 적용 가능
-document.getElementById("coordX").addEventListener("keypress", e => {
-  if(e.key === "Enter") {
-    document.getElementById("coordApply").click();
-  }
-});
-document.getElementById("coordY").addEventListener("keypress", e => {
-  if(e.key === "Enter") {
-    document.getElementById("coordApply").click();
-  }
-});
+if(coordX) {
+  coordX.addEventListener("keypress", e => {
+    if(e.key === "Enter") {
+      if(coordApply) coordApply.click();
+    }
+  });
+}
+if(coordY) {
+  coordY.addEventListener("keypress", e => {
+    if(e.key === "Enter") {
+      if(coordApply) coordApply.click();
+    }
+  });
+}
 
 // 드래그 기능 (마우스 + 터치)
 function getEventPos(e) {
@@ -913,10 +933,13 @@ function startDrag(e) {
       return false;
     }
     const pt = P[selectedPoint];
-    if(!pt) return false;
+    if(!pt) {
+      // 점이 없으면 생성하지 않고 드래그 불가
+      return false;
+    }
     
-    // 선택된 점 근처인지 확인
-    const threshold = 20;
+    // 선택된 점 근처인지 확인 (드래그 범위 넓게)
+    const threshold = 30; // 20 -> 30으로 증가
     const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
     if(d < threshold) {
       dragKey = selectedPoint;
@@ -927,7 +950,7 @@ function startDrag(e) {
   
   // 일반 모드: 모든 점 드래그 가능
   let best = null, bestD = 1e9;
-  const threshold = 20;
+  const threshold = 30; // 20 -> 30으로 증가
   
   for(const k of keypoints) {
     const p = P[k.key];
@@ -1209,5 +1232,5 @@ draw();
 computeAll();
 updateCompare();
 </script>
-</body>
+  </body>
 </html>
