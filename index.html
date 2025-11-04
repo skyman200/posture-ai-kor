@@ -1330,19 +1330,29 @@ function getEventPos(e) {
 }
 
 function startDrag(e) {
-  // 확대된 상태에서 스크롤과 드래그 구분
   const pos = getEventPos(e);
   const P = getPts(cur);
+  
+  // 터치 시작 시간 기록
+  if(e.touches) {
+    touchStartTime = Date.now();
+  }
   
   // 좌표 수정 모드일 때는 선택된 점만 드래그 가능
   if(editMode) {
     if(!selectedPoint) {
-      // 드롭다운에서 선택하지 않았다면 스크롤 허용
+      // 점이 선택되지 않았으면 스크롤 모드
+      isScrolling = true;
+      if(e.touches) {
+        scrollStartX = e.touches[0].clientX;
+        scrollStartY = e.touches[0].clientY;
+      }
       return false;
     }
     const pt = P[selectedPoint];
     if(!pt) {
-      // 점이 없으면 스크롤 허용
+      // 점이 없으면 스크롤 모드
+      isScrolling = true;
       return false;
     }
     
@@ -1352,11 +1362,18 @@ function startDrag(e) {
     const scaleY = currentZoom;
     const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
     if(d < threshold) {
-      e.preventDefault(); // 점 드래그 시에만 스크롤 방지
+      // 점 근처면 드래그 모드
+      e.preventDefault();
+      isScrolling = false;
       dragKey = selectedPoint;
       return true;
     }
-    // 점이 아니면 스크롤 허용
+    // 점이 아니면 스크롤 모드
+    isScrolling = true;
+    if(e.touches) {
+      scrollStartX = e.touches[0].clientX;
+      scrollStartY = e.touches[0].clientY;
+    }
     return false;
   }
   
@@ -1376,9 +1393,12 @@ function startDrag(e) {
   
   if(best) {
     e.preventDefault();
+    isScrolling = false;
     dragKey = best;
     return true;
   }
+  
+  isScrolling = false;
   return false;
 }
 
