@@ -1352,6 +1352,9 @@ function startDrag(e) {
       if(e.touches) {
         scrollStartX = e.touches[0].clientX;
         scrollStartY = e.touches[0].clientY;
+      } else {
+        scrollStartX = e.clientX;
+        scrollStartY = e.clientY;
       }
       return false;
     }
@@ -1379,6 +1382,9 @@ function startDrag(e) {
     if(e.touches) {
       scrollStartX = e.touches[0].clientX;
       scrollStartY = e.touches[0].clientY;
+    } else {
+      scrollStartX = e.clientX;
+      scrollStartY = e.clientY;
     }
     return false;
   }
@@ -1412,6 +1418,7 @@ function doDrag(e) {
   // 스크롤 모드인 경우 스크롤 처리
   if(isScrolling && editMode && currentZoom > 1) {
     if(e.touches && e.touches.length > 0) {
+      e.preventDefault();
       const canvasWrap = cv.parentElement;
       const deltaX = scrollStartX - e.touches[0].clientX;
       const deltaY = scrollStartY - e.touches[0].clientY;
@@ -1419,6 +1426,16 @@ function doDrag(e) {
       canvasWrap.scrollTop += deltaY;
       scrollStartX = e.touches[0].clientX;
       scrollStartY = e.touches[0].clientY;
+    } else if(e.clientX !== undefined && e.clientY !== undefined) {
+      // 마우스 스크롤도 지원
+      e.preventDefault();
+      const canvasWrap = cv.parentElement;
+      const deltaX = scrollStartX - e.clientX;
+      const deltaY = scrollStartY - e.clientY;
+      canvasWrap.scrollLeft += deltaX;
+      canvasWrap.scrollTop += deltaY;
+      scrollStartX = e.clientX;
+      scrollStartY = e.clientY;
     }
     return;
   }
