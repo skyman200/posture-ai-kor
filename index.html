@@ -1563,9 +1563,10 @@ window.addEventListener('mouseup', endDrag);
 window.addEventListener('mouseleave', endDrag);
 
 // 터치 이벤트 (모바일 지원)
-// 확대된 상태에서는 스크롤도 가능해야 하므로 passive 처리 개선
 cv.addEventListener('touchstart', (e) => {
-  if(startDrag(e)) {
+  const result = startDrag(e);
+  // 점을 터치했거나 long press가 시작되면 preventDefault
+  if(result || longPressTimer) {
     e.preventDefault();
   }
 }, {passive: false});
