@@ -2123,16 +2123,21 @@ window.addEventListener('touchcancel', (e) => {
 
 // 업로드
 ["filePicker","cameraPicker"].forEach(id => {
-  document.getElementById(id).addEventListener("change", e => {
+  document.getElementById(id).addEventListener("change", async e => {
     const f = e.target.files[0];
     if(!f) return;
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       sessions[cur].img = img;
       resizeCanvasFor(img);
       sessions[cur].pts.clear();
       draw();
       computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+      
+      // 포즈 감지 자동 실행 (옆모습 기본)
+      if(typeof applyPoseDetection === 'function') {
+        await applyPoseDetection(img, cur);
+      }
     };
     img.crossOrigin = "anonymous";
     img.src = URL.createObjectURL(f);
@@ -2825,46 +2830,8 @@ async function applyPoseDetection(img, sessionName) {
   return pose;
 }
 
-// ✅ 기존 파일 업로드 이벤트에 포즈 감지 통합
-// 기존 파일 업로드 핸들러를 찾아서 수정
-const originalFileHandler = document.getElementById("filePicker");
-const originalCameraHandler = document.getElementById("cameraPicker");
-
-if(originalFileHandler) {
-  const originalHandler = originalFileHandler.onchange;
-  originalFileHandler.addEventListener("change", async function(e) {
-    // 기존 핸들러 실행
-    if(originalHandler) originalHandler.call(this, e);
-    
-    // 포즈 감지 추가
-    const file = e.target.files[0];
-    if(file) {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = async () => {
-        await applyPoseDetection(img, cur);
-      };
-    }
-  });
-}
-
-if(originalCameraHandler) {
-  const originalHandler = originalCameraHandler.onchange;
-  originalCameraHandler.addEventListener("change", async function(e) {
-    // 기존 핸들러 실행
-    if(originalHandler) originalHandler.call(this, e);
-    
-    // 포즈 감지 추가
-    const file = e.target.files[0];
-    if(file) {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = async () => {
-        await applyPoseDetection(img, cur);
-      };
-    }
-  });
-}
+// ✅ 포즈 감지는 위의 업로드 핸들러에서 자동으로 호출됨
+// applyPoseDetection 함수가 이미 위에서 정의되어 있음
 </script>
   </body>
 </html>
