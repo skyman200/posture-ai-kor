@@ -62,12 +62,14 @@ export default function App() {
       </h1>
       <PoseCanvas onAnalysisChange={handleAnalysisChange} />
 
-      <div id="capture-area">
+      <div id="capture-area" className="bg-white/80 p-4 rounded-xl">
         <AiPostureReport
           cvaAngle={angles.cva}
           trunkTilt={angles.trunk}
           kneeAngle={angles.knee}
         />
+        {savedBefore && <BeforeAfterCompare before={savedBefore} after={angles} />}
+        {scores.length > 0 && <ScoreChart data={scores} />}
       </div>
 
       <div className="flex justify-center gap-4 mt-4 flex-wrap">
@@ -100,9 +102,6 @@ export default function App() {
         </button>
       </div>
 
-      {savedBefore && <BeforeAfterCompare before={savedBefore} after={angles} />}
-
-      <ScoreChart data={scores} />
     </div>
   );
 }

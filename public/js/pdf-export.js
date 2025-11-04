@@ -1,13 +1,5 @@
 // ✅ html2canvas + jsPDF를 이용한 완전 자동 한글 포함 PDF 내보내기
 
-// NotoSansKR 폰트 base64 데이터 (약 1.5MB)
-// 실제 사용 시 온라인에서 다운로드하거나 로컬 폰트 파일을 base64로 변환하여 사용
-// 여기서는 이미지 기반 캡처로 한글을 처리 (폰트 없이도 작동)
-const notoSansKR = `
-data:font/truetype;base64,AAEAAAASAQAABAAgR0RFRrRCsIIAAEAAAAA...
-(실제 폰트 base64 데이터는 매우 길어서 생략 - 필요시 온라인에서 생성)
-`;
-
 async function exportPDF() {
   const element = document.getElementById("capture-area");
   if (!element) {
@@ -16,31 +8,28 @@ async function exportPDF() {
   }
 
   try {
-    // ✅ html2canvas로 이미지 캡처 (한글은 이미지로 처리되어 폰트 문제 없음)
+    // ✅ html2canvas로 이미지 캡처 - 한글 폰트 문제 해결을 위한 설정
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
-      allowTaint: true,
+      allowTaint: false,
+      foreignObjectRendering: true,
+      // 폰트 렌더링 개선
+      onclone: (clonedDoc) => {
+        // 클론된 문서의 모든 텍스트가 제대로 렌더링되도록
+        const clonedElement = clonedDoc.getElementById("capture-area");
+        if (clonedElement) {
+          // 폰트가 로드되도록 강제
+          clonedElement.style.fontFamily = 
+            "system-ui, -apple-system, 'Segoe UI', Roboto, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+        }
+      },
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    const imgData = canvas.toDataURL("image/png", 1.0);
     const pdf = new jspdf.jsPDF("p", "mm", "a4");
-
-    // ✅ 이미지 기반이므로 폰트 설정 불필요 (이미지에 모든 텍스트 포함됨)
-    // 필요시 아래 주석을 해제하여 폰트 추가 가능
-    /*
-    if (notoSansKR && notoSansKR.length > 100) {
-      try {
-        pdf.addFileToVFS("NotoSansKR-Regular.ttf", notoSansKR);
-        pdf.addFont("NotoSansKR-Regular.ttf", "NotoSansKR", "normal");
-        pdf.setFont("NotoSansKR");
-      } catch (e) {
-        console.warn("폰트 추가 실패, 기본 폰트 사용:", e);
-      }
-    }
-    */
 
     // ✅ 이미지 삽입
     const imgProps = pdf.getImageProperties(imgData);
