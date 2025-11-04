@@ -533,7 +533,16 @@ function switchSession(s) {
   document.getElementById("btnAfter").classList.toggle("active", s === "After");
   document.getElementById("currentSession").textContent = s;
   draw();
-  computeAll();
+  // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
+  if(sessions[s].analysis) {
+    // 기존 분석이 있으면 전체 업데이트
+    const score = sessions[s].score;
+    const metrics = sessions[s].metrics;
+    const analysis = sessions[s].analysis;
+    updateScoreAndAnalysis(score, metrics.cva, metrics.pelvic, metrics.knee, analysis);
+  } else {
+    computeMetricsOnly(); // 분석이 없으면 metrics만 계산
+  }
   updateCompare();
 }
 
@@ -1917,7 +1926,7 @@ window.addEventListener('touchcancel', (e) => {
       resizeCanvasFor(img);
       sessions[cur].pts.clear();
       draw();
-      computeAll();
+      computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
     };
     img.crossOrigin = "anonymous";
     img.src = URL.createObjectURL(f);
@@ -1928,7 +1937,7 @@ window.addEventListener('touchcancel', (e) => {
 document.getElementById("btnReset").onclick = () => {
   sessions[cur].pts.clear();
   draw();
-  computeAll();
+  computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
 };
 
 // 좌표 저장 (저장 버튼 - AI 분석 실행)
