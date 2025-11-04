@@ -104,15 +104,8 @@ label.btn input { display:none; }
   border-collapse:collapse; 
   font-size:11px; 
   overflow-x: auto;
-  display: block;
-}
-.tbl thead, .tbl tbody {
-  display: block;
-}
-.tbl tr {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-  gap: 4px;
+  display: table;
+  -webkit-overflow-scrolling: touch;
 }
 .tbl th,.tbl td { 
   border-bottom:1px solid rgba(255,255,255,0.1); 
