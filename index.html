@@ -31,7 +31,7 @@ body {
 }
 .sidebar { padding: 16px; overflow:auto; }
 .title { font-size: 18px; font-weight:800; margin-bottom: 6px; }
-.muted { color: var(--muted); }
+.muted { color: var(--muted); font-size: 12px; }
 .btn {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
@@ -39,6 +39,7 @@ body {
   background: rgba(255,255,255,0.05);
   color: var(--ink);
   cursor: pointer;
+  font-size: 13px;
 }
 .btn:hover { background: rgba(255,255,255,0.12); }
 .seg { display: flex; border-radius: 10px; overflow: hidden; margin-top: 8px; }
@@ -48,7 +49,7 @@ label.btn input { display:none; }
 .tbl { width:100%; border-collapse:collapse; font-size:13px; }
 .tbl th,.tbl td { border-bottom:1px solid rgba(255,255,255,0.1); padding:6px 8px; }
 .canvasWrap { display:flex; align-items:center; justify-content:center; }
-canvas { max-width:100%; max-height:100%; border-radius:var(--radius); background:#0a0e13; }
+canvas { max-width:100%; max-height:100%; border-radius:var(--radius); background:#0a0e13; cursor: crosshair; }
 @media(max-width:920px){
   body { grid-template-columns:1fr; height:auto; min-height:100vh; }
 }
@@ -57,7 +58,7 @@ canvas { max-width:100%; max-height:100%; border-radius:var(--radius); backgroun
 <body>
 <aside class="panel sidebar">
   <div class="title">📸 DIT 자세 분석 AI</div>
-  <div class="muted">파일 업로드 후 점을 조정하고 PDF로 저장하세요.</div>
+  <div class="muted">파일 업로드 → 점을 드래그로 조정 → 각도 자동 계산</div>
 
   <div class="seg">
     <button id="btnBefore" class="active">Before</button>
@@ -77,6 +78,13 @@ canvas { max-width:100%; max-height:100%; border-radius:var(--radius); backgroun
     <button class="btn" id="btnSaveJSON">💾 좌표 저장</button>
     <button class="btn" id="btnLoadJSON">📂 좌표 불러오기</button>
     <button class="btn" id="btnPDF">📄 PDF 저장</button>
+  </div>
+
+  <div style="margin-top:12px;">
+    <div class="muted" style="margin-bottom:6px;">현재 세션: <span id="currentSession">Before</span></div>
+    <div class="muted" style="margin-bottom:6px;">CVA: <span id="dispCva">—</span></div>
+    <div class="muted" style="margin-bottom:6px;">TRUNK: <span id="dispPel">—</span></div>
+    <div class="muted" style="margin-bottom:8px;">KNEE: <span id="dispKnee">—</span></div>
   </div>
 
   <div style="margin-top:12px;">
@@ -101,64 +109,372 @@ const { jsPDF } = window.jspdf;
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
 let DPR = window.devicePixelRatio || 1;
-const sessions={Before:{img:null},After:{img:null}};
-let cur="Before";
+let dragKey = null;
 
-document.getElementById("btnBefore").onclick=()=>switchSession("Before");
-document.getElementById("btnAfter").onclick=()=>switchSession("After");
-function switchSession(s){cur=s;document.getElementById("btnBefore").classList.toggle("active",s==="Before");document.getElementById("btnAfter").classList.toggle("active",s==="After");draw();}
+const keypoints = [
+  {key:'Tragus', color:'#7c9cff'},
+  {key:'C7', color:'#7c9cff'},
+  {key:'Shoulder', color:'#7c9cff'},
+  {key:'Hip', color:'#7c9cff'},
+  {key:'Knee', color:'#7c9cff'},
+  {key:'Ankle', color:'#7c9cff'},
+  {key:'ASIS', color:'#ffb86c'},
+  {key:'PSIS', color:'#ffb86c'},
+];
 
-function resizeCanvasFor(img){
-  const maxW=cv.parentElement.clientWidth-24, maxH=cv.parentElement.clientHeight-24;
-  const r=img?Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight):1;
-  const w=Math.round((img?img.naturalWidth:1200)*r),h=Math.round((img?img.naturalHeight:800)*r);
-  cv.width=w*DPR;cv.height=h*DPR;cv.style.width=w+"px";cv.style.height=h+"px";
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  if(img)ctx.drawImage(img,0,0,w,h);
+const sessions = {
+  Before: { img:null, pts:new Map(), metrics:{} },
+  After: { img:null, pts:new Map(), metrics:{} }
+};
+let cur = "Before";
+
+const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
+const rad2deg = r => r * 180 / Math.PI;
+const angleBetween = (a,b) => Math.atan2(b.y - a.y, b.x - a.x);
+const internalAngle = (a,b,c) => {
+  const ab = Math.atan2(a.y - b.y, a.x - b.x);
+  const cb = Math.atan2(c.y - b.y, c.x - b.x);
+  let d = Math.abs(ab - cb);
+  if(d > Math.PI) d = 2 * Math.PI - d;
+  return d;
+};
+
+document.getElementById("btnBefore").onclick = () => switchSession("Before");
+document.getElementById("btnAfter").onclick = () => switchSession("After");
+
+function switchSession(s) {
+  cur = s;
+  document.getElementById("btnBefore").classList.toggle("active", s === "Before");
+  document.getElementById("btnAfter").classList.toggle("active", s === "After");
+  document.getElementById("currentSession").textContent = s;
+  draw();
+  computeAll();
+  updateCompare();
 }
-function draw(){
-  ctx.fillStyle="#0a0e13";ctx.fillRect(0,0,cv.width,cv.height);
-  const S=sessions[cur];if(S.img){resizeCanvasFor(S.img);}
+
+function resizeCanvasFor(img) {
+  const maxW = cv.parentElement.clientWidth - 24;
+  const maxH = cv.parentElement.clientHeight - 24;
+  const r = img ? Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight) : 1;
+  const w = Math.round((img ? img.naturalWidth : 1200) * r);
+  const h = Math.round((img ? img.naturalHeight : 800) * r);
+  cv.width = w * DPR;
+  cv.height = h * DPR;
+  cv.style.width = w + "px";
+  cv.style.height = h + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
 
-// 업로드 즉시 표시
-["filePicker","cameraPicker"].forEach(id=>{
-  document.getElementById(id).addEventListener("change",e=>{
-    const f=e.target.files[0];if(!f)return;
-    const img=new Image();img.onload=()=>{sessions[cur].img=img;resizeCanvasFor(img);draw();};
-    img.crossOrigin="anonymous";img.src=URL.createObjectURL(f);
+function ensureDefaultPoints(session) {
+  const S = sessions[session];
+  const W = cv.width / DPR, H = cv.height / DPR;
+  if(S.pts.size === 0 && S.img) {
+    const defaults = {
+      Tragus: {x:W*0.35, y:H*0.3},
+      C7: {x:W*0.3, y:H*0.35},
+      Shoulder: {x:W*0.35, y:H*0.4},
+      Hip: {x:W*0.38, y:H*0.6},
+      Knee: {x:W*0.42, y:H*0.8},
+      Ankle: {x:W*0.44, y:H*0.95},
+      ASIS: {x:W*0.40, y:H*0.58},
+      PSIS: {x:W*0.35, y:H*0.6},
+    };
+    for(const kp of keypoints) {
+      if(defaults[kp.key]) S.pts.set(kp.key, {...defaults[kp.key]});
+    }
+  }
+}
+
+function getPts(session) {
+  const map = sessions[session].pts;
+  const out = {};
+  for(const k of keypoints) out[k.key] = map.get(k.key);
+  return out;
+}
+
+function draw() {
+  const S = sessions[cur];
+  const W = cv.width / DPR, H = cv.height / DPR;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = "#0a0e13";
+  ctx.fillRect(0, 0, W, H);
+
+  if(S.img) {
+    ctx.drawImage(S.img, 0, 0, W, H);
+  }
+
+  ensureDefaultPoints(cur);
+  const P = getPts(cur);
+
+  // 보조선 그리기
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = 'rgba(124,156,255,0.85)';
+
+  if(P.C7 && P.Tragus) {
+    ctx.beginPath();
+    ctx.moveTo(0, P.C7.y);
+    ctx.lineTo(W, P.C7.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(P.C7.x, P.C7.y);
+    ctx.lineTo(P.Tragus.x, P.Tragus.y);
+    ctx.stroke();
+  }
+
+  if(P.Shoulder && P.Hip) {
+    ctx.beginPath();
+    ctx.moveTo(P.Shoulder.x, P.Shoulder.y);
+    ctx.lineTo(P.Hip.x, P.Hip.y);
+    ctx.stroke();
+  }
+  if(P.Hip && P.Knee) {
+    ctx.beginPath();
+    ctx.moveTo(P.Hip.x, P.Hip.y);
+    ctx.lineTo(P.Knee.x, P.Knee.y);
+    ctx.stroke();
+  }
+  if(P.Knee && P.Ankle) {
+    ctx.beginPath();
+    ctx.moveTo(P.Knee.x, P.Knee.y);
+    ctx.lineTo(P.Ankle.x, P.Ankle.y);
+    ctx.stroke();
+  }
+
+  if(P.ASIS && P.PSIS) {
+    ctx.strokeStyle = 'rgba(255,184,108,0.95)';
+    ctx.beginPath();
+    ctx.moveTo(P.ASIS.x, P.ASIS.y);
+    ctx.lineTo(P.PSIS.x, P.PSIS.y);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,184,108,0.35)';
+    const midy = (P.ASIS.y + P.PSIS.y) / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, midy);
+    ctx.lineTo(W, midy);
+    ctx.stroke();
+  }
+
+  ctx.setLineDash([]);
+
+  // 점 그리기
+  for(const kp of keypoints) {
+    const pt = P[kp.key];
+    if(!pt) continue;
+    drawHandle(pt.x, pt.y, kp.key, kp.color);
+  }
+}
+
+function drawHandle(x, y, label, color) {
+  ctx.fillStyle = color;
+  ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = '12px "Noto Sans KR"';
+  const pad = 4;
+  const tw = ctx.measureText(label).width;
+  const th = 16;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x + 10, y - 12, tw + pad * 2, th);
+  ctx.fillStyle = '#e7eef7';
+  ctx.fillText(label, x + 10 + pad, y + 1);
+}
+
+function computeAll() {
+  const S = sessions[cur];
+  const P = getPts(cur);
+  let cva = null, pelvic = null, knee = null;
+
+  if(P.C7 && P.Tragus) {
+    const a = angleBetween(P.C7, P.Tragus);
+    cva = Math.abs(rad2deg(a));
+  }
+  if(P.ASIS && P.PSIS) {
+    pelvic = rad2deg(angleBetween(P.ASIS, P.PSIS));
+  }
+  if(P.Hip && P.Knee && P.Ankle) {
+    knee = rad2deg(internalAngle(P.Hip, P.Knee, P.Ankle));
+  }
+
+  S.metrics = { cva, pelvic, knee };
+  updateDisplay();
+  updateCompare();
+}
+
+function updateDisplay() {
+  const M = sessions[cur].metrics;
+  document.getElementById("dispCva").textContent = M.cva != null ? M.cva.toFixed(1) + "°" : "—";
+  document.getElementById("dispPel").textContent = M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—";
+  document.getElementById("dispKnee").textContent = M.knee != null ? M.knee.toFixed(1) + "°" : "—";
+}
+
+function fmtDeg(v) {
+  return (v == null || isNaN(v)) ? "—" : v.toFixed(1) + "°";
+}
+
+function deltaStr(b, a, suf = "") {
+  if(b == null || a == null || isNaN(b) || isNaN(a)) return "—";
+  const d = a - b;
+  const sign = d > 0 ? "+" : "";
+  return sign + d.toFixed(1) + (suf || "");
+}
+
+function updateCompare() {
+  const B = sessions.Before, A = sessions.After;
+  const cB = B.metrics.cva, cA = A.metrics.cva;
+  document.getElementById("cmpCvaB").textContent = fmtDeg(cB);
+  document.getElementById("cmpCvaA").textContent = fmtDeg(cA);
+  document.getElementById("cmpCvaD").textContent = deltaStr(cB, cA, "°");
+
+  const pB = B.metrics.pelvic, pA = A.metrics.pelvic;
+  document.getElementById("cmpPelB").textContent = fmtDeg(pB);
+  document.getElementById("cmpPelA").textContent = fmtDeg(pA);
+  document.getElementById("cmpPelD").textContent = deltaStr(pB, pA, "°");
+
+  const kB = B.metrics.knee, kA = A.metrics.knee;
+  document.getElementById("cmpKneeB").textContent = fmtDeg(kB);
+  document.getElementById("cmpKneeA").textContent = fmtDeg(kA);
+  document.getElementById("cmpKneeD").textContent = deltaStr(kB, kA, "°");
+}
+
+// 드래그 기능
+cv.addEventListener('mousedown', e => {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left);
+  const y = (e.clientY - r.top);
+  const P = getPts(cur);
+  let best = null, bestD = 1e9;
+  for(const k of keypoints) {
+    const p = P[k.key];
+    if(!p) continue;
+    const d = Math.hypot(p.x - x, p.y - y);
+    if(d < 12 && d < bestD) {
+      best = k.key;
+      bestD = d;
+    }
+  }
+  if(best) dragKey = best;
+});
+
+window.addEventListener('mousemove', e => {
+  if(!dragKey) return;
+  const r = cv.getBoundingClientRect();
+  const x = clamp(e.clientX - r.left, 0, cv.width / DPR);
+  const y = clamp(e.clientY - r.top, 0, cv.height / DPR);
+  const map = sessions[cur].pts;
+  const p = map.get(dragKey);
+  if(!p) return;
+  p.x = x;
+  p.y = y;
+  draw();
+  computeAll();
+});
+
+window.addEventListener('mouseup', () => {
+  dragKey = null;
+});
+
+// 업로드
+["filePicker","cameraPicker"].forEach(id => {
+  document.getElementById(id).addEventListener("change", e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const img = new Image();
+    img.onload = () => {
+      sessions[cur].img = img;
+      resizeCanvasFor(img);
+      sessions[cur].pts.clear();
+      draw();
+      computeAll();
+    };
+    img.crossOrigin = "anonymous";
+    img.src = URL.createObjectURL(f);
   });
 });
 
 // Reset 버튼
-document.getElementById("btnReset").onclick=()=>{sessions[cur].img=null;draw();};
+document.getElementById("btnReset").onclick = () => {
+  sessions[cur].pts.clear();
+  draw();
+  computeAll();
+};
 
-// PDF 전체화면 캡처
-document.getElementById("btnPDF").onclick=async()=>{
-  const target=document.body;
-  const canvas=await html2canvas(target,{scale:2,backgroundColor:"#fff",useCORS:true});
-  const imgData=canvas.toDataURL("image/png");
-  const pdf=new jsPDF({orientation:"portrait",unit:"px",format:"a4"});
-  const pageW=pdf.internal.pageSize.getWidth();
-  const pageH=pdf.internal.pageSize.getHeight();
-  const imgW=pageW-40, imgH=canvas.height*(imgW/canvas.width);
-  let y=20;
-  if(imgH<pageH-40){pdf.addImage(imgData,"PNG",20,y,imgW,imgH);}
-  else{
-    let remaining=imgH, sY=0;
-    const onePageH=pageH-40, sliceH=canvas.height*(onePageH/imgH);
-    while(remaining>0){
-      const pageCanvas=document.createElement("canvas");
-      pageCanvas.width=canvas.width;pageCanvas.height=Math.min(sliceH,canvas.height-sY);
-      const pctx=pageCanvas.getContext("2d");
-      pctx.drawImage(canvas,0,sY,canvas.width,pageCanvas.height,0,0,canvas.width,pageCanvas.height);
-      const pageImg=pageCanvas.toDataURL("image/png");
-      pdf.addImage(pageImg,"PNG",20,20,imgW,onePageH*(pageCanvas.height/sliceH));
-      remaining-=onePageH;sY+=sliceH;if(remaining>0)pdf.addPage();
+// 좌표 저장
+document.getElementById("btnSaveJSON").onclick = () => {
+  const obj = Object.fromEntries(sessions[cur].pts);
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${cur}_keypoints.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// 좌표 불러오기
+document.getElementById("btnLoadJSON").onclick = () => {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'application/json';
+  inp.onchange = e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const obj = JSON.parse(r.result);
+        const map = new Map();
+        for(const k of Object.keys(obj)) map.set(k, obj[k]);
+        sessions[cur].pts = map;
+        draw();
+        computeAll();
+      } catch(err) {
+        alert('JSON 파싱 실패: ' + err.message);
+      }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+
+// PDF 저장
+document.getElementById("btnPDF").onclick = async () => {
+  const target = document.body;
+  const canvas = await html2canvas(target, {scale:2, backgroundColor:"#fff", useCORS:true});
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgW = pageW - 40, imgH = canvas.height * (imgW / canvas.width);
+  let y = 20;
+  if(imgH < pageH - 40) {
+    pdf.addImage(imgData, "PNG", 20, y, imgW, imgH);
+  } else {
+    let remaining = imgH, sY = 0;
+    const onePageH = pageH - 40, sliceH = canvas.height * (onePageH / imgH);
+    while(remaining > 0) {
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = Math.min(sliceH, canvas.height - sY);
+      const pctx = pageCanvas.getContext("2d");
+      pctx.drawImage(canvas, 0, sY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+      const pageImg = pageCanvas.toDataURL("image/png");
+      pdf.addImage(pageImg, "PNG", 20, 20, imgW, onePageH * (pageCanvas.height / sliceH));
+      remaining -= onePageH;
+      sY += sliceH;
+      if(remaining > 0) pdf.addPage();
     }
   }
   pdf.save("DIT_자세_분석_리포트.pdf");
 };
+
+// 초기화
+resizeCanvasFor(null);
+draw();
+computeAll();
+updateCompare();
 </script>
 </body>
 </html>
