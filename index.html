@@ -326,7 +326,73 @@ let cur = "Before";
 
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
 const rad2deg = r => r * 180 / Math.PI;
+const deg2rad = d => d * Math.PI / 180;
 const angleBetween = (a,b) => Math.atan2(b.y - a.y, b.x - a.x);
+
+// 두 점 사이 각도(수평 기준, p1->p2), 화면 y-down 좌표계 가정
+function angleP1P2(p1, p2) {
+  return rad2deg(Math.atan2(p2.y - p1.y, p2.x - p1.x));
+}
+
+// 두 점 사이 거리(픽셀)
+function dist(p1, p2) {
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+// 외적/내적 기반 각도(pA-vertex-pB)
+function angleAt(v, a, b) {
+  const ax = a.x - v.x;
+  const ay = a.y - v.y;
+  const bx = b.x - v.x;
+  const by = b.y - v.y;
+  const dot = ax*bx + ay*by;
+  const na = Math.sqrt(ax*ax + ay*ay);
+  const nb = Math.sqrt(bx*bx + by*by);
+  if (na === 0 || nb === 0) return NaN;
+  return rad2deg(Math.acos(Math.max(-1, Math.min(1, dot / (na*nb)))));
+}
+
+// 수직선(90°)과 라인 각도 차이 절대값
+function angleToVertical(p1, p2) {
+  const a = angleP1P2(p1, p2);
+  return Math.abs(90 - Math.abs(a));
+}
+
+// 수평선과 라인 각도 절대값
+function angleToHorizontal(p1, p2) {
+  return Math.abs(angleP1P2(p1, p2));
+}
+
+// 범위 분류 함수 (normal, mild, moderate, severe)
+function classifyRange({
+  v,
+  nMin = null, nMax = null,
+  mildMin = null, mildMax = null,
+  modMin = null, modMax = null,
+  sevMin = null, sevMax = null,
+  higherIsWorse = false
+}) {
+  function inRange(x, lo, hi) {
+    return (lo == null || x >= lo) && (hi == null || x <= hi);
+  }
+  
+  if (inRange(v, nMin, nMax)) return "normal";
+  if (inRange(v, mildMin, mildMax)) return "mild";
+  if (inRange(v, modMin, modMax)) return "moderate";
+  if (inRange(v, sevMin, sevMax)) return "severe";
+  
+  // 방향성 힌트
+  return higherIsWorse
+    ? (v > (nMax ?? v) ? "worse_high" : "worse_low")
+    : (v < (nMin ?? v) ? "worse_low" : "worse_high");
+}
+
+// px→cm 변환
+function pxToCm(px, scalePxPerCm = 50) {
+  return px / scalePxPerCm;
+}
 
 // 필라테스 동작 데이터
 const pilatesData = {
@@ -866,53 +932,51 @@ function computeMetricsOnly() {
 function computeAll() {
   const S = sessions[cur];
   const P = getPts(cur);
-  let cva = null, pelvic = null, knee = null;
-
-  if(P.C7 && P.Tragus) {
-    const dx = P.Tragus.x - P.C7.x;
-    const dy = P.Tragus.y - P.C7.y;
-    const angle = Math.atan2(dy, dx);
-    let cvaDeg = rad2deg(angle);
-    
-    if(cvaDeg < 0) {
-      cvaDeg = 180 + cvaDeg;
+  
+  // 좌표를 Map 형태로 변환
+  const points = {};
+  for(const [key, value] of P.entries()) {
+    if(value && value.x != null && value.y != null) {
+      points[key] = { x: value.x, y: value.y };
     }
-    if(cvaDeg > 90) {
-      cvaDeg = 180 - cvaDeg;
-    }
-    cva = cvaDeg;
   }
-  if(P.ASIS && P.PSIS) {
-    // TRUNK 각도: 수평선과 ASIS-PSIS 선 사이의 각도
-    // ASIS에서 PSIS로 가는 벡터의 각도를 계산
+  
+  // 전체 분석 실행
+  const fullMetrics = analyzeFullPosture(points, 50.0);
+  
+  // 기존 호환성을 위해 기존 변수명 유지
+  let cva = fullMetrics.CVA ? fullMetrics.CVA.value_deg : null;
+  let pelvic = fullMetrics.PTA ? fullMetrics.PTA.value_deg : null;
+  let knee = fullMetrics.KA ? fullMetrics.KA.value_deg : null;
+  
+  // 기존 로직으로 보정 (필요시)
+  if(P.ASIS && P.PSIS && pelvic != null) {
     const dx = P.PSIS.x - P.ASIS.x;
     const dy = P.PSIS.y - P.ASIS.y;
     const angle = Math.atan2(dy, dx);
     let pelvicDeg = rad2deg(angle);
     
-    // 수평선 기준으로 각도 정규화 (-90~90도 범위)
-    // -176.4도는 180 + (-176.4) = 3.6도로 변환되어야 함
-    // 각도를 -180~180 범위에서 -90~90 범위로 변환
     if(pelvicDeg < -90) {
-      // -176.4도 같은 경우: 180 + (-176.4) = 3.6도
       pelvicDeg = 180 + pelvicDeg;
     } else if(pelvicDeg > 90) {
-      // 176.4도 같은 경우: 176.4 - 180 = -3.6도
       pelvicDeg = pelvicDeg - 180;
     }
-    
     pelvic = pelvicDeg;
   }
-  if(P.Hip && P.Knee && P.Ankle) {
-    knee = rad2deg(internalAngle(P.Hip, P.Knee, P.Ankle));
-  }
 
-  S.metrics = { cva, pelvic, knee };
+  // 전체 메트릭 저장
+  S.metrics = { 
+    cva, 
+    pelvic, 
+    knee,
+    fullMetrics // 전체 분석 결과도 저장
+  };
+  
   const score = computeScore(cva, pelvic, knee);
   S.score = score;
   
   // AI 분석 실행 (저장 시에만)
-  const analysis = analyzeMuscles(cva, pelvic, knee);
+  const analysis = analyzeMuscles(cva, pelvic, knee, fullMetrics);
   S.analysis = analysis;
   
   updateDisplay();
@@ -958,7 +1022,7 @@ function computeScore(cva, pelvic, knee) {
   return { score, reasons, penalties };
 }
 
-function analyzeMuscles(cva, pelvic, knee) {
+function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
   const tight = [];
   const weak = [];
   const comments = [];
