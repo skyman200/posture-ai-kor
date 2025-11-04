@@ -1332,7 +1332,20 @@ if(coordY) {
 // 좌표 증감 버튼 기능 (자동 적용)
 function adjustCoordinate(coordField, delta) {
   if(!coordField) return;
-  const currentValue = parseFloat(coordField.value) || 0;
+  
+  // 현재 값이 비어있으면 기본값 설정
+  let currentValue = parseFloat(coordField.value);
+  if(isNaN(currentValue)) {
+    // 좌표가 없으면 중앙값으로 설정
+    const originalW = originalCanvasSize.width || (cv.width / DPR);
+    const originalH = originalCanvasSize.height || (cv.height / DPR);
+    if(coordField === coordX) {
+      currentValue = originalW / 2;
+    } else {
+      currentValue = originalH / 2;
+    }
+  }
+  
   const newValue = currentValue + delta;
   coordField.value = newValue.toFixed(1);
   
@@ -1368,17 +1381,72 @@ function adjustCoordinate(coordField, delta) {
   }
 }
 
+// 증감 버튼 연속 클릭 변수
+let incrementTimer = null;
+let incrementInterval = null;
+
+function startIncrement(coordField, delta) {
+  // 즉시 한 번 실행
+  adjustCoordinate(coordField, delta);
+  
+  // 짧은 딜레이 후 연속 실행
+  incrementTimer = setTimeout(() => {
+    incrementInterval = setInterval(() => {
+      adjustCoordinate(coordField, delta);
+    }, 50); // 50ms마다 실행 (빠른 증감)
+  }, 300); // 300ms 후 연속 실행 시작
+}
+
+function stopIncrement() {
+  if(incrementTimer) {
+    clearTimeout(incrementTimer);
+    incrementTimer = null;
+  }
+  if(incrementInterval) {
+    clearInterval(incrementInterval);
+    incrementInterval = null;
+  }
+}
+
 // X 좌표 증감 버튼
 const coordXDec = document.getElementById("coordXDec");
 const coordXInc = document.getElementById("coordXInc");
 if(coordXDec) {
-  coordXDec.onclick = () => {
-    if(coordX) adjustCoordinate(coordX, -0.1);
+  coordXDec.onmousedown = () => {
+    if(coordX) startIncrement(coordX, -0.1);
+  };
+  coordXDec.onmouseup = stopIncrement;
+  coordXDec.onmouseleave = stopIncrement;
+  coordXDec.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordX) startIncrement(coordX, -0.1);
+  };
+  coordXDec.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordXDec.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
   };
 }
 if(coordXInc) {
-  coordXInc.onclick = () => {
-    if(coordX) adjustCoordinate(coordX, 0.1);
+  coordXInc.onmousedown = () => {
+    if(coordX) startIncrement(coordX, 0.1);
+  };
+  coordXInc.onmouseup = stopIncrement;
+  coordXInc.onmouseleave = stopIncrement;
+  coordXInc.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordX) startIncrement(coordX, 0.1);
+  };
+  coordXInc.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordXInc.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
   };
 }
 
@@ -1386,13 +1454,41 @@ if(coordXInc) {
 const coordYDec = document.getElementById("coordYDec");
 const coordYInc = document.getElementById("coordYInc");
 if(coordYDec) {
-  coordYDec.onclick = () => {
-    if(coordY) adjustCoordinate(coordY, -0.1);
+  coordYDec.onmousedown = () => {
+    if(coordY) startIncrement(coordY, -0.1);
+  };
+  coordYDec.onmouseup = stopIncrement;
+  coordYDec.onmouseleave = stopIncrement;
+  coordYDec.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordY) startIncrement(coordY, -0.1);
+  };
+  coordYDec.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordYDec.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
   };
 }
 if(coordYInc) {
-  coordYInc.onclick = () => {
-    if(coordY) adjustCoordinate(coordY, 0.1);
+  coordYInc.onmousedown = () => {
+    if(coordY) startIncrement(coordY, 0.1);
+  };
+  coordYInc.onmouseup = stopIncrement;
+  coordYInc.onmouseleave = stopIncrement;
+  coordYInc.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordY) startIncrement(coordY, 0.1);
+  };
+  coordYInc.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordYInc.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
   };
 }
 
@@ -1462,7 +1558,8 @@ function startDrag(e) {
   let bestDistance = 1e9;
   // threshold는 화면 픽셀 기준으로 계산 (더 정확한 감지)
   // 확대 모드에서는 화면에서 더 크게 보이므로 threshold도 더 크게
-  const threshold = editMode && currentZoom > 1 ? 80 : 50; // 화면 픽셀 기준
+  // 라벨 영역도 포함하도록 threshold를 더 크게 설정
+  const threshold = editMode && currentZoom > 1 ? 120 : 80; // 화면 픽셀 기준 (라벨 포함)
   
   // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
@@ -1494,7 +1591,23 @@ function startDrag(e) {
       const screenPtY = p.y * scaleY;
       const screenPosX = pos.x * scaleX;
       const screenPosY = pos.y * scaleY;
-      const d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
+      
+      // 점과의 거리 계산
+      let d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
+      
+      // 라벨 영역 체크 (점 오른쪽에 라벨이 있음)
+      // 라벨은 점 오른쪽에 위치: x + 10부터 시작, 너비는 대략 100픽셀, 높이는 16픽셀
+      const labelX = screenPtX + 10;
+      const labelY = screenPtY - 12;
+      const labelWidth = 100; // 라벨 최대 너비
+      const labelHeight = 16;
+      
+      // 라벨 영역 내에 있는지 확인
+      if(screenPosX >= labelX && screenPosX <= labelX + labelWidth &&
+         screenPosY >= labelY && screenPosY <= labelY + labelHeight) {
+        d = 0; // 라벨 영역 내에 있으면 최우선
+      }
+      
       if(d < threshold && d < bestDistance) {
         bestPoint = k.key;
         bestDistance = d;
