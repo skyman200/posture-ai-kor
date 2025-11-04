@@ -335,7 +335,9 @@ function resizeCanvasFor(img) {
 
 function ensureDefaultPoints(session) {
   const S = sessions[session];
-  const W = cv.width / DPR, H = cv.height / DPR;
+  // 원본 크기 기준으로 좌표 계산
+  const W = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+  const H = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
   if(S.pts.size === 0 && S.img) {
     const defaults = {
       Tragus: {x:W*0.35, y:H*0.3},
