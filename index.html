@@ -1293,13 +1293,18 @@ function getEventPos(e) {
   const scaleX = cv.width / DPR / r.width;
   const scaleY = cv.height / DPR / r.height;
   
-  // 스크롤 오프셋 고려 (확대된 경우)
-  const canvasWrap = cv.parentElement;
-  const scrollX = canvasWrap.scrollLeft || 0;
-  const scrollY = canvasWrap.scrollTop || 0;
+  let x = (clientX - r.left) * scaleX;
+  let y = (clientY - r.top) * scaleY;
   
-  let x = (clientX - r.left + scrollX) * scaleX;
-  let y = (clientY - r.top + scrollY) * scaleY;
+  // 확대된 경우 스크롤 오프셋 고려
+  if(editMode && currentZoom > 1) {
+    const canvasWrap = cv.parentElement;
+    const scrollX = canvasWrap.scrollLeft || 0;
+    const scrollY = canvasWrap.scrollTop || 0;
+    // 스크롤 오프셋을 실제 캔버스 좌표로 변환
+    x += scrollX * scaleX;
+    y += scrollY * scaleY;
+  }
   
   // 좌표 수정 모드에서 확대된 경우, 좌표를 원본 크기 기준으로 변환
   if(editMode && currentZoom > 1) {
