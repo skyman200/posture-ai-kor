@@ -1705,6 +1705,11 @@ function doDrag(e) {
       coordY.value = y.toFixed(1);
     }
     
+    // 선택된 점과 일치하면 좌표 표시 업데이트
+    if(selectedPoint === dragKey && typeof window.updateCoordDisplay === 'function') {
+      window.updateCoordDisplay();
+    }
+    
     draw();
     computeAll();
     return; // 드래그 모드에서는 스크롤 완전 차단
