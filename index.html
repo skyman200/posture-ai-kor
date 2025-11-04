@@ -844,7 +844,20 @@ document.getElementById("coordCancel").onclick = () => {
   document.getElementById("coordSelectPoint").value = "";
   document.getElementById("coordX").value = "";
   document.getElementById("coordY").value = "";
+  draw();
 };
+
+// X, Y 좌표 입력 필드에서 Enter 키로도 적용 가능
+document.getElementById("coordX").addEventListener("keypress", e => {
+  if(e.key === "Enter") {
+    document.getElementById("coordApply").click();
+  }
+});
+document.getElementById("coordY").addEventListener("keypress", e => {
+  if(e.key === "Enter") {
+    document.getElementById("coordApply").click();
+  }
+});
 
 // 드래그 기능 (마우스 + 터치)
 function getEventPos(e) {
