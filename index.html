@@ -404,24 +404,38 @@ function draw() {
   for(const kp of keypoints) {
     const pt = P[kp.key];
     if(!pt) continue;
-    drawHandle(pt.x, pt.y, kp.key, kp.color);
+    // 좌표 수정 모드에서 선택된 점은 강조 표시
+    const isSelected = editMode && selectedPoint === kp.key;
+    drawHandle(pt.x, pt.y, kp.key, kp.color, isSelected);
   }
 }
 
-function drawHandle(x, y, label, color) {
+function drawHandle(x, y, label, color, isSelected = false) {
+  // 선택된 점은 더 크고 강조 표시
+  const radius = isSelected ? 12 : 8;
+  const strokeWidth = isSelected ? 3 : 2;
+  
+  // 선택된 점은 외곽 링 표시
+  if(isSelected) {
+    ctx.fillStyle = 'rgba(124,156,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
   // 점을 더 크게 그리고 드래그 영역을 넓게
   ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+  ctx.strokeStyle = isSelected ? 'rgba(124,156,255,1)' : 'rgba(0,0,0,0.8)';
   ctx.beginPath();
-  ctx.arc(x, y, 8, 0, Math.PI * 2);  // 6 -> 8로 증가
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 2;
+  ctx.lineWidth = strokeWidth;
   ctx.stroke();
   ctx.font = '12px "Noto Sans KR"';
   const pad = 4;
   const tw = ctx.measureText(label).width;
   const th = 16;
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillStyle = isSelected ? 'rgba(124,156,255,0.8)' : 'rgba(0,0,0,0.6)';
   ctx.fillRect(x + 10, y - 12, tw + pad * 2, th);
   ctx.fillStyle = '#e7eef7';
   ctx.fillText(label, x + 10 + pad, y + 1);
@@ -779,7 +793,7 @@ document.getElementById("btnEditCoords").onclick = () => {
 
 // 점 선택 드롭다운 변경
 document.getElementById("coordSelectPoint").addEventListener("change", e => {
-  selectedPoint = e.target.value;
+  selectedPoint = e.target.value || null;
   if(selectedPoint) {
     const P = getPts(cur);
     const pt = P[selectedPoint];
@@ -790,6 +804,12 @@ document.getElementById("coordSelectPoint").addEventListener("change", e => {
       document.getElementById("coordX").value = "";
       document.getElementById("coordY").value = "";
     }
+    // 선택된 점을 시각적으로 강조하기 위해 다시 그리기
+    draw();
+  } else {
+    document.getElementById("coordX").value = "";
+    document.getElementById("coordY").value = "";
+    draw();
   }
 });
 
@@ -847,9 +867,28 @@ function startDrag(e) {
   e.preventDefault();
   const pos = getEventPos(e);
   const P = getPts(cur);
-  let best = null, bestD = 1e9;
   
-  // 드래그 범위를 넓게 (20px)
+  // 좌표 수정 모드일 때는 선택된 점만 드래그 가능
+  if(editMode) {
+    if(!selectedPoint) {
+      // 드롭다운에서 선택하지 않았다면 드래그 불가
+      return false;
+    }
+    const pt = P[selectedPoint];
+    if(!pt) return false;
+    
+    // 선택된 점 근처인지 확인
+    const threshold = 20;
+    const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+    if(d < threshold) {
+      dragKey = selectedPoint;
+      return true;
+    }
+    return false;
+  }
+  
+  // 일반 모드: 모든 점 드래그 가능
+  let best = null, bestD = 1e9;
   const threshold = 20;
   
   for(const k of keypoints) {
@@ -864,17 +903,6 @@ function startDrag(e) {
   
   if(best) {
     dragKey = best;
-    
-    // 좌표 수정 모드에서는 선택한 점 정보도 업데이트
-    if(editMode) {
-      selectedPoint = best;
-      document.getElementById("coordSelectPoint").value = best;
-      const pt = P[best];
-      document.getElementById("coordX").value = pt.x.toFixed(1);
-      document.getElementById("coordY").value = pt.y.toFixed(1);
-    }
-    
-    // 드래그 시작
     return true;
   }
   return false;
@@ -889,6 +917,11 @@ function doDrag(e) {
   const map = sessions[cur].pts;
   const p = map.get(dragKey);
   if(!p) return;
+  
+  // 좌표 수정 모드에서는 선택된 점만 이동
+  if(editMode) {
+    if(dragKey !== selectedPoint) return;
+  }
   
   p.x = x;
   p.y = y;
