@@ -1352,40 +1352,48 @@ function startDrag(e) {
   // 스크롤 거리 초기화
   scrollDistance = 0;
   
-  // 좌표 수정 모드일 때는 선택된 점만 드래그 가능
-  if(editMode) {
-    if(!selectedPoint) {
-      // 점이 선택되지 않았으면 스크롤 모드
-      isScrolling = true;
-      if(e.touches) {
-        scrollStartX = e.touches[0].clientX;
-        scrollStartY = e.touches[0].clientY;
-      } else {
-        scrollStartX = e.clientX;
-        scrollStartY = e.clientY;
-      }
-      return false;
-    }
+  // 먼저 모든 점을 체크하여 점을 터치했는지 확인
+  let bestPoint = null;
+  let bestDistance = 1e9;
+  const threshold = editMode && currentZoom > 1 ? 50 : 40; // 확대된 경우 감지 범위 넓게
+  
+  // 좌표 수정 모드일 때는 선택된 점만 체크
+  if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
-    if(!pt) {
-      // 점이 없으면 스크롤 모드
-      isScrolling = true;
-      return false;
+    if(pt) {
+      // 확대된 좌표 기준으로 거리 계산
+      const scaleX = currentZoom;
+      const scaleY = currentZoom;
+      const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
+      if(d < threshold) {
+        bestPoint = selectedPoint;
+        bestDistance = d;
+      }
     }
-    
-    // 선택된 점 근처인지 확인 (확대된 좌표 기준)
-    const threshold = 40; // 감지 범위를 넓게 (30 -> 40)
-    const scaleX = currentZoom;
-    const scaleY = currentZoom;
-    const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
-    if(d < threshold) {
-      // 점 근처면 드래그 모드
-      e.preventDefault();
-      isScrolling = false;
-      dragKey = selectedPoint;
-      return true;
+  } else {
+    // 일반 모드: 모든 점 체크
+    for(const k of keypoints) {
+      const p = P[k.key];
+      if(!p) continue;
+      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+      if(d < threshold && d < bestDistance) {
+        bestPoint = k.key;
+        bestDistance = d;
+      }
     }
-    // 점이 아니면 스크롤 모드 (하지만 점 근처로 이동하면 드래그로 전환 가능)
+  }
+  
+  // 점을 터치했으면 드래그 모드로 시작 (스크롤 방지)
+  if(bestPoint) {
+    e.preventDefault();
+    isScrolling = false;
+    dragKey = bestPoint;
+    return true;
+  }
+  
+  // 점이 아닌 빈 화면을 터치했으면 스크롤 모드로 시작
+  // 확대 모드일 때만 스크롤 활성화
+  if(editMode && currentZoom > 1) {
     isScrolling = true;
     if(e.touches) {
       scrollStartX = e.touches[0].clientX;
@@ -1397,35 +1405,15 @@ function startDrag(e) {
     return false;
   }
   
-  // 일반 모드: 모든 점 드래그 가능
-  let best = null, bestD = 1e9;
-  const threshold = 30;
-  
-  for(const k of keypoints) {
-    const p = P[k.key];
-    if(!p) continue;
-    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-    if(d < threshold && d < bestD) {
-      best = k.key;
-      bestD = d;
-    }
-  }
-  
-  if(best) {
-    e.preventDefault();
-    isScrolling = false;
-    dragKey = best;
-    return true;
-  }
-  
+  // 확대 모드가 아니거나 일반 모드에서는 아무 동작도 하지 않음
   isScrolling = false;
   return false;
 }
 
 function doDrag(e) {
-  // 드래그 모드가 이미 활성화되어 있으면 드래그 처리만 수행
+  // 드래그 모드가 이미 활성화되어 있으면 드래그 처리만 수행 (스크롤 완전 차단)
   if(dragKey) {
-    e.preventDefault();
+    e.preventDefault(); // 스크롤 방지
     const pos = getEventPos(e);
     // 좌표는 항상 원본 크기 기준으로 저장
     const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
@@ -1452,95 +1440,31 @@ function doDrag(e) {
     
     draw();
     computeAll();
-    return;
+    return; // 드래그 모드에서는 스크롤 완전 차단
   }
   
-  // 스크롤 모드인 경우 - 점 근처로 이동했는지 계속 체크
-  if(isScrolling && editMode && currentZoom > 1 && selectedPoint) {
-    const P = getPts(cur);
-    const pt = P[selectedPoint];
-    if(pt) {
-      // 실제 화면 좌표로 변환 (캔버스의 getBoundingClientRect 기준)
-      const r = cv.getBoundingClientRect();
-      let currentX, currentY;
-      if(e.touches && e.touches.length > 0) {
-        currentX = e.touches[0].clientX;
-        currentY = e.touches[0].clientY;
-      } else if(e.clientX !== undefined) {
-        currentX = e.clientX;
-        currentY = e.clientY;
-      } else {
-        return;
-      }
-      
-      // 마우스/터치 위치를 캔버스 내부 좌표로 변환
-      const mouseCanvasX = (currentX - r.left);
-      const mouseCanvasY = (currentY - r.top);
-      
-      // 점의 화면 좌표 계산 (확대된 상태, 스크롤 고려)
-      const canvasWrap = cv.parentElement;
-      const scrollX = canvasWrap.scrollLeft || 0;
-      const scrollY = canvasWrap.scrollTop || 0;
-      // 점의 원본 좌표를 확대된 캔버스 좌표로 변환
-      const ptCanvasX = pt.x * currentZoom - scrollX;
-      const ptCanvasY = pt.y * currentZoom - scrollY;
-      
-      // 현재 위치가 점 근처인지 확인 (캔버스 좌표 기준)
-      const threshold = 50;
-      const d = Math.hypot(ptCanvasX - mouseCanvasX, ptCanvasY - mouseCanvasY);
-      
-      scrollDistance = Math.hypot(currentX - scrollStartX, currentY - scrollStartY);
-      
-      // 점 근처에 있으면 드래그로 전환
-      if(d < threshold) {
-        // 드래그 모드로 전환
-        isScrolling = false;
-        dragKey = selectedPoint;
-        e.preventDefault();
-        // 즉시 드래그 처리
-        const pos = getEventPos(e);
-        const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
-        const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-        const x = clamp(pos.x, 0, originalW);
-        const y = clamp(pos.y, 0, originalH);
-        const map = sessions[cur].pts;
-        const p = map.get(dragKey);
-        if(p) {
-          p.x = x;
-          p.y = y;
-          if(coordX && coordY) {
-            coordX.value = x.toFixed(1);
-            coordY.value = y.toFixed(1);
-          }
-          draw();
-          computeAll();
-        }
-        // 다음 프레임부터는 드래그 모드로 계속
-        return;
-      }
-      
-      // 점 근처가 아니면 스크롤 계속
-      if(e.touches && e.touches.length > 0) {
-        e.preventDefault();
-        const canvasWrap = cv.parentElement;
-        const deltaX = scrollStartX - currentX;
-        const deltaY = scrollStartY - currentY;
-        canvasWrap.scrollLeft += deltaX;
-        canvasWrap.scrollTop += deltaY;
-        scrollStartX = currentX;
-        scrollStartY = currentY;
-      } else if(e.clientX !== undefined) {
-        // 마우스 스크롤도 지원
-        e.preventDefault();
-        const canvasWrap = cv.parentElement;
-        const deltaX = scrollStartX - currentX;
-        const deltaY = scrollStartY - currentY;
-        canvasWrap.scrollLeft += deltaX;
-        canvasWrap.scrollTop += deltaY;
-        scrollStartX = currentX;
-        scrollStartY = currentY;
-      }
+  // 스크롤 모드인 경우 - 빈 화면 터치 시 스크롤만 수행
+  if(isScrolling && editMode && currentZoom > 1) {
+    let currentX, currentY;
+    if(e.touches && e.touches.length > 0) {
+      currentX = e.touches[0].clientX;
+      currentY = e.touches[0].clientY;
+    } else if(e.clientX !== undefined) {
+      currentX = e.clientX;
+      currentY = e.clientY;
+    } else {
+      return;
     }
+    
+    // 스크롤만 수행 (점 체크 없이)
+    e.preventDefault();
+    const canvasWrap = cv.parentElement;
+    const deltaX = scrollStartX - currentX;
+    const deltaY = scrollStartY - currentY;
+    canvasWrap.scrollLeft += deltaX;
+    canvasWrap.scrollTop += deltaY;
+    scrollStartX = currentX;
+    scrollStartY = currentY;
     return;
   }
 }
