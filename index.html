@@ -206,14 +206,7 @@ canvas {
     <div style="margin-bottom:8px;">
       <select id="coordSelectPoint" class="btn" style="width:100%; padding:6px; margin-bottom:6px;">
         <option value="">점 선택...</option>
-        <option value="Tragus">Tragus</option>
-        <option value="C7">C7</option>
-        <option value="Shoulder">Shoulder</option>
-        <option value="Hip">Hip</option>
-        <option value="Knee">Knee</option>
-        <option value="Ankle">Ankle</option>
-        <option value="ASIS">ASIS</option>
-        <option value="PSIS">PSIS</option>
+        <!-- 옵션은 JavaScript에서 동적으로 업데이트됨 -->
       </select>
     </div>
     <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:6px;">
@@ -332,7 +325,8 @@ let longPressTimer = null;
 let longPressDetected = false;
 let longPressNearPoint = null; // long press가 감지된 점
 
-const keypoints = [
+// 옆모습 키포인트
+const keypointsSide = [
   {key:'Tragus', color:'#7c9cff'},
   {key:'C7', color:'#7c9cff'},
   {key:'Shoulder', color:'#7c9cff'},
@@ -343,9 +337,41 @@ const keypoints = [
   {key:'PSIS', color:'#ffb86c'},
 ];
 
+// 정면 키포인트
+const keypointsFront = [
+  {key:'C7', color:'#7c9cff'},
+  {key:'L_acromion', color:'#7c9cff'},
+  {key:'R_acromion', color:'#7c9cff'},
+  {key:'L_asis', color:'#ffb86c'},
+  {key:'R_asis', color:'#ffb86c'},
+  {key:'L_ankle', color:'#7c9cff'},
+  {key:'R_ankle', color:'#7c9cff'},
+  {key:'L_knee', color:'#7c9cff'},
+  {key:'R_knee', color:'#7c9cff'},
+];
+
+// 기존 호환성을 위해 keypoints 변수 유지 (getKeypoints 함수로 동적 반환)
+let keypoints = keypointsSide; // 기본값
+
 const sessions = {
-  Before: { img:null, pts:new Map(), metrics:{}, score:null, analysis:null },
-  After: { img:null, pts:new Map(), metrics:{}, score:null, analysis:null }
+  Before: { 
+    imgSide:null, 
+    imgFront:null, 
+    sidePoints:new Map(),  // 측면 키포인트 (tragus, c7, acromion, asis, psis, hip, knee, ankle)
+    frontPoints:new Map(), // 정면 키포인트 (L_acromion, R_acromion, L_asis, R_asis, L_knee, R_knee, L_ankle, R_ankle)
+    metrics:{}, 
+    score:null, 
+    analysis:null 
+  },
+  After: { 
+    imgSide:null, 
+    imgFront:null, 
+    sidePoints:new Map(),
+    frontPoints:new Map(),
+    metrics:{}, 
+    score:null, 
+    analysis:null 
+  }
 };
 let cur = "Before";
 
@@ -1101,6 +1127,36 @@ document.getElementById("btnAfter").onclick = () => switchSession("After");
 document.getElementById("btnOrientationSide").onclick = () => setOrientation("side");
 document.getElementById("btnOrientationFront").onclick = () => setOrientation("front");
 
+function updateCoordSelectOptions() {
+  const selectEl = document.getElementById("coordSelectPoint");
+  if(!selectEl) return;
+  
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
+  const currentValue = selectEl.value;
+  
+  // 기존 옵션 제거 (첫 번째 옵션인 "점 선택..." 제외)
+  while(selectEl.options.length > 1) {
+    selectEl.remove(1);
+  }
+  
+  // 현재 orientation에 맞는 키포인트 추가
+  currentKeypoints.forEach(kp => {
+    const option = document.createElement('option');
+    option.value = kp.key;
+    option.textContent = kp.key;
+    selectEl.appendChild(option);
+  });
+  
+  // 이전에 선택된 점이 현재 키포인트 목록에 있으면 유지
+  if(currentValue && currentKeypoints.some(kp => kp.key === currentValue)) {
+    selectEl.value = currentValue;
+  } else {
+    selectEl.value = "";
+    selectedPoint = null;
+  }
+}
+
 function setOrientation(orientation) {
   if(!sessions[cur].poseData) {
     sessions[cur].poseData = { orientation: orientation, landmarks: null };
@@ -1110,6 +1166,16 @@ function setOrientation(orientation) {
   document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
   document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
   console.log(`${cur} 세션의 방향을 ${orientation === "side" ? "옆모습" : "정면"}으로 설정`);
+  
+  // 좌표 선택 드롭다운 업데이트
+  updateCoordSelectOptions();
+  
+  // orientation 변경 시 캔버스 다시 그리기
+  const currentImg = orientation === "front" ? sessions[cur].imgFront : sessions[cur].imgSide;
+  if(currentImg) {
+    resizeCanvasFor(currentImg);
+  }
+  draw();
 }
 
 function switchSession(s) {
@@ -1122,6 +1188,9 @@ function switchSession(s) {
   const orientation = sessions[s].poseData?.orientation || "side";
   document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
   document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  
+  // 좌표 선택 드롭다운 업데이트
+  updateCoordSelectOptions();
   
   draw();
   // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
@@ -1196,8 +1265,24 @@ function ensureDefaultPoints(session) {
   // 원본 크기 기준으로 좌표 계산
   const W = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
   const H = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-  if(S.pts.size === 0 && S.img) {
-    const defaults = {
+  
+  const orientation = S.poseData?.orientation || "side";
+  const currentImg = orientation === "front" ? S.imgFront : S.imgSide;
+  const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
+  const currentPoints = orientation === "front" ? S.frontPoints : S.sidePoints;
+  
+  if(currentPoints.size === 0 && currentImg) {
+    const defaults = orientation === "front" ? {
+      C7: {x:W*0.5, y:H*0.2},
+      L_acromion: {x:W*0.3, y:H*0.3},
+      R_acromion: {x:W*0.7, y:H*0.3},
+      L_asis: {x:W*0.35, y:H*0.5},
+      R_asis: {x:W*0.65, y:H*0.5},
+      L_knee: {x:W*0.4, y:H*0.75},
+      R_knee: {x:W*0.6, y:H*0.75},
+      L_ankle: {x:W*0.4, y:H*0.95},
+      R_ankle: {x:W*0.6, y:H*0.95},
+    } : {
       Tragus: {x:W*0.35, y:H*0.3},
       C7: {x:W*0.3, y:H*0.35},
       Shoulder: {x:W*0.35, y:H*0.4},
@@ -1207,17 +1292,25 @@ function ensureDefaultPoints(session) {
       ASIS: {x:W*0.40, y:H*0.58},
       PSIS: {x:W*0.35, y:H*0.6},
     };
-    for(const kp of keypoints) {
-      if(defaults[kp.key]) S.pts.set(kp.key, {...defaults[kp.key]});
+    for(const kp of currentKeypoints) {
+      if(defaults[kp.key]) currentPoints.set(kp.key, {...defaults[kp.key]});
     }
   }
 }
 
 function getPts(session) {
-  const map = sessions[session].pts;
+  const orientation = sessions[session].poseData?.orientation || "side";
+  const map = orientation === "front" ? sessions[session].frontPoints : sessions[session].sidePoints;
+  const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
   const out = {};
-  for(const k of keypoints) out[k.key] = map.get(k.key);
+  for(const k of currentKeypoints) out[k.key] = map.get(k.key);
   return out;
+}
+
+// 현재 orientation에 맞는 키포인트 반환
+function getKeypoints() {
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  return orientation === "front" ? keypointsFront : keypointsSide;
 }
 
 function draw() {
@@ -1227,23 +1320,28 @@ function draw() {
   ctx.fillStyle = "#0a0e13";
   ctx.fillRect(0, 0, W, H);
 
-  if(S.img) {
+  // orientation에 따라 적절한 이미지 선택
+  const orientation = S.poseData?.orientation || "side";
+  const currentImg = orientation === "front" ? S.imgFront : S.imgSide;
+
+  if(currentImg) {
     // 원본 크기 저장 (처음 한 번만)
     if(originalCanvasSize.width === 0) {
       const maxW = cv.parentElement.clientWidth - 24;
       const maxH = cv.parentElement.clientHeight - 24;
-      const r = Math.min(maxW / S.img.naturalWidth, maxH / S.img.naturalHeight);
-      originalCanvasSize.width = Math.round(S.img.naturalWidth * r);
-      originalCanvasSize.height = Math.round(S.img.naturalHeight * r);
+      const r = Math.min(maxW / currentImg.naturalWidth, maxH / currentImg.naturalHeight);
+      originalCanvasSize.width = Math.round(currentImg.naturalWidth * r);
+      originalCanvasSize.height = Math.round(currentImg.naturalHeight * r);
       originalCanvasSize.styleWidth = originalCanvasSize.width;
       originalCanvasSize.styleHeight = originalCanvasSize.height;
     }
     // 이미지 그리기 (비율 유지하며 확대된 크기로)
-    ctx.drawImage(S.img, 0, 0, W, H);
+    ctx.drawImage(currentImg, 0, 0, W, H);
   }
 
   ensureDefaultPoints(cur);
   const P = getPts(cur);
+  const currentKeypoints = getKeypoints();
 
   // 보조선 그리기
   ctx.lineWidth = 2;
@@ -1296,8 +1394,8 @@ function draw() {
 
   ctx.setLineDash([]);
 
-  // 점 그리기 (좌표는 원본 기준이므로 확대 비율 적용)
-  for(const kp of keypoints) {
+  // 점 그리기 (orientation에 맞는 키포인트 사용)
+  for(const kp of currentKeypoints) {
     const pt = P[kp.key];
     if(!pt) continue;
     // 좌표 수정 모드에서 확대된 경우 좌표도 확대
@@ -2325,7 +2423,8 @@ if(coordApply) {
     // 좌표는 항상 원본 크기 기준으로 저장
     const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
     const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-    const map = sessions[cur].pts;
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     const clampedX = clamp(x, 0, originalW);
     const clampedY = clamp(y, 0, originalH);
     map.set(selectedPoint, {
@@ -2412,7 +2511,8 @@ function adjustCoordinate(coordField, delta) {
       // 좌표는 항상 원본 크기 기준으로 저장
       const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
       const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-      const map = sessions[cur].pts;
+      const orientation = sessions[cur].poseData?.orientation || "side";
+      const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
       const clampedX = clamp(x, 0, originalW);
       const clampedY = clamp(y, 0, originalH);
       
@@ -2679,8 +2779,9 @@ function startDrag(e) {
       }
     }
   } else {
-    // 일반 모드: 모든 점 체크
-    for(const k of keypoints) {
+    // 일반 모드: 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
+    const currentKeypoints = getKeypoints();
+    for(const k of currentKeypoints) {
       const p = P[k.key];
       if(!p) continue;
       
@@ -2822,7 +2923,8 @@ function doDrag(e) {
     const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
     const x = clamp(pos.x, 0, originalW);
     const y = clamp(pos.y, 0, originalH);
-    const map = sessions[cur].pts;
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     const p = map.get(dragKey);
     
     if(!p) {
@@ -3065,18 +3167,26 @@ window.addEventListener('touchcancel', (e) => {
     const f = e.target.files[0];
     if(!f) return;
     
-    // 새 이미지 업로드 시 기존 이미지 덮어쓰기 (하나의 사진만 유지)
+    // 현재 선택된 orientation에 따라 적절한 이미지 저장
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const imgKey = orientation === "front" ? "imgFront" : "imgSide";
+    
     const img = new Image();
     img.onload = async () => {
-      // 기존 이미지가 있으면 메모리 정리
-      if(sessions[cur].img && sessions[cur].img.src && sessions[cur].img.src.startsWith('blob:')) {
-        URL.revokeObjectURL(sessions[cur].img.src);
+      // 기존 이미지가 있으면 메모리 정리 (orientation별로)
+      const existingImg = sessions[cur][imgKey];
+      if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
+        URL.revokeObjectURL(existingImg.src);
       }
       
-      // 새 이미지로 교체
-      sessions[cur].img = img;
+      // 새 이미지로 교체 (orientation별로 저장)
+      sessions[cur][imgKey] = img;
       resizeCanvasFor(img);
-      sessions[cur].pts.clear();
+      
+      // 해당 orientation에 맞는 키포인트만 초기화
+      const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+      currentPoints.clear();
+      
       draw();
       computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
       
@@ -3095,7 +3205,9 @@ window.addEventListener('touchcancel', (e) => {
 
 // Reset 버튼
 document.getElementById("btnReset").onclick = () => {
-  sessions[cur].pts.clear();
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+  currentPoints.clear();
   draw();
   computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
 };
@@ -3203,11 +3315,13 @@ document.getElementById("btnSaveJSON").onclick = () => {
   // 저장 전에 AI 분석 실행
   computeAll();
   
-  const obj = Object.fromEntries(sessions[cur].pts);
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+  const obj = Object.fromEntries(map);
   const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${cur}_keypoints.json`;
+  a.download = `${cur}_${orientation}_keypoints.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 };
@@ -3224,9 +3338,10 @@ document.getElementById("btnLoadJSON").onclick = () => {
     r.onload = () => {
       try {
         const obj = JSON.parse(r.result);
-        const map = new Map();
+        const orientation = sessions[cur].poseData?.orientation || "side";
+        const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+        map.clear();
         for(const k of Object.keys(obj)) map.set(k, obj[k]);
-        sessions[cur].pts = map;
         draw();
         computeAll();
       } catch(err) {
@@ -3777,11 +3892,12 @@ if(!sessions.After.poseData) {
   sessions.After.poseData = { orientation: "side", landmarks: null };
 }
 
-// 초기 orientation 버튼 상태 설정
+// 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 document.addEventListener("DOMContentLoaded", () => {
   const orientation = sessions[cur].poseData?.orientation || "side";
   document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
   document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  updateCoordSelectOptions();
 });
 
 // ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
@@ -3924,7 +4040,7 @@ async function applyPoseDetection(img, sessionName) {
   const keypointMap = mapPoseToKeypoints(pose, orientation);
   if(keypointMap) {
     // 매핑된 키포인트를 기존 점 시스템에 적용
-    const map = session.pts;
+    const map = orientation === "front" ? session.frontPoints : session.sidePoints;
     for(const [key, value] of Object.entries(keypointMap)) {
       if(value && value.x && value.y) {
         // 이미지 크기에 맞게 좌표 변환 필요
