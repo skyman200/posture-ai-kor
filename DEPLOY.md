@@ -11,19 +11,15 @@
 
 ### 2. package.json 수정
 
-`package.json`의 `homepage` 필드를 실제 GitHub 사용자명으로 수정:
-
-```json
-"homepage": "https://YOUR_GITHUB_USERNAME.github.io/posture-ai-kor"
-```
+✅ **완료됨**: `package.json`의 `homepage` 필드가 이미 `skyman200`으로 설정되어 있습니다.
 
 ### 3. 원격 저장소 연결 및 배포
 
 터미널에서 다음 명령어 실행:
 
 ```bash
-# 원격 저장소 추가 (YOUR_GITHUB_USERNAME을 실제 사용자명으로 변경)
-git remote add origin https://github.com/YOUR_GITHUB_USERNAME/posture-ai-kor.git
+# 원격 저장소 추가
+git remote add origin https://github.com/skyman200/posture-ai-kor.git
 
 # main 브랜치로 푸시
 git branch -M main
@@ -37,7 +33,7 @@ npm run deploy
 
 배포 완료 후 약 1-2분 후 다음 주소로 접속:
 ```
-https://YOUR_GITHUB_USERNAME.github.io/posture-ai-kor
+https://skyman200.github.io/posture-ai-kor
 ```
 
 ## 로컬 개발
