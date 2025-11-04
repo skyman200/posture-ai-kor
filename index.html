@@ -941,12 +941,26 @@ function analyzeMuscles(cva, pelvic, knee) {
   const exercises = [];
   
   // CVA 분석 (상세)
+  // CVA >= 50도는 정상 범위
   if(cva != null) {
-    if(cva < 50) {
+    if(cva >= 50) {
+      // 50도 이상이면 정상 범위
+      if(cva <= 55) {
+        comments.push(`경추 정렬 양호: CVA ${cva.toFixed(1)}° (정상 범위)`);
+        details.push(`• 경추 정렬이 양호한 상태입니다.`);
+        details.push(`• 현재 상태를 유지하기 위한 정기적인 스트레칭을 권장합니다.`);
+      } else {
+        // 55도 초과는 후방 경사 (과도한 경우)
+        comments.push(`경추 후방 경사: CVA ${cva.toFixed(1)}°로 정상 범위를 초과합니다.`);
+        details.push(`• 경추가 과도하게 후방으로 기울어져 있습니다.`);
+        exercises.push('1. 경추 전방 굴곡 운동: 천천히 턱을 가슴 방향으로 내리기 (10회×2세트)');
+      }
+    } else {
+      // 50도 미만은 전방두 자세
       if(cva < 45) {
         tight.push('상부승모근', '견갑거근', 'SCM', '흉쇄유돌근');
         weak.push('심부경부굴근', '하부승모근', '전거근');
-        comments.push(`전방두 자세 심각: CVA ${cva.toFixed(1)}°로 목표 50°보다 ${(50-cva).toFixed(1)}° 낮습니다.`);
+        comments.push(`전방두 자세 심각: CVA ${cva.toFixed(1)}°로 정상 범위(≥50°)보다 ${(50-cva).toFixed(1)}° 낮습니다.`);
         details.push(`• 상부승모근과 견갑거근이 지속적으로 수축되어 목과 어깨 통증을 유발할 수 있습니다.`);
         details.push(`• 심부경부굴근이 약화되어 머리 무게를 지지하지 못해 전방 이동이 가속화됩니다.`);
         details.push(`• 장기적으로 경추 디스크 압력 증가 및 두통, 어깨 뻣뻣함이 발생할 수 있습니다.`);
@@ -957,21 +971,13 @@ function analyzeMuscles(cva, pelvic, knee) {
       } else {
         tight.push('상부승모근', '견갑거근');
         weak.push('심부경부굴근');
-        comments.push(`전방두 자세 경미: CVA ${cva.toFixed(1)}°로 목표에 근접합니다.`);
+        comments.push(`전방두 자세 경미: CVA ${cva.toFixed(1)}°로 정상 범위(≥50°)에 근접합니다.`);
         details.push(`• 상부승모근과 견갑거근에 약간의 긴장이 있습니다.`);
         details.push(`• 심부경부굴근 활성화가 필요합니다.`);
         exercises.push('1. 턱 당기기 운동: 벽에 등을 대고 턱을 뒤로 당기기 (10초×3세트)');
         exercises.push('2. 심부경부굴근 강화: 누워서 머리만 살짝 들어올리기 (10회×2세트)');
         exercises.push('3. 상부승모근 스트레칭: 좌우 각 30초씩 스트레칭');
       }
-    } else if(cva <= 55) {
-      comments.push(`경추 정렬 양호: CVA ${cva.toFixed(1)}°`);
-      details.push(`• 경추 정렬이 양호한 상태입니다.`);
-      details.push(`• 현재 상태를 유지하기 위한 정기적인 스트레칭을 권장합니다.`);
-    } else {
-      comments.push(`경추 후방 경사: CVA ${cva.toFixed(1)}°로 목표보다 높습니다.`);
-      details.push(`• 경추가 과도하게 후방으로 기울어져 있습니다.`);
-      exercises.push('1. 경추 전방 굴곡 운동: 천천히 턱을 가슴 방향으로 내리기 (10회×2세트)');
     }
   }
   
@@ -1604,27 +1610,28 @@ function getEventPos(e) {
   const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
   
-  // 캔버스 상대 좌표 (화면 기준)
+  // 캔버스 상대 좌표 (화면 기준, 스크롤 오프셋 포함)
   let x = clientX - r.left;
   let y = clientY - r.top;
   
   // 확대 모드에서 스크롤 오프셋 고려
+  // 스크롤 오프셋은 CSS 픽셀 기준이므로 먼저 더해야 함
   if(editMode && currentZoom > 1) {
     const canvasWrap = cv.parentElement;
     const scrollX = canvasWrap.scrollLeft || 0;
     const scrollY = canvasWrap.scrollTop || 0;
-    // 스크롤 오프셋을 더함 (캔버스가 스크롤되어 있으면 그만큼 더함)
+    // 스크롤 오프셋을 CSS 좌표에 더함 (스크롤된 만큼 더함)
     x += scrollX;
     y += scrollY;
   }
   
   // CSS 크기 대비 실제 캔버스 크기 비율 계산
   // cv.width는 실제 픽셀 크기 (확대된 크기), r.width는 CSS 크기
-  // 확대 모드에서는 cv.width가 이미 확대된 크기이므로 주의 필요
   const scaleX = (cv.width / DPR) / r.width;
   const scaleY = (cv.height / DPR) / r.height;
   
   // 실제 캔버스 픽셀 좌표로 변환 (확대된 크기 기준)
+  // 스크롤 오프셋을 포함한 CSS 좌표를 실제 픽셀 좌표로 변환
   x = x * scaleX;
   y = y * scaleY;
   
@@ -1980,13 +1987,16 @@ cv.addEventListener('touchstart', (e) => {
   const touchCount = e.touches ? e.touches.length : 0;
   
   // 이전 상태가 남아있으면 완전히 초기화 (드래그든 스크롤이든)
+  // 스크롤 후 새로운 드래그를 위해 완전히 초기화
   if(dragKey || isScrolling) {
-    console.log('⚠️ 이전 상태가 남아있음, 직접 정리 - dragKey:', dragKey, 'isScrolling:', isScrolling);
+    console.log('⚠️ 이전 상태가 남아있음, 완전히 정리 - dragKey:', dragKey, 'isScrolling:', isScrolling);
     dragKey = null;
     isScrolling = false;
     scrollStartX = 0;
     scrollStartY = 0;
     scrollDistance = 0;
+    // endDrag도 호출하여 완전히 정리
+    endDrag(e);
   }
   
   // 두 손가락 스크롤인 경우 스크롤 시작 위치 설정
@@ -1997,23 +2007,25 @@ cv.addEventListener('touchstart', (e) => {
     scrollStartY = (touch1.clientY + touch2.clientY) / 2;
     isScrolling = true;
     dragKey = null;
-    console.log('두 손가락 스크롤 시작');
+    console.log('두 손가락 스크롤 시작, scrollStartX:', scrollStartX, 'scrollStartY:', scrollStartY);
+    e.preventDefault();
+    e.stopPropagation();
+    return;
   }
   
   // 한 손가락 터치인 경우에만 점 찾기 시도
   if(touchCount === 1) {
-    // 새로운 터치 시작
+    // 새로운 터치 시작 (이전 상태는 이미 초기화됨)
     const result = startDrag(e);
     
     // 점을 터치했으면 preventDefault
     if(result === true) {
       e.preventDefault();
       e.stopPropagation();
+      console.log('한 손가락 터치 - 점 감지 성공, dragKey:', dragKey);
+    } else {
+      console.log('한 손가락 터치 - 점 감지 실패');
     }
-  } else if(touchCount === 2 && editMode && currentZoom > 1) {
-    // 두 손가락 스크롤인 경우 preventDefault
-    e.preventDefault();
-    e.stopPropagation();
   }
 }, {passive: false});
 
@@ -2075,17 +2087,25 @@ window.addEventListener('touchend', (e) => {
   // 모든 터치가 끝났는지 확인
   if(remainingTouches === 0) {
     // 모든 터치가 끝났으면 드래그/스크롤 완전히 종료
-    console.log('모든 터치 종료, 상태 초기화');
+    console.log('모든 터치 종료, 상태 완전 초기화');
     endDrag(e);
+    // 추가로 확실하게 초기화
+    dragKey = null;
+    isScrolling = false;
+    scrollStartX = 0;
+    scrollStartY = 0;
+    scrollDistance = 0;
   } else if(endedTouches > 0) {
     // 일부 터치만 끝났는 경우
     // 두 손가락 스크롤 중 하나가 떨어졌으면 스크롤 모드 종료
     if(isScrolling && remainingTouches === 1) {
-      console.log('스크롤 모드 종료 (한 손가락 남음)');
+      console.log('스크롤 모드 종료 (한 손가락 남음), 상태 초기화');
       isScrolling = false;
       dragKey = null;
       scrollStartX = 0;
       scrollStartY = 0;
+      scrollDistance = 0;
+      // 다음 드래그를 위해 완전히 초기화
     } else if(remainingTouches === 1 && dragKey) {
       // 드래그 중이었는데 한 손가락이 남아있으면 드래그 계속
       // endDrag 호출하지 않음
