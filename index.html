@@ -1306,35 +1306,39 @@ function getEventPos(e) {
 }
 
 function startDrag(e) {
-  e.preventDefault();
+  // 확대된 상태에서 스크롤과 드래그 구분
   const pos = getEventPos(e);
   const P = getPts(cur);
   
   // 좌표 수정 모드일 때는 선택된 점만 드래그 가능
   if(editMode) {
     if(!selectedPoint) {
-      // 드롭다운에서 선택하지 않았다면 드래그 불가
+      // 드롭다운에서 선택하지 않았다면 스크롤 허용
       return false;
     }
     const pt = P[selectedPoint];
     if(!pt) {
-      // 점이 없으면 생성하지 않고 드래그 불가
+      // 점이 없으면 스크롤 허용
       return false;
     }
     
-    // 선택된 점 근처인지 확인 (드래그 범위 넓게)
-    const threshold = 30; // 20 -> 30으로 증가
-    const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+    // 선택된 점 근처인지 확인 (확대된 좌표 기준)
+    const threshold = 30;
+    const scaleX = currentZoom;
+    const scaleY = currentZoom;
+    const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
     if(d < threshold) {
+      e.preventDefault(); // 점 드래그 시에만 스크롤 방지
       dragKey = selectedPoint;
       return true;
     }
+    // 점이 아니면 스크롤 허용
     return false;
   }
   
   // 일반 모드: 모든 점 드래그 가능
   let best = null, bestD = 1e9;
-  const threshold = 30; // 20 -> 30으로 증가
+  const threshold = 30;
   
   for(const k of keypoints) {
     const p = P[k.key];
@@ -1347,6 +1351,7 @@ function startDrag(e) {
   }
   
   if(best) {
+    e.preventDefault();
     dragKey = best;
     return true;
   }
