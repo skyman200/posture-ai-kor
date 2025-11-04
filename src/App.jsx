@@ -1,258 +1,101 @@
-import React, { useRef, useState, useEffect } from "react";
-import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
-import DraggableDot from "./components/DraggableDot.jsx";
-import { mapPosePoints } from "./utils/poseMapper.js";
-import { calcAngle, angleToVertical } from "./utils/calcAngle.js";
-import { analyzeMuscles } from "./utils/muscleRules.js";
-import { exportToPDF } from "./utils/pdfExport.js";
+import React, { useState, useEffect } from "react";
+import PoseCanvas from "./components/PoseCanvas";
+import AiPostureReport from "./components/AiPostureReport";
+import BeforeAfterCompare from "./components/BeforeAfterCompare";
+import { analysisRules, generateSummary } from "./utils/analysisRules";
+import { exportPDF } from "./utils/pdfReport";
+import ScoreChart from "./components/ScoreChart";
 
 export default function App() {
-  const [imageURL, setImageURL] = useState(null);
-  const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
-  const [points, setPoints] = useState({ ear:null, shoulder:null, hip:null, knee:null, ankle:null });
-  const [angles, setAngles] = useState({ forwardHead: null, trunk: null, knee: null });
-  const [analysis, setAnalysis] = useState(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-
-  const imgRef = useRef(null);
-  const imageContainerRef = useRef(null);
-
-  const onImageLoad = () => {
-    const img = imgRef.current;
-    if (img) {
-      setImgSize({ w: img.clientWidth, h: img.clientHeight });
-    }
-  };
-
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setImageURL(url);
-  };
+  const [angles, setAngles] = useState({ cva: 45, trunk: 7, knee: 165 });
+  const [savedBefore, setSavedBefore] = useState(null);
+  const [scores, setScores] = useState([]);
 
   useEffect(() => {
-    if (!imageURL) return;
-    detect(imageURL);
-  }, [imageURL]);
-
-  async function detect(url) {
-    setIsDetecting(true);
-    try {
-      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
-      const landmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
-        },
-        runningMode: "IMAGE"
-      });
-
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = url;
-      img.onload = async () => {
-        try {
-          // MediaPipe Tasks Vision의 detect 메서드는 동기/비동기 모두 가능
-          // HTMLImageElement의 경우 일반적으로 동기적이지만 안전을 위해 await 사용
-          const res = landmarker.detect(img);
-          const lms = res?.landmarks?.[0] ?? [];
-          const mapped = mapPosePoints(lms);
-          setPoints(mapped);
-          computeAngles(mapped);
-        } catch (err) {
-          console.error("Detection error:", err);
-        } finally {
-          setIsDetecting(false);
-        }
-      };
-      img.onerror = () => {
-        console.error("Image load error");
-        setIsDetecting(false);
-      };
-    } catch (e) {
-      console.error(e);
-      setIsDetecting(false);
+    const saved = localStorage.getItem("postureScores");
+    if (saved) {
+      try {
+        setScores(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse saved scores:", e);
+      }
     }
-  }
+  }, []);
 
-  const computeAngles = (pts) => {
-    const { ear, shoulder, hip, knee, ankle } = pts;
-    if (!(ear && shoulder && hip && knee && ankle)) return;
+  useEffect(() => {
+    if (scores.length > 0) {
+      localStorage.setItem("postureScores", JSON.stringify(scores));
+    }
+  }, [scores]);
 
-    // 1) Forward Head: 어깨→외이도 선의 수평 기준 각(°)
-    const forwardHead = 180 - calcAngle(
-      { x: shoulder.x + 0.5, y: shoulder.y }, // 수평 기준점
-      shoulder, ear
-    );
-
-    // 2) Trunk Incline: 골반→어깨 선분이 수직(아래)과 이루는 각(°); 전방 기울면 +로 해석
-    const trunkRaw = angleToVertical(hip, shoulder);
-    // 전방 기울기(어깨가 골반보다 앞= x 증가)면 +, 뒤면 -
-    const sign = (shoulder.x - hip.x) >= 0 ? 1 : -1;
-    const trunk = trunkRaw * sign;
-
-    // 3) Knee Angle: 엉덩이–무릎–발목
-    const kneeAngle = calcAngle(hip, knee, ankle);
-
-    setAngles({ forwardHead, trunk, knee: kneeAngle });
-    setAnalysis(analyzeMuscles({ forwardHead, trunk, knee: kneeAngle }));
+  const handleAnalysisChange = (newAngles) => {
+    setAngles(newAngles);
   };
 
-  const updatePoint = (key) => (p) => {
-    const next = { ...points, [key]: p };
-    setPoints(next);
-    computeAngles(next);
+  const handleSaveSession = () => {
+    const totalScore = calculateScore(angles);
+    const newScore = {
+      time: new Date().toLocaleTimeString(),
+      score: totalScore,
+    };
+    setScores((prev) => [...prev, newScore]);
+    alert(`점수 ${totalScore}점이 저장되었습니다!`);
   };
 
-  const handleExportPDF = async () => {
-    if (!imageContainerRef.current || !imageURL) {
-      alert('분석할 이미지가 없습니다.');
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-      await exportToPDF({
-        imageElement: imageContainerRef.current,
-        angles,
-        analysis,
-        points,
-      });
-    } catch (error) {
-      console.error('PDF 내보내기 실패:', error);
-      alert('PDF 내보내기에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsExporting(false);
-    }
+  const calculateScore = ({ cva, trunk, knee }) => {
+    let score = 0;
+    score += cva >= 50 ? 33 : cva >= 40 ? 25 : 15;
+    score += Math.abs(trunk) < 5 ? 33 : Math.abs(trunk) < 10 ? 25 : 15;
+    score += knee >= 175 && knee <= 185 ? 34 : knee < 175 ? 25 : 15;
+    return Math.round(score);
   };
+
+  const report = generateSummary({
+    cva: analysisRules.cva(angles.cva),
+    trunk: analysisRules.trunk(angles.trunk),
+    knee: analysisRules.knee(angles.knee),
+  });
 
   return (
-    <div style={{ padding: 18 }}>
-      <h2 style={{ margin: 0 }}>📸 DIT 자세 분석 AI (한국어)</h2>
-      <p style={{ marginTop: 6, color: "#555" }}>
-        옆모습 사진을 업로드하면 자동 분석됩니다. (점은 드래그로 보정 가능)
-      </p>
+    <div className="min-h-screen p-6 bg-gradient-to-b from-purple-100 to-indigo-100">
+      <h1 className="text-3xl font-bold text-center mb-6 text-indigo-700">
+        📸 DIT 자세 분석 AI (로컬 완성형)
+      </h1>
+      <PoseCanvas onAnalysisChange={handleAnalysisChange} />
 
-      <div className="card" style={{ marginTop: 8 }}>
-        <div className="row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="file" accept="image/*" onChange={handleFile} />
-            {isDetecting ? <span className="chip">분석 중…</span> : null}
-          </div>
-          {imageURL && analysis && (
-            <button
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              style={{
-                padding: "8px 16px",
-                backgroundColor: "#6C63FF",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: isExporting ? "not-allowed" : "pointer",
-                fontWeight: 600,
-                fontSize: "14px",
-              }}
-            >
-              {isExporting ? "PDF 생성 중…" : "📄 PDF로 내보내기"}
-            </button>
-          )}
-        </div>
+      <AiPostureReport
+        cvaAngle={angles.cva}
+        trunkTilt={angles.trunk}
+        kneeAngle={angles.knee}
+      />
 
-        <div 
-          ref={imageContainerRef}
-          style={{ position: "relative", display: "inline-block", marginTop: 12 }}
+      <div className="flex justify-center gap-4 mt-4 flex-wrap">
+        <button
+          onClick={() => {
+            setSavedBefore(angles);
+            alert("Before 상태가 저장되었습니다!");
+          }}
+          className="bg-yellow-400 px-4 py-2 rounded-lg hover:bg-yellow-500 transition"
         >
-          {imageURL && (
-            <img
-              ref={imgRef}
-              src={imageURL}
-              alt="업로드 이미지"
-              onLoad={onImageLoad}
-              style={{ width: "min(92vw, 420px)", borderRadius: 12 }}
-            />
-          )}
-
-          {/* 가이드 라인 (어깨-외이도, 골반-어깨, 무릎-골반, 발목-무릎) */}
-          <svg
-            width={imgSize.w}
-            height={imgSize.h}
-            style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
-          >
-            {points.shoulder && points.ear && (
-              <line className="guide"
-                x1={points.shoulder.x*imgSize.w} y1={points.shoulder.y*imgSize.h}
-                x2={points.ear.x*imgSize.w} y2={points.ear.y*imgSize.h}
-              />
-            )}
-            {points.hip && points.shoulder && (
-              <line className="guide"
-                x1={points.hip.x*imgSize.w} y1={points.hip.y*imgSize.h}
-                x2={points.shoulder.x*imgSize.w} y2={points.shoulder.y*imgSize.h}
-              />
-            )}
-            {points.knee && points.hip && (
-              <line className="guide"
-                x1={points.knee.x*imgSize.w} y1={points.knee.y*imgSize.h}
-                x2={points.hip.x*imgSize.w} y2={points.hip.y*imgSize.h}
-              />
-            )}
-            {points.ankle && points.knee && (
-              <line className="guide"
-                x1={points.ankle.x*imgSize.w} y1={points.ankle.y*imgSize.h}
-                x2={points.knee.x*imgSize.w} y2={points.knee.y*imgSize.h}
-              />
-            )}
-          </svg>
-
-          {/* 드래그 가능한 관절 포인트들 */}
-          <DraggableDot name="외이도"   p={points.ear}      imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("ear")} />
-          <DraggableDot name="어깨"     p={points.shoulder} imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("shoulder")} />
-          <DraggableDot name="골반"     p={points.hip}      imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("hip")} />
-          <DraggableDot name="무릎"     p={points.knee}     imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("knee")} />
-          <DraggableDot name="발목"     p={points.ankle}    imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("ankle")} />
-        </div>
+          📷 Before 저장
+        </button>
+        <button
+          onClick={() => exportPDF("ai-report", "Posture_AI_Report.pdf")}
+          className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition"
+        >
+          📄 PDF 저장
+        </button>
+        <button
+          onClick={handleSaveSession}
+          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
+        >
+          💾 점수 저장
+        </button>
       </div>
 
-      <div className="row" style={{ marginTop: 12 }}>
-        <div className="card">
-          <h4 style={{marginTop:0}}>📊 분석 각도</h4>
-          <p>머리 전방 변위 (CVA): <b>{angles.forwardHead?.toFixed(1) ?? "-"}</b>°</p>
-          <p>몸통 기울기: <b>{angles.trunk?.toFixed(1) ?? "-"}</b>°</p>
-          <p>무릎 각도: <b>{angles.knee?.toFixed(1) ?? "-"}</b>°</p>
-          <p style={{fontSize:12,color:"#666"}}>기준: CVA 정상 ≥ 50°, 몸통 |각| ≤ 5°, 무릎 175°~185°</p>
-        </div>
-      </div>
+      {savedBefore && <BeforeAfterCompare before={savedBefore} after={angles} />}
 
-      <div className="row">
-        <div className="card" style={{flex:1}}>
-          <h4 style={{marginTop:0}}>🧠 근육 상태 & 교정 제안</h4>
-          {!analysis ? <p>사진 분석 후에 표시됩니다.</p> : (
-            <>
-              <p><b>머리/경추:</b> {analysis.head?.상태}</p>
-              {analysis.head?.타이트?.length ? <p>• <span className="tight">타이트</span>: {analysis.head.타이트.join(", ")}</p> : null}
-              {analysis.head?.약화?.length ? <p>• <span className="weak">약화</span>: {analysis.head.약화.join(", ")}</p> : null}
-              {analysis.head?.추천?.length ? <p>• 추천: {analysis.head.추천.join(", ")}</p> : null}
-
-              <p><b>몸통/골반:</b> {analysis.trunk?.상태}</p>
-              {analysis.trunk?.타이트?.length ? <p>• <span className="tight">타이트</span>: {analysis.trunk.타이트.join(", ")}</p> : null}
-              {analysis.trunk?.약화?.length ? <p>• <span className="weak">약화</span>: {analysis.trunk.약화.join(", ")}</p> : null}
-              {analysis.trunk?.추천?.length ? <p>• 추천: {analysis.trunk.추천.join(", ")}</p> : null}
-
-              <p><b>무릎/하지:</b> {analysis.knee?.상태}</p>
-              {analysis.knee?.타이트?.length ? <p>• <span className="tight">타이트</span>: {analysis.knee.타이트.join(", ")}</p> : null}
-              {analysis.knee?.약화?.length ? <p>• <span className="weak">약화</span>: {analysis.knee.약화.join(", ")}</p> : null}
-              {analysis.knee?.추천?.length ? <p>• 추천: {analysis.knee.추천.join(", ")}</p> : null}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div style={{marginTop:10,fontSize:12,color:"#666"}}>
-        ※ 모든 처리는 브라우저 로컬에서 이루어집니다. 사진은 서버로 업로드되지 않습니다.
-      </div>
+      <ScoreChart data={scores} />
     </div>
   );
 }
