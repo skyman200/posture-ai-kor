@@ -4,6 +4,7 @@ import DraggableDot from "./components/DraggableDot.jsx";
 import { mapPosePoints } from "./utils/poseMapper.js";
 import { calcAngle, angleToVertical } from "./utils/calcAngle.js";
 import { analyzeMuscles } from "./utils/muscleRules.js";
+import { exportToPDF } from "./utils/pdfExport.js";
 
 export default function App() {
   const [imageURL, setImageURL] = useState(null);
@@ -12,8 +13,10 @@ export default function App() {
   const [angles, setAngles] = useState({ forwardHead: null, trunk: null, knee: null });
   const [analysis, setAnalysis] = useState(null);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const imgRef = useRef(null);
+  const imageContainerRef = useRef(null);
 
   const onImageLoad = () => {
     const img = imgRef.current;
@@ -103,6 +106,28 @@ export default function App() {
     computeAngles(next);
   };
 
+  const handleExportPDF = async () => {
+    if (!imageContainerRef.current || !imageURL) {
+      alert('분석할 이미지가 없습니다.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      await exportToPDF({
+        imageElement: imageContainerRef.current,
+        angles,
+        analysis,
+        points,
+      });
+    } catch (error) {
+      console.error('PDF 내보내기 실패:', error);
+      alert('PDF 내보내기에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div style={{ padding: 18 }}>
       <h2 style={{ margin: 0 }}>📸 DIT 자세 분석 AI (한국어)</h2>
@@ -111,12 +136,35 @@ export default function App() {
       </p>
 
       <div className="card" style={{ marginTop: 8 }}>
-        <div className="row" style={{ alignItems: "center" }}>
-          <input type="file" accept="image/*" onChange={handleFile} />
-          {isDetecting ? <span className="chip">분석 중…</span> : null}
+        <div className="row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="file" accept="image/*" onChange={handleFile} />
+            {isDetecting ? <span className="chip">분석 중…</span> : null}
+          </div>
+          {imageURL && analysis && (
+            <button
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "#6C63FF",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: isExporting ? "not-allowed" : "pointer",
+                fontWeight: 600,
+                fontSize: "14px",
+              }}
+            >
+              {isExporting ? "PDF 생성 중…" : "📄 PDF로 내보내기"}
+            </button>
+          )}
         </div>
 
-        <div style={{ position: "relative", display: "inline-block", marginTop: 12 }}>
+        <div 
+          ref={imageContainerRef}
+          style={{ position: "relative", display: "inline-block", marginTop: 12 }}
+        >
           {imageURL && (
             <img
               ref={imgRef}
@@ -159,7 +207,7 @@ export default function App() {
             )}
           </svg>
 
-          {/* 드래그 핸들 */}
+          {/* 드래그 가능한 관절 포인트들 */}
           <DraggableDot name="외이도"   p={points.ear}      imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("ear")} />
           <DraggableDot name="어깨"     p={points.shoulder} imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("shoulder")} />
           <DraggableDot name="골반"     p={points.hip}      imgW={imgSize.w} imgH={imgSize.h} onStop={updatePoint("hip")} />
