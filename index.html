@@ -1825,11 +1825,25 @@ function doDrag(e) {
     e.preventDefault();
     e.stopPropagation();
     
+    // 스크롤 모드 활성화 확인
+    if(!isScrolling) {
+      // 스크롤 모드가 아니면 초기화하고 시작
+      isScrolling = true;
+      dragKey = null;
+    }
+    
     // 두 손가락의 중심점 계산
     const touch1 = e.touches[0];
     const touch2 = e.touches[1];
     const currentX = (touch1.clientX + touch2.clientX) / 2;
     const currentY = (touch1.clientY + touch2.clientY) / 2;
+    
+    // 스크롤 시작 위치가 설정되지 않았으면 설정
+    if(scrollStartX === 0 && scrollStartY === 0) {
+      scrollStartX = currentX;
+      scrollStartY = currentY;
+      return;
+    }
     
     // 스크롤만 수행
     const canvasWrap = cv.parentElement;
@@ -1963,28 +1977,51 @@ window.addEventListener('mousemove', (e) => {
 
 // 터치 이벤트 (모바일 지원)
 cv.addEventListener('touchstart', (e) => {
-  // 이전 드래그 상태가 남아있으면 직접 초기화 (endDrag 호출하지 않음 - 타이밍 문제 방지)
-  if(dragKey) {
-    console.log('⚠️ 이전 드래그 상태가 남아있음, 직접 정리:', dragKey);
+  const touchCount = e.touches ? e.touches.length : 0;
+  
+  // 이전 상태가 남아있으면 완전히 초기화 (드래그든 스크롤이든)
+  if(dragKey || isScrolling) {
+    console.log('⚠️ 이전 상태가 남아있음, 직접 정리 - dragKey:', dragKey, 'isScrolling:', isScrolling);
     dragKey = null;
     isScrolling = false;
     scrollStartX = 0;
     scrollStartY = 0;
+    scrollDistance = 0;
   }
   
-  // 새로운 터치 시작
-  const result = startDrag(e);
+  // 두 손가락 스크롤인 경우 스크롤 시작 위치 설정
+  if(touchCount === 2 && editMode && currentZoom > 1) {
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    scrollStartX = (touch1.clientX + touch2.clientX) / 2;
+    scrollStartY = (touch1.clientY + touch2.clientY) / 2;
+    isScrolling = true;
+    dragKey = null;
+    console.log('두 손가락 스크롤 시작');
+  }
   
-  // 점을 터치했거나 두 손가락 스크롤이면 preventDefault
-  if(result === true || (e.touches && e.touches.length === 2 && editMode && currentZoom > 1)) {
+  // 한 손가락 터치인 경우에만 점 찾기 시도
+  if(touchCount === 1) {
+    // 새로운 터치 시작
+    const result = startDrag(e);
+    
+    // 점을 터치했으면 preventDefault
+    if(result === true) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  } else if(touchCount === 2 && editMode && currentZoom > 1) {
+    // 두 손가락 스크롤인 경우 preventDefault
     e.preventDefault();
     e.stopPropagation();
   }
 }, {passive: false});
 
 window.addEventListener('touchmove', (e) => {
+  const touchCount = e.touches ? e.touches.length : 0;
+  
   // 두 손가락 터치인 경우 스크롤 모드
-  if(e.touches && e.touches.length === 2 && editMode && currentZoom > 1) {
+  if(touchCount === 2 && editMode && currentZoom > 1) {
     e.preventDefault();
     e.stopPropagation();
     isScrolling = true;
@@ -1993,8 +2030,20 @@ window.addEventListener('touchmove', (e) => {
     return;
   }
   
+  // 두 손가락에서 한 손가락으로 변경된 경우 (스크롤 종료)
+  if(touchCount === 1 && isScrolling && editMode && currentZoom > 1) {
+    // 스크롤 모드 종료하고 상태 초기화
+    console.log('스크롤 모드 종료 (두 손가락 → 한 손가락)');
+    isScrolling = false;
+    dragKey = null;
+    scrollStartX = 0;
+    scrollStartY = 0;
+    // 드래그 처리 안 함 (새로운 터치가 필요)
+    return;
+  }
+  
   // 한 손가락 터치인 경우
-  if(e.touches && e.touches.length === 1) {
+  if(touchCount === 1) {
     // dragKey가 설정되어 있으면 드래그 모드 (점 근처를 눌렀을 때만)
     if(dragKey) {
       e.preventDefault();
@@ -2009,12 +2058,10 @@ window.addEventListener('touchmove', (e) => {
     return;
   }
   
-  // 스크롤 모드인 경우 (이미 설정된 경우)
-  if(isScrolling && editMode && currentZoom > 1 && !dragKey) {
-    e.preventDefault();
-    e.stopPropagation();
-    doDrag(e);
-    return;
+  // 터치가 없거나 3개 이상인 경우 상태 초기화
+  if(touchCount === 0 || touchCount > 2) {
+    isScrolling = false;
+    dragKey = null;
   }
   
   // 기본 동작은 허용 (점이 아닌 곳을 터치한 경우)
@@ -2022,16 +2069,35 @@ window.addEventListener('touchmove', (e) => {
 
 window.addEventListener('touchend', (e) => {
   // changedTouches를 확인하여 끝난 터치가 있는지 체크
-  // 또는 모든 터치가 끝났는지 확인
-  if(e.changedTouches && e.changedTouches.length > 0) {
-    // 터치가 끝났으면 드래그 종료
+  const remainingTouches = e.touches ? e.touches.length : 0;
+  const endedTouches = e.changedTouches ? e.changedTouches.length : 0;
+  
+  // 모든 터치가 끝났는지 확인
+  if(remainingTouches === 0) {
+    // 모든 터치가 끝났으면 드래그/스크롤 완전히 종료
+    console.log('모든 터치 종료, 상태 초기화');
     endDrag(e);
-  } else if(e.touches && e.touches.length === 0) {
-    endDrag(e);
+  } else if(endedTouches > 0) {
+    // 일부 터치만 끝났는 경우
+    // 두 손가락 스크롤 중 하나가 떨어졌으면 스크롤 모드 종료
+    if(isScrolling && remainingTouches === 1) {
+      console.log('스크롤 모드 종료 (한 손가락 남음)');
+      isScrolling = false;
+      dragKey = null;
+      scrollStartX = 0;
+      scrollStartY = 0;
+    } else if(remainingTouches === 1 && dragKey) {
+      // 드래그 중이었는데 한 손가락이 남아있으면 드래그 계속
+      // endDrag 호출하지 않음
+    } else {
+      // 그 외의 경우는 상태 초기화
+      endDrag(e);
+    }
   }
 });
 window.addEventListener('touchcancel', (e) => {
-  // 터치가 취소되면 무조건 드래그 종료
+  // 터치가 취소되면 무조건 드래그/스크롤 종료
+  console.log('터치 취소, 상태 초기화');
   endDrag(e);
 });
 
