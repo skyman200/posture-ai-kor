@@ -968,6 +968,177 @@ function buildAnalysisSummaryHtml(analysisResult) {
   return html;
 }
 
+// ✅ 운동 추천 엔진 - 분석 결과를 받아서 패턴별 근육과 운동 추천 생성
+function generatePostureRecommendations(analysis) {
+  const patterns = [];
+  
+  function addPattern({pattern, condition, tight, weak, exercises}) {
+    patterns.push({
+      pattern: pattern,
+      condition: condition,
+      tight_muscles: tight,
+      weak_muscles: weak,
+      recommended_exercises: exercises
+    });
+  }
+  
+  // 측면 분석 결과에서 값 추출
+  const side = analysis.side || {};
+  const front = analysis.front || {};
+  
+  // 측면 지표
+  const cva = side.CVA?.value_deg;
+  const nia = side.NIA?.value_deg;
+  const hpd = side.HPD?.value_cm;
+  const saa = side.SAA?.value_deg;
+  const pta = side.PTA?.value_deg;
+  const ka = side.KA?.value_deg;
+  const bva = side.BVA?.value_deg;
+  const gsb = side.GSB?.value_cm;
+  
+  // 정면 지표
+  const frontKA = front.KA?.value_deg;
+  
+  // 거북목 (FHP)
+  if (cva != null && cva < 50) {
+    addPattern({
+      pattern: "거북목(FHP)",
+      condition: "CVA↓ / NIA↑ / HPD↑",
+      tight: ["SCM", "상부승모", "견갑거근", "소흉근"],
+      weak: ["심부경부굴근", "하부승모", "전거근"],
+      exercises: {
+        "매트": ["Chin Tuck & Axial Elongation (턱당기기 + 축신장)", "Swan Prep"],
+        "리포머": ["Pulling Straps"],
+        "캐딜락": ["Tower Swan"],
+        "체어": ["Press Down Front"],
+        "바렐": ["Swan on Ladder Barrel"]
+      }
+    });
+  }
+  
+  // 라운드숄더 (RSP)
+  if (saa != null && saa > 10) {
+    addPattern({
+      pattern: "라운드숄더(RSP)",
+      condition: "SAA↑",
+      tight: ["대흉근", "소흉근", "상부승모"],
+      weak: ["하부승모", "능형근", "전거근"],
+      exercises: {
+        "매트": ["Prone Scapular Retraction"],
+        "리포머": ["Rowing Back", "Pulling Straps"],
+        "캐딜락": ["Arm Springs - Extension"],
+        "체어": ["Spine Stretch Forward (Chair Ver.)"],
+        "바렐": ["Shoulder Extension on Barrel"]
+      }
+    });
+  }
+  
+  // 과전경사 골반 (Anterior Tilt)
+  if (pta != null && pta > 15) {
+    addPattern({
+      pattern: "과전경사 골반 (Anterior Tilt)",
+      condition: "PTA↑, ASIS 하강, PSIS 상승",
+      tight: ["장요근", "대퇴직근", "척추기립근"],
+      weak: ["복직근", "복횡근", "둔근"],
+      exercises: {
+        "매트": ["Pelvic Curl", "Dead Bug / Toe Tap"],
+        "리포머": ["Bridge on Reformer"],
+        "캐딜락": ["Roll Down with Push Through Bar"],
+        "체어": ["Standing Hip Extension"],
+        "바렐": ["Short Box Round Back"]
+      }
+    });
+  }
+  
+  // 후경사 골반 (Posterior Tilt)
+  if (pta != null && pta < 5) {
+    addPattern({
+      pattern: "후경사 골반 (Posterior Tilt)",
+      condition: "PTA↓, PSIS 하강",
+      tight: ["햄스트링", "복직근"],
+      weak: ["장요근", "대퇴직근", "척추기립근"],
+      exercises: {
+        "매트": ["Leg Pull Front"],
+        "리포머": ["Footwork - Parallel Heels"],
+        "캐딜락": ["Leg Springs - Supine"],
+        "체어": ["Swan Press"],
+        "바렐": ["Swan on Barrel"]
+      }
+    });
+  }
+  
+  // X자 다리 (Genu Valgum) - 측면 또는 정면 KA 사용
+  const kaValue = ka || frontKA;
+  if (kaValue != null && kaValue < 175) {
+    addPattern({
+      pattern: "X자 다리 (Genu Valgum)",
+      condition: "KA↓, Q-Angle↑",
+      tight: ["내전근", "내측광근"],
+      weak: ["중둔근", "외회전근", "외측광근"],
+      exercises: {
+        "매트": ["Side-Lying Leg Lift"],
+        "리포머": ["Side Splits"],
+        "캐딜락": ["Standing Hip Abduction"],
+        "체어": ["Step Up Lateral"],
+        "바렐": ["Side Bend Stretch"]
+      }
+    });
+  }
+  
+  // O자 다리 (Genu Varum)
+  if (kaValue != null && kaValue > 180) {
+    addPattern({
+      pattern: "O자 다리 (Genu Varum)",
+      condition: "KA↑",
+      tight: ["외측광근", "비복근", "대퇴이두"],
+      weak: ["내전근", "내측광근"],
+      exercises: {
+        "매트": ["Ball Squeeze Bridge"],
+        "리포머": ["Footwork - Small V Position"],
+        "캐딜락": ["Standing Leg Press - Adduction"],
+        "체어": ["Seated Adduction"],
+        "바렐": ["Adductor Stretch on Barrel"]
+      }
+    });
+  }
+  
+  // 전방 체중 중심 (Forward Center)
+  if (gsb != null && gsb > 2) {
+    addPattern({
+      pattern: "체중 중심 전방 (Forward Center)",
+      condition: "GSB↑, BVA↑",
+      tight: ["대퇴직근", "요추기립근", "종아리근"],
+      weak: ["둔근", "햄스트링", "복부"],
+      exercises: {
+        "매트": ["Pelvic Curl"],
+        "리포머": ["Scooter"],
+        "캐딜락": ["Tower Roll Up"],
+        "체어": ["Standing Leg Press"],
+        "바렐": ["Swan"]
+      }
+    });
+  }
+  
+  // 후방 체중 중심 (Backward Center)
+  if (gsb != null && gsb < -2) {
+    addPattern({
+      pattern: "체중 중심 후방 (Backward Center)",
+      condition: "GSB↓, BVA↓",
+      tight: ["햄스트링", "둔근"],
+      weak: ["장요근", "대퇴직근"],
+      exercises: {
+        "매트": ["Hip Flexor Stretch"],
+        "리포머": ["Standing Lunge"],
+        "캐딜락": ["Leg Springs - Supine"],
+        "체어": ["Step Up Front"],
+        "바렐": ["Lunge on Barrel"]
+      }
+    });
+  }
+  
+  return { patterns: patterns };
+}
+
 // ✅ 통합 분석 함수 - 측면/정면 자동 감지
 function analyzePostureAuto(options = {}) {
   const {
@@ -1018,6 +1189,35 @@ function analyzePostureAuto(options = {}) {
   } else {
     result.summary.status = "not_available";
   }
+  
+  return result;
+}
+
+// ✅ 통합 분석 + 운동 추천 결합
+function analyzePostureAutoWithRecommendation(options = {}) {
+  const {
+    sidePts = null,
+    frontPts = null,
+    pxPerCm = 50.0
+  } = options;
+  
+  // 기본 통합 분석 실행
+  const result = analyzePostureAuto({
+    sidePts: sidePts,
+    frontPts: frontPts,
+    pxPerCm: pxPerCm
+  });
+  
+  // 분석 결과를 통합하여 운동 추천 생성
+  const analysis = {
+    side: result.side,
+    front: result.front,
+    summary: result.summary
+  };
+  
+  // 운동 추천 생성
+  const recommendation = generatePostureRecommendations(analysis);
+  result.recommendations = recommendation;
   
   return result;
 }
@@ -1651,8 +1851,8 @@ function computeAll() {
     }
   }
   
-  // 통합 분석 실행
-  const analysisResult = analyzePostureAuto({
+  // 통합 분석 실행 (운동 추천 포함)
+  const analysisResult = analyzePostureAutoWithRecommendation({
     sidePts: Object.keys(sidePoints).length > 0 ? sidePoints : null,
     frontPts: Object.keys(frontPoints).length > 0 ? frontPoints : null,
     pxPerCm: pxPerCm
@@ -3492,8 +3692,8 @@ function exportAsPdf(options = {}) {
       page1Container.style.overflow = "hidden";
       page1Container.style.wordWrap = "break-word";
       
-      // 통합 분석 결과 가져오기
-      const analysisResult = S.analysisResult || analyzePostureAuto({
+      // 통합 분석 결과 가져오기 (운동 추천 포함)
+      const analysisResult = S.analysisResult || analyzePostureAutoWithRecommendation({
         sidePts: S.sidePoints.size > 0 ? Object.fromEntries(S.sidePoints) : null,
         frontPts: S.frontPoints.size > 0 ? Object.fromEntries(S.frontPoints) : null,
         pxPerCm: S.pxPerCm || 50.0
@@ -3508,6 +3708,8 @@ function exportAsPdf(options = {}) {
       
       // 분석 결과 요약 HTML 생성
       const analysisSummaryHtml = buildAnalysisSummaryHtml(analysisResult);
+      // 운동 추천 HTML 생성
+      const exerciseRecommendationHtml = buildExerciseRecommendationHtml(analysisResult);
       
       page1Container.innerHTML = `
         <!-- 헤더 -->
@@ -3528,6 +3730,9 @@ function exportAsPdf(options = {}) {
         ${sideImg ? `<div style="margin-top:20px;"><div style="font-size:12px; font-weight:600; margin-bottom:8px;">측면 이미지</div><img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" /></div>` : ''}
         
         ${frontImg ? `<div style="margin-top:20px;"><div style="font-size:12px; font-weight:600; margin-bottom:8px;">정면 이미지</div><img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" /></div>` : ''}
+        
+        <!-- 운동 추천 -->
+        ${exerciseRecommendationHtml}
         
         <!-- 푸터 -->
         <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
