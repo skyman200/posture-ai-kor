@@ -789,6 +789,7 @@ const coordEditPanel = document.getElementById("coordEditPanel");
 if(btnEditCoords && coordEditPanel) {
   btnEditCoords.onclick = () => {
     editMode = !editMode;
+    console.log("좌표 수정 모드:", editMode ? "활성" : "비활성");
     if(editMode) {
       coordEditPanel.style.display = "block";
       btnEditCoords.style.background = "rgba(124,156,255,0.4)";
@@ -808,6 +809,8 @@ if(btnEditCoords && coordEditPanel) {
       draw(); // 다시 그리기
     }
   };
+} else {
+  console.error("좌표 수정 모드 요소를 찾을 수 없습니다:", {btnEditCoords, coordEditPanel});
 }
 
 // 점 선택 드롭다운 변경
@@ -817,12 +820,14 @@ const coordY = document.getElementById("coordY");
 if(coordSelectPoint && coordX && coordY) {
   coordSelectPoint.addEventListener("change", e => {
     selectedPoint = e.target.value || null;
+    console.log("선택된 점:", selectedPoint);
     if(selectedPoint) {
       const P = getPts(cur);
       const pt = P[selectedPoint];
       if(pt) {
         coordX.value = pt.x.toFixed(1);
         coordY.value = pt.y.toFixed(1);
+        console.log("점 좌표:", pt.x, pt.y);
       } else {
         // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
         const W = cv.width / DPR, H = cv.height / DPR;
@@ -832,9 +837,11 @@ if(coordSelectPoint && coordX && coordY) {
           const defaultY = (H / 2).toFixed(1);
           coordX.value = defaultX;
           coordY.value = defaultY;
+          console.log("기본 좌표 설정:", defaultX, defaultY);
         } else {
           coordX.value = "";
           coordY.value = "";
+          console.log("이미지가 없어 좌표를 설정할 수 없습니다.");
         }
       }
       // 선택된 점을 시각적으로 강조하기 위해 다시 그리기
@@ -845,6 +852,8 @@ if(coordSelectPoint && coordX && coordY) {
       draw();
     }
   });
+} else {
+  console.error("좌표 입력 요소를 찾을 수 없습니다:", {coordSelectPoint, coordX, coordY});
 }
 
 // 좌표 적용
