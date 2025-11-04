@@ -1,15 +1,361 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DIT 자세 분석 AI (한국어)</title>
-    <!-- PDF 저장 기능 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIT 자세 분석 AI — Before/After + PDF + 모바일</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#121821; --ink:#e7eef7; --muted:#9bb0c7; --accent:#7c9cff; --bad:#ff6b6b; --ok:#ffd166; --good:#2ec4b6;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:linear-gradient(180deg,#0b0f14 0%, #0e1520 100%); color:var(--ink); font:14px/1.6 "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, Noto Sans, Helvetica, Arial}
+    .wrap{display:grid; grid-template-columns: 340px 1fr; gap:16px; padding:16px; height:100vh}
+    .panel{background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:16px; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.25)}
+    .sidebar{padding:16px; overflow:auto}
+    .title{font-size:18px; font-weight:800; margin-bottom:6px}
+    .muted{color:var(--muted)}
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .row + .row{margin-top:10px}
+    .seg{display:flex; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; overflow:hidden}
+    .seg button{flex:1; padding:8px 10px; color:var(--muted); background:transparent; border:0; cursor:pointer}
+    .seg button.active{color:var(--ink); background:rgba(124,156,255,0.15)}
+    .card{padding:12px; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(255,255,255,0.03)}
+    label.btn{display:inline-flex; align-items:center; gap:8px; border:1px dashed rgba(255,255,255,0.18); background:rgba(124,156,255,0.06); padding:10px 12px; border-radius:999px; cursor:pointer; color:#dce6ff}
+    label.btn:hover{background:rgba(124,156,255,0.12)}
+    input[type=file]{display:none}
+    .btn{display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:10px 12px; border-radius:10px; color:var(--ink); cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,0.12)}
+    .scoreBox{display:grid; grid-template-columns: 1fr auto; gap:6px; align-items:center}
+    .score{font-size:28px; font-weight:800}
+    .score.good{color:var(--good)} .score.ok{color:var(--ok)} .score.bad{color:var(--bad)}
+    .hint{font-size:12px; color:var(--muted)}
+    .canvasWrap{position:relative; height:100%; display:flex; align-items:center; justify-content:center; padding:8px}
+    canvas{max-width:100%; max-height:100%; border-radius:16px; background:#0a0e13}
+    .legend{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px}
+    .legend .item{display:flex; align-items:center; gap:8px; color:var(--muted)}
+    .dotSample{width:12px; height:12px; border-radius:50%}
+    .dashSample{width:28px; height:0; border-top:2px dashed currentColor}
+    .tbl{width:100%; border-collapse:collapse; font-size:13px}
+    .tbl th,.tbl td{border-bottom:1px solid rgba(255,255,255,0.08); padding:8px; text-align:left}
+    /* 모바일 대응 */
+    @media (max-width: 920px){ .wrap{grid-template-columns:1fr; height:auto; min-height:100vh} .canvasWrap{min-height:50vh} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="sidebar panel analysis-report" id="report">
+      <div class="title">📸 DIT 자세 분석 — Before/After + 수동 점(ASIS/PSIS 포함)</div>
+      <div class="muted">이미지 업로드(파일 선택/직접 촬영) → 점 드래그 → 각도/점수 자동 → PDF 저장</div>
+
+      <div class="row" style="margin-top:12px">
+        <div class="seg" role="tablist" aria-label="세션 선택">
+          <button id="btnBefore" class="active" aria-selected="true">Before</button>
+          <button id="btnAfter" aria-selected="false">After</button>
+        </div>
+        <button id="btnExplain" class="btn">❓ 스코어 설명</button>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <!-- 파일 선택 + 직접 촬영 (각 세션 공용) -->
+        <label class="btn">📷 파일 선택
+          <input id="filePicker" type="file" accept="image/*" />
+        </label>
+        <label class="btn">📸 직접 촬영
+          <input id="cameraPicker" type="file" accept="image/*" capture="environment" />
+        </label>
+        <button id="btnReset" class="btn">↺ 현재 세션 점 초기화</button>
+      </div>
+
+      <div class="card" style="margin-top:10px">
+        <div class="scoreBox">
+          <div>
+            <div class="muted">체형 종합 점수 (0–100)</div>
+            <div id="score" class="score">—</div>
+          </div>
+          <div class="row">
+            <button id="btnSaveJSON" class="btn">💾 좌표 저장</button>
+            <button id="btnLoadJSON" class="btn">📂 좌표 불러오기</button>
+            <button id="btnPDF" class="btn">📄 PDF 저장</button>
+          </div>
+        </div>
+        <div class="legend" style="margin-top:8px">
+          <div class="item"><span class="dotSample" style="background:#7c9cff"></span> 기준 관절 점</div>
+          <div class="item"><span class="dashSample" style="color:#7c9cff"></span> 분석 점선</div>
+          <div class="item"><span class="dotSample" style="background:#ffb86c"></span> 골반(ASIS/PSIS)</div>
+          <div class="item"><span class="dashSample" style="color:#ffb86c"></span> 골반 기준선</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px">
+        <table class="tbl" id="cmpTbl">
+          <thead><tr><th>항목</th><th>Before</th><th>After</th><th>변화</th><th>정상 범위</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>CVA</td><td id="cmpCvaB">—</td><td id="cmpCvaA">—</td><td id="cmpCvaD">—</td><td>≥ 50°</td><td id="cmpCvaS">—</td></tr>
+            <tr><td>TRUNK(ASIS→PSIS)</td><td id="cmpPelB">—</td><td id="cmpPelA">—</td><td id="cmpPelD">—</td><td>|0–5°|</td><td id="cmpPelS">—</td></tr>
+            <tr><td>KNEE</td><td id="cmpKneeB">—</td><td id="cmpKneeA">—</td><td id="cmpKneeD">—</td><td>175–185°</td><td id="cmpKneeS">—</td></tr>
+            <tr><td>체형 점수</td><td id="cmpScB">—</td><td id="cmpScA">—</td><td id="cmpScD">—</td><td>0–100</td><td id="cmpScS">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </aside>
+
+    <main class="panel canvasWrap">
+      <canvas id="cv" width="1600" height="1000" aria-label="자세 분석 캔버스" tabindex="0"></canvas>
+    </main>
+  </div>
+
+  <!-- html2canvas + jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa5zs5lQ68bq7kzB5b7nJcJcZ0xS0W8U3s6yYq1nGqE8N0yR2g7Oe5QyX8d0zS3r4w3lJ6k6A3F4k8aP7YwA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-Hq0PpC4q8b7wQHf1l3dwZ8uUqF2k3e2G2o1g2kqYq4x8h9FQeQ0xE1m0+fY7t2n3b8t2w8k8j2P1Yj2S9K0X0w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <script>
+  // ===== 유틸 =====
+  const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+  const rad2deg = r=> r*180/Math.PI;
+  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+  function angleBetween(a,b){ return Math.atan2(b.y-a.y, b.x-a.x); }
+  function internalAngle(a,b,c){ const ab=Math.atan2(a.y-b.y,a.x-b.x); const cb=Math.atan2(c.y-b.y,c.x-b.x); let d=Math.abs(ab-cb); if(d>Math.PI) d=2*Math.PI-d; return d; }
+
+  // ===== 상태 =====
+  const keypoints = [
+    {key:'Tragus', color:'#7c9cff'},
+    {key:'C7', color:'#7c9cff'},
+    {key:'Shoulder', color:'#7c9cff'},
+    {key:'Hip', color:'#7c9cff'},
+    {key:'Knee', color:'#7c9cff'},
+    {key:'Ankle', color:'#7c9cff'},
+    {key:'ASIS', color:'#ffb86c'},
+    {key:'PSIS', color:'#ffb86c'},
+  ];
+  const sessions = {
+    Before: { img:null, pts:new Map(), score:null, metrics:{} },
+    After:  { img:null, pts:new Map(), score:null, metrics:{} },
+  };
+  let cur = 'Before';
+
+  // ===== 캔버스 =====
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let DPR = window.devicePixelRatio || 1;
+  function resizeCanvasFor(img){
+    const maxW = cv.parentElement.clientWidth - 24;
+    const maxH = cv.parentElement.clientHeight - 24;
+    const r = img ? Math.min(maxW/img.naturalWidth, maxH/img.naturalHeight) : 1;
+    const w = Math.round((img?img.naturalWidth:1200)*r);
+    const h = Math.round((img?img.naturalHeight:800)*r);
+    cv.width = Math.round(w*DPR); cv.height = Math.round(h*DPR);
+    cv.style.width = w+'px'; cv.style.height = h+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    draw();
+  }
+
+  // ===== 업로드(파일/카메라 공용) =====
+  const filePicker = document.getElementById('filePicker');
+  const cameraPicker = document.getElementById('cameraPicker');
+  filePicker.addEventListener('change', e=> loadImage(cur, e.target.files[0]));
+  cameraPicker.addEventListener('change', e=> loadImage(cur, e.target.files[0]));
+
+  function loadImage(slot, file){
+    if(!file) return;
+    const img = new Image();
+    img.onload = ()=>{ sessions[slot].img = img; resizeCanvasFor(img); computeAll(); updateCompare(); };
+    // objectURL은 CORS 문제 없음
+    img.src = URL.createObjectURL(file);
+  }
+
+  // ===== 세션 전환 =====
+  const btnBefore = document.getElementById('btnBefore');
+  const btnAfter  = document.getElementById('btnAfter');
+  const modeLabel = document.createElement('span');
+  btnBefore.onclick = ()=>{ cur='Before'; btnBefore.classList.add('active'); btnAfter.classList.remove('active'); draw(); computeAll(); updateCompare(); };
+  btnAfter.onclick  = ()=>{ cur='After';  btnAfter.classList.add('active');  btnBefore.classList.remove('active'); draw(); computeAll(); updateCompare(); };
+
+  // ===== 기본 점 배치 =====
+  function ensureDefaultPoints(session){
+    const S = sessions[session];
+    const W = cv.width/DPR, H = cv.height/DPR;
+    if(S.pts.size===0){
+      const defaults = {
+        Tragus:{x:W*0.35, y:H*0.3}, C7:{x:W*0.3, y:H*0.35},
+        Shoulder:{x:W*0.35, y:H*0.4}, Hip:{x:W*0.38, y:H*0.6},
+        Knee:{x:W*0.42, y:H*0.8}, Ankle:{x:W*0.44, y:H*0.95},
+        ASIS:{x:W*0.40, y:H*0.58}, PSIS:{x:W*0.35, y:H*0.6},
+      };
+      for(const k of keypoints) S.pts.set(k.key, {...defaults[k.key]});
+    }
+  }
+
+  // ===== 드로잉 =====
+  function draw(){
+    const S = sessions[cur];
+    const W = cv.width/DPR, H = cv.height/DPR;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.fillStyle = '#0a0e13'; ctx.fillRect(0,0,W,H);
+
+    if(S.img){ ctx.drawImage(S.img, 0, 0, W, H); }
+    ensureDefaultPoints(cur);
+
+    // 보조선/연결선
+    const P = getPts(cur);
+    ctx.lineWidth=2; ctx.setLineDash([8,6]); ctx.strokeStyle='rgba(124,156,255,0.85)';
+    if(P.C7 && P.Tragus){ ctx.beginPath(); ctx.moveTo(0,P.C7.y); ctx.lineTo(W,P.C7.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(P.C7.x,P.C7.y); ctx.lineTo(P.Tragus.x,P.Tragus.y); ctx.stroke(); }
+    if(P.Shoulder && P.Hip){ ctx.beginPath(); ctx.moveTo(P.Shoulder.x,P.Shoulder.y); ctx.lineTo(P.Hip.x,P.Hip.y); ctx.stroke(); }
+    if(P.Hip && P.Knee){ ctx.beginPath(); ctx.moveTo(P.Hip.x,P.Hip.y); ctx.lineTo(P.Knee.x,P.Knee.y); ctx.stroke(); }
+    if(P.Knee && P.Ankle){ ctx.beginPath(); ctx.moveTo(P.Knee.x,P.Knee.y); ctx.lineTo(P.Ankle.x,P.Ankle.y); ctx.stroke(); }
+
+    if(P.ASIS && P.PSIS){
+      ctx.strokeStyle='rgba(255,184,108,0.95)';
+      ctx.beginPath(); ctx.moveTo(P.ASIS.x,P.ASIS.y); ctx.lineTo(P.PSIS.x,P.PSIS.y); ctx.stroke();
+      ctx.strokeStyle='rgba(255,184,108,0.35)'; const midy=(P.ASIS.y+P.PSIS.y)/2;
+      ctx.beginPath(); ctx.moveTo(0, midy); ctx.lineTo(W, midy); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // 점 + 라벨
+    for(const kp of keypoints){ const pt = P[kp.key]; if(!pt) continue; drawHandle(pt.x, pt.y, kp.key, kp.color); }
+  }
+
+  function drawHandle(x,y,label,color){
+    ctx.fillStyle=color; ctx.strokeStyle='rgba(0,0,0,0.8)';
+    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill(); ctx.lineWidth=2; ctx.stroke();
+    ctx.font='12px "Noto Sans KR"'; const pad=4; const tw=ctx.measureText(label).width; const th=16;
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(x+10,y-12, tw+pad*2, th);
+    ctx.fillStyle='#e7eef7'; ctx.fillText(label, x+10+pad, y+1);
+  }
+
+  function getPts(session){ const map=sessions[session].pts; const out={}; for(const k of keypoints) out[k.key]=map.get(k.key); return out; }
+
+  // ===== 드래그 =====
+  let dragKey=null;
+  cv.addEventListener('mousedown',e=>{
+    const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left), y=(e.clientY-r.top);
+    const P=getPts(cur); let best=null, bestD=1e9; for(const k of keypoints){ const p=P[k.key]; if(!p) continue; const d=Math.hypot(p.x-x,p.y-y); if(d<12 && d<bestD){ best=k.key; bestD=d; } }
+    if(best) dragKey=best;
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!dragKey) return; const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left), y=(e.clientY-r.top);
+    const map=sessions[cur].pts; const p=map.get(dragKey); if(!p) return; p.x=clamp(x,0,cv.width/DPR); p.y=clamp(y,0,cv.height/DPR);
+    draw(); computeAll(); updateCompare();
+  });
+  window.addEventListener('mouseup',()=> dragKey=null);
+
+  // ===== 메트릭/스코어 =====
+  function computeAll(){
+    const S = sessions[cur]; const P = getPts(cur);
+    let cva=null, pelvic=null, knee=null;
+    if(P.C7 && P.Tragus){ const a=angleBetween(P.C7,P.Tragus); cva = Math.abs(rad2deg(a)); }
+    if(P.ASIS && P.PSIS){ pelvic = rad2deg(angleBetween(P.ASIS,P.PSIS)); }
+    if(P.Hip && P.Knee && P.Ankle){ knee = rad2deg( internalAngle(P.Hip,P.Knee,P.Ankle) ); }
+    S.metrics = { cva, pelvic, knee };
+    const sc = computeScore(cva,pelvic,knee); S.score=sc; renderScore(sc);
+  }
+  function computeScore(cva,pelvic,knee){ let p=0; if(cva!=null){ const d=Math.max(0,50-cva); p+=Math.min(40,d*1.6);} if(pelvic!=null){ const d=Math.abs(pelvic); p+=Math.min(30,d*2.0);} if(knee!=null){ const d=Math.max(0,180-knee); p+=Math.min(30,d*1.0);} return Math.round(clamp(100-p,0,100)); }
+  function renderScore(sc){ const el=document.getElementById('score'); if(sc==null){ el.textContent='—'; el.className='score'; return;} el.textContent=sc; el.className='score ' + (sc>=85?'good':sc>=70?'ok':'bad'); }
+
+  // ===== 상태판정 DOT =====
+  function statusDot(val, type){
+    if(val==null||isNaN(val)) return ['—','—'];
+    if(type==='CVA'){ if(val>=50) return ['🟢 정상', '≥50°']; if(val>=45) return ['🟡 경미', '45–49°']; return ['🔴 문제','<45°']; }
+    if(type==='TRUNK'){ const a=Math.abs(val); if(a<=5) return ['🟢 정상','|0–5°|']; if(a<=10) return ['🟡 경미','|6–10°|']; return ['🔴 문제','>10°']; }
+    if(type==='KNEE'){ if(val>=175) return ['🟢 정상','175–185°']; if(val>=165) return ['🟡 경미','165–174°']; return ['🔴 문제','<165°']; }
+    return ['—','—'];
+  }
+
+  // ===== 비교표 =====
+  function fmtDeg(v){ return (v==null||isNaN(v)) ? '—' : v.toFixed(1)+'°'; }
+  function deltaStr(b,a,suf){ if(b==null||a==null||isNaN(b)||isNaN(a)) return '—'; const d=(a-b); const sign = d>0?'+':''; return sign + d.toFixed(1) + (suf||''); }
+  function updateCompare(){
+    const B=sessions.Before, A=sessions.After;
+    const cB=B.metrics.cva, cA=A.metrics.cva; document.getElementById('cmpCvaB').textContent=fmtDeg(cB); document.getElementById('cmpCvaA').textContent=fmtDeg(cA); document.getElementById('cmpCvaD').textContent=deltaStr(cB,cA,'°'); document.getElementById('cmpCvaS').textContent=statusDot(cA??cB,'CVA')[0];
+    const pB=B.metrics.pelvic, pA=A.metrics.pelvic; document.getElementById('cmpPelB').textContent=fmtDeg(pB); document.getElementById('cmpPelA').textContent=fmtDeg(pA); document.getElementById('cmpPelD').textContent=deltaStr(pB,pA,'°'); document.getElementById('cmpPelS').textContent=statusDot(pA??pB,'TRUNK')[0];
+    const kB=B.metrics.knee,   kA=A.metrics.knee;   document.getElementById('cmpKneeB').textContent=fmtDeg(kB); document.getElementById('cmpKneeA').textContent=fmtDeg(kA); document.getElementById('cmpKneeD').textContent=deltaStr(kB,kA,'°'); document.getElementById('cmpKneeS').textContent=statusDot(kA??kB,'KNEE')[0];
+    const sB=B.score, sA=A.score; document.getElementById('cmpScB').textContent=sB==null?'—':sB; document.getElementById('cmpScA').textContent=sA==null?'—':sA; document.getElementById('cmpScD').textContent=deltaStr(sB,sA,''); document.getElementById('cmpScS').textContent= (sA??sB)==null?'—': ((sA??sB)>=85?'🟢 좋음':(sA??sB)>=70?'🟡 보통':'🔴 주의');
+  }
+
+  // ===== 리셋/저장/불러오기 =====
+  document.getElementById('btnReset').onclick = ()=>{ sessions[cur].pts.clear(); draw(); computeAll(); updateCompare(); };
+  document.getElementById('btnSaveJSON').onclick = ()=>{ const blob=new Blob([ JSON.stringify(Object.fromEntries(sessions[cur].pts), null, 2) ], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${cur}_keypoints.json`; a.click(); URL.revokeObjectURL(a.href); };
+  document.getElementById('btnLoadJSON').onclick = ()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json'; inp.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(r.result); const map=new Map(); for(const k of Object.keys(obj)) map.set(k,obj[k]); sessions[cur].pts=map; draw(); computeAll(); updateCompare(); }catch(err){ alert('JSON 파싱 실패: '+err.message); } }; r.readAsText(f); }; inp.click(); };
+
+  // ===== PDF 저장 (빈 PDF 문제 해결 버전) =====
+  document.getElementById('btnPDF').onclick = async ()=>{
+    // 1) 현재 캔버스를 이미지로 변환
+    const cvData = cv.toDataURL('image/png');
+    const cvImg = new Image(); cvImg.src = cvData; await cvImg.decode();
+
+    // 2) PDF용 임시 DOM 구성 (리포트 + 캔버스 이미지)
+    const exportNode = document.createElement('div');
+    exportNode.style.width = '794px'; // A4 px @96DPI (approx): 794x1123
+    exportNode.style.padding = '16px';
+    exportNode.style.background = '#ffffff';
+    exportNode.style.color = '#111';
+    exportNode.style.fontFamily = 'Noto Sans KR, Arial, sans-serif';
+    exportNode.innerHTML = `
+      <h2 style="margin:0 0 8px 0; font-weight:800">DIT 자세 분석 리포트</h2>
+      <div style="font-size:12px; color:#555; margin-bottom:8px">${new Date().toLocaleString()}</div>
+      <div id="exportMetrics" style="margin-bottom:10px"></div>
+      <img id="exportImage" style="width:100%; border:1px solid #ddd; border-radius:8px" />
+      <div style="margin-top:10px; font-size:12px; color:#444">※ 본 리포트는 교육용으로 제공됩니다.</div>
+    `;
+    // 메트릭 텍스트 삽입
+    const M = sessions[cur].metrics; const S = sessions[cur].score;
+    exportNode.querySelector('#exportMetrics').innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:13px">
+        <tr><th style="text-align:left; border-bottom:1px solid #eee; padding:6px 0">항목</th><th style="text-align:left; border-bottom:1px solid #eee; padding:6px 0">값</th><th style="text-align:left; border-bottom:1px solid #eee; padding:6px 0">정상 범위</th><th style="text-align:left; border-bottom:1px solid #eee; padding:6px 0">상태</th></tr>
+        <tr><td style="padding:6px 0">CVA</td><td>${fmtDeg(M.cva)}</td><td>≥ 50°</td><td>${statusDot(M.cva,'CVA')[0]}</td></tr>
+        <tr><td style="padding:6px 0">TRUNK</td><td>${fmtDeg(M.pelvic)}</td><td>|0–5°|</td><td>${statusDot(M.pelvic,'TRUNK')[0]}</td></tr>
+        <tr><td style="padding:6px 0">KNEE</td><td>${fmtDeg(M.knee)}</td><td>175–185°</td><td>${statusDot(M.knee,'KNEE')[0]}</td></tr>
+        <tr><td style="padding:6px 0">체형 점수</td><td>${S==null?'—':S}</td><td>0–100</td><td>${S==null?'—':(S>=85?'🟢 좋음':S>=70?'🟡 보통':'🔴 주의')}</td></tr>
+      </table>`;
+    exportNode.querySelector('#exportImage').src = cvData;
+
+    // 3) 화면 밖에 붙여서 렌더 (html2canvas가 계산 가능하도록)
+    exportNode.style.position='fixed'; exportNode.style.left='-9999px'; document.body.appendChild(exportNode);
+
+    // 4) 캡처 → PDF
+    const canvas = await html2canvas(exportNode, {scale:2, backgroundColor:'#ffffff', useCORS:true, allowTaint:true});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'portrait', unit:'px', format:'a4'});
+
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW - 40; // 좌우 여백
+    const imgH = canvas.height * (imgW / canvas.width);
+
+    let y = 20;
+    if(imgH < pageH - 40){
+      pdf.addImage(imgData, 'PNG', 20, y, imgW, imgH);
+    } else {
+      // 여러 페이지에 나눠 그리기
+      let remaining = imgH; let sY = 0; const sliceH = canvas.height * ((pageH-40)/imgH);
+      const onePageHpx = sliceH; const onePageH = pageH - 40;
+      while(remaining > 0){
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width; pageCanvas.height = Math.min(onePageHpx, canvas.height - sY);
+        const pctx = pageCanvas.getContext('2d');
+        pctx.drawImage(canvas, 0, sY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+        const pageImg = pageCanvas.toDataURL('image/png');
+        pdf.addImage(pageImg, 'PNG', 20, 20, imgW, onePageH*(pageCanvas.height/onePageHpx));
+        remaining -= onePageH; sY += onePageHpx; if(remaining>0) pdf.addPage();
+      }
+    }
+    pdf.save('DIT_자세_분석_리포트.pdf');
+
+    // 5) 정리
+    document.body.removeChild(exportNode);
+  };
+
+  // ===== 설명창 =====
+  document.getElementById('btnExplain').onclick = ()=>{
+    alert('스코어 산식\n\n• CVA 목표 50°. 델타 = max(0, 50 - CVA), 감점 = min(40, 델타×1.6).\n• 골반 기울기 목표 0°. 델타 = |기울기|, 감점 = min(30, 델타×2.0).\n• 무릎 각 목표 180°. 델타 = max(0, 180 - 무릎각), 감점 = min(30, 델타×1.0).\n\n종합점수 = 100 - (CVA감점 + 골반감점 + 무릎감점).');
+  };
+
+  // ===== 초기화 =====
+  resizeCanvasFor(null); computeAll(); updateCompare();
+  </script>
+</body>
 </html>

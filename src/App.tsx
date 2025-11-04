@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import * as mpPose from '@mediapipe/pose';
+import * as mpDrawingUtils from '@mediapipe/drawing_utils';
+import * as mpCameraUtils from '@mediapipe/camera_utils';
 
 function statusDot(value: number | null, type: 'CVA' | 'TRUNK' | 'KNEE'): [string, string] {
   if (value == null || isNaN(value)) return ['⚪ 미측정', '—'];
@@ -25,13 +29,68 @@ function statusDot(value: number | null, type: 'CVA' | 'TRUNK' | 'KNEE'): [strin
   return ['⚪ 미측정', '—'];
 }
 
+function getMuscleFeedback(cva: number | null, pelvic: number | null, knee: number | null) {
+  const feedback: any = {
+    cva: { tight: [], weak: [], suggestions: [] },
+    trunk: { tight: [], weak: [], suggestions: [] },
+    knee: { tight: [], weak: [], suggestions: [] }
+  };
+
+  if (cva != null) {
+    if (cva < 50) {
+      if (cva < 45) {
+        feedback.cva.tight = ['상부승모근', '견갑거근', 'SCM'];
+        feedback.cva.weak = ['심부경부굴근', '하부승모근'];
+        feedback.cva.suggestions = ['심부경부굴근 활성화', '하부승모근 강화', '턱 당기기 운동'];
+      } else {
+        feedback.cva.tight = ['상부승모근', '견갑거근'];
+        feedback.cva.weak = ['심부경부굴근'];
+        feedback.cva.suggestions = ['심부경부굴근 활성화', '하부승모근 강화'];
+      }
+    }
+  }
+
+  if (pelvic != null) {
+    const abs = Math.abs(pelvic);
+    if (abs > 5) {
+      if (pelvic > 0) {
+        feedback.trunk.tight = ['장요근', '요추기립근'];
+        feedback.trunk.weak = ['복횡근', '둔근'];
+        feedback.trunk.suggestions = ['장요근 스트레칭', '복압-복횡근 호흡 훈련', '둔근 강화'];
+      } else {
+        feedback.trunk.tight = ['둔근', '햄스트링'];
+        feedback.trunk.weak = ['복직근', '장요근'];
+        feedback.trunk.suggestions = ['둔근 스트레칭', '복직근 강화', '장요근 활성화'];
+      }
+    }
+  }
+
+  if (knee != null) {
+    if (knee < 175) {
+      if (knee < 165) {
+        feedback.knee.tight = ['햄스트링', '비복근', '가자미근'];
+        feedback.knee.weak = ['대퇴사두근', '둔근'];
+        feedback.knee.suggestions = ['햄스트링 스트레칭', '대퇴사두 강화', '비복근 스트레칭'];
+      } else {
+        feedback.knee.tight = ['햄스트링', '비복근'];
+        feedback.knee.weak = ['대퇴사두근'];
+        feedback.knee.suggestions = ['햄스트링 스트레칭', '대퇴사두 강화'];
+      }
+    }
+  }
+
+  return feedback;
+}
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const poseRef = useRef<any>(null);
   const [cur, setCur] = useState<'Before' | 'After'>('Before');
   const [sessions, setSessions] = useState({
-    Before: { img: null as HTMLImageElement | null, pts: new Map(), score: null as number | null, metrics: {} as any },
-    After: { img: null as HTMLImageElement | null, pts: new Map(), score: null as number | null, metrics: {} as any },
+    Before: { img: null as HTMLImageElement | null, pts: new Map(), score: null as number | null, metrics: {} as any, feedback: null as any },
+    After: { img: null as HTMLImageElement | null, pts: new Map(), score: null as number | null, metrics: {} as any, feedback: null as any },
   });
+  const [scoreHistory, setScoreHistory] = useState<Array<{ date: string; score: number }>>([]);
 
   const keypoints = [
     { key: 'Tragus', color: '#7c9cff' },
@@ -43,6 +102,106 @@ function App() {
     { key: 'ASIS', color: '#ffb86c' },
     { key: 'PSIS', color: '#ffb86c' },
   ];
+
+  useEffect(() => {
+    const loadPose = async () => {
+      if (poseRef.current) return;
+      
+      const pose = new mpPose.Pose({
+        locateFile: (file: string) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+        }
+      });
+
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        smoothSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      pose.onResults((results: any) => {
+        if (results.poseLandmarks && canvasRef.current) {
+          const cv = canvasRef.current;
+          const W = cv.width / (window.devicePixelRatio || 1);
+          const H = cv.height / (window.devicePixelRatio || 1);
+          
+          const landmarks = results.poseLandmarks;
+          const mapping: any = {
+            'Tragus': 7,  // Left ear
+            'C7': 0,      // Nose (approximate C7)
+            'Shoulder': 11, // Left shoulder
+            'Hip': 23,    // Left hip
+            'Knee': 25,   // Left knee
+            'Ankle': 27,  // Left ankle
+            'ASIS': 23,   // Left hip (for ASIS)
+            'PSIS': 24,   // Right hip (for PSIS approximation)
+          };
+
+          const newMap = new Map();
+          for (const kp of keypoints) {
+            const idx = mapping[kp.key];
+            if (landmarks[idx]) {
+              const lm = landmarks[idx];
+              newMap.set(kp.key, {
+                x: lm.x * W,
+                y: lm.y * H
+              });
+            }
+          }
+
+          setSessions(prev => ({
+            ...prev,
+            [cur]: {
+              ...prev[cur],
+              pts: newMap
+            }
+          }));
+        }
+      });
+
+      poseRef.current = pose;
+    };
+
+    loadPose();
+  }, []);
+
+  useEffect(() => {
+    const loadHistory = () => {
+      try {
+        const saved = localStorage.getItem('postureScoreHistory');
+        if (saved) {
+          setScoreHistory(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.error('Failed to load history:', e);
+      }
+    };
+    loadHistory();
+  }, []);
+
+  const saveScore = () => {
+    const score = sessions[cur].score;
+    if (score == null) return;
+    
+    const newEntry = {
+      date: new Date().toLocaleDateString('ko-KR'),
+      score: score
+    };
+    
+    const newHistory = [...scoreHistory, newEntry].slice(-10);
+    setScoreHistory(newHistory);
+    
+    try {
+      localStorage.setItem('postureScoreHistory', JSON.stringify(newHistory));
+      alert('점수가 저장되었습니다!');
+    } catch (e) {
+      console.error('Failed to save:', e);
+      alert('저장에 실패했습니다.');
+    }
+  };
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -92,7 +251,7 @@ function App() {
     const ensureDefaultPoints = (session: 'Before' | 'After') => {
       const S = sessions[session];
       const W = cv.width / DPR, H = cv.height / DPR;
-      if (S.pts.size === 0) {
+      if (S.pts.size === 0 && S.img) {
         const defaults: any = {
           Tragus: { x: W * 0.35, y: H * 0.3 },
           C7: { x: W * 0.3, y: H * 0.35 },
@@ -103,7 +262,16 @@ function App() {
           ASIS: { x: W * 0.40, y: H * 0.58 },
           PSIS: { x: W * 0.35, y: H * 0.6 },
         };
-        for (const k of keypoints) S.pts.set(k.key, { ...defaults[k.key] });
+        const newMap = new Map();
+        for (const k of keypoints) {
+          if (defaults[k.key]) {
+            newMap.set(k.key, { ...defaults[k.key] });
+          }
+        }
+        setSessions(prev => ({
+          ...prev,
+          [session]: { ...prev[session], pts: newMap }
+        }));
       }
     };
 
@@ -220,10 +388,11 @@ function App() {
       }
 
       const metrics = { cva, pelvic, knee };
+      const feedback = getMuscleFeedback(cva, pelvic, knee);
       const sc = computeScore(cva, pelvic, knee);
       setSessions(prev => ({
         ...prev,
-        [cur]: { ...prev[cur], metrics, score: sc }
+        [cur]: { ...prev[cur], metrics, score: sc, feedback }
       }));
     };
 
@@ -280,13 +449,15 @@ function App() {
           [cur]: { ...prev[cur], pts: newMap }
         };
       });
-      draw();
-      computeAll();
     };
 
     const handleMouseUp = () => {
       dragKey = null;
     };
+
+    if (sessions[cur].img) {
+      resizeCanvasFor(sessions[cur].img);
+    }
 
     cv.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
@@ -302,14 +473,22 @@ function App() {
     };
   }, [cur, sessions]);
 
-  const loadImage = (slot: 'Before' | 'After', file: File | null) => {
+  const loadImage = async (slot: 'Before' | 'After', file: File | null) => {
     if (!file) return;
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       setSessions(prev => ({
         ...prev,
         [slot]: { ...prev[slot], img }
       }));
+      
+      if (poseRef.current) {
+        try {
+          await poseRef.current.send({ image: img });
+        } catch (e) {
+          console.error('Pose detection failed:', e);
+        }
+      }
     };
     img.src = URL.createObjectURL(file);
   };
@@ -323,11 +502,50 @@ function App() {
     return sign + (Math.abs(d) < 0.05 ? d.toFixed(2) : d.toFixed(1)) + suf;
   };
 
+  const exportPDF = async () => {
+    if (typeof window === 'undefined' || !(window as any).html2canvas || !(window as any).jspdf) {
+      alert('PDF 라이브러리를 로드하는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    const reportArea = document.querySelector('.analysis-report') || document.body;
+    const html2canvas = (window as any).html2canvas;
+    const jspdf = (window as any).jspdf;
+
+    try {
+      const canvas = await html2canvas(reportArea, { scale: 2, backgroundColor: '#0b0f14' });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jspdf.jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save('DIT_자세_분석_리포트.pdf');
+    } catch (error) {
+      console.error('PDF 생성 실패:', error);
+      alert('PDF 생성에 실패했습니다.');
+    }
+  };
+
+  const feedback = sessions[cur].feedback || getMuscleFeedback(
+    sessions[cur].metrics.cva,
+    sessions[cur].metrics.pelvic,
+    sessions[cur].metrics.knee
+  );
+
+  const chartData = scoreHistory.length > 0 ? scoreHistory : [
+    { date: 'Before', score: sessions.Before.score || 0 },
+    { date: 'After', score: sessions.After.score || 0 }
+  ].filter(d => d.score > 0);
+
   return (
     <div className="wrap" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: '100vh', gap: '16px', padding: '16px', background: 'linear-gradient(180deg, #0b0f14 0%, #0e1520 100%)', color: '#e7eef7', fontFamily: 'system-ui' }}>
       <aside style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', overflow: 'auto' }}>
         <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>📸 DIT 자세 분석 — 로컬 어노테이션</div>
-        <div style={{ color: '#9bb0c7', marginBottom: '12px' }}>Before/After 각각 업로드 → 점(관절) 수동 조작 → 각도 및 점선 자동 계산</div>
+        <div style={{ color: '#9bb0c7', marginBottom: '12px', fontSize: '12px' }}>Before/After 각각 업로드 → MediaPipe 자동 인식 → 점(관절) 수동 조작 → 각도 및 점선 자동 계산</div>
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
           <button
@@ -411,38 +629,64 @@ function App() {
               ↺ 초기화
             </button>
             <button
-              onClick={async () => {
-                if (typeof window !== 'undefined' && (window as any).html2canvas && (window as any).jspdf) {
-                  const reportArea = document.querySelector('.analysis-report') || document.body;
-                  const html2canvas = (window as any).html2canvas;
-                  const jspdf = (window as any).jspdf;
-                  
-                  try {
-                    const canvas = await html2canvas(reportArea, { scale: 2 });
-                    const imgData = canvas.toDataURL('image/png');
-                    
-                    const pdf = new jspdf.jsPDF({
-                      orientation: 'portrait',
-                      unit: 'px',
-                      format: [canvas.width, canvas.height],
-                    });
-                    
-                    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-                    pdf.save('DIT_자세_분석_리포트.pdf');
-                  } catch (error) {
-                    console.error('PDF 생성 실패:', error);
-                    alert('PDF 생성에 실패했습니다.');
-                  }
-                } else {
-                  alert('PDF 라이브러리를 로드하는 중입니다. 잠시 후 다시 시도해주세요.');
-                }
-              }}
+              onClick={saveScore}
+              style={{ padding: '8px 10px', background: 'rgba(46,196,182,0.2)', border: '1px solid rgba(46,196,182,0.3)', borderRadius: '10px', color: '#e7eef7', cursor: 'pointer', fontSize: '14px' }}
+            >
+              💾 점수 저장
+            </button>
+            <button
+              onClick={exportPDF}
               style={{ padding: '8px 10px', background: 'rgba(124,156,255,0.2)', border: '1px solid rgba(124,156,255,0.3)', borderRadius: '10px', color: '#e7eef7', cursor: 'pointer', fontSize: '14px' }}
             >
               📄 PDF 저장
             </button>
           </div>
         </div>
+
+        {feedback && (feedback.cva.tight.length > 0 || feedback.trunk.tight.length > 0 || feedback.knee.tight.length > 0) && (
+          <div style={{ padding: '12px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', marginBottom: '10px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>💪 근육 피드백</div>
+            {feedback.cva.tight.length > 0 && (
+              <div style={{ marginBottom: '8px', fontSize: '12px' }}>
+                <div style={{ color: '#ffd166', marginBottom: '4px' }}>CVA:</div>
+                <div style={{ color: '#9bb0c7', marginLeft: '8px' }}>타이트: {feedback.cva.tight.join(', ')}</div>
+                <div style={{ color: '#9bb0c7', marginLeft: '8px' }}>약화: {feedback.cva.weak.join(', ')}</div>
+                <div style={{ color: '#7c9cff', marginLeft: '8px', marginTop: '4px' }}>제안: {feedback.cva.suggestions.join(', ')}</div>
+              </div>
+            )}
+            {feedback.trunk.tight.length > 0 && (
+              <div style={{ marginBottom: '8px', fontSize: '12px' }}>
+                <div style={{ color: '#ffd166', marginBottom: '4px' }}>Trunk:</div>
+                <div style={{ color: '#9bb0c7', marginLeft: '8px' }}>타이트: {feedback.trunk.tight.join(', ')}</div>
+                <div style={{ color: '#9bb0c7', marginLeft: '8px' }}>약화: {feedback.trunk.weak.join(', ')}</div>
+                <div style={{ color: '#7c9cff', marginLeft: '8px', marginTop: '4px' }}>제안: {feedback.trunk.suggestions.join(', ')}</div>
+              </div>
+            )}
+            {feedback.knee.tight.length > 0 && (
+              <div style={{ fontSize: '12px' }}>
+                <div style={{ color: '#ffd166', marginBottom: '4px' }}>Knee:</div>
+                <div style={{ color: '#9bb0c7', marginLeft: '8px' }}>타이트: {feedback.knee.tight.join(', ')}</div>
+                <div style={{ color: '#9bb0c7', marginLeft: '8px' }}>약화: {feedback.knee.weak.join(', ')}</div>
+                <div style={{ color: '#7c9cff', marginLeft: '8px', marginTop: '4px' }}>제안: {feedback.knee.suggestions.join(', ')}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {chartData.length > 0 && (
+          <div style={{ padding: '12px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', marginBottom: '10px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>📈 점수 변화 그래프</div>
+            <ResponsiveContainer width="100%" height={150}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="date" stroke="#9bb0c7" style={{ fontSize: '10px' }} />
+                <YAxis stroke="#9bb0c7" style={{ fontSize: '10px' }} domain={[0, 100]} />
+                <Tooltip contentStyle={{ background: 'rgba(11,15,20,0.95)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#e7eef7' }} />
+                <Line type="monotone" dataKey="score" stroke="#7c9cff" strokeWidth={2} dot={{ fill: '#7c9cff', r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         <div style={{ padding: '12px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>
           <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>📊 Before / After 비교</div>
