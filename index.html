@@ -1604,7 +1604,7 @@ function getEventPos(e) {
   const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
   
-  // 캔버스 상대 좌표 (스크롤 오프셋 포함)
+  // 캔버스 상대 좌표 (화면 기준)
   let x = clientX - r.left;
   let y = clientY - r.top;
   
@@ -1619,17 +1619,19 @@ function getEventPos(e) {
   }
   
   // CSS 크기 대비 실제 캔버스 크기 비율 계산
-  // cv.width는 실제 픽셀 크기, r.width는 CSS 크기
+  // cv.width는 실제 픽셀 크기 (확대된 크기), r.width는 CSS 크기
+  // 확대 모드에서는 cv.width가 이미 확대된 크기이므로 주의 필요
   const scaleX = (cv.width / DPR) / r.width;
   const scaleY = (cv.height / DPR) / r.height;
   
-  // 실제 캔버스 픽셀 좌표로 변환
+  // 실제 캔버스 픽셀 좌표로 변환 (확대된 크기 기준)
   x = x * scaleX;
   y = y * scaleY;
   
   // 좌표 수정 모드에서 확대된 경우, 좌표를 원본 크기 기준으로 변환
   if(editMode && currentZoom > 1) {
     // 확대된 캔버스 좌표를 원본 크기로 변환
+    // 원본 크기 = 확대된 크기 / 확대 배율
     x = x / currentZoom;
     y = y / currentZoom;
   }
@@ -1703,19 +1705,19 @@ function startDrag(e) {
   const baseThreshold = Math.max(60, Math.min(120, cmToPixel)); // 최소 60px, 최대 120px (2cm)
   
   // 확대 모드에서는 원본 크기 기준으로 threshold를 계산
-  // 확대 모드에서는 화면에서 더 크게 보이므로 threshold도 더 크게 설정해야 함
+  // 모든 확대 배율에서 동일한 인식 범위를 유지하기 위해 원본 좌표 기준으로 threshold 사용
   let threshold;
   if(editMode && currentZoom > 1) {
     // 확대 모드: 원본 좌표 기준으로 threshold 설정
-    // 확대되어도 실제 화면에서 2cm 정도의 감지 영역을 유지하려면 원본 좌표 기준으로는 그대로 사용
-    // 확대 모드에서는 threshold를 그대로 사용 (원본 좌표 기준이므로)
-    threshold = baseThreshold; // 확대 모드에서는 원본 기준 threshold 사용
+    // 모든 확대 배율(2, 3, 4배)에서 동일한 인식 범위를 유지
+    // 원본 좌표 기준이므로 threshold는 그대로 사용
+    threshold = baseThreshold; // 확대 모드에서는 원본 기준 threshold 사용 (모든 배율에서 동일)
   } else {
     // 일반 모드: 화면 픽셀 기준 (라벨 영역 포함)
     threshold = baseThreshold * 1.5; // 라벨 영역 포함을 위해 약간 더 크게
   }
   
-  console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos);
+  console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
   
   // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
@@ -1740,8 +1742,11 @@ function startDrag(e) {
       if(editMode && currentZoom > 1) {
         // 확대 모드: 원본 좌표 기준으로 거리 계산
         // pos는 이미 원본 크기 기준으로 변환되어 있음
+        // 모든 확대 배율에서 동일한 계산 방식 사용
         d = Math.hypot(p.x - pos.x, p.y - pos.y);
-        console.log('확대 모드 점 체크:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d, 'threshold:', threshold);
+        if(d < threshold) {
+          console.log('✅ 확대 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
+        }
       } else {
         // 일반 모드: 화면 좌표 기준으로 거리 계산 (라벨 영역 포함)
         const scaleX = 1;
