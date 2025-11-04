@@ -499,18 +499,27 @@ function computeAll() {
   let cva = null, pelvic = null, knee = null;
 
   if(P.C7 && P.Tragus) {
-    // CVA: Tragus에서 C7로의 벡터와 수평선(오른쪽) 사이의 각도
-    // 수평선 벡터: (1, 0)
-    // Tragus→C7 벡터: (C7.x - Tragus.x, C7.y - Tragus.y)
-    const dx = P.C7.x - P.Tragus.x;
-    const dy = P.C7.y - P.Tragus.y;
-    // 수평선과의 각도 계산 (0도 = 오른쪽, 90도 = 위)
-    const angle = Math.atan2(-dy, dx); // dy를 음수로 해서 위쪽이 양수가 되도록
-    // 각도를 0~180도 범위로 변환 (0도 = 수평, 90도 = 수직, 180도 = 왼쪽 수평)
+    // CVA: C7 SP에서 시작하는 수평선과 C7 SP에서 Tragus로 가는 벡터 사이의 각도
+    // 수평선 벡터 (오른쪽): (1, 0)
+    // C7→Tragus 벡터: (Tragus.x - C7.x, Tragus.y - C7.y)
+    const dx = P.Tragus.x - P.C7.x;
+    const dy = P.Tragus.y - P.C7.y;
+    // 수평선과의 각도 계산
+    // atan2(dy, dx)는 -180~180도 범위를 반환
+    // 수평선(오른쪽)이 0도, 위쪽이 90도
+    const angle = Math.atan2(dy, dx);
     let cvaDeg = rad2deg(angle);
-    if(cvaDeg < 0) cvaDeg = 180 + cvaDeg; // 음수 각도를 양수로 변환
-    // CVA는 0~90도 범위 (수평에서 수직까지)
-    if(cvaDeg > 90) cvaDeg = 180 - cvaDeg;
+    
+    // CVA는 0~90도 범위로 정규화
+    // 양수 각도는 그대로, 음수 각도는 보완각으로 변환
+    if(cvaDeg < 0) {
+      // 음수 각도는 180도에서 더해서 변환
+      cvaDeg = 180 + cvaDeg;
+    }
+    // 90도 초과는 보완각으로 변환 (예: 118.2도 -> 61.8도)
+    if(cvaDeg > 90) {
+      cvaDeg = 180 - cvaDeg;
+    }
     cva = cvaDeg;
   }
   if(P.ASIS && P.PSIS) {
