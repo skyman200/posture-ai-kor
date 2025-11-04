@@ -1396,7 +1396,7 @@ function startDrag(e) {
   
   // 점 근처를 터치했으면 Long Press 타이머 시작
   if(bestPoint) {
-    // 터치 이벤트인 경우에만 long press 적용
+    // 터치 이벤트인 경우 long press 적용
     if(e.touches) {
       // Long press 타이머 설정 (500ms)
       longPressTimer = setTimeout(() => {
@@ -1405,16 +1405,15 @@ function startDrag(e) {
         // Long press 감지 시 드래그 모드로 전환
         isScrolling = false;
         dragKey = bestPoint;
-        // 시각적 피드백 (선택적)
-        e.preventDefault();
       }, 500);
       
       // 스크롤 시작 위치 저장
       scrollStartX = e.touches[0].clientX;
       scrollStartY = e.touches[0].clientY;
       
-      // 아직 드래그 모드가 아니므로 스크롤 가능 상태 유지
-      return false;
+      // Long press 대기 중이므로 스크롤 방지
+      e.preventDefault();
+      return true; // 이벤트 처리 완료
     } else {
       // 마우스 이벤트는 즉시 드래그
       e.preventDefault();
@@ -1445,10 +1444,13 @@ function startDrag(e) {
 
 function doDrag(e) {
   // Long press가 감지되었으면 드래그 모드로 전환
-  if(longPressDetected && longPressNearPoint) {
-    if(!dragKey) {
-      dragKey = longPressNearPoint;
-      isScrolling = false;
+  if(longPressDetected && longPressNearPoint && !dragKey) {
+    dragKey = longPressNearPoint;
+    isScrolling = false;
+    // Long press 타이머 정리
+    if(longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
     }
   }
   
@@ -1484,18 +1486,15 @@ function doDrag(e) {
     return; // 드래그 모드에서는 스크롤 완전 차단
   }
   
-  // 스크롤 모드인 경우 - 빈 화면 터치 시 스크롤만 수행
-  // Long press 타이머가 실행 중이면 스크롤 방지
+  // Long press 타이머가 실행 중이면 스크롤 방지 (점을 길게 누르는 중)
   if(longPressTimer) {
-    // Long press가 아직 감지되지 않았으면 스크롤 허용하지 않음
-    // 이동 거리가 크면 스크롤 허용 (의도치 않은 long press 방지)
     if(e.touches && e.touches.length > 0) {
       const moveX = Math.abs(e.touches[0].clientX - scrollStartX);
       const moveY = Math.abs(e.touches[0].clientY - scrollStartY);
       const moveDistance = Math.hypot(moveX, moveY);
       
-      // 이동 거리가 10px 이상이면 스크롤 허용 (long press 취소)
-      if(moveDistance > 10) {
+      // 이동 거리가 15px 이상이면 long press 취소하고 스크롤 허용
+      if(moveDistance > 15) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
         longPressDetected = false;
@@ -1504,11 +1503,13 @@ function doDrag(e) {
         isScrolling = true;
       } else {
         // Long press 대기 중이면 스크롤 방지
+        e.preventDefault();
         return;
       }
     }
   }
   
+  // 스크롤 모드인 경우 - 빈 화면 터치 시 스크롤만 수행
   if(isScrolling && editMode && currentZoom > 1) {
     let currentX, currentY;
     if(e.touches && e.touches.length > 0) {
