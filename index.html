@@ -123,14 +123,21 @@ label.btn input { display:none; }
   flex: 1;
   min-height: 50vh;
   padding: 8px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+.canvasWrap.zoomed {
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 canvas { 
-  max-width:100%; 
-  max-height:100%; 
   border-radius:var(--radius); 
   background:#0a0e13; 
   cursor: crosshair; 
   touch-action: none;
+  display: block;
+  flex-shrink: 0;
 }
 </style>
   </head>
@@ -529,6 +536,21 @@ function resizeCanvasFor(img) {
   cv.style.width = finalW + "px";
   cv.style.height = finalH + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  
+  // 확대된 경우 스크롤 가능하도록 설정
+  const canvasWrap = cv.parentElement;
+  if(editMode && currentZoom > 1) {
+    canvasWrap.classList.add("zoomed");
+    // 확대된 캔버스가 컨테이너보다 크면 스크롤 가능
+    if(finalW > maxW || finalH > maxH) {
+      canvasWrap.style.overflow = "auto";
+    } else {
+      canvasWrap.style.overflow = "auto";
+    }
+  } else {
+    canvasWrap.classList.remove("zoomed");
+    canvasWrap.style.overflow = "auto";
+  }
 }
 
 function ensureDefaultPoints(session) {
