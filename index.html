@@ -155,6 +155,10 @@ canvas {
     <button id="btnAfter">After</button>
   </div>
   <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+    <div class="seg" style="margin-bottom:4px;">
+      <button id="btnOrientationSide" class="active">📐 옆모습</button>
+      <button id="btnOrientationFront">📷 정면</button>
+    </div>
     <label class="btn">📷 파일 선택
       <input id="filePicker" type="file" accept="image/*">
     </label>
@@ -527,11 +531,32 @@ const internalAngle = (a,b,c) => {
 document.getElementById("btnBefore").onclick = () => switchSession("Before");
 document.getElementById("btnAfter").onclick = () => switchSession("After");
 
+// 정면/옆모습 선택 버튼
+document.getElementById("btnOrientationSide").onclick = () => setOrientation("side");
+document.getElementById("btnOrientationFront").onclick = () => setOrientation("front");
+
+function setOrientation(orientation) {
+  if(!sessions[cur].poseData) {
+    sessions[cur].poseData = { orientation: orientation, landmarks: null };
+  } else {
+    sessions[cur].poseData.orientation = orientation;
+  }
+  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
+  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  console.log(`${cur} 세션의 방향을 ${orientation === "side" ? "옆모습" : "정면"}으로 설정`);
+}
+
 function switchSession(s) {
   cur = s;
   document.getElementById("btnBefore").classList.toggle("active", s === "Before");
   document.getElementById("btnAfter").classList.toggle("active", s === "After");
   document.getElementById("currentSession").textContent = s;
+  
+  // 세션 전환 시 orientation 버튼 업데이트
+  const orientation = sessions[s].poseData?.orientation || "side";
+  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
+  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  
   draw();
   // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
   if(sessions[s].analysis) {
@@ -2121,26 +2146,37 @@ window.addEventListener('touchcancel', (e) => {
   endDrag(e);
 });
 
-// 업로드
+// 업로드 (Before/After 각각 하나의 사진만 유지)
 ["filePicker","cameraPicker"].forEach(id => {
   document.getElementById(id).addEventListener("change", async e => {
     const f = e.target.files[0];
     if(!f) return;
+    
+    // 새 이미지 업로드 시 기존 이미지 덮어쓰기 (하나의 사진만 유지)
     const img = new Image();
     img.onload = async () => {
+      // 기존 이미지가 있으면 메모리 정리
+      if(sessions[cur].img && sessions[cur].img.src && sessions[cur].img.src.startsWith('blob:')) {
+        URL.revokeObjectURL(sessions[cur].img.src);
+      }
+      
+      // 새 이미지로 교체
       sessions[cur].img = img;
       resizeCanvasFor(img);
       sessions[cur].pts.clear();
       draw();
       computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
       
-      // 포즈 감지 자동 실행 (옆모습 기본)
+      // 포즈 감지 자동 실행 (선택된 orientation 사용)
       if(typeof applyPoseDetection === 'function') {
         await applyPoseDetection(img, cur);
       }
     };
     img.crossOrigin = "anonymous";
     img.src = URL.createObjectURL(f);
+    
+    // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
+    e.target.value = '';
   });
 });
 
@@ -2673,6 +2709,13 @@ if(!sessions.After.poseData) {
   sessions.After.poseData = { orientation: "side", landmarks: null };
 }
 
+// 초기 orientation 버튼 상태 설정
+document.addEventListener("DOMContentLoaded", () => {
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
+  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+});
+
 // ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
 async function loadPoseModels() {
   try {
@@ -2795,8 +2838,13 @@ async function applyPoseDetection(img, sessionName) {
   const session = sessions[sessionName];
   if(!session) return;
   
-  // 기본적으로 옆모습으로 가정 (자세 분석은 보통 옆모습)
-  const orientation = session.poseData?.orientation || "side";
+  // 세션의 orientation 사용 (기본값: side)
+  if(!session.poseData) {
+    session.poseData = { orientation: "side", landmarks: null };
+  }
+  const orientation = session.poseData.orientation || "side";
+  
+  console.log(`${sessionName} 세션: ${orientation === "side" ? "옆모습" : "정면"} 포즈 감지 시작`);
   
   const pose = await detectPose(img, orientation);
   if(!pose) return;
@@ -2824,7 +2872,7 @@ async function applyPoseDetection(img, sessionName) {
     // 화면 업데이트
     draw();
     computeMetricsOnly();
-    console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료`);
+    console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료 (${orientation === "side" ? "옆모습" : "정면"})`);
   }
   
   return pose;
