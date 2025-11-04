@@ -1324,17 +1324,43 @@ if(coordY) {
   });
 }
 
-// 좌표 증감 버튼 기능
+// 좌표 증감 버튼 기능 (자동 적용)
 function adjustCoordinate(coordField, delta) {
   if(!coordField) return;
   const currentValue = parseFloat(coordField.value) || 0;
   const newValue = currentValue + delta;
   coordField.value = newValue.toFixed(1);
-  // 자동으로 적용하지 않고 값만 변경 (사용자가 직접 적용 버튼을 눌러야 함)
-  // 또는 실시간으로 적용하려면 아래 주석을 해제
-  // if(selectedPoint && coordApply) {
-  //   coordApply.click();
-  // }
+  
+  // 자동으로 적용 (점이 선택되어 있고 좌표가 유효한 경우)
+  if(selectedPoint && !isNaN(newValue)) {
+    const xField = coordX;
+    const yField = coordY;
+    if(!xField || !yField) return;
+    
+    const x = parseFloat(xField.value);
+    const y = parseFloat(yField.value);
+    
+    if(!isNaN(x) && !isNaN(y)) {
+      // 좌표는 항상 원본 크기 기준으로 저장
+      const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+      const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+      const map = sessions[cur].pts;
+      const clampedX = clamp(x, 0, originalW);
+      const clampedY = clamp(y, 0, originalH);
+      
+      map.set(selectedPoint, {
+        x: clampedX,
+        y: clampedY
+      });
+      
+      // 입력 필드도 업데이트 (클램핑된 값)
+      xField.value = clampedX.toFixed(1);
+      yField.value = clampedY.toFixed(1);
+      
+      draw();
+      computeAll();
+    }
+  }
 }
 
 // X 좌표 증감 버튼
@@ -1429,16 +1455,23 @@ function startDrag(e) {
   // getEventPos는 이미 원본 크기 기준으로 좌표를 반환하므로, 점 좌표와 직접 비교 가능
   let bestPoint = null;
   let bestDistance = 1e9;
-  // 확대 모드에서는 감지 범위를 넓게 (원본 좌표 기준이므로 확대 배율에 따라 조정)
-  // threshold는 화면 픽셀 기준이 아니라 원본 좌표 기준이므로, 확대 배율에 따라 조정
-  const threshold = editMode && currentZoom > 1 ? 50 / currentZoom : 50;
+  // threshold는 화면 픽셀 기준으로 계산 (더 정확한 감지)
+  // 확대 모드에서는 화면에서 더 크게 보이므로 threshold도 더 크게
+  const threshold = editMode && currentZoom > 1 ? 80 : 50; // 화면 픽셀 기준
   
   // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
-      // pos는 이미 원본 크기 기준으로 변환되어 있음
-      const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+      // 확대 모드에서는 화면 좌표로 변환하여 거리 계산
+      const scaleX = currentZoom;
+      const scaleY = currentZoom;
+      const screenPtX = pt.x * scaleX;
+      const screenPtY = pt.y * scaleY;
+      // pos는 원본 좌표이므로 화면 좌표로 변환
+      const screenPosX = pos.x * scaleX;
+      const screenPosY = pos.y * scaleY;
+      const d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
       if(d < threshold) {
         bestPoint = selectedPoint;
         bestDistance = d;
@@ -1449,8 +1482,14 @@ function startDrag(e) {
     for(const k of keypoints) {
       const p = P[k.key];
       if(!p) continue;
-      // pos는 이미 원본 크기 기준으로 변환되어 있음
-      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+      // 확대 모드에서는 화면 좌표로 변환하여 거리 계산
+      const scaleX = editMode && currentZoom > 1 ? currentZoom : 1;
+      const scaleY = editMode && currentZoom > 1 ? currentZoom : 1;
+      const screenPtX = p.x * scaleX;
+      const screenPtY = p.y * scaleY;
+      const screenPosX = pos.x * scaleX;
+      const screenPosY = pos.y * scaleY;
+      const d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
       if(d < threshold && d < bestDistance) {
         bestPoint = k.key;
         bestDistance = d;
@@ -1533,8 +1572,9 @@ function doDrag(e) {
     p.x = x;
     p.y = y;
     
-    // 좌표 수정 모드에서는 입력 필드도 실시간 업데이트 (원본 크기 기준)
-    if(editMode && selectedPoint === dragKey && coordX && coordY) {
+    // 입력 필드도 실시간 업데이트 (원본 크기 기준)
+    // 좌표 수정 모드가 아니거나, 선택된 점과 일치하는 경우
+    if((!editMode || selectedPoint === dragKey) && coordX && coordY) {
       coordX.value = x.toFixed(1);
       coordY.value = y.toFixed(1);
     }
