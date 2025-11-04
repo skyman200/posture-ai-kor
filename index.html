@@ -408,6 +408,18 @@ function draw() {
     const isSelected = editMode && selectedPoint === kp.key;
     drawHandle(pt.x, pt.y, kp.key, kp.color, isSelected);
   }
+  
+  // 좌표 수정 모드에서 선택된 점이 있고 아직 생성되지 않았다면 안내 표시
+  if(editMode && selectedPoint && !P[selectedPoint]) {
+    const W = cv.width / DPR, H = cv.height / DPR;
+    ctx.fillStyle = 'rgba(124,156,255,0.7)';
+    ctx.font = 'bold 16px "Noto Sans KR"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('좌표를 입력하고 "적용" 버튼을 클릭하세요', W / 2, H / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
 }
 
 function drawHandle(x, y, label, color, isSelected = false) {
@@ -804,8 +816,13 @@ document.getElementById("coordSelectPoint").addEventListener("change", e => {
       // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
       const W = cv.width / DPR, H = cv.height / DPR;
       if(sessions[cur].img) {
-        document.getElementById("coordX").value = (W / 2).toFixed(1);
-        document.getElementById("coordY").value = (H / 2).toFixed(1);
+        // 이미지가 있으면 중앙 좌표를 기본값으로 설정
+        const defaultX = (W / 2).toFixed(1);
+        const defaultY = (H / 2).toFixed(1);
+        document.getElementById("coordX").value = defaultX;
+        document.getElementById("coordY").value = defaultY;
+        // 자동으로 점 생성 (선택사항)
+        // map.set(selectedPoint, { x: parseFloat(defaultX), y: parseFloat(defaultY) });
       } else {
         document.getElementById("coordX").value = "";
         document.getElementById("coordY").value = "";
