@@ -1592,19 +1592,17 @@ function endDrag(e) {
 }
 
 // 마우스 이벤트
+let isMouseDown = false;
 cv.addEventListener('mousedown', (e) => {
+  isMouseDown = true;
   startDrag(e);
 });
 
-// 마우스 이동은 전역으로 처리하되, 캔버스 밖에서도 드래그가 계속되도록
-let isMouseDown = false;
-cv.addEventListener('mousedown', () => {
-  isMouseDown = true;
-});
 window.addEventListener('mouseup', () => {
   isMouseDown = false;
   endDrag();
 });
+
 window.addEventListener('mouseleave', () => {
   isMouseDown = false;
   endDrag();
