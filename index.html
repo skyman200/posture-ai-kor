@@ -2866,6 +2866,11 @@ if(coordApply) {
     // 입력 필드 업데이트
     coordX.value = clampedX.toFixed(1);
     coordY.value = clampedY.toFixed(1);
+    
+    // 실시간 분석 실행
+    if(typeof liveAnalyzer !== 'undefined') {
+      liveAnalyzer.analyzeCurrentSession();
+    }
     // 저장 후 원래 크기로 복원
     if(editMode) {
       currentZoom = 1;
