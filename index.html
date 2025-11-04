@@ -1,0 +1,4539 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIT 자세 분석 AI (최종 통합버전)</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(30, 34, 42, 0.7);
+  --accent: #7c9cff;
+  --accent2: #ffb86c;
+  --ink: #e7eef7;
+  --muted: #9bb0c7;
+  --radius: 18px;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; 
+  padding: 0;
+  height: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+body {
+  background: var(--bg); 
+  color: var(--ink);
+  font-family: "Noto Sans KR", sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+.sidebar { 
+  padding: 12px; 
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 50vh;
+  -webkit-overflow-scrolling: touch;
+}
+.title { 
+  font-size: 16px; 
+  font-weight:800; 
+  margin-bottom: 6px; 
+  line-height: 1.3;
+}
+.muted { 
+  color: var(--muted); 
+  font-size: 11px; 
+  line-height: 1.4;
+}
+.btn {
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.05);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  width: 100%;
+  text-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover, .btn:active { 
+  background: rgba(255,255,255,0.12); 
+}
+.seg { 
+  display: flex; 
+  border-radius: 10px; 
+  overflow: hidden; 
+  margin-top: 8px; 
+  gap: 4px;
+}
+.seg button { 
+  flex:1; 
+  border:0; 
+  background: rgba(255,255,255,0.04); 
+  color:var(--muted); 
+  padding:10px 8px; 
+  cursor:pointer; 
+  font-size: 13px;
+  touch-action: manipulation;
+}
+.seg button.active { 
+  background: rgba(124,156,255,0.25); 
+  color:var(--ink); 
+}
+label.btn { 
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+}
+label.btn input { display:none; }
+.tbl { 
+  width:100%; 
+  border-collapse:collapse; 
+  font-size:11px; 
+  overflow-x: auto;
+  display: table;
+  -webkit-overflow-scrolling: touch;
+}
+.tbl th,.tbl td { 
+  border-bottom:1px solid rgba(255,255,255,0.1); 
+  padding:6px 4px; 
+  text-align: center;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvasWrap { 
+  display:flex; 
+  align-items:center; 
+  justify-content:center; 
+  flex: 1;
+  min-height: 50vh;
+  padding: 8px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+.canvasWrap.zoomed {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+canvas { 
+  border-radius:var(--radius); 
+  background:#0a0e13; 
+  cursor: crosshair; 
+  touch-action: none; /* 드래그와 스크롤을 JavaScript로 제어 */
+  display: block;
+  flex-shrink: 0;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  -moz-user-select: none;
+       user-select: none;
+  -webkit-user-select: none;
+}
+</style>
+    <script type="module" crossorigin src="/posture-ai-kor/assets/main-B5Qt9EMX.js"></script>
+  </head>
+  <body>
+<aside class="panel sidebar" style="order: 1;">
+  <div class="title">📸 DIT 자세 분석 AI</div>
+  <div class="muted">파일 업로드 → 점을 드래그로 조정 → 각도 자동 계산</div>
+
+  <div class="seg">
+    <button id="btnBefore" class="active">Before</button>
+    <button id="btnAfter">After</button>
+  </div>
+  <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+    <div class="seg" style="margin-bottom:4px;">
+      <button id="btnOrientationSide" class="active">📐 옆모습</button>
+      <button id="btnOrientationFront">📷 정면</button>
+    </div>
+    <label class="btn">📷 파일 선택
+      <input id="filePicker" type="file" accept="image/*">
+    </label>
+    <label class="btn">📸 직접 촬영
+      <input id="cameraPicker" type="file" accept="image/*" capture="environment">
+    </label>
+    <button class="btn" id="btnReset">↺ 초기화</button>
+    <button class="btn" id="btnCalibrate" style="background: rgba(255,184,108,0.2);">📏 캘리브레이션</button>
+  </div>
+
+  <div id="calibrationPanel" style="margin-top:12px; padding:10px; background:rgba(255,184,108,0.1); border-radius:10px; display:none;">
+    <div class="muted" style="margin-bottom:8px; font-weight:600;">📏 캘리브레이션</div>
+    <div class="muted" style="font-size:11px; margin-bottom:8px;">기준 마커 두 점을 찍고 실제 길이(cm)를 입력하세요</div>
+    <div style="margin-bottom:8px;">
+      <input type="number" id="calibrationLength" placeholder="실제 길이 (cm)" step="0.1" min="0.1" style="width:100%; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.3); color:var(--ink);">
+    </div>
+    <div class="muted" style="font-size:11px; margin-bottom:4px;">점 1: <span id="calPoint1">클릭하여 선택</span></div>
+    <div class="muted" style="font-size:11px; margin-bottom:8px;">점 2: <span id="calPoint2">클릭하여 선택</span></div>
+    <button class="btn" id="btnCalibrateConfirm" style="width:100%; margin-bottom:8px;">✅ 계산</button>
+    <button class="btn" id="btnCalibrateCancel" style="width:100%;">❌ 취소</button>
+    <div id="calibrationResult" class="muted" style="font-size:11px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);"></div>
+  </div>
+
+  <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+    <button class="btn" id="btnEditCoords" style="background: rgba(124,156,255,0.2);">✏️ 좌표 수정 모드</button>
+    <button class="btn" id="btnSaveJSON">💾 좌표 저장</button>
+    <button class="btn" id="btnLoadJSON">📂 좌표 불러오기</button>
+    <button class="btn" id="btnPDF">📄 PDF 저장</button>
+    <button class="btn" id="btnImage">🖼️ 그림으로 저장</button>
+    <button class="btn" id="btnShare">📤 공유하기</button>
+  </div>
+
+  <div id="coordEditPanel" style="margin-top:12px; padding:10px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
+    <div class="muted" style="margin-bottom:8px; font-weight:600;">좌표 수정</div>
+    <div style="margin-bottom:8px;">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">확대 배율</div>
+      <select id="zoomLevel" class="btn" style="width:100%; padding:6px; margin-bottom:8px;">
+        <option value="1">원본 크기 (1배)</option>
+        <option value="2">2배 확대 (스크롤 가능)</option>
+        <option value="3">3배 확대 (스크롤 가능)</option>
+        <option value="4">4배 확대 (스크롤 가능)</option>
+      </select>
+      <div class="muted" style="font-size:10px; margin-top:4px; margin-bottom:8px; line-height:1.4;">확대 시 양손으로 드래그하여 이동 가능</div>
+    </div>
+    <div style="margin-bottom:8px;">
+      <select id="coordSelectPoint" class="btn" style="width:100%; padding:6px; margin-bottom:6px;">
+        <option value="">점 선택...</option>
+        <!-- 옵션은 JavaScript에서 동적으로 업데이트됨 -->
+      </select>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:6px;">
+      <div>
+        <div class="muted" style="font-size:11px; margin-bottom:4px;">X 좌표</div>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <input type="number" id="coordX" class="btn" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1);" step="0.1" placeholder="X">
+          <button class="btn" id="coordXDec" style="padding:8px 12px; background:rgba(255,107,107,0.2); border:1px solid rgba(255,107,107,0.3); min-width:40px;">−</button>
+          <button class="btn" id="coordXInc" style="padding:8px 12px; background:rgba(46,196,182,0.2); border:1px solid rgba(46,196,182,0.3); min-width:40px;">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="muted" style="font-size:11px; margin-bottom:4px;">Y 좌표</div>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <input type="number" id="coordY" class="btn" style="flex:1; padding:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1);" step="0.1" placeholder="Y">
+          <button class="btn" id="coordYDec" style="padding:8px 12px; background:rgba(255,107,107,0.2); border:1px solid rgba(255,107,107,0.3); min-width:40px;">−</button>
+          <button class="btn" id="coordYInc" style="padding:8px 12px; background:rgba(46,196,182,0.2); border:1px solid rgba(46,196,182,0.3); min-width:40px;">+</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn" id="coordApply" style="width:100%; background:rgba(124,156,255,0.3);">적용</button>
+    <button class="btn" id="coordCancel" style="width:100%; margin-top:6px; background:rgba(255,255,255,0.05);">취소</button>
+  </div>
+
+  <div style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
+    <div class="muted" style="margin-bottom:6px;">현재 세션: <span id="currentSession">Before</span></div>
+    <div class="muted" style="margin-bottom:6px;">CVA: <span id="dispCva">—</span></div>
+    <div class="muted" style="margin-bottom:6px;">TRUNK: <span id="dispPel">—</span></div>
+    <div class="muted" style="margin-bottom:8px;">KNEE: <span id="dispKnee">—</span></div>
+    
+    <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="font-size:14px; font-weight:600; margin-bottom:8px;">📊 체형 종합 점수</div>
+      <div id="totalScore" style="font-size:32px; font-weight:800; margin-bottom:8px;">—</div>
+      <div id="scoreReason" class="muted" style="font-size:11px; line-height:1.4; margin-bottom:8px;"></div>
+    </div>
+  </div>
+
+  <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
+    <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5;"></div>
+  </div>
+  
+  <!-- 실시간 분석 결과 패널 -->
+  <div id="liveAnalysisPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📊 실시간 AI 분석 결과</div>
+    <div id="livePDS" style="font-size:16px; font-weight:700; margin-bottom:8px; color:#7c9cff;">PDS: —</div>
+    <div id="livePatterns" style="font-size:12px; line-height:1.6;"></div>
+  </div>
+
+  <div id="musclePanel" style="margin-top:12px; padding:12px; background:rgba(255,184,108,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#ffb86c;">💪 근육 상태 분석</div>
+    <div id="muscleTight" style="margin-bottom:8px;">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">🔴 긴장된 근육:</div>
+      <div id="muscleTightList" style="font-size:12px; color:#ff6b6b; line-height:1.5;"></div>
+    </div>
+    <div id="muscleWeak" style="margin-bottom:8px;">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">🔵 약화된 근육:</div>
+      <div id="muscleWeakList" style="font-size:12px; color:#7c9cff; line-height:1.5;"></div>
+    </div>
+    <div id="muscleDetail" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">📋 상세 분석:</div>
+      <div id="muscleDetailList" style="font-size:11px; line-height:1.6; color:var(--ink);"></div>
+    </div>
+  </div>
+
+  <div id="exercisePanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.15); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🏋️ 추천 운동</div>
+    <div id="exerciseList" style="font-size:12px; line-height:1.6;"></div>
+  </div>
+
+  <div id="pilatesPanel" style="margin-top:12px; padding:12px; background:rgba(156,136,255,0.15); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#9c88ff;">🧘 필라테스 세션 추천</div>
+    <div id="pilatesList" style="font-size:12px; line-height:1.6;"></div>
+  </div>
+
+  <div id="chartPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📊 자세 분석 차트</div>
+    <div style="margin-bottom:12px;">
+      <canvas id="radarChart" style="max-width:100%; height:280px;"></canvas>
+    </div>
+    <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+      <canvas id="barChart" style="max-width:100%; height:200px;"></canvas>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <table class="tbl">
+      <thead><tr><th>항목</th><th>Before</th><th>After</th><th>변화</th><th>정상</th></tr></thead>
+      <tbody>
+        <tr><td>CVA</td><td id="cmpCvaB">—</td><td id="cmpCvaA">—</td><td id="cmpCvaD">—</td><td>≥50°</td></tr>
+        <tr><td>TRUNK</td><td id="cmpPelB">—</td><td id="cmpPelA">—</td><td id="cmpPelD">—</td><td>|0–5°|</td></tr>
+        <tr><td>KNEE</td><td id="cmpKneeB">—</td><td id="cmpKneeA">—</td><td id="cmpKneeD">—</td><td>175–185°</td></tr>
+      </tbody>
+    </table>
+  </div>
+</aside>
+<main class="panel canvasWrap" style="order: 2;">
+  <canvas id="cv" width="1600" height="1000"></canvas>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"></script>
+<script>
+const { jsPDF } = window.jspdf;
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+let DPR = window.devicePixelRatio || 1;
+let dragKey = null;
+let editMode = false;
+let selectedPoint = null;
+let originalCanvasSize = { width: 0, height: 0, styleWidth: 0, styleHeight: 0 };
+let currentZoom = 1;
+let isScrolling = false;
+let scrollStartX = 0;
+let scrollStartY = 0;
+let touchStartTime = 0;
+let scrollDistance = 0; // 스크롤 시작 후 이동 거리
+let longPressTimer = null;
+let longPressDetected = false;
+let longPressNearPoint = null; // long press가 감지된 점
+
+// 옆모습 키포인트
+const keypointsSide = [
+  {key:'Tragus', color:'#7c9cff'},
+  {key:'C7', color:'#7c9cff'},
+  {key:'Shoulder', color:'#7c9cff'},
+  {key:'Hip', color:'#7c9cff'},
+  {key:'Knee', color:'#7c9cff'},
+  {key:'Ankle', color:'#7c9cff'},
+  {key:'ASIS', color:'#ffb86c'},
+  {key:'PSIS', color:'#ffb86c'},
+];
+
+// 정면 키포인트
+const keypointsFront = [
+  {key:'C7', color:'#7c9cff'},
+  {key:'L_acromion', color:'#7c9cff'},
+  {key:'R_acromion', color:'#7c9cff'},
+  {key:'L_asis', color:'#ffb86c'},
+  {key:'R_asis', color:'#ffb86c'},
+  {key:'L_ankle', color:'#7c9cff'},
+  {key:'R_ankle', color:'#7c9cff'},
+  {key:'L_knee', color:'#7c9cff'},
+  {key:'R_knee', color:'#7c9cff'},
+];
+
+// 기존 호환성을 위해 keypoints 변수 유지 (getKeypoints 함수로 동적 반환)
+let keypoints = keypointsSide; // 기본값
+
+const sessions = {
+  Before: { 
+    imgSide:null, 
+    imgFront:null, 
+    sidePoints:new Map(),  // 측면 키포인트 (tragus, c7, acromion, asis, psis, hip, knee, ankle)
+    frontPoints:new Map(), // 정면 키포인트 (L_acromion, R_acromion, L_asis, R_asis, L_knee, R_knee, L_ankle, R_ankle)
+    metrics:{}, 
+    score:null, 
+    analysis:null 
+  },
+  After: { 
+    imgSide:null, 
+    imgFront:null, 
+    sidePoints:new Map(),
+    frontPoints:new Map(),
+    metrics:{}, 
+    score:null, 
+    analysis:null 
+  }
+};
+let cur = "Before";
+
+const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
+const rad2deg = r => r * 180 / Math.PI;
+const deg2rad = d => d * Math.PI / 180;
+const angleBetween = (a,b) => Math.atan2(b.y - a.y, b.x - a.x);
+
+// 두 점 사이 각도(수평 기준, p1->p2), 화면 y-down 좌표계 가정
+function angleP1P2(p1, p2) {
+  return rad2deg(Math.atan2(p2.y - p1.y, p2.x - p1.x));
+}
+
+// 두 점 사이 거리(픽셀)
+function dist(p1, p2) {
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+// 외적/내적 기반 각도(pA-vertex-pB)
+function angleAt(v, a, b) {
+  const ax = a.x - v.x;
+  const ay = a.y - v.y;
+  const bx = b.x - v.x;
+  const by = b.y - v.y;
+  const dot = ax*bx + ay*by;
+  const na = Math.sqrt(ax*ax + ay*ay);
+  const nb = Math.sqrt(bx*bx + by*by);
+  if (na === 0 || nb === 0) return NaN;
+  return rad2deg(Math.acos(Math.max(-1, Math.min(1, dot / (na*nb)))));
+}
+
+// 수직선(90°)과 라인 각도 차이 절대값
+function angleToVertical(p1, p2) {
+  const a = angleP1P2(p1, p2);
+  return Math.abs(90 - Math.abs(a));
+}
+
+// 수평선과 라인 각도 절대값
+function angleToHorizontal(p1, p2) {
+  return Math.abs(angleP1P2(p1, p2));
+}
+
+// 범위 분류 함수 (normal, mild, moderate, severe)
+function classifyRange({
+  v,
+  nMin = null, nMax = null,
+  mildMin = null, mildMax = null,
+  modMin = null, modMax = null,
+  sevMin = null, sevMax = null,
+  higherIsWorse = false
+}) {
+  function inRange(x, lo, hi) {
+    return (lo == null || x >= lo) && (hi == null || x <= hi);
+  }
+  
+  if (inRange(v, nMin, nMax)) return "normal";
+  if (inRange(v, mildMin, mildMax)) return "mild";
+  if (inRange(v, modMin, modMax)) return "moderate";
+  if (inRange(v, sevMin, sevMax)) return "severe";
+  
+  // 방향성 힌트
+  return higherIsWorse
+    ? (v > (nMax ?? v) ? "worse_high" : "worse_low")
+    : (v < (nMin ?? v) ? "worse_low" : "worse_high");
+}
+
+// px→cm 변환
+function pxToCm(px, scalePxPerCm = 50) {
+  return px / scalePxPerCm;
+}
+
+// ✅ 캘리브레이션 유틸: 두 점 간 거리로 pxPerCm 계산
+function calibratePxPerCm(pointA, pointB, realLengthCm) {
+  if (realLengthCm <= 0) {
+    throw new Error("realLengthCm must be > 0");
+  }
+  const distPx = dist(pointA, pointB);
+  return distPx / realLengthCm;
+}
+
+// ✅ 측면 자세 분석 (전체 지표 포함)
+function analyzeFullPosture(points, pxPerCm = 50.0) {
+  function p(k) {
+    const v = points[k];
+    if (!v || v.x == null || v.y == null) return null;
+    return { x: Number(v.x), y: Number(v.y) };
+  }
+  
+  const result = {};
+  
+  const tragus = p("Tragus") || p("tragus");
+  const C7 = p("C7") || p("c7");
+  const acromion = p("Shoulder") || p("Acromion") || p("acromion");
+  const ASIS = p("ASIS") || p("asis");
+  const PSIS = p("PSIS") || p("psis");
+  const hip = p("Hip") || p("hip");
+  const knee = p("Knee") || p("knee");
+  const ankle = p("Ankle") || p("ankle");
+  
+  // 1️⃣ CVA (Craniovertebral Angle): C7에서 시작하는 수평선과 C7에서 Tragus로 가는 벡터 사이의 각도
+  if (tragus && C7) {
+    const dx = tragus.x - C7.x;
+    const dy = tragus.y - C7.y;
+    const angle = Math.atan2(dy, dx);
+    let cvaDeg = rad2deg(angle);
+    
+    // CVA는 0~90도 범위로 정규화
+    if(cvaDeg < 0) {
+      cvaDeg = 180 + cvaDeg;
+    }
+    if(cvaDeg > 90) {
+      cvaDeg = 180 - cvaDeg;
+    }
+    
+    result.CVA = {
+      value_deg: cvaDeg,
+      status: classifyRange({
+        v: cvaDeg,
+        nMin: 50, nMax: null,
+        mildMin: 45, mildMax: 50,
+        modMin: 40, modMax: 45,
+        sevMin: null, sevMax: 40,
+        higherIsWorse: false
+      }),
+      meaning: "경추 정렬 각도 (≥50° 정상)"
+    };
+  }
+  
+  // 2️⃣ HPD (Head Protrusion Distance): tragus와 acromion 수평 거리
+  if (tragus && acromion) {
+    const distPx = Math.abs(tragus.x - acromion.x);
+    const distCm = pxToCm(distPx, pxPerCm);
+    result.HPD = {
+      value_cm: distCm,
+      status: classifyRange({
+        v: distCm,
+        nMin: null, nMax: 2,
+        mildMin: 2, mildMax: 3,
+        modMin: 3, modMax: 4,
+        sevMin: 4, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "머리 전방 돌출 거리 (≤2cm 정상)"
+    };
+  }
+  
+  // 3️⃣ NIA (Neck Inclination Angle): tragus–acromion 라인과 수평선
+  if (tragus && acromion) {
+    const angle = angleToHorizontal(tragus, acromion);
+    result.NIA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 10, nMax: 20,
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "목 경사 각도 (10–20° 정상)"
+    };
+  }
+  
+  // 4️⃣ TIA (Trunk Inclination Angle): acromion–hip 라인과 수직선
+  if (acromion && hip) {
+    const angle = angleToVertical(acromion, hip);
+    result.TIA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 0, nMax: 5,
+        mildMin: 5, mildMax: 10,
+        modMin: 10, modMax: 15,
+        sevMin: 15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "몸통 전방 기울임 (0–5° 정상)"
+    };
+  }
+  
+  // 5️⃣ SAA (Scapular Alignment Angle): acromion–PSIS 라인과 수평선
+  if (acromion && PSIS) {
+    const angle = angleToHorizontal(acromion, PSIS);
+    result.SAA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 0, nMax: 10,
+        mildMin: 10, mildMax: 15,
+        modMin: 15, modMax: 20,
+        sevMin: 20, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "견갑골 정렬 각도 (0–10° 정상)"
+    };
+  }
+  
+  // 6️⃣ PTA (Pelvic Tilt Angle): ASIS–PSIS 라인과 수평선의 각도
+  if (ASIS && PSIS) {
+    const dx = PSIS.x - ASIS.x;
+    const dy = PSIS.y - ASIS.y;
+    const angle = Math.atan2(dy, dx);
+    let ptaDeg = rad2deg(angle);
+    
+    // 수평선 기준으로 각도 정규화
+    if(ptaDeg < -90) {
+      ptaDeg = 180 + ptaDeg;
+    } else if(ptaDeg > 90) {
+      ptaDeg = ptaDeg - 180;
+    }
+    
+    // PTA는 전경사가 양수 (ASIS가 PSIS보다 낮으면 전경사)
+    const pta = Math.abs(ptaDeg);
+    result.PTA = {
+      value_deg: pta,
+      status: classifyRange({
+        v: pta,
+        nMin: 5, nMax: 15,
+        mildMin: 15, mildMax: 20,
+        modMin: 0, modMax: 5,
+        sevMin: null, sevMax: null,
+        higherIsWorse: false // 전경사는 5–15도가 정상, 과도하면 문제
+      }),
+      meaning: "골반 전경사 각도 (5–15° 정상)"
+    };
+  }
+  
+  // 7️⃣ KA (Knee Alignment Angle): hip–knee–ankle 세 점 각도
+  if (hip && knee && ankle) {
+    const ka = angleAt(knee, hip, ankle);
+    result.KA = {
+      value_deg: ka,
+      status: classifyRange({
+        v: ka,
+        nMin: 175, nMax: 180,
+        mildMin: 170, mildMax: 175,
+        modMin: null, modMax: null,
+        sevMin: null, sevMax: 170,
+        higherIsWorse: false
+      }),
+      meaning: "무릎 정렬 각도 (175–180° 정상)"
+    };
+  }
+  
+  // 8️⃣ Tibial Inclination Angle: knee–ankle 라인과 수직선
+  if (knee && ankle) {
+    const angle = angleToVertical(knee, ankle);
+    result.Tibial_Inclination = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 85, nMax: 90,
+        mildMin: 80, mildMax: 85,
+        modMin: 75, modMax: 80,
+        sevMin: null, sevMax: 75,
+        higherIsWorse: false
+      }),
+      meaning: "하퇴 전방 경사 (85–90° 정상)"
+    };
+  }
+  
+  // 9️⃣ GSB (Global Sagittal Balance): tragus–ankle 라인의 수직 편차(cm)
+  if (tragus && ankle) {
+    // 수직선과의 편차 계산 (x 좌표 차이)
+    const devPx = Math.abs(tragus.x - ankle.x);
+    const devCm = pxToCm(devPx, pxPerCm);
+    result.GSB = {
+      value_cm: devCm,
+      status: classifyRange({
+        v: devCm,
+        nMin: null, nMax: 2,
+        mildMin: 2, mildMax: 4,
+        modMin: 4, modMax: 6,
+        sevMin: 6, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "전신 시상면 균형 (≤2cm 정상)"
+    };
+  }
+  
+  // 🔟 BVA (Body Vertical Alignment): tragus–C7–acromion–hip–knee–ankle가 수직선상에 있는가
+  if (tragus && C7 && acromion && hip && knee && ankle) {
+    // 모든 점의 x 좌표 표준편차 계산
+    const points = [tragus, C7, acromion, hip, knee, ankle];
+    const xCoords = points.map(p => p.x);
+    const meanX = xCoords.reduce((a, b) => a + b, 0) / xCoords.length;
+    const variance = xCoords.reduce((sum, x) => sum + Math.pow(x - meanX, 2), 0) / xCoords.length;
+    const stdDev = Math.sqrt(variance);
+    const stdDevCm = pxToCm(stdDev, pxPerCm);
+    
+    // 각도로 변환 (대략적인 각도 편차)
+    const angleDev = rad2deg(Math.atan(stdDev / (Math.abs(tragus.y - ankle.y) || 1)));
+    
+    result.BVA = {
+      value_deg: angleDev,
+      status: classifyRange({
+        v: angleDev,
+        nMin: null, nMax: 2,
+        mildMin: 2, mildMax: 4,
+        modMin: 4, modMax: 6,
+        sevMin: 6, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "전신 수직 정렬 (±2° 정상)"
+    };
+  }
+  
+  // 1️⃣1️⃣ SCI (Spinal Curvature Index): C7–PSIS–ankle 세 점 간 곡률 비율
+  if (C7 && PSIS && ankle) {
+    const d1 = dist(C7, PSIS);
+    const d2 = dist(PSIS, ankle);
+    const dTotal = dist(C7, ankle);
+    const sci = dTotal > 0 ? (d1 + d2) / dTotal : 1.0;
+    result.SCI = {
+      value: sci,
+      status: classifyRange({
+        v: Math.abs(sci - 1.0),
+        nMin: null, nMax: 0.05,
+        mildMin: 0.05, mildMax: 0.1,
+        modMin: 0.1, modMax: 0.15,
+        sevMin: 0.15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "척추 곡률 지수 (1.0 근처 정상)"
+    };
+  }
+  
+  // 1️⃣2️⃣ HPA (Head-to-Pelvis Angle): tragus–PSIS 라인과 수직선
+  if (tragus && PSIS) {
+    const angle = angleToVertical(tragus, PSIS);
+    result.HPA = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: 0, nMax: 5,
+        mildMin: 5, mildMax: 10,
+        modMin: 10, modMax: 15,
+        sevMin: 15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "머리-골반 각도 (0–5° 정상)"
+    };
+  }
+  
+  // 1️⃣3️⃣ PDS (Postural Deviation Score): CVA, PTA, KA, BVA 등 합산지수
+  let pdsScore = 0;
+  let pdsMax = 10;
+  if (result.CVA) {
+    const s = result.CVA.status;
+    if (s === "severe") pdsScore += 3;
+    else if (s === "moderate") pdsScore += 2;
+    else if (s === "mild") pdsScore += 1;
+  }
+  if (result.PTA) {
+    const s = result.PTA.status;
+    if (s === "severe") pdsScore += 2;
+    else if (s === "moderate") pdsScore += 1.5;
+    else if (s === "mild") pdsScore += 1;
+  }
+  if (result.KA) {
+    const s = result.KA.status;
+    if (s === "severe") pdsScore += 2;
+    else if (s === "moderate") pdsScore += 1.5;
+    else if (s === "mild") pdsScore += 1;
+  }
+  if (result.BVA) {
+    const s = result.BVA.status;
+    if (s === "severe") pdsScore += 2;
+    else if (s === "moderate") pdsScore += 1.5;
+    else if (s === "mild") pdsScore += 1;
+  }
+  
+  result.PDS = {
+    value: pdsScore,
+    status: classifyRange({
+      v: pdsScore,
+      nMin: null, nMax: 2,
+      mildMin: 2, mildMax: 4,
+      modMin: 4, modMax: 6,
+      sevMin: 6, sevMax: null,
+      higherIsWorse: true
+    }),
+    meaning: "자세 편차 점수 (0–10점, 낮을수록 정상)"
+  };
+  
+  return result;
+}
+
+// ✅ 정면 자세 분석
+function analyzeFrontPosture(points, pxPerCm = 50.0) {
+  // 안전 접근 헬퍼
+  function p(k) {
+    const v = points[k];
+    if (!v || v.x == null || v.y == null) return null;
+    return { x: Number(v.x), y: Number(v.y) };
+  }
+  
+  const result = {};
+  
+  const L_acr = p("L_acromion") || p("L_Shoulder");
+  const R_acr = p("R_acromion") || p("R_Shoulder");
+  const L_asis = p("L_asis") || p("L_ASIS");
+  const R_asis = p("R_asis") || p("R_ASIS");
+  const C7 = p("C7") || p("c7");
+  const L_ankle = p("L_ankle") || p("L_Ankle");
+  const R_ankle = p("R_ankle") || p("R_Ankle");
+  
+  // 1️⃣ 어깨 기울기
+  if (L_acr && R_acr) {
+    const shoulderAngle = angleToHorizontal(L_acr, R_acr);
+    result.Shoulder_Tilt = {
+      value_deg: shoulderAngle,
+      status: shoulderAngle <= 3
+        ? "normal"
+        : shoulderAngle <= 6
+          ? "mild"
+          : shoulderAngle <= 10
+            ? "moderate"
+            : "severe",
+      meaning: "좌우 어깨 높이 차",
+    };
+  }
+  
+  // 2️⃣ 골반 기울기
+  if (L_asis && R_asis) {
+    const pelvicAngle = angleToHorizontal(L_asis, R_asis);
+    result.Pelvic_Obliquity = {
+      value_deg: pelvicAngle,
+      status: pelvicAngle <= 3
+        ? "normal"
+        : pelvicAngle <= 6
+          ? "mild"
+          : pelvicAngle <= 10
+            ? "moderate"
+            : "severe",
+      meaning: "좌우 골반 높이 차",
+    };
+  }
+  
+  // 3️⃣ 체간 기울기 (C7–중간 골반 중앙점)
+  if (C7 && L_asis && R_asis) {
+    const pelvisMid = {
+      x: (L_asis.x + R_asis.x) / 2,
+      y: (L_asis.y + R_asis.y) / 2
+    };
+    const dx = C7.x - pelvisMid.x;
+    const dy = C7.y - pelvisMid.y;
+    const angle = rad2deg(Math.atan2(Math.abs(dx), Math.abs(dy))); // 수직대비 기울기
+    result.Trunk_Lateral_Tilt = {
+      value_deg: angle,
+      status: angle <= 2
+        ? "normal"
+        : angle <= 5
+          ? "mild"
+          : angle <= 8
+            ? "moderate"
+            : "severe",
+      meaning: "체간의 좌우 기울기",
+    };
+  }
+  
+  // 4️⃣ 다리 길이 비대칭 (ankle 높이 차)
+  if (L_ankle && R_ankle) {
+    const diffPx = Math.abs(L_ankle.y - R_ankle.y);
+    const diffCm = pxToCm(diffPx, pxPerCm);
+    result.Leg_Length_Diff = {
+      value_cm: diffCm,
+      status: diffCm <= 1
+        ? "normal"
+        : diffCm <= 2
+          ? "mild"
+          : diffCm <= 3
+            ? "moderate"
+            : "severe",
+      meaning: "다리 길이 차이 (1cm 이하 정상)",
+    };
+  }
+  
+  // 5️⃣ PRA (Pelvic Rotation Angle): 좌·우 ASIS 간 수평면 회전각
+  if (L_asis && R_asis) {
+    // 수평 거리와 수직 거리 비율로 회전 각도 추정
+    const dx = Math.abs(L_asis.x - R_asis.x);
+    const dy = Math.abs(L_asis.y - R_asis.y);
+    const angle = rad2deg(Math.atan2(dy, dx));
+    // 수평선에서 벗어난 각도 (0도에 가까울수록 정상)
+    const rotationAngle = Math.abs(angle - 0);
+    result.PRA = {
+      value_deg: rotationAngle,
+      status: classifyRange({
+        v: rotationAngle,
+        nMin: null, nMax: 5,
+        mildMin: 5, mildMax: 10,
+        modMin: 10, modMax: 15,
+        sevMin: 15, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "골반 회전 각도 (≤5° 정상)"
+    };
+  }
+  
+  // 6️⃣ Knee Deviation (Front): 좌우 knee 높이 차이
+  const L_knee = p("L_knee") || p("L_Knee");
+  const R_knee = p("R_knee") || p("R_Knee");
+  if (L_knee && R_knee) {
+    const diffPx = Math.abs(L_knee.y - R_knee.y);
+    const diffCm = pxToCm(diffPx, pxPerCm);
+    const angle = rad2deg(Math.atan2(diffPx, Math.abs(L_knee.x - R_knee.x) || 1));
+    result.Knee_Deviation = {
+      value_deg: angle,
+      status: classifyRange({
+        v: angle,
+        nMin: null, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "무릎 높이 차이 (≤3° 정상)"
+    };
+  }
+  
+  // 7️⃣ Q-Angle: ASIS → patella 중심 → tibial tuberosity
+  // (정면에서만 측정 가능, 측면 분석에는 포함하지 않음)
+  const L_patella = p("L_patella") || p("L_Patella") || L_knee;
+  const R_patella = p("R_patella") || p("R_Patella") || R_knee;
+  if (L_asis && L_patella && L_ankle) {
+    // Q-Angle은 ASIS에서 무릎까지의 선과 무릎에서 발목까지의 선 사이의 각도
+    // 실제로는 무릎에서 ASIS와 발목으로 가는 각도
+    const qAngle = angleAt(L_patella, L_asis, L_ankle);
+    result.Q_Angle = {
+      value_deg: qAngle,
+      status: classifyRange({
+        v: qAngle,
+        nMin: 10, nMax: 20, // 일반적으로 여성이 더 큼
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "Q-Angle (10–20° 정상, 여성이 더 큼)"
+    };
+  }
+  
+  return result;
+}
+
+// ✅ 분석 결과 요약 HTML 생성
+function buildAnalysisSummaryHtml(analysisResult) {
+  const side = analysisResult.side || {};
+  const front = analysisResult.front || {};
+  const summary = analysisResult.summary || {};
+  
+  let html = '<div style="margin-bottom:20px; padding:15px; background:#f5f5f5; border-radius:8px;">';
+  
+  // 측면 분석 결과
+  if(side.status !== "not_available") {
+    html += '<div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#0b0f14;">측면 분석 결과</div>';
+    for(const [key, value] of Object.entries(side)) {
+      if(value && typeof value === 'object' && value.value != null && key !== 'status') {
+        const unit = value.value_cm != null ? 'cm' : '°';
+        const val = value.value_deg != null ? value.value_deg : value.value_cm;
+        const status = value.status || 'unknown';
+        html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+      }
+    }
+    html += '<div style="margin-bottom:12px;"></div>';
+  }
+  
+  // 정면 분석 결과
+  if(front.status !== "not_available") {
+    html += '<div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#0b0f14;">정면 분석 결과</div>';
+    for(const [key, value] of Object.entries(front)) {
+      if(value && typeof value === 'object' && value.value != null && key !== 'status') {
+        const unit = value.value_cm != null ? 'cm' : '°';
+        const val = value.value_deg != null ? value.value_deg : value.value_cm;
+        const status = value.status || 'unknown';
+        html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+      }
+    }
+    html += '<div style="margin-bottom:12px;"></div>';
+  }
+  
+  // 종합 점수
+  html += '<div style="border-top:1px solid #ddd; padding-top:12px; margin-top:12px;"></div>';
+  if(summary.PDS_total != null) {
+    html += `<div style="font-size:12px; font-weight:700; color:#6b46c1;">PDS 종합점수: ${summary.PDS_total} (${summary.risk_level})</div>`;
+  } else {
+    html += '<div style="font-size:11px; color:#666;">종합분석: 해당없음</div>';
+  }
+  
+  html += '</div>';
+  return html;
+}
+
+// ✅ 운동 추천 엔진 - 분석 결과를 받아서 패턴별 근육과 운동 추천 생성
+function generatePostureRecommendations(analysis) {
+  const patterns = [];
+  
+  function addPattern({pattern, condition, tight, weak, exercises}) {
+    patterns.push({
+      pattern: pattern,
+      condition: condition,
+      tight_muscles: tight,
+      weak_muscles: weak,
+      recommended_exercises: exercises
+    });
+  }
+  
+  // 측면 분석 결과에서 값 추출
+  const side = analysis.side || {};
+  const front = analysis.front || {};
+  
+  // 측면 지표
+  const cva = side.CVA?.value_deg;
+  const nia = side.NIA?.value_deg;
+  const hpd = side.HPD?.value_cm;
+  const saa = side.SAA?.value_deg;
+  const pta = side.PTA?.value_deg;
+  const ka = side.KA?.value_deg;
+  const bva = side.BVA?.value_deg;
+  const gsb = side.GSB?.value_cm;
+  
+  // 정면 지표
+  const frontKA = front.KA?.value_deg;
+  
+  // 거북목 (FHP)
+  if (cva != null && cva < 50) {
+    addPattern({
+      pattern: "거북목(FHP)",
+      condition: "CVA↓ / NIA↑ / HPD↑",
+      tight: ["SCM", "상부승모", "견갑거근", "소흉근"],
+      weak: ["심부경부굴근", "하부승모", "전거근"],
+      exercises: {
+        "매트": ["Chin Tuck & Axial Elongation (턱당기기 + 축신장)", "Swan Prep"],
+        "리포머": ["Pulling Straps"],
+        "캐딜락": ["Tower Swan"],
+        "체어": ["Press Down Front"],
+        "바렐": ["Swan on Ladder Barrel"]
+      }
+    });
+  }
+  
+  // 라운드숄더 (RSP)
+  if (saa != null && saa > 10) {
+    addPattern({
+      pattern: "라운드숄더(RSP)",
+      condition: "SAA↑",
+      tight: ["대흉근", "소흉근", "상부승모"],
+      weak: ["하부승모", "능형근", "전거근"],
+      exercises: {
+        "매트": ["Prone Scapular Retraction"],
+        "리포머": ["Rowing Back", "Pulling Straps"],
+        "캐딜락": ["Arm Springs - Extension"],
+        "체어": ["Spine Stretch Forward (Chair Ver.)"],
+        "바렐": ["Shoulder Extension on Barrel"]
+      }
+    });
+  }
+  
+  // 과전경사 골반 (Anterior Tilt)
+  if (pta != null && pta > 15) {
+    addPattern({
+      pattern: "과전경사 골반 (Anterior Tilt)",
+      condition: "PTA↑, ASIS 하강, PSIS 상승",
+      tight: ["장요근", "대퇴직근", "척추기립근"],
+      weak: ["복직근", "복횡근", "둔근"],
+      exercises: {
+        "매트": ["Pelvic Curl", "Dead Bug / Toe Tap"],
+        "리포머": ["Bridge on Reformer"],
+        "캐딜락": ["Roll Down with Push Through Bar"],
+        "체어": ["Standing Hip Extension"],
+        "바렐": ["Short Box Round Back"]
+      }
+    });
+  }
+  
+  // 후경사 골반 (Posterior Tilt)
+  if (pta != null && pta < 5) {
+    addPattern({
+      pattern: "후경사 골반 (Posterior Tilt)",
+      condition: "PTA↓, PSIS 하강",
+      tight: ["햄스트링", "복직근"],
+      weak: ["장요근", "대퇴직근", "척추기립근"],
+      exercises: {
+        "매트": ["Leg Pull Front"],
+        "리포머": ["Footwork - Parallel Heels"],
+        "캐딜락": ["Leg Springs - Supine"],
+        "체어": ["Swan Press"],
+        "바렐": ["Swan on Barrel"]
+      }
+    });
+  }
+  
+  // X자 다리 (Genu Valgum) - 측면 또는 정면 KA 사용
+  const kaValue = ka || frontKA;
+  if (kaValue != null && kaValue < 175) {
+    addPattern({
+      pattern: "X자 다리 (Genu Valgum)",
+      condition: "KA↓, Q-Angle↑",
+      tight: ["내전근", "내측광근"],
+      weak: ["중둔근", "외회전근", "외측광근"],
+      exercises: {
+        "매트": ["Side-Lying Leg Lift"],
+        "리포머": ["Side Splits"],
+        "캐딜락": ["Standing Hip Abduction"],
+        "체어": ["Step Up Lateral"],
+        "바렐": ["Side Bend Stretch"]
+      }
+    });
+  }
+  
+  // O자 다리 (Genu Varum)
+  if (kaValue != null && kaValue > 180) {
+    addPattern({
+      pattern: "O자 다리 (Genu Varum)",
+      condition: "KA↑",
+      tight: ["외측광근", "비복근", "대퇴이두"],
+      weak: ["내전근", "내측광근"],
+      exercises: {
+        "매트": ["Ball Squeeze Bridge"],
+        "리포머": ["Footwork - Small V Position"],
+        "캐딜락": ["Standing Leg Press - Adduction"],
+        "체어": ["Seated Adduction"],
+        "바렐": ["Adductor Stretch on Barrel"]
+      }
+    });
+  }
+  
+  // 전방 체중 중심 (Forward Center)
+  if (gsb != null && gsb > 2) {
+    addPattern({
+      pattern: "체중 중심 전방 (Forward Center)",
+      condition: "GSB↑, BVA↑",
+      tight: ["대퇴직근", "요추기립근", "종아리근"],
+      weak: ["둔근", "햄스트링", "복부"],
+      exercises: {
+        "매트": ["Pelvic Curl"],
+        "리포머": ["Scooter"],
+        "캐딜락": ["Tower Roll Up"],
+        "체어": ["Standing Leg Press"],
+        "바렐": ["Swan"]
+      }
+    });
+  }
+  
+  // 후방 체중 중심 (Backward Center)
+  if (gsb != null && gsb < -2) {
+    addPattern({
+      pattern: "체중 중심 후방 (Backward Center)",
+      condition: "GSB↓, BVA↓",
+      tight: ["햄스트링", "둔근"],
+      weak: ["장요근", "대퇴직근"],
+      exercises: {
+        "매트": ["Hip Flexor Stretch"],
+        "리포머": ["Standing Lunge"],
+        "캐딜락": ["Leg Springs - Supine"],
+        "체어": ["Step Up Front"],
+        "바렐": ["Lunge on Barrel"]
+      }
+    });
+  }
+  
+  return { patterns: patterns };
+}
+
+// ✅ 통합 분석 함수 - 측면/정면 자동 감지
+function analyzePostureAuto(options = {}) {
+  const {
+    sidePts = null,
+    frontPts = null,
+    pxPerCm = 50.0
+  } = options;
+  
+  const result = {
+    side: {},
+    front: {},
+    summary: {}
+  };
+  
+  // 측면 분석
+  if (sidePts != null && Object.keys(sidePts).length > 0) {
+    result.side = analyzeFullPosture(sidePts, pxPerCm);
+  } else {
+    result.side.status = "not_available";
+  }
+  
+  // 정면 분석
+  if (frontPts != null && Object.keys(frontPts).length > 0) {
+    result.front = analyzeFrontPosture(frontPts, pxPerCm);
+  } else {
+    result.front.status = "not_available";
+  }
+  
+  // 통합 점수 계산
+  const sidePDS = result.side.PDS?.value || 0;
+  const frontPDS = result.front.PDS?.value || 0;
+  
+  const availableCount = [
+    result.side.status !== "not_available",
+    result.front.status !== "not_available"
+  ].filter(e => e).length;
+  
+  if (availableCount > 0) {
+    const avg = (sidePDS + frontPDS) / (availableCount === 2 ? 2 : 1);
+    result.summary = {
+      PDS_total: avg.toFixed(1),
+      risk_level: avg < 10 
+        ? "정상" 
+        : avg < 15 
+          ? "경미한 불균형" 
+          : "중등도 이상 불균형"
+    };
+  } else {
+    result.summary.status = "not_available";
+  }
+  
+  return result;
+}
+
+// ✅ 통합 분석 + 운동 추천 결합
+function analyzePostureAutoWithRecommendation(options = {}) {
+  const {
+    sidePts = null,
+    frontPts = null,
+    pxPerCm = 50.0
+  } = options;
+  
+  // 기본 통합 분석 실행
+  const result = analyzePostureAuto({
+    sidePts: sidePts,
+    frontPts: frontPts,
+    pxPerCm: pxPerCm
+  });
+  
+  // 분석 결과를 통합하여 운동 추천 생성
+  const analysis = {
+    side: result.side,
+    front: result.front,
+    summary: result.summary
+  };
+  
+  // 운동 추천 생성
+  const recommendation = generatePostureRecommendations(analysis);
+  result.recommendations = recommendation;
+  
+  return result;
+}
+
+// ✅ 실시간 분석 엔진 (Stream 기반)
+class LivePostureAnalyzer {
+  constructor() {
+    this.listeners = [];
+    this.isAnalyzing = false;
+    this.lastResult = null;
+  }
+  
+  // 리스너 추가 (실시간 결과 수신)
+  addListener(callback) {
+    this.listeners.push(callback);
+  }
+  
+  // 리스너 제거
+  removeListener(callback) {
+    const index = this.listeners.indexOf(callback);
+    if (index > -1) {
+      this.listeners.splice(index, 1);
+    }
+  }
+  
+  // 결과 브로드캐스트
+  _broadcast(result) {
+    this.lastResult = result;
+    this.listeners.forEach(callback => {
+      try {
+        callback(result);
+      } catch (error) {
+        console.error('Listener error:', error);
+      }
+    });
+  }
+  
+  // 실시간 분석 실행 (매 프레임/좌표 변경 시)
+  analyzeFrame(options = {}) {
+    if (this.isAnalyzing) {
+      return this.lastResult; // 이미 분석 중이면 마지막 결과 반환
+    }
+    
+    this.isAnalyzing = true;
+    
+    try {
+      const {
+        sidePts = null,
+        frontPts = null,
+        pxPerCm = 50.0
+      } = options;
+      
+      // 통합 분석 실행
+      const analysisResult = analyzePostureAutoWithRecommendation({
+        sidePts: sidePts,
+        frontPts: frontPts,
+        pxPerCm: pxPerCm
+      });
+      
+      // 실시간 결과 포맷 (JSON 출력 예시 구조)
+      const result = {
+        timestamp: new Date().toISOString(),
+        analysis: {
+          side: analysisResult.side,
+          front: analysisResult.front,
+          summary: analysisResult.summary
+        },
+        recommendations: analysisResult.recommendations || { patterns: [] }
+      };
+      
+      // 주요 지표 추출 (실시간 표시용)
+      const sideMetrics = analysisResult.side || {};
+      const frontMetrics = analysisResult.front || {};
+      const summary = analysisResult.summary || {};
+      
+      result.liveMetrics = {
+        CVA: sideMetrics.CVA ? { value: sideMetrics.CVA.value_deg, status: sideMetrics.CVA.status } : null,
+        PTA: sideMetrics.PTA ? { value: sideMetrics.PTA.value_deg, status: sideMetrics.PTA.status } : null,
+        KA: sideMetrics.KA ? { value: sideMetrics.KA.value_deg, status: sideMetrics.KA.status } : (frontMetrics.KA ? { value: frontMetrics.KA.value_deg, status: frontMetrics.KA.status } : null),
+        PDS: summary.PDS_total ? parseFloat(summary.PDS_total) : 0,
+        risk_level: summary.risk_level || 'unknown'
+      };
+      
+      // 브로드캐스트
+      this._broadcast(result);
+      
+      return result;
+    } finally {
+      this.isAnalyzing = false;
+    }
+  }
+  
+  // 현재 세션의 키포인트로 실시간 분석
+  analyzeCurrentSession() {
+    const S = sessions[cur];
+    const pxPerCm = S.pxPerCm || 50.0;
+    
+    // 측면 및 정면 키포인트 변환
+    const sidePoints = {};
+    const frontPoints = {};
+    
+    for(const [key, value] of S.sidePoints.entries()) {
+      if(value && value.x != null && value.y != null) {
+        sidePoints[key] = { x: value.x, y: value.y };
+      }
+    }
+    
+    for(const [key, value] of S.frontPoints.entries()) {
+      if(value && value.x != null && value.y != null) {
+        frontPoints[key] = { x: value.x, y: value.y };
+      }
+    }
+    
+    return this.analyzeFrame({
+      sidePts: Object.keys(sidePoints).length > 0 ? sidePoints : null,
+      frontPts: Object.keys(frontPoints).length > 0 ? frontPoints : null,
+      pxPerCm: pxPerCm
+    });
+  }
+}
+
+// 전역 실시간 분석기 인스턴스
+const liveAnalyzer = new LivePostureAnalyzer();
+
+// 필라테스 동작 데이터
+const pilatesData = {
+  '목 굴곡근 약화': {
+    매트: ['Neck Pull', 'Roll-Up'],
+    리포머: ['Short Box - Round Back'],
+    캐딜락: ['Roll Down Bar'],
+    체어: ['Swan Prep'],
+    바렐: ['Back Extension']
+  },
+  '목 신전근 긴장': {
+    매트: ['Roll-Up', 'Spine Stretch Forward'],
+    리포머: ['Neck Stretch on Box'],
+    캐딜락: ['Tower - Arm Springs'],
+    체어: ['Tricep Dips'],
+    바렐: ['Chest Stretch']
+  },
+  '상부승모근 과긴장': {
+    매트: ['Arm Circles', 'Swimming Prep'],
+    리포머: ['Rowing - From Chest'],
+    캐딜락: ['Arm Springs - Chest Expansion'],
+    체어: ['Tricep Press'],
+    바렐: ['Side Stretch Over']
+  },
+  '전방어깨자세': {
+    매트: ['Swan Dive', 'T-Raise'],
+    리포머: ['Backstroke', 'Pulling Straps'],
+    캐딜락: ['Push Through Bar'],
+    체어: ['Push Down - Front'],
+    바렐: ['Chest Expansion']
+  },
+  '어깨안정근 약화': {
+    매트: ['Plank to Pike', 'Side Plank'],
+    리포머: ['Long Stretch Series'],
+    캐딜락: ['Arm Springs - Bug'],
+    체어: ['Mountain Climber'],
+    바렐: ['Side Arm Work']
+  },
+  '회전근개 불균형': {
+    매트: ['Side Lying Arm Series'],
+    리포머: ['Arm Work - Salute'],
+    캐딜락: ['Tower - Rotation'],
+    체어: ['Seated Rotation'],
+    바렐: ['Spiral Stretch']
+  },
+  '복직근 약화': {
+    매트: ['The Hundred', 'Teaser'],
+    리포머: ['Stomach Series - Hundred'],
+    캐딜락: ['Roll Down Bar'],
+    체어: ['Teaser Prep'],
+    바렐: ['Sit Up Series']
+  },
+  '복사근 불균형': {
+    매트: ['Criss Cross', 'Saw'],
+    리포머: ['Short Box - Twist'],
+    캐딜락: ['Twist & Reach'],
+    체어: ['Side Bend'],
+    바렐: ['Twist on Barrel']
+  },
+  '깊은코어 약화': {
+    매트: ['Dead Bug', 'Modified Hundred'],
+    리포머: ['Footwork - Parallel'],
+    캐딜락: ['Breathing with Springs'],
+    체어: ['Seated Balance'],
+    바렐: ['Core Integration']
+  },
+  '흉추 과후만': {
+    매트: ['Swan', 'Extension Series'],
+    리포머: ['Short Box - Arch'],
+    캐딜락: ['Monkey Stretch'],
+    체어: ['Back Extension'],
+    바렐: ['Chest Opening']
+  },
+  '요추 과전만': {
+    매트: ['Pelvic Curl', 'Imprint & Release'],
+    리포머: ['Pelvic Press', 'Knee Stretches'],
+    캐딜락: ['Tower - Hip Work'],
+    체어: ['Hip Flexor Stretch'],
+    바렐: ['Hip Opening']
+  },
+  '척추기립근 약화': {
+    매트: ['Swimming', 'Rocking'],
+    리포머: ['Long Back Stretch'],
+    캐딜락: ['Back Extension Springs'],
+    체어: ['Swan on Chair'],
+    바렐: ['Round Back']
+  },
+  '고관절 굴곡근 단축': {
+    매트: ['Hip Flexor Stretch', 'Lunge'],
+    리포머: ['Lunge Series', 'Runner Stretch'],
+    캐딜락: ['Tower - Hip Stretch'],
+    체어: ['Standing Lunge'],
+    바렐: ['Hip Flexor Series']
+  },
+  '둔근 약화': {
+    매트: ['Bridge Series', 'Clam'],
+    리포머: ['Footwork - Relevé', 'Leg Press'],
+    캐딜락: ['Leg Springs - Circles'],
+    체어: ['Glute Press Back'],
+    바렐: ['Hip Extension']
+  },
+  '골반 불안정': {
+    매트: ['Single Leg Bridge', 'Single Leg Stretch'],
+    리포머: ['Single Leg Work'],
+    캐딜락: ['Leg Springs - Adduction'],
+    체어: ['Standing Balance'],
+    바렐: ['Stability Challenge']
+  },
+  '대퇴사두근 약화': {
+    매트: ['Wall Squat', 'Single Leg Squat'],
+    리포머: ['Footwork - Heels', 'Squats'],
+    캐딜락: ['Leg Press Springs'],
+    체어: ['Standing Press Down'],
+    바렐: ['Leg Strengthening']
+  },
+  '햄스트링 단축': {
+    매트: ['Leg Pull Front', 'Roll Over'],
+    리포머: ['Hamstring Stretch', 'Tendon Stretch'],
+    캐딜락: ['Tower - Leg Stretch'],
+    체어: ['Leg Pull Back'],
+    바렐: ['Hip Flexor Stretch']
+  },
+  '종아리 근육 긴장': {
+    매트: ['Calf Stretch', 'Ankle Circles'],
+    리포머: ['Calf Raises', 'Tendon Stretch'],
+    캐딜락: ['Foot Corrector Work'],
+    체어: ['Heel Raises'],
+    바렐: ['Ankle Mobility']
+  }
+};
+
+// 근육 이름을 필라테스 문제로 매핑
+function mapMuscleToPilatesIssue(muscleName) {
+  const mapping = {
+    '상부승모근': '상부승모근 과긴장',
+    '견갑거근': '상부승모근 과긴장',
+    'SCM': '상부승모근 과긴장',
+    '흉쇄유돌근': '상부승모근 과긴장',
+    '심부경부굴근': '목 굴곡근 약화',
+    '전거근': '목 굴곡근 약화',
+    '하부승모근': '전방어깨자세',
+    '장요근': '고관절 굴곡근 단축',
+    '요추기립근': '요추 과전만',
+    '대퇴직근': '고관절 굴곡근 단축',
+    '흉요근막': '요추 과전만',
+    '복횡근': '깊은코어 약화',
+    '둔근': '둔근 약화',
+    '대둔근': '둔근 약화',
+    '중둔근': '둔근 약화',
+    '하둔근': '둔근 약화',
+    '복직근': '복직근 약화',
+    '대퇴사두근': '대퇴사두근 약화',
+    '햄스트링': '햄스트링 단축',
+    '비복근': '종아리 근육 긴장',
+    '가자미근': '종아리 근육 긴장',
+    '슬와근': '햄스트링 단축'
+  };
+  return mapping[muscleName] || null;
+}
+
+// 필라테스 동작 추천 함수
+function recommendPilates(tight, weak) {
+  const pilatesIssues = new Map();
+  
+  // 긴장된 근육에 대한 필라테스
+  tight.forEach(muscle => {
+    const issue = mapMuscleToPilatesIssue(muscle);
+    if(issue && pilatesData[issue]) {
+      if(!pilatesIssues.has(issue)) {
+        pilatesIssues.set(issue, { type: '긴장', muscles: [], pilates: pilatesData[issue] });
+      }
+      pilatesIssues.get(issue).muscles.push(muscle);
+    }
+  });
+  
+  // 약화된 근육에 대한 필라테스
+  weak.forEach(muscle => {
+    const issue = mapMuscleToPilatesIssue(muscle);
+    if(issue && pilatesData[issue]) {
+      if(!pilatesIssues.has(issue)) {
+        pilatesIssues.set(issue, { type: '약화', muscles: [], pilates: pilatesData[issue] });
+      }
+      pilatesIssues.get(issue).muscles.push(muscle);
+    }
+  });
+  
+  return Array.from(pilatesIssues.entries()).map(([issue, data]) => ({
+    issue,
+    type: data.type,
+    muscles: [...new Set(data.muscles)],
+    pilates: data.pilates
+  }));
+}
+const internalAngle = (a,b,c) => {
+  const ab = Math.atan2(a.y - b.y, a.x - b.x);
+  const cb = Math.atan2(c.y - b.y, c.x - b.x);
+  let d = Math.abs(ab - cb);
+  if(d > Math.PI) d = 2 * Math.PI - d;
+  return d;
+};
+
+document.getElementById("btnBefore").onclick = () => switchSession("Before");
+document.getElementById("btnAfter").onclick = () => switchSession("After");
+
+// 정면/옆모습 선택 버튼
+document.getElementById("btnOrientationSide").onclick = () => setOrientation("side");
+document.getElementById("btnOrientationFront").onclick = () => setOrientation("front");
+
+function updateCoordSelectOptions() {
+  const selectEl = document.getElementById("coordSelectPoint");
+  if(!selectEl) return;
+  
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
+  const currentValue = selectEl.value;
+  
+  // 기존 옵션 제거 (첫 번째 옵션인 "점 선택..." 제외)
+  while(selectEl.options.length > 1) {
+    selectEl.remove(1);
+  }
+  
+  // 현재 orientation에 맞는 키포인트 추가
+  currentKeypoints.forEach(kp => {
+    const option = document.createElement('option');
+    option.value = kp.key;
+    option.textContent = kp.key;
+    selectEl.appendChild(option);
+  });
+  
+  // 이전에 선택된 점이 현재 키포인트 목록에 있으면 유지
+  if(currentValue && currentKeypoints.some(kp => kp.key === currentValue)) {
+    selectEl.value = currentValue;
+  } else {
+    selectEl.value = "";
+    selectedPoint = null;
+  }
+}
+
+function setOrientation(orientation) {
+  if(!sessions[cur].poseData) {
+    sessions[cur].poseData = { orientation: orientation, landmarks: null };
+  } else {
+    sessions[cur].poseData.orientation = orientation;
+  }
+  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
+  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  console.log(`${cur} 세션의 방향을 ${orientation === "side" ? "옆모습" : "정면"}으로 설정`);
+  
+  // 좌표 선택 드롭다운 업데이트
+  updateCoordSelectOptions();
+  
+  // orientation 변경 시 캔버스 다시 그리기
+  const currentImg = orientation === "front" ? sessions[cur].imgFront : sessions[cur].imgSide;
+  if(currentImg) {
+    resizeCanvasFor(currentImg);
+  }
+  draw();
+}
+
+function switchSession(s) {
+  cur = s;
+  document.getElementById("btnBefore").classList.toggle("active", s === "Before");
+  document.getElementById("btnAfter").classList.toggle("active", s === "After");
+  document.getElementById("currentSession").textContent = s;
+  
+  // 세션 전환 시 orientation 버튼 업데이트
+  const orientation = sessions[s].poseData?.orientation || "side";
+  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
+  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  
+  // 좌표 선택 드롭다운 업데이트
+  updateCoordSelectOptions();
+  
+  draw();
+  // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
+  if(sessions[s].analysis) {
+    // 기존 분석이 있으면 전체 업데이트
+    const score = sessions[s].score;
+    const metrics = sessions[s].metrics;
+    const analysis = sessions[s].analysis;
+    updateScoreAndAnalysis(score, metrics.cva, metrics.pelvic, metrics.knee, analysis);
+  } else {
+    computeMetricsOnly(); // 분석이 없으면 metrics만 계산
+  }
+  updateCompare();
+}
+
+function resizeCanvasFor(img) {
+  const canvasWrap = cv.parentElement;
+  const maxW = canvasWrap.clientWidth - 24;
+  const maxH = canvasWrap.clientHeight - 24;
+  
+  // 원본 이미지 비율 계산
+  let baseW, baseH;
+  if(img) {
+    // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
+    const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+    baseW = Math.round(img.naturalWidth * r);
+    baseH = Math.round(img.naturalHeight * r);
+  } else {
+    baseW = 1200;
+    baseH = 800;
+  }
+  
+  // 원본 크기 저장 (좌표 수정 모드가 아닐 때만)
+  if(!editMode) {
+    originalCanvasSize.width = baseW;
+    originalCanvasSize.height = baseH;
+    originalCanvasSize.styleWidth = baseW;
+    originalCanvasSize.styleHeight = baseH;
+  }
+  
+  // 확대 배율 적용 (비율 유지)
+  const zoomMultiplier = editMode ? currentZoom : 1;
+  const finalW = baseW * zoomMultiplier;
+  const finalH = baseH * zoomMultiplier;
+  
+  // 캔버스 크기 설정
+  cv.width = finalW * DPR;
+  cv.height = finalH * DPR;
+  cv.style.width = finalW + "px";
+  cv.style.height = finalH + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  
+  // 확대된 경우 스크롤 가능하도록 설정
+  if(editMode && currentZoom > 1) {
+    canvasWrap.classList.add("zoomed");
+    canvasWrap.style.overflow = "auto";
+    canvasWrap.style.overflowX = finalW > maxW ? "auto" : "hidden";
+    canvasWrap.style.overflowY = finalH > maxH ? "auto" : "hidden";
+  } else {
+    canvasWrap.classList.remove("zoomed");
+    canvasWrap.style.overflow = "auto";
+    canvasWrap.style.overflowX = "hidden";
+    canvasWrap.style.overflowY = "hidden";
+  }
+  
+  // 다시 그리기
+  draw();
+}
+
+function ensureDefaultPoints(session) {
+  const S = sessions[session];
+  // 원본 크기 기준으로 좌표 계산
+  const W = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+  const H = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+  
+  const orientation = S.poseData?.orientation || "side";
+  const currentImg = orientation === "front" ? S.imgFront : S.imgSide;
+  const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
+  const currentPoints = orientation === "front" ? S.frontPoints : S.sidePoints;
+  
+  if(currentPoints.size === 0 && currentImg) {
+    const defaults = orientation === "front" ? {
+      C7: {x:W*0.5, y:H*0.2},
+      L_acromion: {x:W*0.3, y:H*0.3},
+      R_acromion: {x:W*0.7, y:H*0.3},
+      L_asis: {x:W*0.35, y:H*0.5},
+      R_asis: {x:W*0.65, y:H*0.5},
+      L_knee: {x:W*0.4, y:H*0.75},
+      R_knee: {x:W*0.6, y:H*0.75},
+      L_ankle: {x:W*0.4, y:H*0.95},
+      R_ankle: {x:W*0.6, y:H*0.95},
+    } : {
+      Tragus: {x:W*0.35, y:H*0.3},
+      C7: {x:W*0.3, y:H*0.35},
+      Shoulder: {x:W*0.35, y:H*0.4},
+      Hip: {x:W*0.38, y:H*0.6},
+      Knee: {x:W*0.42, y:H*0.8},
+      Ankle: {x:W*0.44, y:H*0.95},
+      ASIS: {x:W*0.40, y:H*0.58},
+      PSIS: {x:W*0.35, y:H*0.6},
+    };
+    for(const kp of currentKeypoints) {
+      if(defaults[kp.key]) currentPoints.set(kp.key, {...defaults[kp.key]});
+    }
+  }
+}
+
+function getPts(session) {
+  const orientation = sessions[session].poseData?.orientation || "side";
+  const map = orientation === "front" ? sessions[session].frontPoints : sessions[session].sidePoints;
+  const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
+  const out = {};
+  for(const k of currentKeypoints) out[k.key] = map.get(k.key);
+  return out;
+}
+
+// 현재 orientation에 맞는 키포인트 반환
+function getKeypoints() {
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  return orientation === "front" ? keypointsFront : keypointsSide;
+}
+
+function draw() {
+  const S = sessions[cur];
+  const W = cv.width / DPR, H = cv.height / DPR;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = "#0a0e13";
+  ctx.fillRect(0, 0, W, H);
+
+  // orientation에 따라 적절한 이미지 선택
+  const orientation = S.poseData?.orientation || "side";
+  const currentImg = orientation === "front" ? S.imgFront : S.imgSide;
+
+  if(currentImg) {
+    // 원본 크기 저장 (처음 한 번만)
+    if(originalCanvasSize.width === 0) {
+      const maxW = cv.parentElement.clientWidth - 24;
+      const maxH = cv.parentElement.clientHeight - 24;
+      const r = Math.min(maxW / currentImg.naturalWidth, maxH / currentImg.naturalHeight);
+      originalCanvasSize.width = Math.round(currentImg.naturalWidth * r);
+      originalCanvasSize.height = Math.round(currentImg.naturalHeight * r);
+      originalCanvasSize.styleWidth = originalCanvasSize.width;
+      originalCanvasSize.styleHeight = originalCanvasSize.height;
+    }
+    // 이미지 그리기 (비율 유지하며 확대된 크기로)
+    ctx.drawImage(currentImg, 0, 0, W, H);
+  }
+
+  ensureDefaultPoints(cur);
+  const P = getPts(cur);
+  const currentKeypoints = getKeypoints();
+
+  // 보조선 그리기
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = 'rgba(124,156,255,0.85)';
+
+  if(P.C7 && P.Tragus) {
+    ctx.beginPath();
+    ctx.moveTo(0, P.C7.y);
+    ctx.lineTo(W, P.C7.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(P.C7.x, P.C7.y);
+    ctx.lineTo(P.Tragus.x, P.Tragus.y);
+    ctx.stroke();
+  }
+
+  if(P.Shoulder && P.Hip) {
+    ctx.beginPath();
+    ctx.moveTo(P.Shoulder.x, P.Shoulder.y);
+    ctx.lineTo(P.Hip.x, P.Hip.y);
+    ctx.stroke();
+  }
+  if(P.Hip && P.Knee) {
+    ctx.beginPath();
+    ctx.moveTo(P.Hip.x, P.Hip.y);
+    ctx.lineTo(P.Knee.x, P.Knee.y);
+    ctx.stroke();
+  }
+  if(P.Knee && P.Ankle) {
+    ctx.beginPath();
+    ctx.moveTo(P.Knee.x, P.Knee.y);
+    ctx.lineTo(P.Ankle.x, P.Ankle.y);
+    ctx.stroke();
+  }
+
+  if(P.ASIS && P.PSIS) {
+    ctx.strokeStyle = 'rgba(255,184,108,0.95)';
+    ctx.beginPath();
+    ctx.moveTo(P.ASIS.x, P.ASIS.y);
+    ctx.lineTo(P.PSIS.x, P.PSIS.y);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,184,108,0.35)';
+    const midy = (P.ASIS.y + P.PSIS.y) / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, midy);
+    ctx.lineTo(W, midy);
+    ctx.stroke();
+  }
+
+  ctx.setLineDash([]);
+
+  // 점 그리기 (orientation에 맞는 키포인트 사용)
+  for(const kp of currentKeypoints) {
+    const pt = P[kp.key];
+    if(!pt) continue;
+    // 좌표 수정 모드에서 확대된 경우 좌표도 확대
+    const scaleX = editMode ? currentZoom : 1;
+    const scaleY = editMode ? currentZoom : 1;
+    const isSelected = editMode && selectedPoint === kp.key;
+    drawHandle(pt.x * scaleX, pt.y * scaleY, kp.key, kp.color, isSelected);
+  }
+  
+  // 좌표 수정 모드에서 선택된 점이 있고 아직 생성되지 않았다면 안내 표시
+  if(editMode && selectedPoint && !P[selectedPoint]) {
+    const W = cv.width / DPR, H = cv.height / DPR;
+    ctx.fillStyle = 'rgba(124,156,255,0.7)';
+    ctx.font = 'bold 16px "Noto Sans KR"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('좌표를 입력하고 "적용" 버튼을 클릭하세요', W / 2, H / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+function drawHandle(x, y, label, color, isSelected = false) {
+  // 선택된 점은 더 크고 강조 표시
+  const radius = isSelected ? 12 : 8;
+  const strokeWidth = isSelected ? 3 : 2;
+  
+  // 선택된 점은 외곽 링 표시
+  if(isSelected) {
+    ctx.fillStyle = 'rgba(124,156,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // 점을 더 크게 그리고 드래그 영역을 넓게
+  ctx.fillStyle = color;
+  ctx.strokeStyle = isSelected ? 'rgba(124,156,255,1)' : 'rgba(0,0,0,0.8)';
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = strokeWidth;
+  ctx.stroke();
+  ctx.font = '12px "Noto Sans KR"';
+  const pad = 4;
+  const tw = ctx.measureText(label).width;
+  const th = 16;
+  ctx.fillStyle = isSelected ? 'rgba(124,156,255,0.8)' : 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x + 10, y - 12, tw + pad * 2, th);
+  ctx.fillStyle = '#e7eef7';
+  ctx.fillText(label, x + 10 + pad, y + 1);
+}
+
+// 각도와 점수만 계산 (실시간 표시용, AI 분석 없음)
+function computeMetricsOnly() {
+  const S = sessions[cur];
+  const P = getPts(cur);
+  let cva = null, pelvic = null, knee = null;
+
+  if(P.C7 && P.Tragus) {
+    // CVA: C7 SP에서 시작하는 수평선과 C7 SP에서 Tragus로 가는 벡터 사이의 각도
+    const dx = P.Tragus.x - P.C7.x;
+    const dy = P.Tragus.y - P.C7.y;
+    const angle = Math.atan2(dy, dx);
+    let cvaDeg = rad2deg(angle);
+    
+    // CVA는 0~90도 범위로 정규화
+    if(cvaDeg < 0) {
+      cvaDeg = 180 + cvaDeg;
+    }
+    if(cvaDeg > 90) {
+      cvaDeg = 180 - cvaDeg;
+    }
+    cva = cvaDeg;
+  }
+  if(P.ASIS && P.PSIS) {
+    // TRUNK 각도: 수평선과 ASIS-PSIS 선 사이의 각도
+    // ASIS에서 PSIS로 가는 벡터의 각도를 계산
+    const dx = P.PSIS.x - P.ASIS.x;
+    const dy = P.PSIS.y - P.ASIS.y;
+    const angle = Math.atan2(dy, dx);
+    let pelvicDeg = rad2deg(angle);
+    
+    // 수평선 기준으로 각도 정규화 (-90~90도 범위)
+    // -176.4도는 180 + (-176.4) = 3.6도로 변환되어야 함
+    // 각도를 -180~180 범위에서 -90~90 범위로 변환
+    if(pelvicDeg < -90) {
+      // -176.4도 같은 경우: 180 + (-176.4) = 3.6도
+      pelvicDeg = 180 + pelvicDeg;
+    } else if(pelvicDeg > 90) {
+      // 176.4도 같은 경우: 176.4 - 180 = -3.6도
+      pelvicDeg = pelvicDeg - 180;
+    }
+    
+    pelvic = pelvicDeg;
+  }
+  if(P.Hip && P.Knee && P.Ankle) {
+    knee = rad2deg(internalAngle(P.Hip, P.Knee, P.Ankle));
+  }
+
+  S.metrics = { cva, pelvic, knee };
+  const score = computeScore(cva, pelvic, knee);
+  S.score = score;
+  
+  // AI 분석은 하지 않음 (저장 버튼 클릭 시에만)
+  
+  updateDisplay();
+  updateCompare();
+  // 점수만 업데이트 (AI 분석 없음)
+  const scoreEl = document.getElementById("totalScore");
+  const reasonEl = document.getElementById("scoreReason");
+  if(scoreEl && score) {
+    scoreEl.textContent = score.score;
+    if(score >= 85) {
+      scoreEl.style.color = "#2ec4b6";
+    } else if(score >= 70) {
+      scoreEl.style.color = "#ffd166";
+    } else {
+      scoreEl.style.color = "#ff6b6b";
+    }
+  }
+  if(reasonEl && score) {
+    if(score.reasons && score.reasons.length > 0) {
+      reasonEl.textContent = "감점 근거: " + score.reasons.join(", ");
+    } else {
+      reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
+    }
+  }
+}
+
+// 전체 계산 (AI 분석 포함) - 저장 버튼 클릭 시에만 호출
+function computeAll() {
+  const S = sessions[cur];
+  const pxPerCm = S.pxPerCm || 50.0;
+  
+  // 측면 및 정면 키포인트를 Map 형태로 변환
+  const sidePoints = {};
+  const frontPoints = {};
+  
+  // 측면 키포인트
+  for(const [key, value] of S.sidePoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      sidePoints[key] = { x: value.x, y: value.y };
+    }
+  }
+  
+  // 정면 키포인트
+  for(const [key, value] of S.frontPoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      frontPoints[key] = { x: value.x, y: value.y };
+    }
+  }
+  
+  // 통합 분석 실행 (운동 추천 포함)
+  const analysisResult = analyzePostureAutoWithRecommendation({
+    sidePts: Object.keys(sidePoints).length > 0 ? sidePoints : null,
+    frontPts: Object.keys(frontPoints).length > 0 ? frontPoints : null,
+    pxPerCm: pxPerCm
+  });
+  
+  // 통합 분석 결과 저장
+  S.analysisResult = analysisResult;
+  
+  // 기존 호환성을 위한 처리
+  const sideMetrics = analysisResult.side;
+  const frontMetrics = analysisResult.front;
+  
+  // 측면 분석 결과가 있으면 기존 방식으로도 저장
+  if(sideMetrics.status !== "not_available") {
+    const cva = sideMetrics.CVA?.value_deg || null;
+    const pelvic = sideMetrics.PTA?.value_deg || null;
+    const knee = sideMetrics.KA?.value_deg || null;
+    
+    S.metrics = { 
+      cva, 
+      pelvic, 
+      knee,
+      fullMetrics: sideMetrics,
+      orientation: "side"
+    };
+    
+    const score = computeScore(cva, pelvic, knee);
+    S.score = score;
+    
+    // AI 분석 실행
+    const analysis = analyzeMuscles(cva, pelvic, knee, sideMetrics);
+    S.analysis = analysis;
+    
+    updateDisplay();
+    updateCompare();
+    updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
+    
+    // 차트 업데이트
+    if(sideMetrics) {
+      updateCharts(sideMetrics);
+    }
+  } else if(frontMetrics.status !== "not_available") {
+    // 정면 분석만 있는 경우
+    S.metrics = { 
+      fullMetrics: frontMetrics,
+      orientation: "front"
+    };
+    S.score = null;
+    S.analysis = { 
+      fullMetrics: frontMetrics,
+      orientation: "front",
+      comments: [],
+      details: [],
+      exercises: []
+    };
+    updateDisplay();
+    updateCompare();
+    displayFrontAnalysis(frontMetrics);
+  } else {
+    // 분석 결과가 없는 경우
+    S.metrics = {};
+    S.score = null;
+    S.analysis = null;
+    updateDisplay();
+    updateCompare();
+  }
+}
+
+// 정면 분석 결과 표시
+function displayFrontAnalysis(fullMetrics) {
+  const commentEl = document.getElementById("aiComment");
+  const commentPanel = document.getElementById("aiCommentPanel");
+  
+  if(!fullMetrics || Object.keys(fullMetrics).length === 0) {
+    commentPanel.style.display = "none";
+    return;
+  }
+  
+  let commentText = "📷 정면 자세 분석 결과:\n\n";
+  const details = [];
+  
+  for(const [key, value] of Object.entries(fullMetrics)) {
+    if(value && value.value_deg != null) {
+      const statusText = {
+        "normal": "✅ 정상",
+        "mild": "⚠️ 경미",
+        "moderate": "⚠️ 중등도",
+        "severe": "🔴 심각"
+      }[value.status] || value.status;
+      
+      commentText += `${key}: ${value.value_deg.toFixed(1)}° (${statusText})\n`;
+      details.push(`• ${value.meaning || key}`);
+    } else if(value && value.value_cm != null) {
+      const statusText = {
+        "normal": "✅ 정상",
+        "mild": "⚠️ 경미",
+        "moderate": "⚠️ 중등도",
+        "severe": "🔴 심각"
+      }[value.status] || value.status;
+      
+      commentText += `${key}: ${value.value_cm.toFixed(2)}cm (${statusText})\n`;
+      details.push(`• ${value.meaning || key}`);
+    }
+  }
+  
+  if(details.length > 0) {
+    commentText += "\n" + details.join("\n");
+  }
+  
+  commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
+  commentPanel.style.display = "block";
+  
+  // 차트 표시
+  updateCharts(fullMetrics);
+}
+
+// ✅ 차트 시각화 함수
+function updateCharts(metrics) {
+  if(!metrics || Object.keys(metrics).length === 0) {
+    document.getElementById("chartPanel").style.display = "none";
+    return;
+  }
+  
+  // 메트릭 파싱
+  const metricList = [];
+  for(const [key, value] of Object.entries(metrics)) {
+    if(value && (value.value_deg != null || value.value_cm != null)) {
+      metricList.push({
+        name: key,
+        value: value.value_deg != null ? value.value_deg : value.value_cm,
+        status: value.status || "unknown"
+      });
+    }
+  }
+  
+  if(metricList.length === 0) {
+    document.getElementById("chartPanel").style.display = "none";
+    return;
+  }
+  
+  const labels = metricList.map(m => m.name);
+  const values = metricList.map(m => m.value);
+  const statusColors = metricList.map(m => {
+    switch(m.status) {
+      case "normal": return "#2ec4b6";
+      case "mild": return "#ffd166";
+      case "moderate": return "#ffb86c";
+      case "severe": return "#ff6b6b";
+      default: return "#9bb0c7";
+    }
+  });
+  
+  // 기존 차트 파괴
+  if(calibrationChart) {
+    calibrationChart.destroy();
+  }
+  if(calibrationBarChart) {
+    calibrationBarChart.destroy();
+  }
+  
+  // Radar Chart
+  const radarCtx = document.getElementById("radarChart").getContext("2d");
+  calibrationChart = new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '자세 분석',
+        data: values,
+        backgroundColor: 'rgba(124, 156, 255, 0.2)',
+        borderColor: 'rgba(124, 156, 255, 0.8)',
+        pointBackgroundColor: 'rgba(124, 156, 255, 1)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(124, 156, 255, 1)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          ticks: {
+            color: 'rgba(231, 238, 247, 0.7)',
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)'
+          },
+          pointLabels: {
+            color: 'rgba(231, 238, 247, 0.9)',
+            font: {
+              size: 11
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Bar Chart
+  const barCtx = document.getElementById("barChart").getContext("2d");
+  calibrationBarChart = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '값',
+        data: values,
+        backgroundColor: statusColors,
+        borderColor: statusColors.map(c => c.replace('0.8', '1')),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: 'rgba(231, 238, 247, 0.7)',
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)'
+          }
+        },
+        x: {
+          ticks: {
+            color: 'rgba(231, 238, 247, 0.7)',
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  });
+  
+  document.getElementById("chartPanel").style.display = "block";
+}
+
+function computeScore(cva, pelvic, knee) {
+  let penalties = 0;
+  let reasons = [];
+  
+  if(cva != null) {
+    const target = 50;
+    const delta = Math.max(0, target - cva);
+    const penalty = Math.min(40, delta * 1.6);
+    penalties += penalty;
+    if(penalty > 0) {
+      reasons.push(`CVA ${cva.toFixed(1)}° (목표 ${target}°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  if(pelvic != null) {
+    const abs = Math.abs(pelvic);
+    const target = 0;
+    const penalty = Math.min(30, abs * 2.0);
+    penalties += penalty;
+    if(penalty > 0) {
+      reasons.push(`골반 기울기 ${pelvic.toFixed(1)}° (목표 ${target}°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  if(knee != null) {
+    const target = 180;
+    const delta = Math.max(0, target - knee);
+    const penalty = Math.min(30, delta * 1.0);
+    penalties += penalty;
+    if(penalty > 0) {
+      reasons.push(`무릎 각 ${knee.toFixed(1)}° (목표 ${target}°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  const score = Math.round(clamp(100 - penalties, 0, 100));
+  return { score, reasons, penalties };
+}
+
+function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
+  const tight = [];
+  const weak = [];
+  const comments = [];
+  const details = [];
+  const exercises = [];
+  
+  // ⚙️ 해석 요약 패턴 분석
+  const patterns = [];
+  
+  // 패턴 1: 거북목(FHP): CVA↓, NIA↑, HPD↑
+  if(fullMetrics) {
+    const cvaVal = fullMetrics.CVA?.value_deg;
+    const niaVal = fullMetrics.NIA?.value_deg;
+    const hpdVal = fullMetrics.HPD?.value_cm;
+    
+    if(cvaVal != null && cvaVal < 50 && niaVal != null && niaVal > 20 && hpdVal != null && hpdVal > 2) {
+      patterns.push({
+        name: "거북목(FHP)",
+        description: `CVA↓(${cvaVal.toFixed(1)}°), NIA↑(${niaVal.toFixed(1)}°), HPD↑(${hpdVal.toFixed(1)}cm)`,
+        meaning: "경추 신전, 심부 굴근 약화",
+        priority: "high"
+      });
+      tight.push('상부승모근', '견갑거근', 'SCM', '흉쇄유돌근');
+      weak.push('심부경부굴근', '전거근');
+    }
+    
+    // 패턴 2: 라운드 숄더(RSP): acromion 전방 이동, SAA↑
+    const saaVal = fullMetrics.SAA?.value_deg;
+    if(saaVal != null && saaVal > 10) {
+      patterns.push({
+        name: "라운드 숄더(RSP)",
+        description: `SAA↑(${saaVal.toFixed(1)}°)`,
+        meaning: "흉근 단축, 하부승모 약화",
+        priority: "high"
+      });
+      tight.push('흉근', '소흉근');
+      weak.push('하부승모', '전거근', '중부승모');
+    }
+    
+    // 패턴 3: 과전경사 골반: PTA↑ (>15°), ASIS↓(하강)
+    const ptaVal = fullMetrics.PTA?.value_deg;
+    if(ptaVal != null && ptaVal > 15) {
+      patterns.push({
+        name: "과전경사 골반(Anterior Tilt)",
+        description: `PTA↑(${ptaVal.toFixed(1)}°)`,
+        meaning: "요추 전만 증가, hip flexor 단축",
+        priority: "high"
+      });
+      tight.push('장요근', '요추기립근', '대퇴직근', '흉요근막');
+      weak.push('복횡근', '둔근', '대둔근', '중둔근', '하둔근');
+    }
+    
+    // 패턴 4: 후경사 골반: PTA↓ (<5°), PSIS↓(하강)
+    if(ptaVal != null && ptaVal < 5) {
+      patterns.push({
+        name: "후경사 골반(Posterior Tilt)",
+        description: `PTA↓(${ptaVal.toFixed(1)}°)`,
+        meaning: "햄스트링/복근 단축",
+        priority: "medium"
+      });
+      tight.push('햄스트링', '복직근', '복횡근');
+      weak.push('장요근', '요추기립근');
+    }
+    
+    // 패턴 5: X자 다리(Valgus): KA↓ (<175°), Q-angle↑
+    const kaVal = fullMetrics.KA?.value_deg;
+    const qAngleVal = fullMetrics.Q_Angle?.value_deg;
+    if(kaVal != null && kaVal < 175) {
+      patterns.push({
+        name: "X자 다리(Valgus)",
+        description: `KA↓(${kaVal.toFixed(1)}°)${qAngleVal != null ? `, Q-angle↑(${qAngleVal.toFixed(1)}°)` : ''}`,
+        meaning: "내측 무릎 부하 증가",
+        priority: "high"
+      });
+      tight.push('대퇴내전근', '비복근');
+      weak.push('대둔근', '중둔근', '대퇴외전근');
+    }
+    
+    // 패턴 6: O자 다리(Varus): KA↑ (>180°)
+    if(kaVal != null && kaVal > 180) {
+      patterns.push({
+        name: "O자 다리(Varus)",
+        description: `KA↑(${kaVal.toFixed(1)}°)`,
+        meaning: "외측 무릎 부하 증가",
+        priority: "high"
+      });
+      tight.push('대퇴외전근', '비복근');
+      weak.push('대둔근', '중둔근', '대퇴내전근');
+    }
+    
+    // 패턴 7: 체중 중심 전방 이동: BVA↑, GSB↑
+    const bvaVal = fullMetrics.BVA?.value_deg;
+    const gsbVal = fullMetrics.GSB?.value_cm;
+    if(bvaVal != null && bvaVal > 2 && gsbVal != null && gsbVal > 2) {
+      patterns.push({
+        name: "체중 중심 전방 이동",
+        description: `BVA↑(${bvaVal.toFixed(1)}°), GSB↑(${gsbVal.toFixed(1)}cm)`,
+        meaning: "요추 전만, 종골 스트레스",
+        priority: "medium"
+      });
+      tight.push('장요근', '요추기립근');
+      weak.push('복횡근', '둔근');
+    }
+    
+    // 패턴 8: 체중 중심 후방 이동: BVA↓, GSB↓
+    if(bvaVal != null && bvaVal < -2 || (gsbVal != null && gsbVal < -2)) {
+      patterns.push({
+        name: "체중 중심 후방 이동",
+        description: `BVA↓(${bvaVal.toFixed(1)}°), GSB↓(${gsbVal.toFixed(1)}cm)`,
+        meaning: "둔근 긴장, 햄스트링 단축",
+        priority: "medium"
+      });
+      tight.push('둔근', '햄스트링');
+      weak.push('대퇴사두근', '장요근');
+    }
+    
+    // 패턴 정보를 comments에 추가
+    if(patterns.length > 0) {
+      comments.push(`\n📊 자세 패턴 분석:`);
+      patterns.forEach((p, idx) => {
+        comments.push(`${idx + 1}. ${p.name}: ${p.description} → ${p.meaning}`);
+      });
+    }
+  }
+  
+  // CVA 분석 (상세)
+  // CVA >= 50도는 정상 범위
+  if(cva != null) {
+    if(cva >= 50) {
+      // 50도 이상이면 정상 범위
+      if(cva <= 55) {
+        comments.push(`경추 정렬 양호: CVA ${cva.toFixed(1)}° (정상 범위)`);
+        details.push(`• 경추 정렬이 양호한 상태입니다.`);
+        details.push(`• 현재 상태를 유지하기 위한 정기적인 스트레칭을 권장합니다.`);
+      } else {
+        // 55도 초과는 후방 경사 (과도한 경우)
+        comments.push(`경추 후방 경사: CVA ${cva.toFixed(1)}°로 정상 범위를 초과합니다.`);
+        details.push(`• 경추가 과도하게 후방으로 기울어져 있습니다.`);
+        exercises.push('1. 경추 전방 굴곡 운동: 천천히 턱을 가슴 방향으로 내리기 (10회×2세트)');
+      }
+    } else {
+      // 50도 미만은 전방두 자세
+      if(cva < 45) {
+        tight.push('상부승모근', '견갑거근', 'SCM', '흉쇄유돌근');
+        weak.push('심부경부굴근', '하부승모근', '전거근');
+        comments.push(`전방두 자세 심각: CVA ${cva.toFixed(1)}°로 정상 범위(≥50°)보다 ${(50-cva).toFixed(1)}° 낮습니다.`);
+        details.push(`• 상부승모근과 견갑거근이 지속적으로 수축되어 목과 어깨 통증을 유발할 수 있습니다.`);
+        details.push(`• 심부경부굴근이 약화되어 머리 무게를 지지하지 못해 전방 이동이 가속화됩니다.`);
+        details.push(`• 장기적으로 경추 디스크 압력 증가 및 두통, 어깨 뻣뻣함이 발생할 수 있습니다.`);
+        exercises.push('1. 턱 당기기 운동: 벽에 등을 대고 턱을 뒤로 당기며 10초 유지 (3세트)');
+        exercises.push('2. 심부경부굴근 활성화: 누워서 턱을 가슴에 가깝게 당기며 머리만 살짝 들어올리기 (10회×3세트)');
+        exercises.push('3. 하부승모근 강화: 팔을 30도 각도로 올리며 어깨뼈를 아래로 눌러 모으기 (15회×3세트)');
+        exercises.push('4. 상부승모근 스트레칭: 머리를 옆으로 기울여 반대편 어깨 방향으로 스트레칭 (좌우 각 30초)');
+      } else {
+        tight.push('상부승모근', '견갑거근');
+        weak.push('심부경부굴근');
+        comments.push(`전방두 자세 경미: CVA ${cva.toFixed(1)}°로 정상 범위(≥50°)에 근접합니다.`);
+        details.push(`• 상부승모근과 견갑거근에 약간의 긴장이 있습니다.`);
+        details.push(`• 심부경부굴근 활성화가 필요합니다.`);
+        exercises.push('1. 턱 당기기 운동: 벽에 등을 대고 턱을 뒤로 당기기 (10초×3세트)');
+        exercises.push('2. 심부경부굴근 강화: 누워서 머리만 살짝 들어올리기 (10회×2세트)');
+        exercises.push('3. 상부승모근 스트레칭: 좌우 각 30초씩 스트레칭');
+      }
+    }
+  }
+  
+  // 골반 기울기 분석 (상세)
+  if(pelvic != null) {
+    const abs = Math.abs(pelvic);
+    if(abs > 5) {
+      if(pelvic > 0) {
+        tight.push('장요근', '요추기립근', '대퇴직근', '흉요근막');
+        weak.push('복횡근', '둔근', '대둔근', '중둔근', '하둔근');
+        comments.push(`골반 전방경사 심각: ${pelvic.toFixed(1)}°로 목표 0°보다 ${pelvic.toFixed(1)}° 큽니다.`);
+        details.push(`• 장요근이 단축되어 골반을 앞으로 당기고 있습니다.`);
+        details.push(`• 요추 전만이 증가하여 허리 통증 위험이 높습니다.`);
+        details.push(`• 복횡근과 둔근이 약화되어 골반 안정성이 떨어집니다.`);
+        exercises.push('1. 장요근 스트레칭: 한쪽 무릎을 앞으로 내밀고 반대편 다리를 뒤로 뻗어 스트레칭 (좌우 각 30초×3회)');
+        exercises.push('2. 둔근 강화: 누워서 엉덩이를 들어올리며 둔근 수축 (15회×3세트)');
+        exercises.push('3. 복횡근 활성화: 네 발로 엎드려서 복부를 안으로 당기며 호흡 (10회×3세트)');
+        exercises.push('4. 힙 브릿지: 누워서 무릎을 구부리고 엉덩이를 들어올리기 (15회×3세트)');
+      } else {
+        tight.push('둔근', '햄스트링', '요추신근');
+        weak.push('복직근', '장요근', '대퇴사두근');
+        comments.push(`골반 후방경사: ${pelvic.toFixed(1)}°로 목표 0°보다 작습니다.`);
+        details.push(`• 둔근과 햄스트링이 과도하게 긴장되어 있습니다.`);
+        details.push(`• 복직근과 장요근이 약화되어 골반이 뒤로 기울어집니다.`);
+        exercises.push('1. 둔근 스트레칭: 앉아서 한쪽 무릎을 가슴에 당기기 (좌우 각 30초)');
+        exercises.push('2. 햄스트링 스트레칭: 다리를 뻗고 앞으로 숙이기 (30초×3회)');
+        exercises.push('3. 복직근 강화: 크런치 운동 (15회×3세트)');
+        exercises.push('4. 장요근 강화: 무릎 당기기 운동 (10회×3세트)');
+      }
+    } else {
+      comments.push(`골반 정렬 양호: ${pelvic.toFixed(1)}°`);
+      details.push(`• 골반 정렬이 양호한 상태입니다.`);
+    }
+  }
+  
+  // 무릎 각도 분석 (상세)
+  if(knee != null) {
+    if(knee < 175) {
+      if(knee < 165) {
+        tight.push('햄스트링', '비복근', '가자미근', '슬와근');
+        weak.push('대퇴사두근', '둔근', '대퇴직근');
+        comments.push(`무릎 과굴곡 심각: ${knee.toFixed(1)}°로 목표 180°보다 ${(180-knee).toFixed(1)}° 낮습니다.`);
+        details.push(`• 햄스트링과 비복근이 심각하게 단축되어 무릎을 구부리고 있습니다.`);
+        details.push(`• 대퇴사두근이 약화되어 무릎을 펴지 못합니다.`);
+        details.push(`• 장기적으로 무릎 관절 압력 증가 및 전방 십자인대 부상 위험이 있습니다.`);
+        exercises.push('1. 햄스트링 스트레칭: 서서 다리를 올리고 앞으로 숙이기 (좌우 각 30초×3회)');
+        exercises.push('2. 비복근 스트레칭: 벽에 손을 대고 한쪽 다리를 뒤로 내밀며 스트레칭 (좌우 각 30초)');
+        exercises.push('3. 대퇴사두근 강화: 의자에 앉아 다리를 펴며 무릎 락 (10초 유지×10회)');
+        exercises.push('4. 스쿼트: 천천히 앉았다 일어서기 (10회×3세트)');
+      } else {
+        tight.push('햄스트링', '비복근');
+        weak.push('대퇴사두근');
+        comments.push(`무릎 약간 굴곡: ${knee.toFixed(1)}°로 목표에 근접합니다.`);
+        details.push(`• 햄스트링과 비복근에 약간의 긴장이 있습니다.`);
+        details.push(`• 대퇴사두근 강화가 필요합니다.`);
+        exercises.push('1. 햄스트링 스트레칭: 좌우 각 30초씩 스트레칭');
+        exercises.push('2. 대퇴사두근 강화: 의자에 앉아 다리 펴기 (10회×2세트)');
+        exercises.push('3. 스쿼트: 10회×2세트');
+      }
+    } else if(knee <= 185) {
+      comments.push(`무릎 정렬 양호: ${knee.toFixed(1)}°`);
+      details.push(`• 무릎 정렬이 양호한 상태입니다.`);
+    } else {
+      comments.push(`무릎 과신전: ${knee.toFixed(1)}°로 목표를 초과합니다.`);
+      details.push(`• 무릎이 과도하게 펴져 있어 후방 십자인대 부상 위험이 있습니다.`);
+      exercises.push('1. 무릎 미세 굴곡 연습: 서서 무릎을 살짝 구부리기 (10회×2세트)');
+      exercises.push('2. 대퇴사두근 이완: 누워서 무릎 아래에 베개를 넣고 스트레칭');
+    }
+  }
+  
+  // 종합 운동 추천
+  if(exercises.length === 0 && (tight.length > 0 || weak.length > 0)) {
+    exercises.push('1. 전신 스트레칭: 매일 아침 10분간 전신 스트레칭');
+    exercises.push('2. 코어 강화: 플랭크 30초 유지 (3세트)');
+    exercises.push('3. 자세 교정 운동: 벽에 등을 대고 서서 몸 정렬 유지 (1분×3회)');
+  }
+  
+  // 필라테스 추천
+  const pilates = recommendPilates([...new Set(tight)], [...new Set(weak)]);
+  
+  return { 
+    tight: [...new Set(tight)], 
+    weak: [...new Set(weak)], 
+    comments,
+    details,
+    exercises: [...new Set(exercises)],
+    pilates
+  };
+}
+
+function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
+  const scoreEl = document.getElementById("totalScore");
+  const reasonEl = document.getElementById("scoreReason");
+  const commentEl = document.getElementById("aiComment");
+  const commentPanel = document.getElementById("aiCommentPanel");
+  const musclePanel = document.getElementById("musclePanel");
+  const tightList = document.getElementById("muscleTightList");
+  const weakList = document.getElementById("muscleWeakList");
+  const detailList = document.getElementById("muscleDetailList");
+  const exercisePanel = document.getElementById("exercisePanel");
+  const exerciseList = document.getElementById("exerciseList");
+  const pilatesPanel = document.getElementById("pilatesPanel");
+  const pilatesList = document.getElementById("pilatesList");
+  
+  if(scoreData && scoreData.score != null) {
+    const score = scoreData.score;
+    scoreEl.textContent = score;
+    
+    // 점수 색상
+    if(score >= 85) {
+      scoreEl.style.color = "#2ec4b6";
+    } else if(score >= 70) {
+      scoreEl.style.color = "#ffd166";
+    } else {
+      scoreEl.style.color = "#ff6b6b";
+    }
+    
+    // 점수 근거
+    if(scoreData.reasons && scoreData.reasons.length > 0) {
+      reasonEl.textContent = "감점 근거: " + scoreData.reasons.join(", ");
+    } else {
+      reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
+    }
+  } else {
+    scoreEl.textContent = "—";
+    reasonEl.textContent = "";
+  }
+  
+  // AI 코멘트 (더 상세하게)
+  if(analysis && analysis.comments && analysis.comments.length > 0) {
+    let commentText = analysis.comments.join(" ");
+    if(analysis.details && analysis.details.length > 0) {
+      commentText += "\n\n" + analysis.details.join("\n");
+    }
+    commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
+    commentPanel.style.display = "block";
+  } else {
+    commentPanel.style.display = "none";
+  }
+  
+  // 근육 분석 (상세)
+  if(analysis && (analysis.tight.length > 0 || analysis.weak.length > 0)) {
+    if(analysis.tight.length > 0) {
+      tightList.innerHTML = analysis.tight.join(", ").replace(/,/g, ', ');
+    } else {
+      tightList.textContent = "없음";
+      tightList.style.color = "var(--muted)";
+    }
+    
+    if(analysis.weak.length > 0) {
+      weakList.innerHTML = analysis.weak.join(", ").replace(/,/g, ', ');
+    } else {
+      weakList.textContent = "없음";
+      weakList.style.color = "var(--muted)";
+    }
+    
+    // 상세 분석 표시
+    if(analysis.details && analysis.details.length > 0) {
+      detailList.innerHTML = analysis.details.join("<br>");
+    } else {
+      detailList.textContent = "상세 분석 없음";
+    }
+    
+    musclePanel.style.display = "block";
+  } else {
+    musclePanel.style.display = "none";
+  }
+  
+  // 운동 추천
+  if(analysis && analysis.exercises && analysis.exercises.length > 0) {
+    exerciseList.innerHTML = analysis.exercises.map(ex => `<div style="margin-bottom:6px;">${ex}</div>`).join("");
+    exercisePanel.style.display = "block";
+  } else {
+    exercisePanel.style.display = "none";
+  }
+  
+  // 필라테스 추천
+  if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+    let pilatesHTML = '';
+    analysis.pilates.forEach((item, idx) => {
+      pilatesHTML += `<div style="margin-bottom:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">`;
+      pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#9c88ff;">${idx + 1}. ${item.issue} (${item.muscles.join(', ')})</div>`;
+      pilatesHTML += `<div style="font-size:11px; color:var(--muted); margin-bottom:6px;">${item.type === '긴장' ? '긴장 완화' : '강화'} 필요</div>`;
+      const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+      tools.forEach(tool => {
+        if(item.pilates[tool] && item.pilates[tool].length > 0) {
+          pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong style="color:#9c88ff;">${tool}:</strong> <span style="color:var(--ink);">${item.pilates[tool].join(', ')}</span></div>`;
+        }
+      });
+      pilatesHTML += `</div>`;
+    });
+    pilatesList.innerHTML = pilatesHTML;
+    pilatesPanel.style.display = "block";
+  } else {
+    pilatesPanel.style.display = "none";
+  }
+}
+
+function updateDisplay() {
+  const M = sessions[cur].metrics;
+  document.getElementById("dispCva").textContent = M.cva != null ? M.cva.toFixed(1) + "°" : "—";
+  document.getElementById("dispPel").textContent = M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—";
+  document.getElementById("dispKnee").textContent = M.knee != null ? M.knee.toFixed(1) + "°" : "—";
+}
+
+function fmtDeg(v) {
+  return (v == null || isNaN(v)) ? "—" : v.toFixed(1) + "°";
+}
+
+function deltaStr(b, a, suf = "") {
+  if(b == null || a == null || isNaN(b) || isNaN(a)) return "—";
+  const d = a - b;
+  const sign = d > 0 ? "+" : "";
+  return sign + d.toFixed(1) + (suf || "");
+}
+
+function updateCompare() {
+  const B = sessions.Before, A = sessions.After;
+  const cB = B.metrics.cva, cA = A.metrics.cva;
+  document.getElementById("cmpCvaB").textContent = fmtDeg(cB);
+  document.getElementById("cmpCvaA").textContent = fmtDeg(cA);
+  document.getElementById("cmpCvaD").textContent = deltaStr(cB, cA, "°");
+
+  const pB = B.metrics.pelvic, pA = A.metrics.pelvic;
+  document.getElementById("cmpPelB").textContent = fmtDeg(pB);
+  document.getElementById("cmpPelA").textContent = fmtDeg(pA);
+  document.getElementById("cmpPelD").textContent = deltaStr(pB, pA, "°");
+
+  const kB = B.metrics.knee, kA = A.metrics.knee;
+  document.getElementById("cmpKneeB").textContent = fmtDeg(kB);
+  document.getElementById("cmpKneeA").textContent = fmtDeg(kA);
+  document.getElementById("cmpKneeD").textContent = deltaStr(kB, kA, "°");
+  
+  // 점수 비교 추가
+  const sB = B.score ? B.score.score : null, sA = A.score ? A.score.score : null;
+  if(!document.getElementById("cmpScoreRow")) {
+    const tbody = document.querySelector(".tbl tbody");
+    const row = document.createElement("tr");
+    row.id = "cmpScoreRow";
+    row.innerHTML = `
+      <td>체형 점수</td>
+      <td id="cmpScoreB">—</td>
+      <td id="cmpScoreA">—</td>
+      <td id="cmpScoreD">—</td>
+      <td>0–100</td>
+    `;
+    tbody.appendChild(row);
+  }
+  document.getElementById("cmpScoreB").textContent = sB != null ? sB : "—";
+  document.getElementById("cmpScoreA").textContent = sA != null ? sA : "—";
+  document.getElementById("cmpScoreD").textContent = deltaStr(sB, sA, "");
+}
+
+// 좌표 수정 모드 토글
+const btnEditCoords = document.getElementById("btnEditCoords");
+const coordEditPanel = document.getElementById("coordEditPanel");
+if(btnEditCoords && coordEditPanel) {
+  btnEditCoords.onclick = () => {
+    editMode = !editMode;
+    console.log("좌표 수정 모드:", editMode ? "활성" : "비활성");
+    if(editMode) {
+      // 원본 크기 저장
+      if(originalCanvasSize.width === 0) {
+        originalCanvasSize.width = cv.width / DPR;
+        originalCanvasSize.height = cv.height / DPR;
+        originalCanvasSize.styleWidth = parseFloat(cv.style.width) || cv.width / DPR;
+        originalCanvasSize.styleHeight = parseFloat(cv.style.height) || cv.height / DPR;
+      }
+      coordEditPanel.style.display = "block";
+      btnEditCoords.style.background = "rgba(124,156,255,0.4)";
+      btnEditCoords.textContent = "✏️ 좌표 수정 모드 (활성)";
+      // 확대 적용
+      applyZoom();
+    } else {
+      // 원래 크기로 복원
+      currentZoom = 1;
+      coordEditPanel.style.display = "none";
+      btnEditCoords.style.background = "rgba(124,156,255,0.2)";
+      btnEditCoords.textContent = "✏️ 좌표 수정 모드";
+      selectedPoint = null;
+      const selectEl = document.getElementById("coordSelectPoint");
+      const xEl = document.getElementById("coordX");
+      const yEl = document.getElementById("coordY");
+      const zoomEl = document.getElementById("zoomLevel");
+      if(selectEl) selectEl.value = "";
+      if(xEl) xEl.value = "";
+      if(yEl) yEl.value = "";
+      if(zoomEl) zoomEl.value = "1";
+      // 원본 크기로 복원
+      if(sessions[cur].img) {
+        resizeCanvasFor(sessions[cur].img);
+      }
+      draw(); // 다시 그리기
+    }
+  };
+} else {
+  console.error("좌표 수정 모드 요소를 찾을 수 없습니다:", {btnEditCoords, coordEditPanel});
+}
+
+// 확대 적용 함수
+function applyZoom() {
+  if(!editMode || !sessions[cur].img) {
+    return;
+  }
+  const zoomEl = document.getElementById("zoomLevel");
+  if(zoomEl) {
+    const newZoom = parseInt(zoomEl.value) || 1;
+    currentZoom = clamp(newZoom, 1, 4); // 1~4배로 제한
+  }
+  
+  // 원본 이미지로 확대 적용 (비율 유지)
+  const img = sessions[cur].img;
+  resizeCanvasFor(img);
+  
+  // 좌표 입력 필드 업데이트
+  if(selectedPoint) {
+    const P = getPts(cur);
+    const pt = P[selectedPoint];
+    if(pt && coordX && coordY) {
+      // 좌표는 항상 원본 크기 기준으로 표시
+      coordX.value = pt.x.toFixed(1);
+      coordY.value = pt.y.toFixed(1);
+    }
+  }
+}
+
+// 확대 배율 변경
+const zoomLevel = document.getElementById("zoomLevel");
+if(zoomLevel) {
+  zoomLevel.addEventListener("change", () => {
+    if(editMode) {
+      applyZoom();
+    }
+  });
+}
+
+// 점 선택 드롭다운 변경
+const coordSelectPoint = document.getElementById("coordSelectPoint");
+const coordX = document.getElementById("coordX");
+const coordY = document.getElementById("coordY");
+
+// 점 선택 시 좌표 표시 함수
+function updateCoordDisplay() {
+  if(!coordX || !coordY) return;
+  
+  if(selectedPoint) {
+    const P = getPts(cur);
+    const pt = P[selectedPoint];
+    if(pt) {
+      // 원본 크기 기준 좌표 표시
+      coordX.value = pt.x.toFixed(1);
+      coordY.value = pt.y.toFixed(1);
+    } else {
+      // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
+      if(sessions[cur].img) {
+        const originalW = originalCanvasSize.width || (cv.width / DPR);
+        const originalH = originalCanvasSize.height || (cv.height / DPR);
+        const defaultX = (originalW / 2).toFixed(1);
+        const defaultY = (originalH / 2).toFixed(1);
+        coordX.value = defaultX;
+        coordY.value = defaultY;
+      } else {
+        coordX.value = "";
+        coordY.value = "";
+      }
+    }
+    draw();
+  } else {
+    coordX.value = "";
+    coordY.value = "";
+    draw();
+  }
+}
+
+if(coordSelectPoint && coordX && coordY) {
+  coordSelectPoint.addEventListener("change", e => {
+    selectedPoint = e.target.value || null;
+    console.log("선택된 점:", selectedPoint);
+    updateCoordDisplay();
+  });
+  
+  // 초기화 시에도 좌표 표시 업데이트 (점이 이미 선택되어 있으면)
+  if(selectedPoint) {
+    updateCoordDisplay();
+  }
+} else {
+  console.error("좌표 입력 요소를 찾을 수 없습니다:", {coordSelectPoint, coordX, coordY});
+}
+
+// 드래그할 때도 좌표 업데이트를 위해 함수를 전역으로 노출
+window.updateCoordDisplay = updateCoordDisplay;
+
+// 좌표 적용 (저장 버튼 역할 - AI 분석 실행)
+const coordApply = document.getElementById("coordApply");
+if(coordApply) {
+  coordApply.onclick = () => {
+    if(!selectedPoint) {
+      alert("점을 선택해주세요.");
+      return;
+    }
+    const x = parseFloat(coordX.value);
+    const y = parseFloat(coordY.value);
+    if(isNaN(x) || isNaN(y)) {
+      alert("올바른 좌표를 입력해주세요.");
+      return;
+    }
+    // 좌표는 항상 원본 크기 기준으로 저장
+    const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+    const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+    const clampedX = clamp(x, 0, originalW);
+    const clampedY = clamp(y, 0, originalH);
+    map.set(selectedPoint, {
+      x: clampedX,
+      y: clampedY
+    });
+    draw();
+    // 저장 버튼이므로 AI 분석 실행
+    computeAll();
+    // 입력 필드 업데이트
+    coordX.value = clampedX.toFixed(1);
+    coordY.value = clampedY.toFixed(1);
+    
+    // 실시간 분석 실행
+    if(typeof liveAnalyzer !== 'undefined') {
+      liveAnalyzer.analyzeCurrentSession();
+    }
+    // 저장 후 원래 크기로 복원
+    if(editMode) {
+      currentZoom = 1;
+      const zoomEl = document.getElementById("zoomLevel");
+      if(zoomEl) zoomEl.value = "1";
+      if(sessions[cur].img) {
+        resizeCanvasFor(sessions[cur].img);
+        draw();
+      }
+    }
+  };
+}
+
+// 취소
+const coordCancel = document.getElementById("coordCancel");
+if(coordCancel) {
+  coordCancel.onclick = () => {
+    selectedPoint = null;
+    if(coordSelectPoint) coordSelectPoint.value = "";
+    if(coordX) coordX.value = "";
+    if(coordY) coordY.value = "";
+    draw();
+  };
+}
+
+// X, Y 좌표 입력 필드에서 Enter 키로도 적용 가능
+if(coordX) {
+  coordX.addEventListener("keypress", e => {
+    if(e.key === "Enter") {
+      if(coordApply) coordApply.click();
+    }
+  });
+}
+if(coordY) {
+  coordY.addEventListener("keypress", e => {
+    if(e.key === "Enter") {
+      if(coordApply) coordApply.click();
+    }
+  });
+}
+
+// 좌표 증감 버튼 기능 (자동 적용)
+function adjustCoordinate(coordField, delta) {
+  if(!coordField) return;
+  
+  // 현재 값이 비어있으면 기본값 설정
+  let currentValue = parseFloat(coordField.value);
+  if(isNaN(currentValue)) {
+    // 좌표가 없으면 중앙값으로 설정
+    const originalW = originalCanvasSize.width || (cv.width / DPR);
+    const originalH = originalCanvasSize.height || (cv.height / DPR);
+    if(coordField === coordX) {
+      currentValue = originalW / 2;
+    } else {
+      currentValue = originalH / 2;
+    }
+  }
+  
+  const newValue = currentValue + delta;
+  coordField.value = newValue.toFixed(1);
+  
+  // 자동으로 적용 (점이 선택되어 있고 좌표가 유효한 경우)
+  if(selectedPoint && !isNaN(newValue)) {
+    const xField = coordX;
+    const yField = coordY;
+    if(!xField || !yField) return;
+    
+    const x = parseFloat(xField.value);
+    const y = parseFloat(yField.value);
+    
+    if(!isNaN(x) && !isNaN(y)) {
+      // 좌표는 항상 원본 크기 기준으로 저장
+      const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+      const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+      const orientation = sessions[cur].poseData?.orientation || "side";
+      const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+      const clampedX = clamp(x, 0, originalW);
+      const clampedY = clamp(y, 0, originalH);
+      
+      map.set(selectedPoint, {
+        x: clampedX,
+        y: clampedY
+      });
+      
+      // 입력 필드도 업데이트 (클램핑된 값)
+      xField.value = clampedX.toFixed(1);
+      yField.value = clampedY.toFixed(1);
+      
+    draw();
+    computeMetricsOnly(); // 실시간 분석 없음 (저장 버튼 클릭 시에만 AI 분석)
+    }
+  }
+}
+
+// 증감 버튼 연속 클릭 변수
+let incrementTimer = null;
+let incrementInterval = null;
+
+function startIncrement(coordField, delta) {
+  // 즉시 한 번 실행
+  adjustCoordinate(coordField, delta);
+  
+  // 짧은 딜레이 후 연속 실행
+  incrementTimer = setTimeout(() => {
+    incrementInterval = setInterval(() => {
+      adjustCoordinate(coordField, delta);
+    }, 50); // 50ms마다 실행 (빠른 증감)
+  }, 300); // 300ms 후 연속 실행 시작
+}
+
+function stopIncrement() {
+  if(incrementTimer) {
+    clearTimeout(incrementTimer);
+    incrementTimer = null;
+  }
+  if(incrementInterval) {
+    clearInterval(incrementInterval);
+    incrementInterval = null;
+  }
+}
+
+// X 좌표 증감 버튼
+const coordXDec = document.getElementById("coordXDec");
+const coordXInc = document.getElementById("coordXInc");
+if(coordXDec) {
+  coordXDec.onmousedown = () => {
+    if(coordX) startIncrement(coordX, -0.1);
+  };
+  coordXDec.onmouseup = stopIncrement;
+  coordXDec.onmouseleave = stopIncrement;
+  coordXDec.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordX) startIncrement(coordX, -0.1);
+  };
+  coordXDec.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordXDec.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+}
+if(coordXInc) {
+  coordXInc.onmousedown = () => {
+    if(coordX) startIncrement(coordX, 0.1);
+  };
+  coordXInc.onmouseup = stopIncrement;
+  coordXInc.onmouseleave = stopIncrement;
+  coordXInc.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordX) startIncrement(coordX, 0.1);
+  };
+  coordXInc.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordXInc.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+}
+
+// Y 좌표 증감 버튼 (Y는 화면 아래로 갈수록 값이 커지므로 반대로)
+const coordYDec = document.getElementById("coordYDec");
+const coordYInc = document.getElementById("coordYInc");
+if(coordYDec) {
+  coordYDec.onmousedown = () => {
+    if(coordY) startIncrement(coordY, 0.1); // Y는 위로 가려면 값이 증가해야 함
+  };
+  coordYDec.onmouseup = stopIncrement;
+  coordYDec.onmouseleave = stopIncrement;
+  coordYDec.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordY) startIncrement(coordY, 0.1);
+  };
+  coordYDec.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordYDec.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+}
+if(coordYInc) {
+  coordYInc.onmousedown = () => {
+    if(coordY) startIncrement(coordY, -0.1); // Y는 아래로 가려면 값이 감소해야 함
+  };
+  coordYInc.onmouseup = stopIncrement;
+  coordYInc.onmouseleave = stopIncrement;
+  coordYInc.ontouchstart = (e) => {
+    e.preventDefault();
+    if(coordY) startIncrement(coordY, -0.1);
+  };
+  coordYInc.ontouchend = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+  coordYInc.ontouchcancel = (e) => {
+    e.preventDefault();
+    stopIncrement();
+  };
+}
+
+// 드래그 기능 (마우스 + 터치)
+function getEventPos(e) {
+  const r = cv.getBoundingClientRect();
+  const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+  
+  // 캔버스 상대 좌표 (화면 기준, 스크롤 오프셋 포함)
+  let x = clientX - r.left;
+  let y = clientY - r.top;
+  
+  // 확대 모드에서 스크롤 오프셋 고려
+  // 스크롤 오프셋은 CSS 픽셀 기준이므로 먼저 더해야 함
+  if(editMode && currentZoom > 1) {
+    const canvasWrap = cv.parentElement;
+    const scrollX = canvasWrap.scrollLeft || 0;
+    const scrollY = canvasWrap.scrollTop || 0;
+    // 스크롤 오프셋을 CSS 좌표에 더함 (스크롤된 만큼 더함)
+    x += scrollX;
+    y += scrollY;
+  }
+  
+  // CSS 크기 대비 실제 캔버스 크기 비율 계산
+  // cv.width는 실제 픽셀 크기 (확대된 크기), r.width는 CSS 크기
+  const scaleX = (cv.width / DPR) / r.width;
+  const scaleY = (cv.height / DPR) / r.height;
+  
+  // 실제 캔버스 픽셀 좌표로 변환 (확대된 크기 기준)
+  // 스크롤 오프셋을 포함한 CSS 좌표를 실제 픽셀 좌표로 변환
+  x = x * scaleX;
+  y = y * scaleY;
+  
+  // 좌표 수정 모드에서 확대된 경우, 좌표를 원본 크기 기준으로 변환
+  if(editMode && currentZoom > 1) {
+    // 확대된 캔버스 좌표를 원본 크기로 변환
+    // 원본 크기 = 확대된 크기 / 확대 배율
+    x = x / currentZoom;
+    y = y / currentZoom;
+  }
+  
+  return { x, y };
+}
+
+function startDrag(e) {
+  // 상태 초기화 (touchstart에서 이미 초기화했을 수 있지만 다시 초기화)
+  // 이전 상태가 완전히 정리되었는지 확인
+  if(dragKey) {
+    console.log('⚠️ startDrag: 이전 드래그 상태가 아직 남아있음:', dragKey);
+  }
+  
+  // 상태 초기화 (명시적으로)
+  dragKey = null;
+  isScrolling = false;
+  scrollDistance = 0;
+  
+  // 터치 이벤트인 경우 손가락 개수 확인
+  let touchCount = 0;
+  if(e.touches) {
+    touchCount = e.touches.length;
+    touchStartTime = Date.now();
+  }
+  
+  // 확대 모드에서 스크롤은 두 손가락만 허용
+  if(editMode && currentZoom > 1 && touchCount === 2) {
+    // 두 손가락 터치: 스크롤 모드만 허용 (점 드래그 불가)
+    isScrolling = true;
+    dragKey = null;
+    if(e.touches && e.touches.length > 0) {
+      scrollStartX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      scrollStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }
+    return false;
+  }
+  
+  // 한 손가락 터치만 점 드래그 허용
+  if(touchCount > 1 && !(editMode && currentZoom > 1)) {
+    // 확대 모드가 아닌데 두 손가락 이상이면 무시
+    return false;
+  }
+  
+  const pos = getEventPos(e);
+  const P = getPts(cur);
+  
+  // Long press 관련 상태 초기화 (더 이상 사용하지 않지만 정리용)
+  if(longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  longPressDetected = false;
+  longPressNearPoint = null;
+  
+  // 먼저 모든 점을 체크하여 점을 터치했는지 확인
+  // getEventPos는 이미 원본 크기 기준으로 좌표를 반환하므로, 점 좌표와 직접 비교 가능
+  let bestPoint = null;
+  let bestDistance = 1e9;
+  
+  // threshold 계산: 확대 모드에서는 1cm 정도의 감지 영역만 유지
+  // 1cm를 픽셀로 변환 (일반적으로 96 DPI 기준 약 37.8픽셀, 하지만 실제로는 devicePixelRatio 고려)
+  // 실제 화면 크기를 고려하여 더 정확하게 계산
+  const r = cv.getBoundingClientRect();
+  const screenWidth = r.width; // CSS 픽셀
+  
+  // 2cm를 픽셀로 변환 (96 DPI 기준: 1cm ≈ 37.8px, 2cm ≈ 75.6px)
+  // 하지만 실제 화면에서는 devicePixelRatio를 고려해야 함
+  // 간단하게 화면 크기 기준으로 2cm를 추정 (화면 너비의 약 5% 정도)
+  const cmToPixel = screenWidth * 0.05; // 화면 너비의 5%를 2cm로 추정
+  // 확대 모드에서는 원본 좌표 기준이므로 threshold를 적절히 설정
+  // 너무 크면 빈 화면을 눌러도 드래그가 시작될 수 있으므로 적절한 범위 유지
+  const baseThreshold = Math.max(50, Math.min(100, cmToPixel)); // 최소 50px, 최대 100px (2cm)
+  
+  // 확대 모드에서는 원본 크기 기준으로 threshold를 계산
+  // 모든 확대 배율에서 동일한 인식 범위를 유지하기 위해 원본 좌표 기준으로 threshold 사용
+  let threshold;
+  if(editMode && currentZoom > 1) {
+    // 확대 모드: 원본 좌표 기준으로 threshold 설정
+    // 모든 확대 배율(2, 3, 4배)에서 동일한 인식 범위를 유지
+    // 원본 좌표 기준이므로 threshold는 그대로 사용
+    threshold = baseThreshold; // 확대 모드에서는 원본 기준 threshold 사용 (모든 배율에서 동일)
+  } else {
+    // 일반 모드: 화면 픽셀 기준 (라벨 영역 포함)
+    threshold = baseThreshold * 1.5; // 라벨 영역 포함을 위해 약간 더 크게
+  }
+  
+  console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
+  
+  // 좌표 수정 모드일 때는 선택된 점만 체크
+  if(editMode && selectedPoint) {
+    const pt = P[selectedPoint];
+    if(pt) {
+      // 확대 모드에서는 원본 좌표 기준으로 거리 계산 (threshold도 원본 기준)
+      // pos는 이미 원본 크기 기준으로 변환되어 있음
+      const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+      if(d < threshold) {
+        bestPoint = selectedPoint;
+        bestDistance = d;
+      }
+    }
+  } else {
+    // 일반 모드: 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
+    const currentKeypoints = getKeypoints();
+    for(const k of currentKeypoints) {
+      const p = P[k.key];
+      if(!p) continue;
+      
+      let d;
+      
+      if(editMode && currentZoom > 1) {
+        // 확대 모드: 원본 좌표 기준으로 거리 계산
+        // pos는 이미 원본 크기 기준으로 변환되어 있음
+        // 모든 확대 배율에서 동일한 계산 방식 사용
+        d = Math.hypot(p.x - pos.x, p.y - pos.y);
+        if(d < threshold) {
+          console.log('✅ 확대 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
+        }
+      } else {
+        // 일반 모드: 화면 좌표 기준으로 거리 계산 (라벨 영역 포함)
+        const scaleX = 1;
+        const scaleY = 1;
+        const screenPtX = p.x * scaleX;
+        const screenPtY = p.y * scaleY;
+        const screenPosX = pos.x * scaleX;
+        const screenPosY = pos.y * scaleY;
+        
+        // 점과의 거리 계산
+        d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
+        
+        // 라벨 영역 체크 (점 오른쪽에 라벨이 있음)
+        // 라벨은 점 오른쪽에 위치: x + 10부터 시작, 너비는 대략 100픽셀, 높이는 16픽셀
+        const labelX = screenPtX + 10;
+        const labelY = screenPtY - 12;
+        const labelWidth = 100; // 라벨 최대 너비
+        const labelHeight = 16;
+        
+        // 라벨 영역 내에 있는지 확인
+        if(screenPosX >= labelX && screenPosX <= labelX + labelWidth &&
+           screenPosY >= labelY && screenPosY <= labelY + labelHeight) {
+          d = 0; // 라벨 영역 내에 있으면 최우선
+        }
+      }
+      
+      if(d < threshold && d < bestDistance) {
+        bestPoint = k.key;
+        bestDistance = d;
+      }
+    }
+  }
+  
+  // 점 근처를 터치했을 때만 드래그 모드로 전환
+  // bestPoint가 설정되고 threshold 내에 있을 때만 드래그 시작
+  if(bestPoint && bestDistance < threshold) {
+    // preventDefault는 이벤트 리스너에서 처리하므로 여기서는 하지 않음
+    isScrolling = false;
+    dragKey = bestPoint; // 확실하게 설정
+    
+    // 스크롤 시작 위치 저장 (드래그 중에도 사용)
+    if(e.touches && e.touches.length > 0) {
+      scrollStartX = e.touches[0].clientX;
+      scrollStartY = e.touches[0].clientY;
+    } else {
+      scrollStartX = e.clientX;
+      scrollStartY = e.clientY;
+    }
+    
+    console.log('✅ 드래그 시작 성공:', bestPoint, '거리:', bestDistance.toFixed(2), 'threshold:', threshold, 'pos:', pos, 'dragKey:', dragKey, 'editMode:', editMode, 'zoom:', currentZoom);
+    return true;
+  } else {
+    // 점 근처를 누르지 않았으면 드래그 시작하지 않음
+    console.log('❌ 점 근처를 누르지 않음, bestPoint:', bestPoint, '거리:', bestDistance < 1e9 ? bestDistance.toFixed(2) : 'N/A', 'threshold:', threshold, 'pos:', pos);
+  }
+  
+  // 점이 아닌 빈 화면을 터치했으면 드래그 시작하지 않음
+  // 확대 모드에서 한 손가락 터치는 스크롤 불가 (두 손가락만 스크롤)
+  // 일반 모드에서는 아무 동작도 하지 않음
+  isScrolling = false;
+  dragKey = null; // 명시적으로 null로 설정
+  return false;
+}
+
+function doDrag(e) {
+  // 터치 이벤트인 경우 손가락 개수 확인
+  let touchCount = 0;
+  if(e.touches) {
+    touchCount = e.touches.length;
+  }
+  
+  // 두 손가락 터치: 스크롤만 허용 (확대 모드에서만)
+  if(touchCount === 2 && editMode && currentZoom > 1) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 스크롤 모드 활성화 확인
+    if(!isScrolling) {
+      // 스크롤 모드가 아니면 초기화하고 시작
+      isScrolling = true;
+      dragKey = null;
+    }
+    
+    // 두 손가락의 중심점 계산
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const currentX = (touch1.clientX + touch2.clientX) / 2;
+    const currentY = (touch1.clientY + touch2.clientY) / 2;
+    
+    // 스크롤 시작 위치가 설정되지 않았으면 설정
+    if(scrollStartX === 0 && scrollStartY === 0) {
+      scrollStartX = currentX;
+      scrollStartY = currentY;
+      return;
+    }
+    
+    // 스크롤만 수행
+    const canvasWrap = cv.parentElement;
+    const deltaX = scrollStartX - currentX;
+    const deltaY = scrollStartY - currentY;
+    canvasWrap.scrollLeft += deltaX;
+    canvasWrap.scrollTop += deltaY;
+    scrollStartX = currentX;
+    scrollStartY = currentY;
+    return;
+  }
+  
+  // 한 손가락만 드래그 허용 (두 손가락 이상이면 무시)
+  if(touchCount > 1 && !(editMode && currentZoom > 1 && touchCount === 2)) {
+    return;
+  }
+  
+  // dragKey가 없으면 드래그 처리 안 함
+  if(!dragKey) {
+    return;
+  }
+  
+  // 드래그 모드가 이미 활성화되어 있으면 드래그 처리만 수행 (스크롤 완전 차단)
+  if(dragKey) {
+    e.preventDefault(); // 스크롤 방지
+    e.stopPropagation(); // 이벤트 전파 차단
+    
+    const pos = getEventPos(e);
+    // 좌표는 항상 원본 크기 기준으로 저장
+    const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+    const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+    const x = clamp(pos.x, 0, originalW);
+    const y = clamp(pos.y, 0, originalH);
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+    const p = map.get(dragKey);
+    
+    if(!p) {
+      // 점이 없으면 드래그 종료
+      console.log('점이 없어 드래그 종료:', dragKey);
+      dragKey = null;
+      isScrolling = false;
+      return;
+    }
+    
+    // 좌표 수정 모드에서는 선택된 점만 이동
+    if(editMode && selectedPoint) {
+      if(dragKey !== selectedPoint) {
+        // 선택된 점이 아니면 드래그 종료하지 않고 계속 진행
+        // (다른 점을 드래그하는 경우를 허용)
+        return;
+      }
+    }
+    
+    // 좌표 업데이트
+    p.x = x;
+    p.y = y;
+    
+    // 입력 필드도 실시간 업데이트 (원본 크기 기준)
+    // 좌표 수정 모드가 아니거나, 선택된 점과 일치하는 경우
+    if((!editMode || selectedPoint === dragKey) && coordX && coordY) {
+      coordX.value = x.toFixed(1);
+      coordY.value = y.toFixed(1);
+    }
+    
+    // 선택된 점과 일치하면 좌표 표시 업데이트
+    if(selectedPoint === dragKey && typeof window.updateCoordDisplay === 'function') {
+      window.updateCoordDisplay();
+    }
+    
+    draw();
+    computeMetricsOnly(); // 실시간 분석 없음 (저장 버튼 클릭 시에만 AI 분석)
+    return; // 드래그 모드에서는 스크롤 완전 차단
+  }
+}
+
+function endDrag(e) {
+  // Long press 타이머 정리 (더 이상 사용하지 않지만 정리용)
+  if(longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  
+  // 드래그가 끝나면 상태 완전히 초기화 (다음 드래그를 위해)
+  const wasDragging = dragKey !== null;
+  if(dragKey) {
+    console.log('드래그 종료:', dragKey);
+  }
+  
+  // 모든 상태 완전히 초기화 (매번 확실히)
+  dragKey = null;
+  isScrolling = false;
+  scrollDistance = 0;
+  scrollStartX = 0;
+  scrollStartY = 0;
+  longPressDetected = false;
+  longPressNearPoint = null;
+  
+  // 마우스 상태도 초기화
+  if(typeof isMouseDown !== 'undefined') {
+    isMouseDown = false;
+  }
+  
+  // 상태 초기화 확인 로그
+  if(wasDragging) {
+    console.log('드래그 상태 초기화 완료, 다음 드래그 준비됨');
+  }
+}
+
+// 마우스 이벤트
+let isMouseDown = false;
+cv.addEventListener('mousedown', (e) => {
+  isMouseDown = true;
+  startDrag(e);
+});
+
+window.addEventListener('mouseup', () => {
+  isMouseDown = false;
+  endDrag();
+});
+
+window.addEventListener('mouseleave', () => {
+  isMouseDown = false;
+  endDrag();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if(isMouseDown || dragKey) {
+    doDrag(e);
+  }
+});
+
+// 터치 이벤트 (모바일 지원)
+cv.addEventListener('touchstart', (e) => {
+  const touchCount = e.touches ? e.touches.length : 0;
+  
+  // 이전 상태가 남아있으면 완전히 초기화 (드래그든 스크롤이든)
+  // 스크롤 후 새로운 드래그를 위해 완전히 초기화
+  if(dragKey || isScrolling) {
+    console.log('⚠️ 이전 상태가 남아있음, 완전히 정리 - dragKey:', dragKey, 'isScrolling:', isScrolling);
+    dragKey = null;
+    isScrolling = false;
+    scrollStartX = 0;
+    scrollStartY = 0;
+    scrollDistance = 0;
+    // endDrag도 호출하여 완전히 정리
+    endDrag(e);
+  }
+  
+  // 두 손가락 스크롤인 경우 스크롤 시작 위치 설정
+  if(touchCount === 2 && editMode && currentZoom > 1) {
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    scrollStartX = (touch1.clientX + touch2.clientX) / 2;
+    scrollStartY = (touch1.clientY + touch2.clientY) / 2;
+    isScrolling = true;
+    dragKey = null;
+    console.log('두 손가락 스크롤 시작, scrollStartX:', scrollStartX, 'scrollStartY:', scrollStartY);
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  
+  // 한 손가락 터치인 경우에만 점 찾기 시도
+  if(touchCount === 1) {
+    // 새로운 터치 시작 (이전 상태는 이미 초기화됨)
+    const result = startDrag(e);
+    
+    // 점을 터치했으면 preventDefault
+    if(result === true) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('한 손가락 터치 - 점 감지 성공, dragKey:', dragKey);
+    } else {
+      console.log('한 손가락 터치 - 점 감지 실패');
+    }
+  }
+}, {passive: false});
+
+window.addEventListener('touchmove', (e) => {
+  const touchCount = e.touches ? e.touches.length : 0;
+  
+  // 두 손가락 터치인 경우 스크롤 모드
+  if(touchCount === 2 && editMode && currentZoom > 1) {
+    e.preventDefault();
+    e.stopPropagation();
+    isScrolling = true;
+    dragKey = null; // 스크롤 모드에서는 드래그 키 제거
+    doDrag(e);
+    return;
+  }
+  
+  // 두 손가락에서 한 손가락으로 변경된 경우 (스크롤 종료)
+  if(touchCount === 1 && isScrolling && editMode && currentZoom > 1) {
+    // 스크롤 모드 종료하고 상태 초기화
+    console.log('스크롤 모드 종료 (두 손가락 → 한 손가락)');
+    isScrolling = false;
+    dragKey = null;
+    scrollStartX = 0;
+    scrollStartY = 0;
+    // 드래그 처리 안 함 (새로운 터치가 필요)
+    return;
+  }
+  
+  // 한 손가락 터치인 경우
+  if(touchCount === 1) {
+    // dragKey가 설정되어 있으면 드래그 모드 (점 근처를 눌렀을 때만)
+    if(dragKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      isScrolling = false; // 드래그 중에는 스크롤 아님
+      doDrag(e);
+      return;
+    }
+    
+    // dragKey가 없으면 드래그 처리 안 함 (점 근처를 누르지 않았음)
+    // 확대 모드에서도 빈 화면을 누르면 아무것도 하지 않음
+    return;
+  }
+  
+  // 터치가 없거나 3개 이상인 경우 상태 초기화
+  if(touchCount === 0 || touchCount > 2) {
+    isScrolling = false;
+    dragKey = null;
+  }
+  
+  // 기본 동작은 허용 (점이 아닌 곳을 터치한 경우)
+}, {passive: false});
+
+window.addEventListener('touchend', (e) => {
+  // changedTouches를 확인하여 끝난 터치가 있는지 체크
+  const remainingTouches = e.touches ? e.touches.length : 0;
+  const endedTouches = e.changedTouches ? e.changedTouches.length : 0;
+  
+  // 모든 터치가 끝났는지 확인
+  if(remainingTouches === 0) {
+    // 모든 터치가 끝났으면 드래그/스크롤 완전히 종료
+    console.log('모든 터치 종료, 상태 완전 초기화');
+    endDrag(e);
+    // 추가로 확실하게 초기화
+    dragKey = null;
+    isScrolling = false;
+    scrollStartX = 0;
+    scrollStartY = 0;
+    scrollDistance = 0;
+  } else if(endedTouches > 0) {
+    // 일부 터치만 끝났는 경우
+    // 두 손가락 스크롤 중 하나가 떨어졌으면 스크롤 모드 종료
+    if(isScrolling && remainingTouches === 1) {
+      console.log('스크롤 모드 종료 (한 손가락 남음), 상태 초기화');
+      isScrolling = false;
+      dragKey = null;
+      scrollStartX = 0;
+      scrollStartY = 0;
+      scrollDistance = 0;
+      // 다음 드래그를 위해 완전히 초기화
+    } else if(remainingTouches === 1 && dragKey) {
+      // 드래그 중이었는데 한 손가락이 남아있으면 드래그 계속
+      // endDrag 호출하지 않음
+    } else {
+      // 그 외의 경우는 상태 초기화
+      endDrag(e);
+    }
+  }
+});
+window.addEventListener('touchcancel', (e) => {
+  // 터치가 취소되면 무조건 드래그/스크롤 종료
+  console.log('터치 취소, 상태 초기화');
+  endDrag(e);
+});
+
+// 업로드 (Before/After 각각 하나의 사진만 유지)
+["filePicker","cameraPicker"].forEach(id => {
+  document.getElementById(id).addEventListener("change", async e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    
+    // 현재 선택된 orientation에 따라 적절한 이미지 저장
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const imgKey = orientation === "front" ? "imgFront" : "imgSide";
+    
+    const img = new Image();
+    img.onload = async () => {
+      // 기존 이미지가 있으면 메모리 정리 (orientation별로)
+      const existingImg = sessions[cur][imgKey];
+      if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
+        URL.revokeObjectURL(existingImg.src);
+      }
+      
+      // 새 이미지로 교체 (orientation별로 저장)
+      sessions[cur][imgKey] = img;
+      resizeCanvasFor(img);
+      
+      // 해당 orientation에 맞는 키포인트만 초기화
+      const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+      currentPoints.clear();
+      
+      draw();
+      computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+      
+      // 포즈 감지 자동 실행 (선택된 orientation 사용)
+      if(typeof applyPoseDetection === 'function') {
+        await applyPoseDetection(img, cur);
+      }
+    };
+    img.crossOrigin = "anonymous";
+    img.src = URL.createObjectURL(f);
+    
+    // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
+    e.target.value = '';
+  });
+});
+
+// Reset 버튼
+document.getElementById("btnReset").onclick = () => {
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+  currentPoints.clear();
+  draw();
+  computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
+};
+
+// ✅ 캘리브레이션 기능
+let calibrationMode = false;
+let calibrationPoint1 = null;
+let calibrationPoint2 = null;
+let calibrationChart = null;
+let calibrationBarChart = null;
+
+document.getElementById("btnCalibrate").onclick = () => {
+  calibrationMode = !calibrationMode;
+  const panel = document.getElementById("calibrationPanel");
+  if(calibrationMode) {
+    panel.style.display = "block";
+    calibrationPoint1 = null;
+    calibrationPoint2 = null;
+    document.getElementById("calPoint1").textContent = "클릭하여 선택";
+    document.getElementById("calPoint2").textContent = "클릭하여 선택";
+    document.getElementById("calibrationResult").textContent = "";
+    // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
+    cv.style.cursor = "crosshair";
+  } else {
+    panel.style.display = "none";
+    cv.style.cursor = "default";
+    calibrationMode = false;
+  }
+};
+
+// 캘리브레이션 클릭 핸들러
+let calibrationClickHandler = null;
+cv.addEventListener('click', calibrationClickHandler = (e) => {
+  if(!calibrationMode) return;
+  
+  const pos = getEventPos(e);
+  
+  if(!calibrationPoint1) {
+    calibrationPoint1 = pos;
+    document.getElementById("calPoint1").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+    draw();
+    // 점 1 표시
+    ctx.fillStyle = '#ffb86c';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if(!calibrationPoint2) {
+    calibrationPoint2 = pos;
+    document.getElementById("calPoint2").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+    draw();
+    // 점 2 표시
+    ctx.fillStyle = '#ffb86c';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // 선 그리기
+    ctx.strokeStyle = '#ffb86c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(calibrationPoint1.x, calibrationPoint1.y);
+    ctx.lineTo(calibrationPoint2.x, calibrationPoint2.y);
+    ctx.stroke();
+  }
+});
+
+document.getElementById("btnCalibrateConfirm").onclick = () => {
+  if(!calibrationPoint1 || !calibrationPoint2) {
+    alert("두 점을 모두 선택해주세요.");
+    return;
+  }
+  
+  const realLengthCm = parseFloat(document.getElementById("calibrationLength").value);
+  if(!realLengthCm || realLengthCm <= 0) {
+    alert("실제 길이(cm)를 올바르게 입력해주세요.");
+    return;
+  }
+  
+  try {
+    const pxPerCm = calibratePxPerCm(calibrationPoint1, calibrationPoint2, realLengthCm);
+    sessions[cur].pxPerCm = pxPerCm;
+    document.getElementById("calibrationResult").textContent = 
+      `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+    document.getElementById("calibrationResult").style.color = "#2ec4b6";
+    
+    // 메트릭 재계산
+    computeMetricsOnly();
+    
+    console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
+  } catch(err) {
+    alert("캘리브레이션 오류: " + err.message);
+  }
+};
+
+document.getElementById("btnCalibrateCancel").onclick = () => {
+  calibrationMode = false;
+  document.getElementById("calibrationPanel").style.display = "none";
+  calibrationPoint1 = null;
+  calibrationPoint2 = null;
+  cv.style.cursor = "default";
+  draw();
+};
+
+// 좌표 저장 (저장 버튼 - AI 분석 실행)
+document.getElementById("btnSaveJSON").onclick = () => {
+  // 저장 전에 AI 분석 실행
+  computeAll();
+  
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+  const obj = Object.fromEntries(map);
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${cur}_${orientation}_keypoints.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// 좌표 불러오기
+document.getElementById("btnLoadJSON").onclick = () => {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'application/json';
+  inp.onchange = e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const obj = JSON.parse(r.result);
+        const orientation = sessions[cur].poseData?.orientation || "side";
+        const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+        map.clear();
+        for(const k of Object.keys(obj)) map.set(k, obj[k]);
+        draw();
+        computeAll();
+      } catch(err) {
+        alert('JSON 파싱 실패: ' + err.message);
+      }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+
+// ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
+function exportAsPdf(options = {}) {
+  const {
+    fileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`,
+    userName = localStorage.getItem('userName') || '사용자',
+    appName = 'DIT 자세 분석 AI',
+    logoUrl = null
+  } = options;
+  
+  return new Promise(async (resolve, reject) => {
+    try {
+      const S = sessions[cur];
+      const M = S.metrics || {};
+      const scoreData = S.score || {};
+      const analysis = S.analysis || {};
+      
+      // 날짜 포맷
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      
+      // 첫 페이지: 제목과 이미지
+      const page1Container = document.createElement("div");
+      page1Container.style.position = "fixed";
+      page1Container.style.left = "-9999px";
+      page1Container.style.top = "0";
+      page1Container.style.width = "794px"; // A4 너비 @96dpi
+      page1Container.style.padding = "30px 25px";
+      page1Container.style.paddingBottom = "40px";
+      page1Container.style.background = "#ffffff";
+      page1Container.style.color = "#111";
+      page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+      page1Container.style.fontSize = "12px";
+      page1Container.style.lineHeight = "1.6";
+      page1Container.style.boxSizing = "border-box";
+      page1Container.style.overflow = "hidden";
+      page1Container.style.wordWrap = "break-word";
+      
+      // 통합 분석 결과 가져오기 (운동 추천 포함)
+      const analysisResult = S.analysisResult || analyzePostureAutoWithRecommendation({
+        sidePts: S.sidePoints.size > 0 ? Object.fromEntries(S.sidePoints) : null,
+        frontPts: S.frontPoints.size > 0 ? Object.fromEntries(S.frontPoints) : null,
+        pxPerCm: S.pxPerCm || 50.0
+      });
+      
+      // 측면 및 정면 이미지 준비
+      const sideImg = S.imgSide ? S.imgSide.src : null;
+      const frontImg = S.imgFront ? S.imgFront.src : null;
+      
+      // 로고 HTML (있으면)
+      const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
+      
+      // 분석 결과 요약 HTML 생성
+      const analysisSummaryHtml = buildAnalysisSummaryHtml(analysisResult);
+      // 운동 추천 HTML 생성
+      const exerciseRecommendationHtml = buildExerciseRecommendationHtml(analysisResult);
+      
+      page1Container.innerHTML = `
+        <!-- 헤더 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #e0e0e0;">
+          <div style="display:flex; align-items:center;">
+            ${logoHtml}
+            <span style="font-size:14px; font-weight:700; color:#0b0f14;">${appName}</span>
+          </div>
+          <span style="font-size:10px; color:#666;">${dateStr}</span>
+        </div>
+        
+        <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
+        <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">세션: ${cur}</div>
+        
+        <!-- 분석 결과 요약 -->
+        ${analysisSummaryHtml}
+        
+        ${sideImg ? `<div style="margin-top:20px;"><div style="font-size:12px; font-weight:600; margin-bottom:8px;">측면 이미지</div><img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" /></div>` : ''}
+        
+        ${frontImg ? `<div style="margin-top:20px;"><div style="font-size:12px; font-weight:600; margin-bottom:8px;">정면 이미지</div><img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" /></div>` : ''}
+        
+        <!-- 운동 추천 -->
+        ${exerciseRecommendationHtml}
+        
+        <!-- 푸터 -->
+        <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+          <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+            <span>Generated by ${appName}</span>
+            <span>User: ${userName}</span>
+          </div>
+        </div>
+      `;
+    
+    document.body.appendChild(page1Container);
+    
+    // 첫 페이지 캡처
+    const canvas1 = await html2canvas(page1Container, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page1Container.scrollWidth,
+      windowHeight: page1Container.scrollHeight
+    });
+    
+    document.body.removeChild(page1Container);
+    
+    // 두 번째 페이지: 체형 종합 점수부터 시작
+    const page2Container = document.createElement("div");
+    page2Container.style.position = "fixed";
+    page2Container.style.left = "-9999px";
+    page2Container.style.top = "0";
+    page2Container.style.width = "794px";
+    page2Container.style.padding = "30px 25px";
+    page2Container.style.paddingBottom = "40px";
+    page2Container.style.background = "#ffffff";
+    page2Container.style.color = "#111";
+    page2Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    page2Container.style.fontSize = "12px";
+    page2Container.style.lineHeight = "1.6";
+    page2Container.style.boxSizing = "border-box";
+    page2Container.style.overflow = "hidden";
+    page2Container.style.wordWrap = "break-word";
+    
+    page2Container.innerHTML = `
+      <div style="margin-bottom:25px; padding:18px; background:#f5f5f5; border-radius:10px; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:16px; font-weight:700; margin-bottom:12px; line-height:1.4; word-wrap:break-word;">📊 체형 종합 점수</div>
+        <div style="font-size:42px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:10px; line-height:1.2;">${scoreData.score != null ? scoreData.score : '—'}</div>
+        <div style="font-size:11px; color:#666; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join(", ") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
+      </div>
+      
+      <div style="margin-bottom:25px; box-sizing:border-box;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📐 측정 각도</div>
+        <table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed;">
+          <tr style="background:#f0f0f0;"><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">측정값</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">정상 범위</th></tr>
+          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">CVA</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.cva != null ? M.cva.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">≥50°</td></tr>
+          <tr style="background:#fafafa;"><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">TRUNK</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">|0–5°|</td></tr>
+          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">KNEE</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.knee != null ? M.knee.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">175–185°</td></tr>
+        </table>
+      </div>
+      
+      ${analysis.comments && analysis.comments.length > 0 ? `
+      <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🤖 AI 실시간 분석</div>
+        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
+        ${analysis.details && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
+      <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c; line-height:1.4; word-wrap:break-word;">💪 근육 상태 분석</div>
+        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${analysis.exercises && analysis.exercises.length > 0 ? `
+      <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🏋️ 추천 운동</div>
+        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+      </div>
+      ` : ""}
+      
+      <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
+        <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
+        <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
+      </div>
+      
+      <div style="margin-top:20px; font-size:10px; color:#999; text-align:center; line-height:1.5;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
+    `;
+    
+    document.body.appendChild(page2Container);
+    
+    // 두 번째 페이지 캡처
+    const canvas2 = await html2canvas(page2Container, {
+      scale: 3, // 고해상도
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page2Container.scrollWidth,
+      windowHeight: page2Container.scrollHeight
+    });
+    
+    document.body.removeChild(page2Container);
+    
+    // PDF 생성 (마진 24px = 약 0.6cm)
+    const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
+    const imgW = pageW - (margin * 2);
+    
+    // 첫 페이지: 제목과 이미지
+    const img1H = canvas1.height * (imgW / canvas1.width);
+    const maxImg1H = pageH - (margin * 2);
+    if(img1H <= maxImg1H) {
+      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, img1H);
+    } else {
+      // 이미지가 크면 자르기
+      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, maxImg1H);
+    }
+    
+    // 두 번째 페이지: 체형 종합 점수부터
+    pdf.addPage();
+    const img2H = canvas2.height * (imgW / canvas2.width);
+    const maxImg2H = pageH - (margin * 2);
+    if(img2H <= maxImg2H) {
+      pdf.addImage(canvas2.toDataURL("image/png"), "PNG", margin, margin, imgW, img2H);
+    } else {
+      // 긴 내용은 여러 페이지로 분할
+      let remaining = img2H, sY = 0;
+      const onePageH = maxImg2H;
+      const sliceH = canvas2.height * (onePageH / img2H);
+      while(remaining > 0) {
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas2.width;
+        pageCanvas.height = Math.min(sliceH, canvas2.height - sY);
+        const pctx = pageCanvas.getContext("2d");
+        pctx.drawImage(canvas2, 0, sY, canvas2.width, pageCanvas.height, 0, 0, canvas2.width, pageCanvas.height);
+        const pageImg = pageCanvas.toDataURL("image/png");
+        pdf.addImage(pageImg, "PNG", margin, margin, imgW, onePageH * (pageCanvas.height / sliceH));
+        remaining -= onePageH;
+        sY += sliceH;
+        if(remaining > 0) pdf.addPage();
+      }
+    }
+    
+    pdf.save(fileName);
+    
+    resolve();
+  } catch(error) {
+    console.error("PDF 생성 실패:", error);
+    reject(error);
+  }
+  });
+}
+
+// PDF 저장 (모바일 최적화, 페이지 분리)
+document.getElementById("btnPDF").onclick = async () => {
+  try {
+    // 모바일에서 로딩 표시
+    const btn = document.getElementById("btnPDF");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ PDF 생성 중...";
+    btn.disabled = true;
+    
+    // 사용자명 입력 받기 (한 번만)
+    let userName = localStorage.getItem('userName');
+    if(!userName) {
+      userName = prompt("사용자명을 입력하세요 (나중에 변경 가능):", "사용자") || "사용자";
+      localStorage.setItem('userName', userName);
+    }
+    
+    await exportAsPdf({
+      userName: userName,
+      appName: 'DIT 자세 분석 AI'
+    });
+    
+    btn.textContent = originalText;
+    btn.disabled = false;
+    
+    // 모바일에서 성공 메시지
+    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      alert("PDF가 저장되었습니다!");
+    }
+  } catch(error) {
+    console.error("PDF 생성 실패:", error);
+    alert("PDF 생성에 실패했습니다: " + error.message);
+    const btn = document.getElementById("btnPDF");
+    btn.textContent = "📄 PDF 저장";
+    btn.disabled = false;
+  }
+};
+
+// 그림으로 저장 (PDF와 동일한 형식)
+document.getElementById("btnImage").onclick = async () => {
+  try {
+    // 모바일에서 로딩 표시
+    const btn = document.getElementById("btnImage");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ 이미지 생성 중...";
+    btn.disabled = true;
+    
+    const S = sessions[cur];
+    const M = S.metrics || {};
+    const scoreData = S.score || {};
+    const analysis = S.analysis || {};
+    
+    // 첫 페이지: 제목과 이미지
+    const page1Container = document.createElement("div");
+    page1Container.style.position = "fixed";
+    page1Container.style.left = "-9999px";
+    page1Container.style.top = "0";
+    page1Container.style.width = "794px"; // A4 너비 @96dpi
+    page1Container.style.padding = "30px 25px";
+    page1Container.style.paddingBottom = "40px";
+    page1Container.style.background = "#ffffff";
+    page1Container.style.color = "#111";
+    page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    page1Container.style.fontSize = "12px";
+    page1Container.style.lineHeight = "1.6";
+    page1Container.style.boxSizing = "border-box";
+    page1Container.style.overflow = "hidden";
+    page1Container.style.wordWrap = "break-word";
+    
+    // 캔버스 이미지 가져오기
+    const cvImg = cv.toDataURL("image/png");
+    
+    page1Container.innerHTML = `
+      <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
+      <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
+      <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:950px; object-fit:contain;" />
+    `;
+    
+    document.body.appendChild(page1Container);
+    
+    // 첫 페이지 캡처
+    const canvas1 = await html2canvas(page1Container, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page1Container.scrollWidth,
+      windowHeight: page1Container.scrollHeight
+    });
+    
+    document.body.removeChild(page1Container);
+    
+    // 두 번째 페이지: 체형 종합 점수부터 시작
+    const page2Container = document.createElement("div");
+    page2Container.style.position = "fixed";
+    page2Container.style.left = "-9999px";
+    page2Container.style.top = "0";
+    page2Container.style.width = "794px";
+    page2Container.style.padding = "30px 25px";
+    page2Container.style.paddingBottom = "40px";
+    page2Container.style.background = "#ffffff";
+    page2Container.style.color = "#111";
+    page2Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    page2Container.style.fontSize = "12px";
+    page2Container.style.lineHeight = "1.6";
+    page2Container.style.boxSizing = "border-box";
+    page2Container.style.overflow = "hidden";
+    page2Container.style.wordWrap = "break-word";
+    
+    page2Container.innerHTML = `
+      <div style="margin-bottom:25px; padding:18px; background:#f5f5f5; border-radius:10px; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:16px; font-weight:700; margin-bottom:12px; line-height:1.4; word-wrap:break-word;">📊 체형 종합 점수</div>
+        <div style="font-size:42px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:10px; line-height:1.2;">${scoreData.score != null ? scoreData.score : '—'}</div>
+        <div style="font-size:11px; color:#666; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join(", ") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
+      </div>
+      
+      <div style="margin-bottom:25px; box-sizing:border-box;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📐 측정 각도</div>
+        <table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed;">
+          <tr style="background:#f0f0f0;"><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">측정값</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">정상 범위</th></tr>
+          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">CVA</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.cva != null ? M.cva.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">≥50°</td></tr>
+          <tr style="background:#fafafa;"><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">TRUNK</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">|0–5°|</td></tr>
+          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">KNEE</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.knee != null ? M.knee.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">175–185°</td></tr>
+        </table>
+      </div>
+      
+      ${analysis.comments && analysis.comments.length > 0 ? `
+      <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🤖 AI 실시간 분석</div>
+        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
+        ${analysis.details && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
+      <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c; line-height:1.4; word-wrap:break-word;">💪 근육 상태 분석</div>
+        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+      </div>
+      ` : ""}
+      
+      ${analysis.exercises && analysis.exercises.length > 0 ? `
+      <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🏋️ 추천 운동</div>
+        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+      </div>
+      ` : ""}
+      
+      <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
+        <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
+        <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
+      </div>
+      
+      <div style="margin-top:20px; font-size:10px; color:#999; text-align:center; line-height:1.5;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
+    `;
+    
+    document.body.appendChild(page2Container);
+    
+    // 두 번째 페이지 캡처
+    const canvas2 = await html2canvas(page2Container, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page2Container.scrollWidth,
+      windowHeight: page2Container.scrollHeight
+    });
+    
+    document.body.removeChild(page2Container);
+    
+    // 두 이미지를 세로로 합치기
+    const totalHeight = canvas1.height + canvas2.height + 20; // 20px 여백
+    const combinedCanvas = document.createElement("canvas");
+    combinedCanvas.width = canvas1.width;
+    combinedCanvas.height = totalHeight;
+    const ctx = combinedCanvas.getContext("2d");
+    
+    // 첫 번째 이미지 그리기
+    ctx.drawImage(canvas1, 0, 0);
+    // 두 번째 이미지 그리기 (여백 포함)
+    ctx.drawImage(canvas2, 0, canvas1.height + 20);
+    
+    // 이미지 다운로드
+    const imgData = combinedCanvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = imgData;
+    link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+    link.click();
+    
+    btn.textContent = originalText;
+    btn.disabled = false;
+    
+    // 모바일에서 성공 메시지
+    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      alert("이미지가 저장되었습니다!");
+    }
+  } catch(error) {
+    console.error("이미지 생성 실패:", error);
+    alert("이미지 생성에 실패했습니다: " + error.message);
+    const btn = document.getElementById("btnImage");
+    btn.textContent = "🖼️ 그림으로 저장";
+    btn.disabled = false;
+  }
+};
+
+// 공유하기 (Web Share API 사용)
+document.getElementById("btnShare").onclick = async () => {
+  try {
+    const btn = document.getElementById("btnShare");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ 준비 중...";
+    btn.disabled = true;
+    
+    const S = sessions[cur];
+    const M = S.metrics || {};
+    const scoreData = S.score || {};
+    const analysis = S.analysis || {};
+    
+    // 공유할 이미지 생성 (간단한 버전)
+    const cvImg = cv.toDataURL("image/png");
+    
+    // 공유할 텍스트 생성
+    const shareText = `DIT 자세 분석 리포트 - ${cur}\n\n` +
+      `📊 체형 종합 점수: ${scoreData.score != null ? scoreData.score : '—'}\n` +
+      `📐 측정 각도:\n` +
+      `  - CVA: ${M.cva != null ? M.cva.toFixed(1) + "°" : "—"} (정상: ≥50°)\n` +
+      `  - TRUNK: ${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"} (정상: |0–5°|)\n` +
+      `  - KNEE: ${M.knee != null ? M.knee.toFixed(1) + "°" : "—"} (정상: 175–185°)\n\n` +
+      `${analysis.comments && analysis.comments.length > 0 ? analysis.comments.join(" ") + "\n\n" : ""}` +
+      `${analysis.tight && analysis.tight.length > 0 ? "🔴 긴장된 근육: " + analysis.tight.join(", ") + "\n" : ""}` +
+      `${analysis.weak && analysis.weak.length > 0 ? "🔵 약화된 근육: " + analysis.weak.join(", ") + "\n" : ""}` +
+      `\n※ 본 리포트는 교육용으로 제공됩니다.`;
+    
+    // Web Share API 지원 여부 확인
+    if (navigator.share) {
+      // 이미지 파일 생성
+      const response = await fetch(cvImg);
+      const blob = await response.blob();
+      const file = new File([blob], `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`, { type: 'image/png' });
+      
+      // 공유 시도
+      try {
+        await navigator.share({
+          title: `DIT 자세 분석 리포트 - ${cur}`,
+          text: shareText,
+          files: [file]
+        });
+        
+        btn.textContent = originalText;
+        btn.disabled = false;
+      } catch (shareError) {
+        // 사용자가 공유를 취소했거나 에러 발생
+        if (shareError.name !== 'AbortError') {
+          console.error('공유 실패:', shareError);
+          // 폴백: 이미지 다운로드
+          const link = document.createElement('a');
+          link.href = cvImg;
+          link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+          link.click();
+        }
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    } else {
+      // Web Share API를 지원하지 않는 경우: 클립보드에 복사
+      try {
+        // 텍스트를 클립보드에 복사
+        await navigator.clipboard.writeText(shareText);
+        
+        // 이미지도 다운로드
+        const link = document.createElement('a');
+        link.href = cvImg;
+        link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        link.click();
+        
+        alert('분석 결과가 클립보드에 복사되었고 이미지가 다운로드되었습니다!\n\n다른 앱에 붙여넣어 공유하세요.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+      } catch (clipboardError) {
+        console.error('클립보드 복사 실패:', clipboardError);
+        // 최종 폴백: 이미지 다운로드만
+        const link = document.createElement('a');
+        link.href = cvImg;
+        link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        link.click();
+        alert('이미지가 다운로드되었습니다. 수동으로 공유해주세요.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+  } catch (error) {
+    console.error("공유 실패:", error);
+    alert("공유에 실패했습니다: " + error.message);
+    const btn = document.getElementById("btnShare");
+    btn.textContent = "📤 공유하기";
+    btn.disabled = false;
+  }
+};
+
+// 실시간 분석 리스너 등록 (UI 업데이트)
+liveAnalyzer.addListener((result) => {
+  updateLiveAnalysisUI(result);
+});
+
+// 초기화
+resizeCanvasFor(null);
+draw();
+computeMetricsOnly(); // 초기화 시에는 AI 분석 안 함
+updateCompare();
+
+// 초기 실시간 분석 실행
+setTimeout(() => {
+  if(typeof liveAnalyzer !== 'undefined') {
+    liveAnalyzer.analyzeCurrentSession();
+  }
+}, 500);
+</script>
+
+<!-- ✅ Pose Detection Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+
+<script>
+// 포즈 감지 모델 관리
+let detectors = { front: null, side: null };
+
+// 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
+// sessions 객체에 orientation과 landmarks 정보 추가
+if(!sessions.Before.poseData) {
+  sessions.Before.poseData = { orientation: "side", landmarks: null };
+}
+if(!sessions.After.poseData) {
+  sessions.After.poseData = { orientation: "side", landmarks: null };
+}
+
+// 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
+document.addEventListener("DOMContentLoaded", () => {
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
+  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  updateCoordSelectOptions();
+});
+
+// ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
+async function loadPoseModels() {
+  try {
+    detectors.front = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+    );
+    detectors.side = await poseDetection.createDetector(
+      poseDetection.SupportedModels.BlazePose,
+      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+    );
+    console.log("✅ 정면·옆모습 모델 로드 완료");
+  } catch(error) {
+    console.error("모델 로드 실패:", error);
+  }
+}
+
+loadPoseModels();
+
+// ✅ 분석 시 orientation에 맞는 모델 사용
+async function detectPose(img, orientation) {
+  const detector = detectors[orientation];
+  if (!detector) {
+    alert(`${orientation}용 모델이 아직 준비되지 않았습니다`);
+    return null;
+  }
+  
+  try {
+    const poses = await detector.estimatePoses(img);
+    if (!poses.length) {
+      alert(`${orientation} 방향에서 사람을 인식하지 못했습니다`);
+      return null;
+    }
+    return poses[0];
+  } catch(error) {
+    console.error("포즈 감지 실패:", error);
+    alert("포즈 감지 중 오류가 발생했습니다");
+    return null;
+  }
+}
+
+// ✅ 포즈 좌표를 기존 점 시스템에 매핑
+function mapPoseToKeypoints(pose, orientation) {
+  if(!pose || !pose.keypoints) return null;
+  
+  const keypointMap = {};
+  const keypoints = pose.keypoints;
+  
+  // BlazePose (옆모습) 키포인트 매핑
+  if(orientation === "side") {
+    // BlazePose keypoint 이름을 기존 시스템과 매핑
+    keypoints.forEach((kp, idx) => {
+      // BlazePose의 주요 키포인트를 기존 시스템에 매핑
+      // 실제 키포인트 이름은 BlazePose 문서 참조 필요
+      if(kp.name) {
+        const nameMap = {
+          'nose': null,
+          'left_eye_inner': null,
+          'left_eye': null,
+          'left_eye_outer': null,
+          'right_eye_inner': null,
+          'right_eye': null,
+          'right_eye_outer': null,
+          'left_ear': 'Tragus',
+          'right_ear': 'Tragus',
+          'mouth_left': null,
+          'mouth_right': null,
+          'left_shoulder': 'Shoulder',
+          'right_shoulder': 'Shoulder',
+          'left_elbow': null,
+          'right_elbow': null,
+          'left_wrist': null,
+          'right_wrist': null,
+          'left_pinky': null,
+          'right_pinky': null,
+          'left_index': null,
+          'right_index': null,
+          'left_thumb': null,
+          'right_thumb': null,
+          'left_hip': 'Hip',
+          'right_hip': 'Hip',
+          'left_knee': 'Knee',
+          'right_knee': 'Knee',
+          'left_ankle': 'Ankle',
+          'right_ankle': 'Ankle',
+          'left_heel': null,
+          'right_heel': null,
+          'left_foot_index': null,
+          'right_foot_index': null
+        };
+        
+        if(nameMap[kp.name] && kp.score >= 0.45) {
+          const mappedName = nameMap[kp.name];
+          if(!keypointMap[mappedName] || keypointMap[mappedName].score < kp.score) {
+            keypointMap[mappedName] = { x: kp.x, y: kp.y, score: kp.score };
+          }
+        }
+      }
+    });
+  }
+  
+  // MoveNet (정면) 키포인트 매핑
+  if(orientation === "front") {
+    // MoveNet은 숫자 인덱스로 키포인트 제공
+    // MoveNet 키포인트 순서에 따라 매핑
+    keypoints.forEach((kp, idx) => {
+      if(kp.score >= 0.45) {
+        // MoveNet 키포인트 인덱스 매핑 (실제 순서 확인 필요)
+        // 예시: 0=nose, 1=left_eye, 2=right_eye, 5=left_shoulder, 6=right_shoulder 등
+        // 여기서는 기본 구조만 제공
+      }
+    });
+  }
+  
+  return keypointMap;
+}
+
+// ✅ 포즈 감지 후 기존 시스템에 통합
+async function applyPoseDetection(img, sessionName) {
+  const session = sessions[sessionName];
+  if(!session) return;
+  
+  // 세션의 orientation 사용 (기본값: side)
+  if(!session.poseData) {
+    session.poseData = { orientation: "side", landmarks: null };
+  }
+  const orientation = session.poseData.orientation || "side";
+  
+  console.log(`${sessionName} 세션: ${orientation === "side" ? "옆모습" : "정면"} 포즈 감지 시작`);
+  
+  const pose = await detectPose(img, orientation);
+  if(!pose) return;
+  
+  // 포즈 정보 저장
+  session.poseData.landmarks = pose.keypoints;
+  
+  // 기존 점 시스템에 매핑 (선택적)
+  const keypointMap = mapPoseToKeypoints(pose, orientation);
+  if(keypointMap) {
+    // 매핑된 키포인트를 기존 점 시스템에 적용
+    const map = orientation === "front" ? session.frontPoints : session.sidePoints;
+    for(const [key, value] of Object.entries(keypointMap)) {
+      if(value && value.x && value.y) {
+        // 이미지 크기에 맞게 좌표 변환 필요
+        const scaleX = originalCanvasSize.width / img.naturalWidth;
+        const scaleY = originalCanvasSize.height / img.naturalHeight;
+        map.set(key, {
+          x: value.x * scaleX,
+          y: value.y * scaleY
+        });
+      }
+    }
+    
+    // 화면 업데이트
+    draw();
+    computeMetricsOnly();
+    console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료 (${orientation === "side" ? "옆모습" : "정면"})`);
+  }
+  
+  return pose;
+}
+
+// ✅ 포즈 감지는 위의 업로드 핸들러에서 자동으로 호출됨
+// applyPoseDetection 함수가 이미 위에서 정의되어 있음
+</script>
+  </body>
+</html>
