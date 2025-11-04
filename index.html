@@ -166,6 +166,20 @@ canvas {
       <input id="cameraPicker" type="file" accept="image/*" capture="environment">
     </label>
     <button class="btn" id="btnReset">↺ 초기화</button>
+    <button class="btn" id="btnCalibrate" style="background: rgba(255,184,108,0.2);">📏 캘리브레이션</button>
+  </div>
+
+  <div id="calibrationPanel" style="margin-top:12px; padding:10px; background:rgba(255,184,108,0.1); border-radius:10px; display:none;">
+    <div class="muted" style="margin-bottom:8px; font-weight:600;">📏 캘리브레이션</div>
+    <div class="muted" style="font-size:11px; margin-bottom:8px;">기준 마커 두 점을 찍고 실제 길이(cm)를 입력하세요</div>
+    <div style="margin-bottom:8px;">
+      <input type="number" id="calibrationLength" placeholder="실제 길이 (cm)" step="0.1" min="0.1" style="width:100%; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.3); color:var(--ink);">
+    </div>
+    <div class="muted" style="font-size:11px; margin-bottom:4px;">점 1: <span id="calPoint1">클릭하여 선택</span></div>
+    <div class="muted" style="font-size:11px; margin-bottom:8px;">점 2: <span id="calPoint2">클릭하여 선택</span></div>
+    <button class="btn" id="btnCalibrateConfirm" style="width:100%; margin-bottom:8px;">✅ 계산</button>
+    <button class="btn" id="btnCalibrateCancel" style="width:100%;">❌ 취소</button>
+    <div id="calibrationResult" class="muted" style="font-size:11px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);"></div>
   </div>
 
   <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
@@ -268,6 +282,16 @@ canvas {
     <div id="pilatesList" style="font-size:12px; line-height:1.6;"></div>
   </div>
 
+  <div id="chartPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📊 자세 분석 차트</div>
+    <div style="margin-bottom:12px;">
+      <canvas id="radarChart" style="max-width:100%; height:280px;"></canvas>
+    </div>
+    <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+      <canvas id="barChart" style="max-width:100%; height:200px;"></canvas>
+    </div>
+  </div>
+
   <div style="margin-top:12px;">
     <table class="tbl">
       <thead><tr><th>항목</th><th>Before</th><th>After</th><th>변화</th><th>정상</th></tr></thead>
@@ -285,6 +309,7 @@ canvas {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"></script>
@@ -392,6 +417,108 @@ function classifyRange({
 // px→cm 변환
 function pxToCm(px, scalePxPerCm = 50) {
   return px / scalePxPerCm;
+}
+
+// ✅ 캘리브레이션 유틸: 두 점 간 거리로 pxPerCm 계산
+function calibratePxPerCm(pointA, pointB, realLengthCm) {
+  if (realLengthCm <= 0) {
+    throw new Error("realLengthCm must be > 0");
+  }
+  const distPx = dist(pointA, pointB);
+  return distPx / realLengthCm;
+}
+
+// ✅ 정면 자세 분석
+function analyzeFrontPosture(points, pxPerCm = 50.0) {
+  // 안전 접근 헬퍼
+  function p(k) {
+    const v = points[k];
+    if (!v || v.x == null || v.y == null) return null;
+    return { x: Number(v.x), y: Number(v.y) };
+  }
+  
+  const result = {};
+  
+  const L_acr = p("L_acromion") || p("L_Shoulder");
+  const R_acr = p("R_acromion") || p("R_Shoulder");
+  const L_asis = p("L_asis") || p("L_ASIS");
+  const R_asis = p("R_asis") || p("R_ASIS");
+  const C7 = p("C7") || p("c7");
+  const L_ankle = p("L_ankle") || p("L_Ankle");
+  const R_ankle = p("R_ankle") || p("R_Ankle");
+  
+  // 1️⃣ 어깨 기울기
+  if (L_acr && R_acr) {
+    const shoulderAngle = angleToHorizontal(L_acr, R_acr);
+    result.Shoulder_Tilt = {
+      value_deg: shoulderAngle,
+      status: shoulderAngle <= 3
+        ? "normal"
+        : shoulderAngle <= 6
+          ? "mild"
+          : shoulderAngle <= 10
+            ? "moderate"
+            : "severe",
+      meaning: "좌우 어깨 높이 차",
+    };
+  }
+  
+  // 2️⃣ 골반 기울기
+  if (L_asis && R_asis) {
+    const pelvicAngle = angleToHorizontal(L_asis, R_asis);
+    result.Pelvic_Obliquity = {
+      value_deg: pelvicAngle,
+      status: pelvicAngle <= 3
+        ? "normal"
+        : pelvicAngle <= 6
+          ? "mild"
+          : pelvicAngle <= 10
+            ? "moderate"
+            : "severe",
+      meaning: "좌우 골반 높이 차",
+    };
+  }
+  
+  // 3️⃣ 체간 기울기 (C7–중간 골반 중앙점)
+  if (C7 && L_asis && R_asis) {
+    const pelvisMid = {
+      x: (L_asis.x + R_asis.x) / 2,
+      y: (L_asis.y + R_asis.y) / 2
+    };
+    const dx = C7.x - pelvisMid.x;
+    const dy = C7.y - pelvisMid.y;
+    const angle = rad2deg(Math.atan2(Math.abs(dx), Math.abs(dy))); // 수직대비 기울기
+    result.Trunk_Lateral_Tilt = {
+      value_deg: angle,
+      status: angle <= 2
+        ? "normal"
+        : angle <= 5
+          ? "mild"
+          : angle <= 8
+            ? "moderate"
+            : "severe",
+      meaning: "체간의 좌우 기울기",
+    };
+  }
+  
+  // 4️⃣ 다리 길이 비대칭 (ankle 높이 차)
+  if (L_ankle && R_ankle) {
+    const diffPx = Math.abs(L_ankle.y - R_ankle.y);
+    const diffCm = pxToCm(diffPx, pxPerCm);
+    result.Leg_Length_Diff = {
+      value_cm: diffCm,
+      status: diffCm <= 1
+        ? "normal"
+        : diffCm <= 2
+          ? "mild"
+          : diffCm <= 3
+            ? "moderate"
+            : "severe",
+      meaning: "다리 길이 차이 (1cm 이하 정상)",
+    };
+  }
+  
+  return result;
 }
 
 // 필라테스 동작 데이터
@@ -932,6 +1059,10 @@ function computeMetricsOnly() {
 function computeAll() {
   const S = sessions[cur];
   const P = getPts(cur);
+  const orientation = S.poseData?.orientation || "side";
+  
+  // pxPerCm 가져오기 (캘리브레이션된 값 또는 기본값)
+  const pxPerCm = S.pxPerCm || 50.0;
   
   // 좌표를 Map 형태로 변환
   const points = {};
@@ -941,27 +1072,54 @@ function computeAll() {
     }
   }
   
-  // 전체 분석 실행
-  const fullMetrics = analyzeFullPosture(points, 50.0);
+  let fullMetrics = null;
+  let cva = null, pelvic = null, knee = null;
   
-  // 기존 호환성을 위해 기존 변수명 유지
-  let cva = fullMetrics.CVA ? fullMetrics.CVA.value_deg : null;
-  let pelvic = fullMetrics.PTA ? fullMetrics.PTA.value_deg : null;
-  let knee = fullMetrics.KA ? fullMetrics.KA.value_deg : null;
-  
-  // 기존 로직으로 보정 (필요시)
-  if(P.ASIS && P.PSIS && pelvic != null) {
-    const dx = P.PSIS.x - P.ASIS.x;
-    const dy = P.PSIS.y - P.ASIS.y;
-    const angle = Math.atan2(dy, dx);
-    let pelvicDeg = rad2deg(angle);
+  // orientation에 따라 다른 분석 실행
+  if(orientation === "front") {
+    // 정면 분석
+    fullMetrics = analyzeFrontPosture(points, pxPerCm);
+    // 정면 분석은 근육 분석이 다르므로 별도 처리
+    S.metrics = { 
+      fullMetrics,
+      orientation
+    };
+    S.score = null;
+    S.analysis = { 
+      fullMetrics,
+      orientation: "front",
+      comments: [],
+      details: [],
+      exercises: []
+    };
+    updateDisplay();
+    updateCompare();
+    // 정면 분석 결과 표시
+    displayFrontAnalysis(fullMetrics);
+    return;
+  } else {
+    // 측면 분석
+    fullMetrics = analyzeFullPosture(points, pxPerCm);
     
-    if(pelvicDeg < -90) {
-      pelvicDeg = 180 + pelvicDeg;
-    } else if(pelvicDeg > 90) {
-      pelvicDeg = pelvicDeg - 180;
+    // 기존 호환성을 위해 기존 변수명 유지
+    cva = fullMetrics.CVA ? fullMetrics.CVA.value_deg : null;
+    pelvic = fullMetrics.PTA ? fullMetrics.PTA.value_deg : null;
+    knee = fullMetrics.KA ? fullMetrics.KA.value_deg : null;
+    
+    // 기존 로직으로 보정 (필요시)
+    if(P.ASIS && P.PSIS && pelvic != null) {
+      const dx = P.PSIS.x - P.ASIS.x;
+      const dy = P.PSIS.y - P.ASIS.y;
+      const angle = Math.atan2(dy, dx);
+      let pelvicDeg = rad2deg(angle);
+      
+      if(pelvicDeg < -90) {
+        pelvicDeg = 180 + pelvicDeg;
+      } else if(pelvicDeg > 90) {
+        pelvicDeg = pelvicDeg - 180;
+      }
+      pelvic = pelvicDeg;
     }
-    pelvic = pelvicDeg;
   }
 
   // 전체 메트릭 저장
@@ -969,7 +1127,8 @@ function computeAll() {
     cva, 
     pelvic, 
     knee,
-    fullMetrics // 전체 분석 결과도 저장
+    fullMetrics, // 전체 분석 결과도 저장
+    orientation
   };
   
   const score = computeScore(cva, pelvic, knee);
@@ -982,6 +1141,204 @@ function computeAll() {
   updateDisplay();
   updateCompare();
   updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
+  
+  // 차트 업데이트 (측면 분석도)
+  if(fullMetrics) {
+    updateCharts(fullMetrics);
+  }
+}
+
+// 정면 분석 결과 표시
+function displayFrontAnalysis(fullMetrics) {
+  const commentEl = document.getElementById("aiComment");
+  const commentPanel = document.getElementById("aiCommentPanel");
+  
+  if(!fullMetrics || Object.keys(fullMetrics).length === 0) {
+    commentPanel.style.display = "none";
+    return;
+  }
+  
+  let commentText = "📷 정면 자세 분석 결과:\n\n";
+  const details = [];
+  
+  for(const [key, value] of Object.entries(fullMetrics)) {
+    if(value && value.value_deg != null) {
+      const statusText = {
+        "normal": "✅ 정상",
+        "mild": "⚠️ 경미",
+        "moderate": "⚠️ 중등도",
+        "severe": "🔴 심각"
+      }[value.status] || value.status;
+      
+      commentText += `${key}: ${value.value_deg.toFixed(1)}° (${statusText})\n`;
+      details.push(`• ${value.meaning || key}`);
+    } else if(value && value.value_cm != null) {
+      const statusText = {
+        "normal": "✅ 정상",
+        "mild": "⚠️ 경미",
+        "moderate": "⚠️ 중등도",
+        "severe": "🔴 심각"
+      }[value.status] || value.status;
+      
+      commentText += `${key}: ${value.value_cm.toFixed(2)}cm (${statusText})\n`;
+      details.push(`• ${value.meaning || key}`);
+    }
+  }
+  
+  if(details.length > 0) {
+    commentText += "\n" + details.join("\n");
+  }
+  
+  commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
+  commentPanel.style.display = "block";
+  
+  // 차트 표시
+  updateCharts(fullMetrics);
+}
+
+// ✅ 차트 시각화 함수
+function updateCharts(metrics) {
+  if(!metrics || Object.keys(metrics).length === 0) {
+    document.getElementById("chartPanel").style.display = "none";
+    return;
+  }
+  
+  // 메트릭 파싱
+  const metricList = [];
+  for(const [key, value] of Object.entries(metrics)) {
+    if(value && (value.value_deg != null || value.value_cm != null)) {
+      metricList.push({
+        name: key,
+        value: value.value_deg != null ? value.value_deg : value.value_cm,
+        status: value.status || "unknown"
+      });
+    }
+  }
+  
+  if(metricList.length === 0) {
+    document.getElementById("chartPanel").style.display = "none";
+    return;
+  }
+  
+  const labels = metricList.map(m => m.name);
+  const values = metricList.map(m => m.value);
+  const statusColors = metricList.map(m => {
+    switch(m.status) {
+      case "normal": return "#2ec4b6";
+      case "mild": return "#ffd166";
+      case "moderate": return "#ffb86c";
+      case "severe": return "#ff6b6b";
+      default: return "#9bb0c7";
+    }
+  });
+  
+  // 기존 차트 파괴
+  if(calibrationChart) {
+    calibrationChart.destroy();
+  }
+  if(calibrationBarChart) {
+    calibrationBarChart.destroy();
+  }
+  
+  // Radar Chart
+  const radarCtx = document.getElementById("radarChart").getContext("2d");
+  calibrationChart = new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '자세 분석',
+        data: values,
+        backgroundColor: 'rgba(124, 156, 255, 0.2)',
+        borderColor: 'rgba(124, 156, 255, 0.8)',
+        pointBackgroundColor: 'rgba(124, 156, 255, 1)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(124, 156, 255, 1)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          ticks: {
+            color: 'rgba(231, 238, 247, 0.7)',
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)'
+          },
+          pointLabels: {
+            color: 'rgba(231, 238, 247, 0.9)',
+            font: {
+              size: 11
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Bar Chart
+  const barCtx = document.getElementById("barChart").getContext("2d");
+  calibrationBarChart = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '값',
+        data: values,
+        backgroundColor: statusColors,
+        borderColor: statusColors.map(c => c.replace('0.8', '1')),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: 'rgba(231, 238, 247, 0.7)',
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)'
+          }
+        },
+        x: {
+          ticks: {
+            color: 'rgba(231, 238, 247, 0.7)',
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  });
+  
+  document.getElementById("chartPanel").style.display = "block";
 }
 
 function computeScore(cva, pelvic, knee) {
@@ -2251,6 +2608,104 @@ document.getElementById("btnReset").onclick = () => {
   computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
 };
 
+// ✅ 캘리브레이션 기능
+let calibrationMode = false;
+let calibrationPoint1 = null;
+let calibrationPoint2 = null;
+let calibrationChart = null;
+let calibrationBarChart = null;
+
+document.getElementById("btnCalibrate").onclick = () => {
+  calibrationMode = !calibrationMode;
+  const panel = document.getElementById("calibrationPanel");
+  if(calibrationMode) {
+    panel.style.display = "block";
+    calibrationPoint1 = null;
+    calibrationPoint2 = null;
+    document.getElementById("calPoint1").textContent = "클릭하여 선택";
+    document.getElementById("calPoint2").textContent = "클릭하여 선택";
+    document.getElementById("calibrationResult").textContent = "";
+    // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
+    cv.style.cursor = "crosshair";
+  } else {
+    panel.style.display = "none";
+    cv.style.cursor = "default";
+    calibrationMode = false;
+  }
+};
+
+// 캘리브레이션 클릭 핸들러
+let calibrationClickHandler = null;
+cv.addEventListener('click', calibrationClickHandler = (e) => {
+  if(!calibrationMode) return;
+  
+  const pos = getEventPos(e);
+  
+  if(!calibrationPoint1) {
+    calibrationPoint1 = pos;
+    document.getElementById("calPoint1").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+    draw();
+    // 점 1 표시
+    ctx.fillStyle = '#ffb86c';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if(!calibrationPoint2) {
+    calibrationPoint2 = pos;
+    document.getElementById("calPoint2").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+    draw();
+    // 점 2 표시
+    ctx.fillStyle = '#ffb86c';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // 선 그리기
+    ctx.strokeStyle = '#ffb86c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(calibrationPoint1.x, calibrationPoint1.y);
+    ctx.lineTo(calibrationPoint2.x, calibrationPoint2.y);
+    ctx.stroke();
+  }
+});
+
+document.getElementById("btnCalibrateConfirm").onclick = () => {
+  if(!calibrationPoint1 || !calibrationPoint2) {
+    alert("두 점을 모두 선택해주세요.");
+    return;
+  }
+  
+  const realLengthCm = parseFloat(document.getElementById("calibrationLength").value);
+  if(!realLengthCm || realLengthCm <= 0) {
+    alert("실제 길이(cm)를 올바르게 입력해주세요.");
+    return;
+  }
+  
+  try {
+    const pxPerCm = calibratePxPerCm(calibrationPoint1, calibrationPoint2, realLengthCm);
+    sessions[cur].pxPerCm = pxPerCm;
+    document.getElementById("calibrationResult").textContent = 
+      `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+    document.getElementById("calibrationResult").style.color = "#2ec4b6";
+    
+    // 메트릭 재계산
+    computeMetricsOnly();
+    
+    console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
+  } catch(err) {
+    alert("캘리브레이션 오류: " + err.message);
+  }
+};
+
+document.getElementById("btnCalibrateCancel").onclick = () => {
+  calibrationMode = false;
+  document.getElementById("calibrationPanel").style.display = "none";
+  calibrationPoint1 = null;
+  calibrationPoint2 = null;
+  cv.style.cursor = "default";
+  draw();
+};
+
 // 좌표 저장 (저장 버튼 - AI 분석 실행)
 document.getElementById("btnSaveJSON").onclick = () => {
   // 저장 전에 AI 분석 실행
@@ -2291,45 +2746,71 @@ document.getElementById("btnLoadJSON").onclick = () => {
   inp.click();
 };
 
-// PDF 저장 (모바일 최적화, 페이지 분리)
-document.getElementById("btnPDF").onclick = async () => {
-  try {
-    // 모바일에서 로딩 표시
-    const btn = document.getElementById("btnPDF");
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ PDF 생성 중...";
-    btn.disabled = true;
-    
-    const S = sessions[cur];
-    const M = S.metrics || {};
-    const scoreData = S.score || {};
-    const analysis = S.analysis || {};
-    
-    // 첫 페이지: 제목과 이미지
-    const page1Container = document.createElement("div");
-    page1Container.style.position = "fixed";
-    page1Container.style.left = "-9999px";
-    page1Container.style.top = "0";
-    page1Container.style.width = "794px"; // A4 너비 @96dpi
-    page1Container.style.padding = "30px 25px";
-    page1Container.style.paddingBottom = "40px";
-    page1Container.style.background = "#ffffff";
-    page1Container.style.color = "#111";
-    page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
-    page1Container.style.fontSize = "12px";
-    page1Container.style.lineHeight = "1.6";
-    page1Container.style.boxSizing = "border-box";
-    page1Container.style.overflow = "hidden";
-    page1Container.style.wordWrap = "break-word";
-    
-    // 캔버스 이미지 가져오기
-    const cvImg = cv.toDataURL("image/png");
-    
-    page1Container.innerHTML = `
-      <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
-      <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
-      <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:950px; object-fit:contain;" />
-    `;
+// ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
+function exportAsPdf(options = {}) {
+  const {
+    fileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`,
+    userName = localStorage.getItem('userName') || '사용자',
+    appName = 'DIT 자세 분석 AI',
+    logoUrl = null
+  } = options;
+  
+  return new Promise(async (resolve, reject) => {
+    try {
+      const S = sessions[cur];
+      const M = S.metrics || {};
+      const scoreData = S.score || {};
+      const analysis = S.analysis || {};
+      
+      // 날짜 포맷
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      
+      // 첫 페이지: 제목과 이미지
+      const page1Container = document.createElement("div");
+      page1Container.style.position = "fixed";
+      page1Container.style.left = "-9999px";
+      page1Container.style.top = "0";
+      page1Container.style.width = "794px"; // A4 너비 @96dpi
+      page1Container.style.padding = "30px 25px";
+      page1Container.style.paddingBottom = "40px";
+      page1Container.style.background = "#ffffff";
+      page1Container.style.color = "#111";
+      page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+      page1Container.style.fontSize = "12px";
+      page1Container.style.lineHeight = "1.6";
+      page1Container.style.boxSizing = "border-box";
+      page1Container.style.overflow = "hidden";
+      page1Container.style.wordWrap = "break-word";
+      
+      // 캔버스 이미지 가져오기
+      const cvImg = cv.toDataURL("image/png");
+      
+      // 로고 HTML (있으면)
+      const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
+      
+      page1Container.innerHTML = `
+        <!-- 헤더 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #e0e0e0;">
+          <div style="display:flex; align-items:center;">
+            ${logoHtml}
+            <span style="font-size:14px; font-weight:700; color:#0b0f14;">${appName}</span>
+          </div>
+          <span style="font-size:10px; color:#666;">${dateStr}</span>
+        </div>
+        
+        <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
+        <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">세션: ${cur}</div>
+        <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:950px; object-fit:contain;" />
+        
+        <!-- 푸터 -->
+        <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+          <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+            <span>Generated by ${appName}</span>
+            <span>User: ${userName}</span>
+          </div>
+        </div>
+      `;
     
     document.body.appendChild(page1Container);
     
@@ -2415,7 +2896,7 @@ document.getElementById("btnPDF").onclick = async () => {
     
     // 두 번째 페이지 캡처
     const canvas2 = await html2canvas(page2Container, {
-      scale: 2,
+      scale: 3, // 고해상도
       backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
@@ -2426,31 +2907,33 @@ document.getElementById("btnPDF").onclick = async () => {
     
     document.body.removeChild(page2Container);
     
-    // PDF 생성
+    // PDF 생성 (마진 24px = 약 0.6cm)
     const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW - 40;
+    const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
+    const imgW = pageW - (margin * 2);
     
     // 첫 페이지: 제목과 이미지
     const img1H = canvas1.height * (imgW / canvas1.width);
-    if(img1H <= pageH - 40) {
-      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 20, 20, imgW, img1H);
+    const maxImg1H = pageH - (margin * 2);
+    if(img1H <= maxImg1H) {
+      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, img1H);
     } else {
       // 이미지가 크면 자르기
-      const maxH = pageH - 40;
-      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", 20, 20, imgW, maxH);
+      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, maxImg1H);
     }
     
     // 두 번째 페이지: 체형 종합 점수부터
     pdf.addPage();
     const img2H = canvas2.height * (imgW / canvas2.width);
-    if(img2H <= pageH - 40) {
-      pdf.addImage(canvas2.toDataURL("image/png"), "PNG", 20, 20, imgW, img2H);
+    const maxImg2H = pageH - (margin * 2);
+    if(img2H <= maxImg2H) {
+      pdf.addImage(canvas2.toDataURL("image/png"), "PNG", margin, margin, imgW, img2H);
     } else {
       // 긴 내용은 여러 페이지로 분할
       let remaining = img2H, sY = 0;
-      const onePageH = pageH - 40;
+      const onePageH = maxImg2H;
       const sliceH = canvas2.height * (onePageH / img2H);
       while(remaining > 0) {
         const pageCanvas = document.createElement("canvas");
@@ -2459,14 +2942,43 @@ document.getElementById("btnPDF").onclick = async () => {
         const pctx = pageCanvas.getContext("2d");
         pctx.drawImage(canvas2, 0, sY, canvas2.width, pageCanvas.height, 0, 0, canvas2.width, pageCanvas.height);
         const pageImg = pageCanvas.toDataURL("image/png");
-        pdf.addImage(pageImg, "PNG", 20, 20, imgW, onePageH * (pageCanvas.height / sliceH));
+        pdf.addImage(pageImg, "PNG", margin, margin, imgW, onePageH * (pageCanvas.height / sliceH));
         remaining -= onePageH;
         sY += sliceH;
         if(remaining > 0) pdf.addPage();
       }
     }
     
-    pdf.save(`DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`);
+    pdf.save(fileName);
+    
+    resolve();
+  } catch(error) {
+    console.error("PDF 생성 실패:", error);
+    reject(error);
+  }
+  });
+}
+
+// PDF 저장 (모바일 최적화, 페이지 분리)
+document.getElementById("btnPDF").onclick = async () => {
+  try {
+    // 모바일에서 로딩 표시
+    const btn = document.getElementById("btnPDF");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ PDF 생성 중...";
+    btn.disabled = true;
+    
+    // 사용자명 입력 받기 (한 번만)
+    let userName = localStorage.getItem('userName');
+    if(!userName) {
+      userName = prompt("사용자명을 입력하세요 (나중에 변경 가능):", "사용자") || "사용자";
+      localStorage.setItem('userName', userName);
+    }
+    
+    await exportAsPdf({
+      userName: userName,
+      appName: 'DIT 자세 분석 AI'
+    });
     
     btn.textContent = originalText;
     btn.disabled = false;
