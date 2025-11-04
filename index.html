@@ -1374,7 +1374,7 @@ function startDrag(e) {
     }
     
     // 선택된 점 근처인지 확인 (확대된 좌표 기준)
-    const threshold = 30;
+    const threshold = 40; // 감지 범위를 넓게 (30 -> 40)
     const scaleX = currentZoom;
     const scaleY = currentZoom;
     const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
@@ -1430,8 +1430,8 @@ function doDrag(e) {
   if(isScrolling && editMode && currentZoom > 1 && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
-      // 현재 위치가 점 근처인지 확인
-      const threshold = 30;
+      // 현재 위치가 점 근처인지 확인 (확대된 좌표 기준)
+      const threshold = 40; // 감지 범위를 넓게 (30 -> 40)
       const scaleX = currentZoom;
       const scaleY = currentZoom;
       const d = Math.hypot(pt.x * scaleX - pos.x, pt.y * scaleY - pos.y);
@@ -1452,13 +1452,13 @@ function doDrag(e) {
       const moveY = currentY - scrollStartY;
       scrollDistance = Math.hypot(moveX, moveY);
       
-      // 점 근처이고 이동 거리가 작으면(5px 이내) 드래그로 전환
-      if(d < threshold && scrollDistance < 5) {
+      // 점 근처에 있으면 드래그로 전환 (이동 거리 제한 완화)
+      if(d < threshold) {
         // 드래그 모드로 전환
         isScrolling = false;
         dragKey = selectedPoint;
         e.preventDefault();
-        // 즉시 드래그 처리하도록 재귀 호출하지 않고 여기서 처리
+        // 즉시 드래그 처리
         const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
         const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
         const x = clamp(pos.x, 0, originalW);
@@ -1475,10 +1475,11 @@ function doDrag(e) {
           draw();
           computeAll();
         }
+        // 다음 프레임부터는 드래그 모드로 계속
         return;
       }
       
-      // 점 근처가 아니거나 이동 거리가 크면 스크롤 계속
+      // 점 근처가 아니면 스크롤 계속
       if(e.touches && e.touches.length > 0) {
         e.preventDefault();
         const canvasWrap = cv.parentElement;
