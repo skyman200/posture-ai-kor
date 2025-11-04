@@ -1564,24 +1564,39 @@ function startDrag(e) {
   // getEventPos는 이미 원본 크기 기준으로 좌표를 반환하므로, 점 좌표와 직접 비교 가능
   let bestPoint = null;
   let bestDistance = 1e9;
-  // threshold는 화면 픽셀 기준으로 계산 (더 정확한 감지)
-  // 확대 모드에서는 화면에서 더 크게 보이므로 threshold도 더 크게
-  // 라벨 영역도 포함하도록 threshold를 더 크게 설정
-  const threshold = editMode && currentZoom > 1 ? 120 : 80; // 화면 픽셀 기준 (라벨 포함)
+  
+  // threshold 계산: 확대 모드에서는 1cm 정도의 감지 영역만 유지
+  // 1cm를 픽셀로 변환 (일반적으로 96 DPI 기준 약 37.8픽셀, 하지만 실제로는 devicePixelRatio 고려)
+  // 실제 화면 크기를 고려하여 더 정확하게 계산
+  const r = cv.getBoundingClientRect();
+  const screenWidth = r.width; // CSS 픽셀
+  const screenHeight = r.height;
+  
+  // 1cm를 픽셀로 변환 (96 DPI 기준: 1cm ≈ 37.8px)
+  // 하지만 실제 화면에서는 devicePixelRatio를 고려해야 함
+  // 간단하게 화면 크기 기준으로 1cm를 추정 (화면 너비의 약 2.5% 정도)
+  const cmToPixel = screenWidth * 0.025; // 화면 너비의 2.5%를 1cm로 추정
+  const baseThreshold = Math.max(30, Math.min(60, cmToPixel)); // 최소 30px, 최대 60px
+  
+  // 확대 모드에서는 원본 크기 기준으로 threshold를 계산한 후 확대 배율로 나눔
+  // 즉, 확대되어도 실제 화면에서의 1cm 감지 영역을 유지
+  let threshold;
+  if(editMode && currentZoom > 1) {
+    // 확대 모드: 원본 좌표 기준으로 threshold 설정 (확대 배율로 나눔)
+    // 화면에서 1cm 정도의 감지 영역을 유지하려면 원본 좌표 기준으로는 더 작아야 함
+    threshold = baseThreshold / currentZoom;
+  } else {
+    // 일반 모드: 화면 픽셀 기준 (라벨 영역 포함)
+    threshold = baseThreshold * 1.5; // 라벨 영역 포함을 위해 약간 더 크게
+  }
   
   // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
-      // 확대 모드에서는 화면 좌표로 변환하여 거리 계산
-      const scaleX = currentZoom;
-      const scaleY = currentZoom;
-      const screenPtX = pt.x * scaleX;
-      const screenPtY = pt.y * scaleY;
-      // pos는 원본 좌표이므로 화면 좌표로 변환
-      const screenPosX = pos.x * scaleX;
-      const screenPosY = pos.y * scaleY;
-      const d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
+      // 확대 모드에서는 원본 좌표 기준으로 거리 계산 (threshold도 원본 기준)
+      // pos는 이미 원본 크기 기준으로 변환되어 있음
+      const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
       if(d < threshold) {
         bestPoint = selectedPoint;
         bestDistance = d;
@@ -1592,28 +1607,37 @@ function startDrag(e) {
     for(const k of keypoints) {
       const p = P[k.key];
       if(!p) continue;
-      // 확대 모드에서는 화면 좌표로 변환하여 거리 계산
-      const scaleX = editMode && currentZoom > 1 ? currentZoom : 1;
-      const scaleY = editMode && currentZoom > 1 ? currentZoom : 1;
-      const screenPtX = p.x * scaleX;
-      const screenPtY = p.y * scaleY;
-      const screenPosX = pos.x * scaleX;
-      const screenPosY = pos.y * scaleY;
       
-      // 점과의 거리 계산
-      let d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
+      let d;
       
-      // 라벨 영역 체크 (점 오른쪽에 라벨이 있음)
-      // 라벨은 점 오른쪽에 위치: x + 10부터 시작, 너비는 대략 100픽셀, 높이는 16픽셀
-      const labelX = screenPtX + 10;
-      const labelY = screenPtY - 12;
-      const labelWidth = 100; // 라벨 최대 너비
-      const labelHeight = 16;
-      
-      // 라벨 영역 내에 있는지 확인
-      if(screenPosX >= labelX && screenPosX <= labelX + labelWidth &&
-         screenPosY >= labelY && screenPosY <= labelY + labelHeight) {
-        d = 0; // 라벨 영역 내에 있으면 최우선
+      if(editMode && currentZoom > 1) {
+        // 확대 모드: 원본 좌표 기준으로 거리 계산
+        // pos는 이미 원본 크기 기준으로 변환되어 있음
+        d = Math.hypot(p.x - pos.x, p.y - pos.y);
+      } else {
+        // 일반 모드: 화면 좌표 기준으로 거리 계산 (라벨 영역 포함)
+        const scaleX = 1;
+        const scaleY = 1;
+        const screenPtX = p.x * scaleX;
+        const screenPtY = p.y * scaleY;
+        const screenPosX = pos.x * scaleX;
+        const screenPosY = pos.y * scaleY;
+        
+        // 점과의 거리 계산
+        d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
+        
+        // 라벨 영역 체크 (점 오른쪽에 라벨이 있음)
+        // 라벨은 점 오른쪽에 위치: x + 10부터 시작, 너비는 대략 100픽셀, 높이는 16픽셀
+        const labelX = screenPtX + 10;
+        const labelY = screenPtY - 12;
+        const labelWidth = 100; // 라벨 최대 너비
+        const labelHeight = 16;
+        
+        // 라벨 영역 내에 있는지 확인
+        if(screenPosX >= labelX && screenPosX <= labelX + labelWidth &&
+           screenPosY >= labelY && screenPosY <= labelY + labelHeight) {
+          d = 0; // 라벨 영역 내에 있으면 최우선
+        }
       }
       
       if(d < threshold && d < bestDistance) {
