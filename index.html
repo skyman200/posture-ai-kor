@@ -1638,13 +1638,13 @@ function getEventPos(e) {
 }
 
 function startDrag(e) {
-  // 이전 드래그 상태 완전히 초기화 (매번 새로운 드래그 시작 전에)
-  const hadDragKey = dragKey;
+  // 상태 초기화 (touchstart에서 이미 초기화했을 수 있지만 다시 초기화)
+  // 이전 상태가 완전히 정리되었는지 확인
   if(dragKey) {
-    console.log('이전 드래그 상태가 남아있음, 초기화:', dragKey);
+    console.log('⚠️ startDrag: 이전 드래그 상태가 아직 남아있음:', dragKey);
   }
   
-  // 상태 초기화
+  // 상태 초기화 (명시적으로)
   dragKey = null;
   isScrolling = false;
   scrollDistance = 0;
@@ -1779,7 +1779,7 @@ function startDrag(e) {
   if(bestPoint) {
     // preventDefault는 이벤트 리스너에서 처리하므로 여기서는 하지 않음
     isScrolling = false;
-    dragKey = bestPoint;
+    dragKey = bestPoint; // 확실하게 설정
     
     // 스크롤 시작 위치 저장 (드래그 중에도 사용)
     if(e.touches && e.touches.length > 0) {
@@ -1790,8 +1790,10 @@ function startDrag(e) {
       scrollStartY = e.clientY;
     }
     
-    console.log('드래그 시작:', bestPoint, 'pos:', pos, 'dragKey:', dragKey);
+    console.log('✅ 드래그 시작 성공:', bestPoint, 'pos:', pos, 'dragKey:', dragKey, 'editMode:', editMode, 'zoom:', currentZoom);
     return true;
+  } else {
+    console.log('❌ 점을 찾지 못함, bestPoint:', bestPoint, 'pos:', pos, 'editMode:', editMode, 'zoom:', currentZoom);
   }
   
   // 점이 아닌 빈 화면을 터치했으면
@@ -1952,10 +1954,13 @@ window.addEventListener('mousemove', (e) => {
 
 // 터치 이벤트 (모바일 지원)
 cv.addEventListener('touchstart', (e) => {
-  // 이전 드래그 상태가 남아있으면 완전히 정리 (안전장치)
+  // 이전 드래그 상태가 남아있으면 직접 초기화 (endDrag 호출하지 않음 - 타이밍 문제 방지)
   if(dragKey) {
-    console.log('⚠️ 이전 드래그 상태가 남아있음, 강제 정리:', dragKey);
-    endDrag(e); // endDrag를 호출하여 완전히 정리
+    console.log('⚠️ 이전 드래그 상태가 남아있음, 직접 정리:', dragKey);
+    dragKey = null;
+    isScrolling = false;
+    scrollStartX = 0;
+    scrollStartY = 0;
   }
   
   // 새로운 터치 시작
@@ -1974,6 +1979,7 @@ window.addEventListener('touchmove', (e) => {
     e.preventDefault();
     e.stopPropagation();
     isScrolling = true;
+    dragKey = null; // 스크롤 모드에서는 드래그 키 제거
     doDrag(e);
     return;
   }
@@ -1984,16 +1990,17 @@ window.addEventListener('touchmove', (e) => {
     if(dragKey) {
       e.preventDefault();
       e.stopPropagation();
+      isScrolling = false; // 드래그 중에는 스크롤 아님
       doDrag(e);
       return;
     }
     
-    // dragKey가 없으면 드래그 처리 안 함 (이미 touchstart에서 점을 찾지 못했거나 아직 처리 중)
-    // touchmove는 touchstart 이후에만 호출되므로, 여기서는 드래그만 처리
+    // dragKey가 없으면 드래그 처리 안 함
+    // 하지만 확대 모드에서는 스크롤도 아니므로 아무것도 하지 않음
   }
   
-  // 스크롤 모드인 경우
-  if(isScrolling && editMode && currentZoom > 1) {
+  // 스크롤 모드인 경우 (이미 설정된 경우)
+  if(isScrolling && editMode && currentZoom > 1 && !dragKey) {
     e.preventDefault();
     e.stopPropagation();
     doDrag(e);
