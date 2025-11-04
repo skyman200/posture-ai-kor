@@ -135,11 +135,13 @@ canvas {
   border-radius:var(--radius); 
   background:#0a0e13; 
   cursor: crosshair; 
-  touch-action: pan-x pan-y; /* 스크롤 허용, 하지만 드래그도 가능 */
+  touch-action: none; /* 드래그와 스크롤을 JavaScript로 제어 */
   display: block;
   flex-shrink: 0;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  user-select: none;
+  -webkit-user-select: none;
 }
 </style>
   </head>
@@ -515,25 +517,36 @@ function switchSession(s) {
 }
 
 function resizeCanvasFor(img) {
-  const maxW = cv.parentElement.clientWidth - 24;
-  const maxH = cv.parentElement.clientHeight - 24;
-  const r = img ? Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight) : 1;
-  const w = Math.round((img ? img.naturalWidth : 1200) * r);
-  const h = Math.round((img ? img.naturalHeight : 800) * r);
+  const canvasWrap = cv.parentElement;
+  const maxW = canvasWrap.clientWidth - 24;
+  const maxH = canvasWrap.clientHeight - 24;
+  
+  // 원본 이미지 비율 계산
+  let baseW, baseH;
+  if(img) {
+    // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
+    const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+    baseW = Math.round(img.naturalWidth * r);
+    baseH = Math.round(img.naturalHeight * r);
+  } else {
+    baseW = 1200;
+    baseH = 800;
+  }
   
   // 원본 크기 저장 (좌표 수정 모드가 아닐 때만)
   if(!editMode) {
-    originalCanvasSize.width = w;
-    originalCanvasSize.height = h;
-    originalCanvasSize.styleWidth = w;
-    originalCanvasSize.styleHeight = h;
+    originalCanvasSize.width = baseW;
+    originalCanvasSize.height = baseH;
+    originalCanvasSize.styleWidth = baseW;
+    originalCanvasSize.styleHeight = baseH;
   }
   
-  // 좌표 수정 모드이고 확대되어 있다면 확대된 크기 사용
+  // 확대 배율 적용 (비율 유지)
   const zoomMultiplier = editMode ? currentZoom : 1;
-  const finalW = w * zoomMultiplier;
-  const finalH = h * zoomMultiplier;
+  const finalW = baseW * zoomMultiplier;
+  const finalH = baseH * zoomMultiplier;
   
+  // 캔버스 크기 설정
   cv.width = finalW * DPR;
   cv.height = finalH * DPR;
   cv.style.width = finalW + "px";
@@ -541,19 +554,20 @@ function resizeCanvasFor(img) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   
   // 확대된 경우 스크롤 가능하도록 설정
-  const canvasWrap = cv.parentElement;
   if(editMode && currentZoom > 1) {
     canvasWrap.classList.add("zoomed");
-    // 확대된 캔버스가 컨테이너보다 크면 스크롤 가능
-    if(finalW > maxW || finalH > maxH) {
-      canvasWrap.style.overflow = "auto";
-    } else {
-      canvasWrap.style.overflow = "auto";
-    }
+    canvasWrap.style.overflow = "auto";
+    canvasWrap.style.overflowX = finalW > maxW ? "auto" : "hidden";
+    canvasWrap.style.overflowY = finalH > maxH ? "auto" : "hidden";
   } else {
     canvasWrap.classList.remove("zoomed");
     canvasWrap.style.overflow = "auto";
+    canvasWrap.style.overflowX = "hidden";
+    canvasWrap.style.overflowY = "hidden";
   }
+  
+  // 다시 그리기
+  draw();
 }
 
 function ensureDefaultPoints(session) {
@@ -603,7 +617,7 @@ function draw() {
       originalCanvasSize.styleWidth = originalCanvasSize.width;
       originalCanvasSize.styleHeight = originalCanvasSize.height;
     }
-    // 좌표 수정 모드에서 확대된 경우, 이미지도 확대하여 그리기
+    // 이미지 그리기 (비율 유지하며 확대된 크기로)
     ctx.drawImage(S.img, 0, 0, W, H);
   }
 
@@ -1369,6 +1383,21 @@ function startDrag(e) {
 }
 
 function doDrag(e) {
+  // 스크롤 모드인 경우 스크롤 처리
+  if(isScrolling && editMode && currentZoom > 1) {
+    if(e.touches && e.touches.length > 0) {
+      const canvasWrap = cv.parentElement;
+      const deltaX = scrollStartX - e.touches[0].clientX;
+      const deltaY = scrollStartY - e.touches[0].clientY;
+      canvasWrap.scrollLeft += deltaX;
+      canvasWrap.scrollTop += deltaY;
+      scrollStartX = e.touches[0].clientX;
+      scrollStartY = e.touches[0].clientY;
+    }
+    return;
+  }
+  
+  // 드래그 모드
   if(!dragKey) return;
   e.preventDefault();
   const pos = getEventPos(e);
@@ -1401,6 +1430,7 @@ function doDrag(e) {
 
 function endDrag(e) {
   dragKey = null;
+  isScrolling = false;
 }
 
 // 마우스 이벤트
