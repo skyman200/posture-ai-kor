@@ -1774,6 +1774,10 @@ function draw() {
   const P = getPts(cur);
   const currentKeypoints = getKeypoints();
 
+  // 확대 배율 적용
+  const scaleX = editMode ? currentZoom : 1;
+  const scaleY = editMode ? currentZoom : 1;
+
   // 보조선 그리기
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 6]);
@@ -1781,57 +1785,75 @@ function draw() {
 
   if(P.C7 && P.Tragus) {
     ctx.beginPath();
-    ctx.moveTo(0, P.C7.y);
-    ctx.lineTo(W, P.C7.y);
+    ctx.moveTo(0, P.C7.y * scaleY);
+    ctx.lineTo(W, P.C7.y * scaleY);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(P.C7.x, P.C7.y);
-    ctx.lineTo(P.Tragus.x, P.Tragus.y);
+    ctx.moveTo(P.C7.x * scaleX, P.C7.y * scaleY);
+    ctx.lineTo(P.Tragus.x * scaleX, P.Tragus.y * scaleY);
     ctx.stroke();
   }
 
   if(P.Shoulder && P.Hip) {
     ctx.beginPath();
-    ctx.moveTo(P.Shoulder.x, P.Shoulder.y);
-    ctx.lineTo(P.Hip.x, P.Hip.y);
+    ctx.moveTo(P.Shoulder.x * scaleX, P.Shoulder.y * scaleY);
+    ctx.lineTo(P.Hip.x * scaleX, P.Hip.y * scaleY);
     ctx.stroke();
   }
   if(P.Hip && P.Knee) {
     ctx.beginPath();
-    ctx.moveTo(P.Hip.x, P.Hip.y);
-    ctx.lineTo(P.Knee.x, P.Knee.y);
+    ctx.moveTo(P.Hip.x * scaleX, P.Hip.y * scaleY);
+    ctx.lineTo(P.Knee.x * scaleX, P.Knee.y * scaleY);
     ctx.stroke();
   }
   if(P.Knee && P.Ankle) {
     ctx.beginPath();
-    ctx.moveTo(P.Knee.x, P.Knee.y);
-    ctx.lineTo(P.Ankle.x, P.Ankle.y);
+    ctx.moveTo(P.Knee.x * scaleX, P.Knee.y * scaleY);
+    ctx.lineTo(P.Ankle.x * scaleX, P.Ankle.y * scaleY);
     ctx.stroke();
   }
 
   if(P.ASIS && P.PSIS) {
     ctx.strokeStyle = 'rgba(255,184,108,0.95)';
     ctx.beginPath();
-    ctx.moveTo(P.ASIS.x, P.ASIS.y);
-    ctx.lineTo(P.PSIS.x, P.PSIS.y);
+    ctx.moveTo(P.ASIS.x * scaleX, P.ASIS.y * scaleY);
+    ctx.lineTo(P.PSIS.x * scaleX, P.PSIS.y * scaleY);
     ctx.stroke();
     ctx.strokeStyle = 'rgba(255,184,108,0.35)';
     const midy = (P.ASIS.y + P.PSIS.y) / 2;
     ctx.beginPath();
-    ctx.moveTo(0, midy);
-    ctx.lineTo(W, midy);
+    ctx.moveTo(0, midy * scaleY);
+    ctx.lineTo(W, midy * scaleY);
     ctx.stroke();
   }
 
+  ctx.setLineDash([]);
+
+  // 모든 dot들을 연결하는 점선 그리기
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = 'rgba(100,100,100,0.4)';
+  ctx.beginPath();
+  let firstPoint = true;
+  for(const kp of currentKeypoints) {
+    const pt = P[kp.key];
+    if(!pt) continue;
+    const x = pt.x * scaleX;
+    const y = pt.y * scaleY;
+    if(firstPoint) {
+      ctx.moveTo(x, y);
+      firstPoint = false;
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
   ctx.setLineDash([]);
 
   // 점 그리기 (orientation에 맞는 키포인트 사용)
   for(const kp of currentKeypoints) {
     const pt = P[kp.key];
     if(!pt) continue;
-    // 좌표 수정 모드에서 확대된 경우 좌표도 확대
-    const scaleX = editMode ? currentZoom : 1;
-    const scaleY = editMode ? currentZoom : 1;
     const isSelected = editMode && selectedPoint === kp.key;
     drawHandle(pt.x * scaleX, pt.y * scaleY, kp.key, kp.color, isSelected);
   }
@@ -3084,35 +3106,19 @@ function getEventPos(e) {
   const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
   
-  // 캔버스 상대 좌표 (화면 기준, 스크롤 오프셋 포함)
+  // 캔버스 상대 좌표 (화면 기준)
   let x = clientX - r.left;
   let y = clientY - r.top;
   
   // 확대 모드에서 스크롤 오프셋 고려
-  // 스크롤 오프셋은 CSS 픽셀 기준이므로 먼저 더해야 함
   if(editMode && currentZoom > 1) {
     const canvasWrap = cv.parentElement;
     const scrollX = canvasWrap.scrollLeft || 0;
     const scrollY = canvasWrap.scrollTop || 0;
-    // 스크롤 오프셋을 CSS 좌표에 더함 (스크롤된 만큼 더함)
+    // 스크롤 오프셋을 더함
     x += scrollX;
     y += scrollY;
-  }
-  
-  // CSS 크기 대비 실제 캔버스 크기 비율 계산
-  // cv.width는 실제 픽셀 크기 (확대된 크기), r.width는 CSS 크기
-  const scaleX = (cv.width / DPR) / r.width;
-  const scaleY = (cv.height / DPR) / r.height;
-  
-  // 실제 캔버스 픽셀 좌표로 변환 (확대된 크기 기준)
-  // 스크롤 오프셋을 포함한 CSS 좌표를 실제 픽셀 좌표로 변환
-  x = x * scaleX;
-  y = y * scaleY;
-  
-  // 좌표 수정 모드에서 확대된 경우, 좌표를 원본 크기 기준으로 변환
-  if(editMode && currentZoom > 1) {
-    // 확대된 캔버스 좌표를 원본 크기로 변환
-    // 원본 크기 = 확대된 크기 / 확대 배율
+    // 확대된 CSS 좌표를 원본 크기로 변환
     x = x / currentZoom;
     y = y / currentZoom;
   }
