@@ -324,7 +324,7 @@ function App() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: '100vh', gap: '16px', padding: '16px', background: 'linear-gradient(180deg, #0b0f14 0%, #0e1520 100%)', color: '#e7eef7', fontFamily: 'system-ui' }}>
+    <div className="wrap" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: '100vh', gap: '16px', padding: '16px', background: 'linear-gradient(180deg, #0b0f14 0%, #0e1520 100%)', color: '#e7eef7', fontFamily: 'system-ui' }}>
       <aside style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', overflow: 'auto' }}>
         <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>📸 DIT 자세 분석 — 로컬 어노테이션</div>
         <div style={{ color: '#9bb0c7', marginBottom: '12px' }}>Before/After 각각 업로드 → 점(관절) 수동 조작 → 각도 및 점선 자동 계산</div>
@@ -344,15 +344,18 @@ function App() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px dashed rgba(255,255,255,0.18)', background: 'rgba(124,156,255,0.06)', padding: '8px 10px', borderRadius: '999px', cursor: 'pointer', color: '#dce6ff' }}>
-            📷 Before
-            <input type="file" accept="image/*" onChange={(e) => loadImage('Before', e.target.files?.[0] || null)} style={{ display: 'none' }} />
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px dashed rgba(255,255,255,0.18)', background: 'rgba(124,156,255,0.06)', padding: '8px 10px', borderRadius: '999px', cursor: 'pointer', color: '#dce6ff' }}>
-            📷 After
-            <input type="file" accept="image/*" onChange={(e) => loadImage('After', e.target.files?.[0] || null)} style={{ display: 'none' }} />
-          </label>
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ color: '#9bb0c7', fontSize: '12px', marginBottom: '6px' }}>{cur} 이미지 업로드</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px dashed rgba(255,255,255,0.18)', background: 'rgba(124,156,255,0.06)', padding: '8px 10px', borderRadius: '999px', cursor: 'pointer', color: '#dce6ff', fontSize: '14px' }}>
+              📷 파일 선택
+              <input type="file" accept="image/*" onChange={(e) => loadImage(cur, e.target.files?.[0] || null)} style={{ display: 'none' }} />
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px dashed rgba(255,255,255,0.18)', background: 'rgba(124,156,255,0.06)', padding: '8px 10px', borderRadius: '999px', cursor: 'pointer', color: '#dce6ff', fontSize: '14px' }}>
+              📸 직접 촬영
+              <input type="file" accept="image/*" capture="environment" onChange={(e) => loadImage(cur, e.target.files?.[0] || null)} style={{ display: 'none' }} />
+            </label>
+          </div>
         </div>
 
         <div style={{ padding: '12px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', marginBottom: '10px' }}>
@@ -395,17 +398,50 @@ function App() {
               })()}
             </div>
           </div>
-          <button
-            onClick={() => {
-              setSessions(prev => ({
-                ...prev,
-                [cur]: { ...prev[cur], pts: new Map() }
-              }));
-            }}
-            style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#e7eef7', cursor: 'pointer', marginRight: '8px' }}
-          >
-            ↺ 초기화
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+            <button
+              onClick={() => {
+                setSessions(prev => ({
+                  ...prev,
+                  [cur]: { ...prev[cur], pts: new Map() }
+                }));
+              }}
+              style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#e7eef7', cursor: 'pointer', fontSize: '14px' }}
+            >
+              ↺ 초기화
+            </button>
+            <button
+              onClick={async () => {
+                if (typeof window !== 'undefined' && (window as any).html2canvas && (window as any).jspdf) {
+                  const reportArea = document.querySelector('.analysis-report') || document.body;
+                  const html2canvas = (window as any).html2canvas;
+                  const jspdf = (window as any).jspdf;
+                  
+                  try {
+                    const canvas = await html2canvas(reportArea, { scale: 2 });
+                    const imgData = canvas.toDataURL('image/png');
+                    
+                    const pdf = new jspdf.jsPDF({
+                      orientation: 'portrait',
+                      unit: 'px',
+                      format: [canvas.width, canvas.height],
+                    });
+                    
+                    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                    pdf.save('DIT_자세_분석_리포트.pdf');
+                  } catch (error) {
+                    console.error('PDF 생성 실패:', error);
+                    alert('PDF 생성에 실패했습니다.');
+                  }
+                } else {
+                  alert('PDF 라이브러리를 로드하는 중입니다. 잠시 후 다시 시도해주세요.');
+                }
+              }}
+              style={{ padding: '8px 10px', background: 'rgba(124,156,255,0.2)', border: '1px solid rgba(124,156,255,0.3)', borderRadius: '10px', color: '#e7eef7', cursor: 'pointer', fontSize: '14px' }}
+            >
+              📄 PDF 저장
+            </button>
+          </div>
         </div>
 
         <div style={{ padding: '12px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>
@@ -449,7 +485,7 @@ function App() {
         </div>
       </aside>
 
-      <main style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', position: 'relative', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <main className="analysis-report" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', position: 'relative', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <canvas
           ref={canvasRef}
           width={1600}

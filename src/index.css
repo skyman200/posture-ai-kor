@@ -10,3 +10,40 @@ html, body {
 #root {
   height: 100vh;
 }
+
+.wrap {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+  gap: 16px;
+  padding: 16px;
+}
+
+.analysis-report {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .wrap {
+    grid-template-columns: 1fr !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+  
+  .btn,
+  button,
+  label {
+    font-size: 14px !important;
+    padding: 10px 12px !important;
+  }
+  
+  canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+  
+  aside {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+}
