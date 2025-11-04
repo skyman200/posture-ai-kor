@@ -237,6 +237,11 @@ canvas {
     <div id="exerciseList" style="font-size:12px; line-height:1.6;"></div>
   </div>
 
+  <div id="pilatesPanel" style="margin-top:12px; padding:12px; background:rgba(156,136,255,0.15); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#9c88ff;">🧘 필라테스 세션 추천</div>
+    <div id="pilatesList" style="font-size:12px; line-height:1.6;"></div>
+  </div>
+
   <div style="margin-top:12px;">
     <table class="tbl">
       <thead><tr><th>항목</th><th>Before</th><th>After</th><th>변화</th><th>정상</th></tr></thead>
@@ -285,6 +290,199 @@ let cur = "Before";
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
 const rad2deg = r => r * 180 / Math.PI;
 const angleBetween = (a,b) => Math.atan2(b.y - a.y, b.x - a.x);
+
+// 필라테스 동작 데이터
+const pilatesData = {
+  '목 굴곡근 약화': {
+    매트: ['Neck Pull', 'Roll-Up'],
+    리포머: ['Short Box - Round Back'],
+    캐딜락: ['Roll Down Bar'],
+    체어: ['Swan Prep'],
+    바렐: ['Back Extension']
+  },
+  '목 신전근 긴장': {
+    매트: ['Roll-Up', 'Spine Stretch Forward'],
+    리포머: ['Neck Stretch on Box'],
+    캐딜락: ['Tower - Arm Springs'],
+    체어: ['Tricep Dips'],
+    바렐: ['Chest Stretch']
+  },
+  '상부승모근 과긴장': {
+    매트: ['Arm Circles', 'Swimming Prep'],
+    리포머: ['Rowing - From Chest'],
+    캐딜락: ['Arm Springs - Chest Expansion'],
+    체어: ['Tricep Press'],
+    바렐: ['Side Stretch Over']
+  },
+  '전방어깨자세': {
+    매트: ['Swan Dive', 'T-Raise'],
+    리포머: ['Backstroke', 'Pulling Straps'],
+    캐딜락: ['Push Through Bar'],
+    체어: ['Push Down - Front'],
+    바렐: ['Chest Expansion']
+  },
+  '어깨안정근 약화': {
+    매트: ['Plank to Pike', 'Side Plank'],
+    리포머: ['Long Stretch Series'],
+    캐딜락: ['Arm Springs - Bug'],
+    체어: ['Mountain Climber'],
+    바렐: ['Side Arm Work']
+  },
+  '회전근개 불균형': {
+    매트: ['Side Lying Arm Series'],
+    리포머: ['Arm Work - Salute'],
+    캐딜락: ['Tower - Rotation'],
+    체어: ['Seated Rotation'],
+    바렐: ['Spiral Stretch']
+  },
+  '복직근 약화': {
+    매트: ['The Hundred', 'Teaser'],
+    리포머: ['Stomach Series - Hundred'],
+    캐딜락: ['Roll Down Bar'],
+    체어: ['Teaser Prep'],
+    바렐: ['Sit Up Series']
+  },
+  '복사근 불균형': {
+    매트: ['Criss Cross', 'Saw'],
+    리포머: ['Short Box - Twist'],
+    캐딜락: ['Twist & Reach'],
+    체어: ['Side Bend'],
+    바렐: ['Twist on Barrel']
+  },
+  '깊은코어 약화': {
+    매트: ['Dead Bug', 'Modified Hundred'],
+    리포머: ['Footwork - Parallel'],
+    캐딜락: ['Breathing with Springs'],
+    체어: ['Seated Balance'],
+    바렐: ['Core Integration']
+  },
+  '흉추 과후만': {
+    매트: ['Swan', 'Extension Series'],
+    리포머: ['Short Box - Arch'],
+    캐딜락: ['Monkey Stretch'],
+    체어: ['Back Extension'],
+    바렐: ['Chest Opening']
+  },
+  '요추 과전만': {
+    매트: ['Pelvic Curl', 'Imprint & Release'],
+    리포머: ['Pelvic Press', 'Knee Stretches'],
+    캐딜락: ['Tower - Hip Work'],
+    체어: ['Hip Flexor Stretch'],
+    바렐: ['Hip Opening']
+  },
+  '척추기립근 약화': {
+    매트: ['Swimming', 'Rocking'],
+    리포머: ['Long Back Stretch'],
+    캐딜락: ['Back Extension Springs'],
+    체어: ['Swan on Chair'],
+    바렐: ['Round Back']
+  },
+  '고관절 굴곡근 단축': {
+    매트: ['Hip Flexor Stretch', 'Lunge'],
+    리포머: ['Lunge Series', 'Runner Stretch'],
+    캐딜락: ['Tower - Hip Stretch'],
+    체어: ['Standing Lunge'],
+    바렐: ['Hip Flexor Series']
+  },
+  '둔근 약화': {
+    매트: ['Bridge Series', 'Clam'],
+    리포머: ['Footwork - Relevé', 'Leg Press'],
+    캐딜락: ['Leg Springs - Circles'],
+    체어: ['Glute Press Back'],
+    바렐: ['Hip Extension']
+  },
+  '골반 불안정': {
+    매트: ['Single Leg Bridge', 'Single Leg Stretch'],
+    리포머: ['Single Leg Work'],
+    캐딜락: ['Leg Springs - Adduction'],
+    체어: ['Standing Balance'],
+    바렐: ['Stability Challenge']
+  },
+  '대퇴사두근 약화': {
+    매트: ['Wall Squat', 'Single Leg Squat'],
+    리포머: ['Footwork - Heels', 'Squats'],
+    캐딜락: ['Leg Press Springs'],
+    체어: ['Standing Press Down'],
+    바렐: ['Leg Strengthening']
+  },
+  '햄스트링 단축': {
+    매트: ['Leg Pull Front', 'Roll Over'],
+    리포머: ['Hamstring Stretch', 'Tendon Stretch'],
+    캐딜락: ['Tower - Leg Stretch'],
+    체어: ['Leg Pull Back'],
+    바렐: ['Hip Flexor Stretch']
+  },
+  '종아리 근육 긴장': {
+    매트: ['Calf Stretch', 'Ankle Circles'],
+    리포머: ['Calf Raises', 'Tendon Stretch'],
+    캐딜락: ['Foot Corrector Work'],
+    체어: ['Heel Raises'],
+    바렐: ['Ankle Mobility']
+  }
+};
+
+// 근육 이름을 필라테스 문제로 매핑
+function mapMuscleToPilatesIssue(muscleName) {
+  const mapping = {
+    '상부승모근': '상부승모근 과긴장',
+    '견갑거근': '상부승모근 과긴장',
+    'SCM': '상부승모근 과긴장',
+    '흉쇄유돌근': '상부승모근 과긴장',
+    '심부경부굴근': '목 굴곡근 약화',
+    '전거근': '목 굴곡근 약화',
+    '하부승모근': '전방어깨자세',
+    '장요근': '고관절 굴곡근 단축',
+    '요추기립근': '요추 과전만',
+    '대퇴직근': '고관절 굴곡근 단축',
+    '흉요근막': '요추 과전만',
+    '복횡근': '깊은코어 약화',
+    '둔근': '둔근 약화',
+    '대둔근': '둔근 약화',
+    '중둔근': '둔근 약화',
+    '하둔근': '둔근 약화',
+    '복직근': '복직근 약화',
+    '대퇴사두근': '대퇴사두근 약화',
+    '햄스트링': '햄스트링 단축',
+    '비복근': '종아리 근육 긴장',
+    '가자미근': '종아리 근육 긴장',
+    '슬와근': '햄스트링 단축'
+  };
+  return mapping[muscleName] || null;
+}
+
+// 필라테스 동작 추천 함수
+function recommendPilates(tight, weak) {
+  const pilatesIssues = new Map();
+  
+  // 긴장된 근육에 대한 필라테스
+  tight.forEach(muscle => {
+    const issue = mapMuscleToPilatesIssue(muscle);
+    if(issue && pilatesData[issue]) {
+      if(!pilatesIssues.has(issue)) {
+        pilatesIssues.set(issue, { type: '긴장', muscles: [], pilates: pilatesData[issue] });
+      }
+      pilatesIssues.get(issue).muscles.push(muscle);
+    }
+  });
+  
+  // 약화된 근육에 대한 필라테스
+  weak.forEach(muscle => {
+    const issue = mapMuscleToPilatesIssue(muscle);
+    if(issue && pilatesData[issue]) {
+      if(!pilatesIssues.has(issue)) {
+        pilatesIssues.set(issue, { type: '약화', muscles: [], pilates: pilatesData[issue] });
+      }
+      pilatesIssues.get(issue).muscles.push(muscle);
+    }
+  });
+  
+  return Array.from(pilatesIssues.entries()).map(([issue, data]) => ({
+    issue,
+    type: data.type,
+    muscles: [...new Set(data.muscles)],
+    pilates: data.pilates
+  }));
+}
 const internalAngle = (a,b,c) => {
   const ab = Math.atan2(a.y - b.y, a.x - b.x);
   const cb = Math.atan2(c.y - b.y, c.x - b.x);
@@ -694,12 +892,16 @@ function analyzeMuscles(cva, pelvic, knee) {
     exercises.push('3. 자세 교정 운동: 벽에 등을 대고 서서 몸 정렬 유지 (1분×3회)');
   }
   
+  // 필라테스 추천
+  const pilates = recommendPilates([...new Set(tight)], [...new Set(weak)]);
+  
   return { 
     tight: [...new Set(tight)], 
     weak: [...new Set(weak)], 
     comments,
     details,
-    exercises: [...new Set(exercises)]
+    exercises: [...new Set(exercises)],
+    pilates
   };
 }
 
@@ -714,6 +916,8 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const detailList = document.getElementById("muscleDetailList");
   const exercisePanel = document.getElementById("exercisePanel");
   const exerciseList = document.getElementById("exerciseList");
+  const pilatesPanel = document.getElementById("pilatesPanel");
+  const pilatesList = document.getElementById("pilatesList");
   
   if(scoreData && scoreData.score != null) {
     const score = scoreData.score;
@@ -785,6 +989,27 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     exercisePanel.style.display = "block";
   } else {
     exercisePanel.style.display = "none";
+  }
+  
+  // 필라테스 추천
+  if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+    let pilatesHTML = '';
+    analysis.pilates.forEach((item, idx) => {
+      pilatesHTML += `<div style="margin-bottom:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">`;
+      pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#9c88ff;">${idx + 1}. ${item.issue} (${item.muscles.join(', ')})</div>`;
+      pilatesHTML += `<div style="font-size:11px; color:var(--muted); margin-bottom:6px;">${item.type === '긴장' ? '긴장 완화' : '강화'} 필요</div>`;
+      const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+      tools.forEach(tool => {
+        if(item.pilates[tool] && item.pilates[tool].length > 0) {
+          pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong style="color:#9c88ff;">${tool}:</strong> <span style="color:var(--ink);">${item.pilates[tool].join(', ')}</span></div>`;
+        }
+      });
+      pilatesHTML += `</div>`;
+    });
+    pilatesList.innerHTML = pilatesHTML;
+    pilatesPanel.style.display = "block";
+  } else {
+    pilatesPanel.style.display = "none";
   }
 }
 
