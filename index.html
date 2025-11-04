@@ -170,6 +170,7 @@ canvas {
     <button class="btn" id="btnLoadJSON">📂 좌표 불러오기</button>
     <button class="btn" id="btnPDF">📄 PDF 저장</button>
     <button class="btn" id="btnImage">🖼️ 그림으로 저장</button>
+    <button class="btn" id="btnShare">📤 공유하기</button>
   </div>
 
   <div id="coordEditPanel" style="margin-top:12px; padding:10px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
@@ -1948,6 +1949,100 @@ document.getElementById("btnImage").onclick = async () => {
     alert("이미지 생성에 실패했습니다: " + error.message);
     const btn = document.getElementById("btnImage");
     btn.textContent = "🖼️ 그림으로 저장";
+    btn.disabled = false;
+  }
+};
+
+// 공유하기 (Web Share API 사용)
+document.getElementById("btnShare").onclick = async () => {
+  try {
+    const btn = document.getElementById("btnShare");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ 준비 중...";
+    btn.disabled = true;
+    
+    const S = sessions[cur];
+    const M = S.metrics || {};
+    const scoreData = S.score || {};
+    const analysis = S.analysis || {};
+    
+    // 공유할 이미지 생성 (간단한 버전)
+    const cvImg = cv.toDataURL("image/png");
+    
+    // 공유할 텍스트 생성
+    const shareText = `DIT 자세 분석 리포트 - ${cur}\n\n` +
+      `📊 체형 종합 점수: ${scoreData.score != null ? scoreData.score : '—'}\n` +
+      `📐 측정 각도:\n` +
+      `  - CVA: ${M.cva != null ? M.cva.toFixed(1) + "°" : "—"} (정상: ≥50°)\n` +
+      `  - TRUNK: ${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"} (정상: |0–5°|)\n` +
+      `  - KNEE: ${M.knee != null ? M.knee.toFixed(1) + "°" : "—"} (정상: 175–185°)\n\n` +
+      `${analysis.comments && analysis.comments.length > 0 ? analysis.comments.join(" ") + "\n\n" : ""}` +
+      `${analysis.tight && analysis.tight.length > 0 ? "🔴 긴장된 근육: " + analysis.tight.join(", ") + "\n" : ""}` +
+      `${analysis.weak && analysis.weak.length > 0 ? "🔵 약화된 근육: " + analysis.weak.join(", ") + "\n" : ""}` +
+      `\n※ 본 리포트는 교육용으로 제공됩니다.`;
+    
+    // Web Share API 지원 여부 확인
+    if (navigator.share) {
+      // 이미지 파일 생성
+      const response = await fetch(cvImg);
+      const blob = await response.blob();
+      const file = new File([blob], `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`, { type: 'image/png' });
+      
+      // 공유 시도
+      try {
+        await navigator.share({
+          title: `DIT 자세 분석 리포트 - ${cur}`,
+          text: shareText,
+          files: [file]
+        });
+        
+        btn.textContent = originalText;
+        btn.disabled = false;
+      } catch (shareError) {
+        // 사용자가 공유를 취소했거나 에러 발생
+        if (shareError.name !== 'AbortError') {
+          console.error('공유 실패:', shareError);
+          // 폴백: 이미지 다운로드
+          const link = document.createElement('a');
+          link.href = cvImg;
+          link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+          link.click();
+        }
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    } else {
+      // Web Share API를 지원하지 않는 경우: 클립보드에 복사
+      try {
+        // 텍스트를 클립보드에 복사
+        await navigator.clipboard.writeText(shareText);
+        
+        // 이미지도 다운로드
+        const link = document.createElement('a');
+        link.href = cvImg;
+        link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        link.click();
+        
+        alert('분석 결과가 클립보드에 복사되었고 이미지가 다운로드되었습니다!\n\n다른 앱에 붙여넣어 공유하세요.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+      } catch (clipboardError) {
+        console.error('클립보드 복사 실패:', clipboardError);
+        // 최종 폴백: 이미지 다운로드만
+        const link = document.createElement('a');
+        link.href = cvImg;
+        link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        link.click();
+        alert('이미지가 다운로드되었습니다. 수동으로 공유해주세요.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+  } catch (error) {
+    console.error("공유 실패:", error);
+    alert("공유에 실패했습니다: " + error.message);
+    const btn = document.getElementById("btnShare");
+    btn.textContent = "📤 공유하기";
     btn.disabled = false;
   }
 };
