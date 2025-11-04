@@ -801,8 +801,15 @@ document.getElementById("coordSelectPoint").addEventListener("change", e => {
       document.getElementById("coordX").value = pt.x.toFixed(1);
       document.getElementById("coordY").value = pt.y.toFixed(1);
     } else {
-      document.getElementById("coordX").value = "";
-      document.getElementById("coordY").value = "";
+      // 점이 없으면 기본값 설정 (이미지가 있는 경우 중앙 근처)
+      const W = cv.width / DPR, H = cv.height / DPR;
+      if(sessions[cur].img) {
+        document.getElementById("coordX").value = (W / 2).toFixed(1);
+        document.getElementById("coordY").value = (H / 2).toFixed(1);
+      } else {
+        document.getElementById("coordX").value = "";
+        document.getElementById("coordY").value = "";
+      }
     }
     // 선택된 점을 시각적으로 강조하기 위해 다시 그리기
     draw();
@@ -827,15 +834,17 @@ document.getElementById("coordApply").onclick = () => {
   }
   const W = cv.width / DPR, H = cv.height / DPR;
   const map = sessions[cur].pts;
+  const clampedX = clamp(x, 0, W);
+  const clampedY = clamp(y, 0, H);
   map.set(selectedPoint, {
-    x: clamp(x, 0, W),
-    y: clamp(y, 0, H)
+    x: clampedX,
+    y: clampedY
   });
   draw();
   computeAll();
   // 입력 필드 업데이트
-  document.getElementById("coordX").value = map.get(selectedPoint).x.toFixed(1);
-  document.getElementById("coordY").value = map.get(selectedPoint).y.toFixed(1);
+  document.getElementById("coordX").value = clampedX.toFixed(1);
+  document.getElementById("coordY").value = clampedY.toFixed(1);
 };
 
 // 취소
@@ -861,19 +870,18 @@ document.getElementById("coordY").addEventListener("keypress", e => {
 
 // 드래그 기능 (마우스 + 터치)
 function getEventPos(e) {
-  if(e.touches && e.touches.length > 0) {
-    const r = cv.getBoundingClientRect();
-    return {
-      x: e.touches[0].clientX - r.left,
-      y: e.touches[0].clientY - r.top
-    };
-  } else {
-    const r = cv.getBoundingClientRect();
-    return {
-      x: e.clientX - r.left,
-      y: e.clientY - r.top
-    };
-  }
+  const r = cv.getBoundingClientRect();
+  const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+  
+  // CSS 크기 대비 실제 캔버스 크기 비율 계산
+  const scaleX = cv.width / DPR / r.width;
+  const scaleY = cv.height / DPR / r.height;
+  
+  return {
+    x: (clientX - r.left) * scaleX,
+    y: (clientY - r.top) * scaleY
+  };
 }
 
 function startDrag(e) {
