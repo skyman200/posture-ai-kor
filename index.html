@@ -499,8 +499,19 @@ function computeAll() {
   let cva = null, pelvic = null, knee = null;
 
   if(P.C7 && P.Tragus) {
-    const a = angleBetween(P.C7, P.Tragus);
-    cva = Math.abs(rad2deg(a));
+    // CVA: Tragus에서 C7로의 벡터와 수평선(오른쪽) 사이의 각도
+    // 수평선 벡터: (1, 0)
+    // Tragus→C7 벡터: (C7.x - Tragus.x, C7.y - Tragus.y)
+    const dx = P.C7.x - P.Tragus.x;
+    const dy = P.C7.y - P.Tragus.y;
+    // 수평선과의 각도 계산 (0도 = 오른쪽, 90도 = 위)
+    const angle = Math.atan2(-dy, dx); // dy를 음수로 해서 위쪽이 양수가 되도록
+    // 각도를 0~180도 범위로 변환 (0도 = 수평, 90도 = 수직, 180도 = 왼쪽 수평)
+    let cvaDeg = rad2deg(angle);
+    if(cvaDeg < 0) cvaDeg = 180 + cvaDeg; // 음수 각도를 양수로 변환
+    // CVA는 0~90도 범위 (수평에서 수직까지)
+    if(cvaDeg > 90) cvaDeg = 180 - cvaDeg;
+    cva = cvaDeg;
   }
   if(P.ASIS && P.PSIS) {
     pelvic = rad2deg(angleBetween(P.ASIS, P.PSIS));
