@@ -135,9 +135,11 @@ canvas {
   border-radius:var(--radius); 
   background:#0a0e13; 
   cursor: crosshair; 
-  touch-action: none;
+  touch-action: pan-x pan-y; /* 스크롤 허용, 하지만 드래그도 가능 */
   display: block;
   flex-shrink: 0;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 </style>
   </head>
@@ -173,10 +175,11 @@ canvas {
       <div class="muted" style="font-size:11px; margin-bottom:4px;">확대 배율</div>
       <select id="zoomLevel" class="btn" style="width:100%; padding:6px; margin-bottom:8px;">
         <option value="1">원본 크기 (1배)</option>
-        <option value="2">2배 확대</option>
-        <option value="3">3배 확대</option>
-        <option value="4">4배 확대</option>
+        <option value="2">2배 확대 (스크롤 가능)</option>
+        <option value="3">3배 확대 (스크롤 가능)</option>
+        <option value="4">4배 확대 (스크롤 가능)</option>
       </select>
+      <div class="muted" style="font-size:10px; margin-top:4px; margin-bottom:8px; line-height:1.4;">확대 시 양손으로 드래그하여 이동 가능</div>
     </div>
     <div style="margin-bottom:8px;">
       <select id="coordSelectPoint" class="btn" style="width:100%; padding:6px; margin-bottom:6px;">
@@ -1392,7 +1395,12 @@ window.addEventListener('mouseup', endDrag);
 window.addEventListener('mouseleave', endDrag);
 
 // 터치 이벤트 (모바일 지원)
-cv.addEventListener('touchstart', startDrag, {passive: false});
+// 확대된 상태에서는 스크롤도 가능해야 하므로 passive 처리 개선
+cv.addEventListener('touchstart', (e) => {
+  if(startDrag(e)) {
+    e.preventDefault();
+  }
+}, {passive: false});
 window.addEventListener('touchmove', doDrag, {passive: false});
 window.addEventListener('touchend', endDrag);
 window.addEventListener('touchcancel', endDrag);
