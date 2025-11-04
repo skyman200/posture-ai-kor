@@ -57,8 +57,8 @@ export default function PoseCanvas({ onAnalysisChange }) {
     setImgSize({ w, h });
     
     // 이미지가 로드되면 자동 인식
-    if (landmarkerRef.current && url) {
-      detectPose(img);
+    if (landmarkerRef.current && imageURL) {
+      setTimeout(() => detectPose(img), 100);
     }
   };
 
