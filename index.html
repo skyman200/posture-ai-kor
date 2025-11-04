@@ -1538,8 +1538,13 @@ function getEventPos(e) {
 
 function startDrag(e) {
   // 이전 드래그 상태 완전히 초기화
+  // endDrag가 호출되지 않은 경우를 대비하여 여기서도 초기화
+  if(dragKey) {
+    console.log('이전 드래그 상태가 남아있음, 초기화:', dragKey);
+  }
   dragKey = null;
   isScrolling = false;
+  scrollDistance = 0;
   
   const pos = getEventPos(e);
   const P = getPts(cur);
@@ -1705,7 +1710,9 @@ function doDrag(e) {
     
     if(!p) {
       // 점이 없으면 드래그 종료
-      endDrag(e);
+      console.log('점이 없어 드래그 종료:', dragKey);
+      dragKey = null;
+      isScrolling = false;
       return;
     }
     
@@ -1713,7 +1720,9 @@ function doDrag(e) {
     if(editMode && selectedPoint) {
       if(dragKey !== selectedPoint) {
         // 선택된 점이 아니면 드래그 종료
-        endDrag(e);
+        console.log('선택된 점이 아니어서 드래그 종료:', dragKey, selectedPoint);
+        dragKey = null;
+        isScrolling = false;
         return;
       }
     }
