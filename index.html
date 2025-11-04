@@ -447,15 +447,25 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   const knee = p("Knee") || p("knee");
   const ankle = p("Ankle") || p("ankle");
   
-  // 1️⃣ CVA (Craniovertebral Angle): tragus–C7 라인과 수평선의 각도
+  // 1️⃣ CVA (Craniovertebral Angle): C7에서 시작하는 수평선과 C7에서 Tragus로 가는 벡터 사이의 각도
   if (tragus && C7) {
-    const angle = angleToHorizontal(tragus, C7);
-    // CVA는 실제로는 90도에서 각도를 빼야 함 (수평선 기준)
-    const cva = 90 - Math.abs(angleP1P2(tragus, C7));
+    const dx = tragus.x - C7.x;
+    const dy = tragus.y - C7.y;
+    const angle = Math.atan2(dy, dx);
+    let cvaDeg = rad2deg(angle);
+    
+    // CVA는 0~90도 범위로 정규화
+    if(cvaDeg < 0) {
+      cvaDeg = 180 + cvaDeg;
+    }
+    if(cvaDeg > 90) {
+      cvaDeg = 180 - cvaDeg;
+    }
+    
     result.CVA = {
-      value_deg: cva >= 0 ? cva : 90 + cva,
+      value_deg: cvaDeg,
       status: classifyRange({
-        v: cva >= 0 ? cva : 90 + cva,
+        v: cvaDeg,
         nMin: 50, nMax: null,
         mildMin: 45, mildMax: 50,
         modMin: 40, modMax: 45,
