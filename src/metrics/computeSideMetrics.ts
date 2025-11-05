@@ -8,7 +8,7 @@ export interface SideOutput {
   CVA?: number;  // 0~90 (정상 ≥50)
   NIA?: number;  // 0~90 (정상 10~20)
   TIA?: number;  // ± (0~5 정상)
-  SAA?: number;  // 0~90 (정상 0~10)
+  SAA?: number;  // ± (0~10 정상, +전방/-후방)
   PTA?: number;  // +전방/-후방 (정상 +5~+15)
   KA?: number;   // 175~180 정상
   TBA?: number;  // ± (85~90 근처)
@@ -34,10 +34,10 @@ export function computeSideMetrics(raw: Pts, imageWidth: number): SideOutput {
   const asis     = need("asis");
   const psis     = need("psis");
 
-  // 1) CVA = 90 - |(C7->Tragus 수평각의 예각)|
+  // 1) CVA = C7 수평면 기준 각도 (0도 = C7 수평면)
   const cv_theta  = angleFromHorizontalDeg(c7, tragus);
   const cv_acute  = normalizeToAcuteDeg(cv_theta);
-  const CVA       = 90 - Math.abs(cv_acute);
+  const CVA       = Math.abs(cv_acute); // C7 수평면 기준 각도
 
   // 2) NIA = |(Acromion->Tragus 수평각의 예각)|
   const nia_theta = angleFromHorizontalDeg(acromion, tragus);
@@ -46,9 +46,12 @@ export function computeSideMetrics(raw: Pts, imageWidth: number): SideOutput {
   // 3) TIA = vertical signed (윗점=Acromion, +전방/-후방)
   const TIA       = angleFromVerticalSignedDeg(acromion, hip);
 
-  // 4) SAA = |(PSIS->Acromion 수평각의 예각)|
-  const saa_theta = angleFromHorizontalDeg(psis, acromion);
-  const SAA       = Math.abs(normalizeToAcuteDeg(saa_theta));
+  // 4) SAA = Acromion->PSIS 수평각의 예각 (부호 유지)
+  // +각: Acromion이 PSIS보다 전방(+x) + 아래(+y) → Rounded Shoulder
+  // -각: Acromion이 PSIS보다 후방(-x) + 위(-y) → 견갑 후인 과다
+  const saa_theta = angleFromHorizontalDeg(acromion, psis);
+  const saa_acute = normalizeToAcuteDeg(saa_theta);
+  const SAA       = saa_acute; // 부호 유지 (-90° ~ +90°)
 
   // 5) PTA = 임상부호 (+전방/-후방)
   const pta_theta = angleFromHorizontalDeg(psis, asis);
