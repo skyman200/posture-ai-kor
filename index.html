@@ -2342,6 +2342,24 @@ function initSessionButtons() {
   console.log("initSessionButtons 완료");
 }
 
+// DOM 로드 후 버튼 이벤트 초기화
+if(document.readyState === 'loading') {
+  console.log("DOM이 아직 로딩 중, DOMContentLoaded 이벤트 대기");
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOMContentLoaded 이벤트 발생");
+    initSessionButtons();
+  });
+} else {
+  console.log("DOM이 이미 로드됨, 즉시 initSessionButtons 호출");
+  initSessionButtons();
+}
+
+// 추가 안전 장치: window.onload에서도 한 번 더 호출
+window.addEventListener('load', () => {
+  console.log("window.onload 이벤트 발생, initSessionButtons 재호출");
+  initSessionButtons();
+});
+
 function updateCoordSelectOptions() {
   const selectEl = document.getElementById("coordSelectPoint");
   if(!selectEl) return;
