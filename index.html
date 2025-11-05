@@ -233,14 +233,25 @@ canvas {
 
   <div style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
     <div class="muted" style="margin-bottom:6px;">현재 세션: <span id="currentSession">Before</span></div>
-    <div class="muted" style="margin-bottom:6px;">CVA: <span id="dispCva">—</span></div>
-    <div class="muted" style="margin-bottom:6px;">TRUNK: <span id="dispPel">—</span></div>
-    <div class="muted" style="margin-bottom:8px;">KNEE: <span id="dispKnee">—</span></div>
+    
+    <!-- 주요 지표 (간략 표시) -->
+    <div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1);">
+      <div class="muted" style="margin-bottom:4px;">CVA: <span id="dispCva">—</span></div>
+      <div class="muted" style="margin-bottom:4px;">TRUNK: <span id="dispPel">—</span></div>
+      <div class="muted" style="margin-bottom:4px;">KNEE: <span id="dispKnee">—</span></div>
+    </div>
+    
+    <!-- 전체 분석 항목 (16가지) -->
+    <div id="allMetricsPanel" style="max-height:300px; overflow-y:auto; margin-bottom:8px;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:6px; color:#7c9cff;">📊 전체 분석 항목</div>
+      <div id="allMetricsList" style="font-size:11px; line-height:1.6;"></div>
+    </div>
     
     <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
       <div style="font-size:14px; font-weight:600; margin-bottom:8px;">📊 체형 종합 점수</div>
       <div id="totalScore" style="font-size:32px; font-weight:800; margin-bottom:8px;">—</div>
       <div id="scoreReason" class="muted" style="font-size:11px; line-height:1.4; margin-bottom:8px;"></div>
+      <div id="pdsScore" class="muted" style="font-size:12px; margin-top:6px;">PDS: <span id="pdsValue">—</span></div>
     </div>
   </div>
 
@@ -2621,6 +2632,62 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const exerciseList = document.getElementById("exerciseList");
   const pilatesPanel = document.getElementById("pilatesPanel");
   const pilatesList = document.getElementById("pilatesList");
+  const allMetricsList = document.getElementById("allMetricsList");
+  const pdsValueEl = document.getElementById("pdsValue");
+  
+  // 전체 분석 항목 표시
+  const S = sessions[cur];
+  const fullMetrics = S.metrics?.fullMetrics || {};
+  if(allMetricsList && fullMetrics) {
+    const metricsOrder = [
+      {key: 'CVA', name: 'CVA', unit: '°'},
+      {key: 'HPD', name: 'HPD', unit: 'cm'},
+      {key: 'NIA', name: 'NIA', unit: '°'},
+      {key: 'TIA', name: 'TIA', unit: '°'},
+      {key: 'SAA', name: 'SAA', unit: '°'},
+      {key: 'PTA', name: 'PTA', unit: '°'},
+      {key: 'KA', name: 'KA', unit: '°'},
+      {key: 'Tibial_Angle', name: 'Tibial', unit: '°'},
+      {key: 'Q_Angle', name: 'Q-Angle', unit: '°'},
+      {key: 'Knee_Deviation', name: 'Knee Dev', unit: '°'},
+      {key: 'LLD', name: 'LLD', unit: 'cm'},
+      {key: 'GSB', name: 'GSB', unit: 'cm'},
+      {key: 'BVA', name: 'BVA', unit: 'cm'},
+      {key: 'SCI', name: 'SCI', unit: 'ratio'},
+      {key: 'HPA', name: 'HPA', unit: '°'},
+      {key: 'PDS', name: 'PDS', unit: 'score'}
+    ];
+    
+    let html = '';
+    metricsOrder.forEach(m => {
+      const metric = fullMetrics[m.key];
+      if(metric) {
+        const value = metric.value !== undefined ? metric.value : (metric.value_deg !== undefined ? metric.value_deg : (metric.value_cm !== undefined ? metric.value_cm : null));
+        const status = metric.status || 'unknown';
+        const unit = metric.unit || m.unit;
+        if(value !== null && value !== undefined) {
+          const statusColor = status === 'normal' ? '#2ec4b6' : status === 'mild' ? '#ffd166' : status === 'moderate' ? '#ffb86c' : '#ff6b6b';
+          const statusText = status === 'normal' ? '✓' : status === 'mild' ? '⚠' : status === 'moderate' ? '⚠⚠' : status === 'severe' ? '✗' : '?';
+          html += `<div style="display:flex; justify-content:space-between; margin-bottom:3px; padding:2px 0;">
+            <span style="color:var(--muted);">${m.name}:</span>
+            <span style="color:${statusColor};">${value.toFixed(1)}${unit} ${statusText}</span>
+          </div>`;
+        }
+      }
+    });
+    allMetricsList.innerHTML = html || '<div style="color:var(--muted);">분석 데이터 없음</div>';
+    
+    // PDS 표시
+    if(fullMetrics.PDS && pdsValueEl) {
+      const pds = fullMetrics.PDS.value;
+      const pdsStatus = fullMetrics.PDS.status;
+      const pdsColor = pdsStatus === 'normal' ? '#2ec4b6' : pdsStatus === 'mild' ? '#ffd166' : '#ff6b6b';
+      pdsValueEl.textContent = `${pds.toFixed(1)} (${pdsStatus})`;
+      pdsValueEl.style.color = pdsColor;
+    } else if(pdsValueEl) {
+      pdsValueEl.textContent = '—';
+    }
+  }
   
   if(scoreData && scoreData.score != null) {
     const score = scoreData.score;
@@ -3457,13 +3524,12 @@ function doDrag(e) {
       }
     }
     
-    // 좌표 업데이트
+    // 좌표 업데이트 (즉시 반영)
     p.x = x;
     p.y = y;
     
     // 입력 필드도 실시간 업데이트 (원본 크기 기준)
-    // 좌표 수정 모드가 아니거나, 선택된 점과 일치하는 경우
-    if((!editMode || selectedPoint === dragKey) && coordX && coordY) {
+    if(coordX && coordY) {
       coordX.value = x.toFixed(1);
       coordY.value = y.toFixed(1);
     }
@@ -3473,11 +3539,23 @@ function doDrag(e) {
       window.updateCoordDisplay();
     }
     
+    // 즉시 화면 업데이트
     draw();
-    computeMetricsOnly(); // 실시간 분석 없음 (저장 버튼 클릭 시에만 AI 분석)
+    
+    // 실시간 분석 업데이트 (throttle 적용)
+    if(!dragUpdateTimer) {
+      dragUpdateTimer = requestAnimationFrame(() => {
+        computeAll(); // 전체 분석 실행
+        dragUpdateTimer = null;
+      });
+    }
+    
     return; // 드래그 모드에서는 스크롤 완전 차단
   }
 }
+
+// 드래그 업데이트 타이머
+let dragUpdateTimer = null;
 
 function endDrag(e) {
   // Long press 타이머 정리 (더 이상 사용하지 않지만 정리용)
@@ -3486,10 +3564,18 @@ function endDrag(e) {
     longPressTimer = null;
   }
   
+  // 드래그 업데이트 타이머 정리
+  if(dragUpdateTimer) {
+    cancelAnimationFrame(dragUpdateTimer);
+    dragUpdateTimer = null;
+  }
+  
   // 드래그가 끝나면 상태 완전히 초기화 (다음 드래그를 위해)
   const wasDragging = dragKey !== null;
   if(dragKey) {
     console.log('드래그 종료:', dragKey);
+    // 최종 분석 실행
+    computeAll();
   }
   
   // 모든 상태 완전히 초기화 (매번 확실히)
@@ -4495,77 +4581,130 @@ async function detectPose(img, orientation) {
   }
 }
 
-// ✅ 포즈 좌표를 기존 점 시스템에 매핑
+// ✅ 포즈 좌표를 기존 점 시스템에 매핑 (MediaPipe Pose 랜드마크 인덱스 기반)
 function mapPoseToKeypoints(pose, orientation) {
   if(!pose || !pose.keypoints) return null;
   
   const keypointMap = {};
   const keypoints = pose.keypoints;
   
-  // BlazePose (옆모습) 키포인트 매핑
+  // MediaPipe Pose는 33개 랜드마크 제공 (인덱스 기반)
+  // 0: nose, 7: left_ear, 8: right_ear, 11: left_shoulder, 12: right_shoulder
+  // 23: left_hip, 24: right_hip, 25: left_knee, 26: right_knee
+  // 27: left_ankle, 28: right_ankle
+  
   if(orientation === "side") {
-    // BlazePose keypoint 이름을 기존 시스템과 매핑
-    keypoints.forEach((kp, idx) => {
-      // BlazePose의 주요 키포인트를 기존 시스템에 매핑
-      // 실제 키포인트 이름은 BlazePose 문서 참조 필요
-      if(kp.name) {
-        const nameMap = {
-          'nose': null,
-          'left_eye_inner': null,
-          'left_eye': null,
-          'left_eye_outer': null,
-          'right_eye_inner': null,
-          'right_eye': null,
-          'right_eye_outer': null,
-          'left_ear': 'Tragus',
-          'right_ear': 'Tragus',
-          'mouth_left': null,
-          'mouth_right': null,
-          'left_shoulder': 'Shoulder',
-          'right_shoulder': 'Shoulder',
-          'left_elbow': null,
-          'right_elbow': null,
-          'left_wrist': null,
-          'right_wrist': null,
-          'left_pinky': null,
-          'right_pinky': null,
-          'left_index': null,
-          'right_index': null,
-          'left_thumb': null,
-          'right_thumb': null,
-          'left_hip': 'Hip',
-          'right_hip': 'Hip',
-          'left_knee': 'Knee',
-          'right_knee': 'Knee',
-          'left_ankle': 'Ankle',
-          'right_ankle': 'Ankle',
-          'left_heel': null,
-          'right_heel': null,
-          'left_foot_index': null,
-          'right_foot_index': null
-        };
-        
-        if(nameMap[kp.name] && kp.score >= 0.45) {
-          const mappedName = nameMap[kp.name];
-          if(!keypointMap[mappedName] || keypointMap[mappedName].score < kp.score) {
-            keypointMap[mappedName] = { x: kp.x, y: kp.y, score: kp.score };
-          }
-        }
-      }
-    });
+    // 옆모습: 보이는 쪽의 랜드마크 사용 (confidence 높은 쪽 선택)
+    // Tragus: ear (7 또는 8)
+    const leftEar = keypoints[7];
+    const rightEar = keypoints[8];
+    if(leftEar && leftEar.visibility >= 0.5) {
+      keypointMap['Tragus'] = { x: leftEar.x, y: leftEar.y, score: leftEar.visibility };
+    } else if(rightEar && rightEar.visibility >= 0.5) {
+      keypointMap['Tragus'] = { x: rightEar.x, y: rightEar.y, score: rightEar.visibility };
+    }
+    
+    // C7: 어깨 중간점 (추정)
+    const leftShoulder = keypoints[11];
+    const rightShoulder = keypoints[12];
+    if(leftShoulder && leftShoulder.visibility >= 0.5) {
+      keypointMap['C7'] = { 
+        x: leftShoulder.x, 
+        y: leftShoulder.y - 0.05, // 어깨보다 약간 위
+        score: leftShoulder.visibility 
+      };
+    } else if(rightShoulder && rightShoulder.visibility >= 0.5) {
+      keypointMap['C7'] = { 
+        x: rightShoulder.x, 
+        y: rightShoulder.y - 0.05,
+        score: rightShoulder.visibility 
+      };
+    }
+    
+    // Shoulder/Acromion: 어깨 (더 가시적인 쪽)
+    if(leftShoulder && leftShoulder.visibility >= 0.5) {
+      keypointMap['Shoulder'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
+    } else if(rightShoulder && rightShoulder.visibility >= 0.5) {
+      keypointMap['Shoulder'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
+    }
+    
+    // Hip: 골반 (더 가시적인 쪽)
+    const leftHip = keypoints[23];
+    const rightHip = keypoints[24];
+    if(leftHip && leftHip.visibility >= 0.5) {
+      keypointMap['Hip'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
+    } else if(rightHip && rightHip.visibility >= 0.5) {
+      keypointMap['Hip'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
+    }
+    
+    // ASIS/PSIS: Hip 근처 (추정)
+    if(keypointMap['Hip']) {
+      const hip = keypointMap['Hip'];
+      keypointMap['ASIS'] = { x: hip.x, y: hip.y - 0.02, score: hip.score };
+      keypointMap['PSIS'] = { x: hip.x - 0.02, y: hip.y, score: hip.score };
+    }
+    
+    // Knee: 무릎 (더 가시적인 쪽)
+    const leftKnee = keypoints[25];
+    const rightKnee = keypoints[26];
+    if(leftKnee && leftKnee.visibility >= 0.5) {
+      keypointMap['Knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
+    } else if(rightKnee && rightKnee.visibility >= 0.5) {
+      keypointMap['Knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
+    }
+    
+    // Ankle: 발목 (더 가시적인 쪽)
+    const leftAnkle = keypoints[27];
+    const rightAnkle = keypoints[28];
+    if(leftAnkle && leftAnkle.visibility >= 0.5) {
+      keypointMap['Ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
+    } else if(rightAnkle && rightAnkle.visibility >= 0.5) {
+      keypointMap['Ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
+    }
   }
   
-  // MoveNet (정면) 키포인트 매핑
   if(orientation === "front") {
-    // MoveNet은 숫자 인덱스로 키포인트 제공
-    // MoveNet 키포인트 순서에 따라 매핑
-    keypoints.forEach((kp, idx) => {
-      if(kp.score >= 0.45) {
-        // MoveNet 키포인트 인덱스 매핑 (실제 순서 확인 필요)
-        // 예시: 0=nose, 1=left_eye, 2=right_eye, 5=left_shoulder, 6=right_shoulder 등
-        // 여기서는 기본 구조만 제공
-      }
-    });
+    // 정면: 양쪽 모두 표시
+    // 어깨
+    if(keypoints[11] && keypoints[11].visibility >= 0.5) {
+      keypointMap['L_acromion'] = { x: keypoints[11].x, y: keypoints[11].y, score: keypoints[11].visibility };
+    }
+    if(keypoints[12] && keypoints[12].visibility >= 0.5) {
+      keypointMap['R_acromion'] = { x: keypoints[12].x, y: keypoints[12].y, score: keypoints[12].visibility };
+    }
+    
+    // C7: 양쪽 어깨 중간
+    if(keypointMap['L_acromion'] && keypointMap['R_acromion']) {
+      keypointMap['C7'] = {
+        x: (keypointMap['L_acromion'].x + keypointMap['R_acromion'].x) / 2,
+        y: Math.min(keypointMap['L_acromion'].y, keypointMap['R_acromion'].y) - 0.05,
+        score: Math.min(keypointMap['L_acromion'].score, keypointMap['R_acromion'].score)
+      };
+    }
+    
+    // 골반
+    if(keypoints[23] && keypoints[23].visibility >= 0.5) {
+      keypointMap['L_asis'] = { x: keypoints[23].x, y: keypoints[23].y, score: keypoints[23].visibility };
+    }
+    if(keypoints[24] && keypoints[24].visibility >= 0.5) {
+      keypointMap['R_asis'] = { x: keypoints[24].x, y: keypoints[24].y, score: keypoints[24].visibility };
+    }
+    
+    // 무릎
+    if(keypoints[25] && keypoints[25].visibility >= 0.5) {
+      keypointMap['L_knee'] = { x: keypoints[25].x, y: keypoints[25].y, score: keypoints[25].visibility };
+    }
+    if(keypoints[26] && keypoints[26].visibility >= 0.5) {
+      keypointMap['R_knee'] = { x: keypoints[26].x, y: keypoints[26].y, score: keypoints[26].visibility };
+    }
+    
+    // 발목
+    if(keypoints[27] && keypoints[27].visibility >= 0.5) {
+      keypointMap['L_ankle'] = { x: keypoints[27].x, y: keypoints[27].y, score: keypoints[27].visibility };
+    }
+    if(keypoints[28] && keypoints[28].visibility >= 0.5) {
+      keypointMap['R_ankle'] = { x: keypoints[28].x, y: keypoints[28].y, score: keypoints[28].visibility };
+    }
   }
   
   return keypointMap;
@@ -4595,21 +4734,40 @@ async function applyPoseDetection(img, sessionName) {
   if(keypointMap) {
     // 매핑된 키포인트를 기존 점 시스템에 적용
     const map = orientation === "front" ? session.frontPoints : session.sidePoints;
+    
+    // 원본 크기 계산 (아직 없으면 계산)
+    if(originalCanvasSize.width === 0) {
+      const canvasWrap = cv.parentElement;
+      const maxW = canvasWrap.clientWidth - 24;
+      const maxH = canvasWrap.clientHeight - 24;
+      const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+      originalCanvasSize.width = Math.round(img.naturalWidth * r);
+      originalCanvasSize.height = Math.round(img.naturalHeight * r);
+    }
+    
     for(const [key, value] of Object.entries(keypointMap)) {
-      if(value && value.x && value.y) {
-        // 이미지 크기에 맞게 좌표 변환 필요
+      if(value && value.x !== undefined && value.y !== undefined && value.score >= 0.4) {
+        // MediaPipe는 정규화된 좌표(0-1)를 제공하므로 픽셀 좌표로 변환
+        // 이미지 크기에 맞게 좌표 변환
+        const imgX = value.x * img.naturalWidth;
+        const imgY = value.y * img.naturalHeight;
+        
+        // 캔버스 크기에 맞게 스케일링
         const scaleX = originalCanvasSize.width / img.naturalWidth;
         const scaleY = originalCanvasSize.height / img.naturalHeight;
+        
         map.set(key, {
-          x: value.x * scaleX,
-          y: value.y * scaleY
+          x: imgX * scaleX,
+          y: imgY * scaleY
         });
+        
+        console.log(`✅ ${key} 매핑: (${value.x.toFixed(3)}, ${value.y.toFixed(3)}) → (${(imgX * scaleX).toFixed(1)}, ${(imgY * scaleY).toFixed(1)}) [score: ${value.score.toFixed(2)}]`);
       }
     }
     
     // 화면 업데이트
     draw();
-    computeMetricsOnly();
+    computeAll(); // 전체 분석 실행
     console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료 (${orientation === "side" ? "옆모습" : "정면"})`);
   }
   
