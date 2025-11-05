@@ -2295,31 +2295,51 @@ const internalAngle = (a,b,c) => {
 
 // Before/After 세션 전환 버튼 (DOM 로드 후 안전하게 연결)
 function initSessionButtons() {
+  console.log("initSessionButtons 호출됨, readyState:", document.readyState);
   const btnBefore = document.getElementById("btnBefore");
   const btnAfter = document.getElementById("btnAfter");
-  if(btnBefore) {
-    btnBefore.onclick = () => switchSession("Before");
-  }
-  if(btnAfter) {
-    btnAfter.onclick = () => switchSession("After");
-  }
-
-// 정면/옆모습 선택 버튼
   const btnOrientationSide = document.getElementById("btnOrientationSide");
   const btnOrientationFront = document.getElementById("btnOrientationFront");
+  
+  console.log("버튼 요소:", {btnBefore, btnAfter, btnOrientationSide, btnOrientationFront});
+  
+  if(btnBefore) {
+    btnBefore.onclick = () => {
+      console.log("Before 버튼 클릭됨");
+      switchSession("Before");
+    };
+  } else {
+    console.error("btnBefore를 찾을 수 없습니다");
+  }
+  
+  if(btnAfter) {
+    btnAfter.onclick = () => {
+      console.log("After 버튼 클릭됨");
+      switchSession("After");
+    };
+  } else {
+    console.error("btnAfter를 찾을 수 없습니다");
+  }
+  
   if(btnOrientationSide) {
-    btnOrientationSide.onclick = () => setOrientation("side");
+    btnOrientationSide.onclick = () => {
+      console.log("옆모습 버튼 클릭됨");
+      setOrientation("side");
+    };
+  } else {
+    console.error("btnOrientationSide를 찾을 수 없습니다");
   }
+  
   if(btnOrientationFront) {
-    btnOrientationFront.onclick = () => setOrientation("front");
+    btnOrientationFront.onclick = () => {
+      console.log("정면 버튼 클릭됨");
+      setOrientation("front");
+    };
+  } else {
+    console.error("btnOrientationFront를 찾을 수 없습니다");
   }
-}
-
-// 즉시 실행 (DOM이 이미 로드되었을 수 있음)
-if(document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initSessionButtons);
-} else {
-  initSessionButtons();
+  
+  console.log("initSessionButtons 완료");
 }
 
 function updateCoordSelectOptions() {
@@ -2445,8 +2465,8 @@ function resizeCanvasFor(img) {
     return;
   }
   
-  const maxW = canvasWrap.clientWidth - 24;
-  const maxH = canvasWrap.clientHeight - 24;
+  const maxW = Math.max(canvasWrap.clientWidth - 24, 600);
+  const maxH = Math.max(canvasWrap.clientHeight - 24, 400);
   
   // 원본 크기 계산 (처음 한 번만 또는 editMode가 아닐 때)
   let baseW, baseH;
@@ -2456,9 +2476,11 @@ function resizeCanvasFor(img) {
       const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
       baseW = Math.round(img.naturalWidth * r);
       baseH = Math.round(img.naturalHeight * r);
+      console.log("이미지 기반 캔버스 크기:", {baseW, baseH, naturalW: img.naturalWidth, naturalH: img.naturalHeight});
     } else {
-      baseW = 1200;
-      baseH = 800;
+      baseW = Math.min(maxW, 1200);
+      baseH = Math.min(maxH, 800);
+      console.log("기본 캔버스 크기:", {baseW, baseH});
     }
     
     // 원본 크기 저장
