@@ -146,7 +146,9 @@ canvas {
 </style>
   </head>
   <body>
-<aside class="panel sidebar" style="order: 1;">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+<aside class="panel sidebar" style="order: 1; display: none;">
   <div class="title">📸 DIT 자세 분석 AI</div>
   <div class="muted">파일 업로드 → 점을 드래그로 조정 → 각도 자동 계산</div>
 
@@ -680,11 +682,6 @@ const rad2deg = r => r * 180 / Math.PI;
 const deg2rad = d => d * Math.PI / 180;
 const angleBetween = (a,b) => Math.atan2(b.y - a.y, b.x - a.x);
 
-// 두 점 사이 각도(수평 기준, p1->p2), 화면 y-down 좌표계 가정
-function angleP1P2(p1, p2) {
-  return rad2deg(Math.atan2(p2.y - p1.y, p2.x - p1.x));
-}
-
 // 두 점 사이 거리(픽셀)
 function dist(p1, p2) {
   const dx = p1.x - p2.x;
@@ -692,7 +689,40 @@ function dist(p1, p2) {
   return Math.sqrt(dx*dx + dy*dy);
 }
 
-// 외적/내적 기반 각도(pA-vertex-pB)
+// ✅ 안전한 각도 유틸 (언어 무관 공통 로직)
+
+// θ: p1->p2의 수평 기준 각도(−180~+180)
+function angleFromHorizontalDeg(p1, p2) {
+  const dy = p2.y - p1.y;      // 이미지 좌표: y는 ↓로 증가 → 그래도 OK (일관성만 유지)
+  const dx = p2.x - p1.x;      // 왼옆 기준: →가 전방
+  return rad2deg(Math.atan2(dy, dx));
+}
+
+// −90~+90로 정규화 (수평 기준의 '예각'으로 맞추기)
+function normalizeToAcuteDeg(theta) {
+  let t = theta;
+  if (t > 90)  t -= 180;
+  if (t < -90) t += 180;
+  return t; // now in [-90, +90]
+}
+
+// 수직 기준 각도(윗점 기준, 전방(→)이면 +, 후방(←)이면 −)
+function angleFromVerticalSignedDeg(top, bottom) {
+  const dx = top.x - bottom.x;
+  const dy = bottom.y - top.y;     // 위→아래 양수 성분
+  const acute = Math.atan2(Math.abs(dx), Math.abs(dy)) * 180 / Math.PI; // 0~90
+  return dx >= 0 ? +acute : -acute; // +전방 / -후방
+}
+
+// 오른옆 사진이면 좌우 반전해 왼옆 기준 통일
+function ensureLeftSide(points, imageWidth, isRightSide) {
+  if (!isRightSide || !imageWidth) return points;
+  return Object.fromEntries(
+    Object.entries(points).map(([k, p]) => [k, { x: imageWidth - p.x, y: p.y }])
+  );
+}
+
+// 외적/내적 기반 각도(pA-vertex-pB) - 내부각 계산용
 function angleAt(v, a, b) {
   const ax = a.x - v.x;
   const ay = a.y - v.y;
@@ -705,18 +735,30 @@ function angleAt(v, a, b) {
   return rad2deg(Math.acos(Math.max(-1, Math.min(1, dot / (na*nb)))));
 }
 
-// 수직선(90°)과 라인 각도 차이 절대값
-function angleToVertical(p1, p2) {
-  const a = angleP1P2(p1, p2);
-  // 180도가 완전 수직, 0도도 완전 수직 (반대 방향)
-  // 사용자 요구사항: 180도 → 0도 TIA, 170도 → 10도 TIA
-  // 수직(180도)에서 벗어난 각도를 계산
-  return Math.abs(180 - Math.abs(a));
+// 관절 각도 (내부각) - Hip-Knee-Ankle 등
+function jointAngleDeg(a, b, c) {
+  // b가 꼭짓점
+  const v1x = a.x - b.x, v1y = a.y - b.y;
+  const v2x = c.x - b.x, v2y = c.y - b.y;
+  const dot = v1x*v2x + v1y*v2y;
+  const m1 = Math.hypot(v1x, v1y), m2 = Math.hypot(v2x, v2y);
+  if (m1 === 0 || m2 === 0) return NaN;
+  return rad2deg(Math.acos(Math.min(1, Math.max(-1, dot/(m1*m2)))));
 }
 
-// 수평선과 라인 각도 절대값
+// 하위 호환성을 위한 기존 함수들 (deprecated)
+function angleP1P2(p1, p2) {
+  return angleFromHorizontalDeg(p1, p2);
+}
+
 function angleToHorizontal(p1, p2) {
-  return Math.abs(angleP1P2(p1, p2));
+  const theta = angleFromHorizontalDeg(p1, p2);
+  return Math.abs(normalizeToAcuteDeg(theta));
+}
+
+function angleToVertical(p1, p2) {
+  // 수직선 기준으로 변환 (하위 호환성)
+  return Math.abs(angleFromVerticalSignedDeg(p1, p2));
 }
 
 // 범위 분류 함수 (normal, mild, moderate, severe)
@@ -779,8 +821,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   
   // 1️⃣ CVA (Craniovertebral Angle): angle(line(C7, Tragus), horizontal)
   // 스펙: C7에서 Tragus로 가는 라인이 수평선과 이루는 각도
+  // CVA는 '수직과의 예각' = 90 - |θ| (0~90°)
   if (tragus && C7) {
-    const cva = angleToHorizontal(C7, tragus);
+    const theta = angleFromHorizontalDeg(C7, tragus);     // −180~+180
+    const thetaA = normalizeToAcuteDeg(theta);            // −90~+90
+    const cva = 90 - Math.abs(thetaA);                    // **0~90** ← 임상 표준
     
     result.CVA = {
       value: cva,
@@ -825,9 +870,8 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   // 스펙: Acromion에서 Tragus로 가는 라인이 수평선과 이루는 각도
   // 정상 범위: 10°–20° (수평선 기준)
   if (tragus && acromion) {
-    const rawAngle = angleToHorizontal(acromion, tragus);
-    // 스펙: 수평선 기준 각도를 직접 사용 (10-20도가 정상)
-    const nia = rawAngle;
+    const theta = angleFromHorizontalDeg(acromion, tragus);
+    const nia = Math.abs(normalizeToAcuteDeg(theta));     // 0~90
     result.NIA = {
       value: nia,
       status: classifyRange({
@@ -848,11 +892,13 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   
   // 4️⃣ TIA (Trunk Inclination Angle): angle(line(Hip, Acromion), vertical)
   // 스펙: Hip에서 Acromion으로 가는 라인이 수직선과 이루는 각도
-  // 정상 범위: 0°–5° (수직선 기준)
+  // 정상 범위: 0°–5° (수직선 기준, +전방, -후방)
   if (acromion && hip) {
-    const tia = angleToVertical(hip, acromion);
+    const tiaSigned = angleFromVerticalSignedDeg(acromion /*윗점*/, hip /*아랫점*/);
+    const tia = Math.abs(tiaSigned);  // 표시는 절대값
     result.TIA = {
       value: tia,
+      value_signed: tiaSigned,  // 부호 포함 값 (내부 사용)
       status: classifyRange({
         v: tia,
         nMin: 0, nMax: 5,
@@ -2503,6 +2549,36 @@ const pilatesExerciseDescriptions = {
     instructions: '1) 배럴 앞에 서서 한쪽 다리를 배럴에 올립니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 앞다리를 밀면서 장요근을 활성화합니다. 4) 천천히 돌아오며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
     benefits: '고관절 전방이동 훈련, 장요근 활성화, 체중 중심 전방 이동, 하지 전방 사슬 강화',
     precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  
+  // 추가 운동 설명
+  'Swan': {
+    ko: '스완',
+    description: '흉추 안정화 및 신전 강화 운동입니다. 엎드린 자세에서 상체를 들어올리며 흉추를 신전시키고 어깨뼈를 안정화합니다.',
+    instructions: '1) 엎드린 자세에서 손바닥을 어깨 옆에 둡니다. 2) 복부와 둔근을 수축하여 척추를 안정화합니다. 3) 상체를 천천히 들어올리며 어깨뼈를 아래로 눌러 모읍니다. 4) 목은 자연스럽게 연장하여 턱이 앞으로 나가지 않도록 합니다. 5) 흉추를 차례로 신전시키며 5-10초 유지 후 천천히 내려옵니다. 5회 반복합니다.',
+    benefits: '흉추 안정화, 흉추 신전 개선, 어깨뼈 안정화, 하부 승모근 강화',
+    precautions: '요통이 있으면 높이를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  'Hip Flexor Stretch': {
+    ko: '힙 플렉서 스트레치',
+    description: '장요근 및 고관절 굴곡근의 스트레칭 운동입니다. 한쪽 무릎을 앞으로 내밀고 반대편 다리를 뒤로 뻗어 전방 사슬의 긴장을 완화합니다.',
+    instructions: '1) 한쪽 무릎을 앞으로 내밀고 반대편 다리를 뒤로 뻗어 런지 자세를 취합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 앞다리 무릎이 발목 위에 오도록 정렬합니다. 4) 골반을 앞으로 기울이며 뒤쪽 다리의 고관절 앞쪽을 스트레칭합니다. 5) 30-60초 유지 후 천천히 돌아옵니다. 반대편 다리로 교대합니다.',
+    benefits: '장요근 스트레칭, 고관절 굴곡근 가동성 향상, 전방 사슬 활성화, 골반 후경사 교정',
+    precautions: '무릎 통증이 있으면 즉시 중단하고, 요통이 있으면 범위를 줄입니다.'
+  },
+  'Standing Lunge': {
+    ko: '스탠딩 런지',
+    description: '서서 하는 고관절 신전/굴곡 밸런스 운동입니다. 앞다리를 밀면서 장요근을 활성화하여 체중 중심을 전방으로 이동시킵니다.',
+    instructions: '1) 리포머 옆에 서서 한쪽 다리를 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 앞다리를 밀면서 장요근을 활성화합니다. 4) 골반이 기울어지지 않도록 유지하며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '고관절 신전/굴곡 밸런스, 장요근 활성화, 체중 중심 전방 이동, 하지 전방 사슬 강화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Step Up Front': {
+    ko: '스텝 업 프론트',
+    description: '앞으로 올라가는 하지 전방 안정화 운동입니다. 박스를 앞으로 올라가면서 장요근을 활성화하고 체중 중심을 전방으로 이동시킵니다.',
+    instructions: '1) 박스 앞에 서서 복부를 수축합니다. 2) 한쪽 다리로 박스에 올라가며 장요근을 활성화합니다. 3) 골반이 기울어지지 않도록 유지하며 10회 반복합니다. 4) 반대편 다리로 교대합니다.',
+    benefits: '하지 전방 안정화, 장요근 활성화, 체중 중심 전방 이동, 기능적 움직임 개선',
+    precautions: '무릎 통증이 있으면 즉시 중단하고, 균형 문제가 있으면 벽을 잡습니다.'
   }
 };
 
