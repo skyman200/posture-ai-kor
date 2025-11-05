@@ -4766,7 +4766,7 @@ function startDrag(e) {
   
   console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
   
-  // 좌표 수정 모드일 때는 선택된 점만 체크 (배율 1일 때도 동일하게 적용)
+  // 좌표 수정 모드에서만 드래그 허용 (선택된 점만)
   if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
@@ -4784,28 +4784,12 @@ function startDrag(e) {
     // 선택된 점만 체크하므로 다른 점은 체크하지 않음 (bestPoint가 null이면 드래그 시작 안 됨)
   } else if(editMode && !selectedPoint) {
     // editMode지만 선택된 점이 없으면 드래그 불가
-    console.log('⚠️ editMode이지만 선택된 점이 없어서 드래그 불가');
+    console.log('⚠️ 좌표 수정 모드이지만 선택된 점이 없어서 드래그 불가');
     return false;
   } else {
-    // 일반 모드 (editMode가 false): 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
-    const currentKeypoints = getKeypoints();
-    for(const k of currentKeypoints) {
-      const p = P[k.key];
-      if(!p) continue;
-      
-      // 일반 모드에서는 CSS 좌표 기준으로 거리 계산
-      // pos는 이미 원본 크기 기준으로 변환되어 있음
-      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-      
-      if(d < threshold) {
-        console.log('✅ 일반 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
-      }
-      
-      if(d < threshold && d < bestDistance) {
-        bestPoint = k.key;
-        bestDistance = d;
-      }
-    }
+    // 일반 모드 (editMode가 false): 드래그 비활성화
+    console.log('⚠️ 좌표 수정 모드가 비활성화되어 있어 드래그 불가. 좌표 수정 모드를 활성화하세요.');
+    return false;
   }
   
   // 점 근처를 터치했을 때만 드래그 모드로 전환
@@ -6230,23 +6214,33 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시
-    // MediaPipe의 left/right는 환자(사용자) 기준입니다
-    // leftShoulder = 환자의 왼쪽 어깨 → L_acromion
-    // rightShoulder = 환자의 오른쪽 어깨 → R_acromion
-    const leftShoulder = keypoints[11];  // 환자 왼쪽 어깨
-    const rightShoulder = keypoints[12]; // 환자 오른쪽 어깨
-    const leftHip = keypoints[23];       // 환자 왼쪽 골반
-    const rightHip = keypoints[24];      // 환자 오른쪽 골반
-    const leftKnee = keypoints[25];      // 환자 왼쪽 무릎
-    const rightKnee = keypoints[26];    // 환자 오른쪽 무릎
-    const leftAnkle = keypoints[27];     // 환자 왼쪽 발목
-    const rightAnkle = keypoints[28];    // 환자 오른쪽 발목
+    // MediaPipe의 left/right는 환자 기준이지만, 이미지 좌표 기준으로 매핑해야 함
+    // 이미지에서 왼쪽(x 작음) = L, 오른쪽(x 큼) = R
+    const leftShoulder = keypoints[11];  // MediaPipe: 환자 왼쪽 어깨
+    const rightShoulder = keypoints[12]; // MediaPipe: 환자 오른쪽 어깨
+    const leftHip = keypoints[23];       // MediaPipe: 환자 왼쪽 골반
+    const rightHip = keypoints[24];      // MediaPipe: 환자 오른쪽 골반
+    const leftKnee = keypoints[25];      // MediaPipe: 환자 왼쪽 무릎
+    const rightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
+    const leftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
+    const rightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
     
-    // 어깨: MediaPipe left/right를 그대로 매핑 (환자 기준)
-    if(leftShoulder && leftShoulder.visibility >= 0.3) {
+    // 어깨: x 좌표 기준으로 이미지 왼쪽이 L, 오른쪽이 R
+    // MediaPipe leftShoulder는 환자 왼쪽(이미지 오른쪽)이므로 반대로 매핑
+    if(leftShoulder && leftShoulder.visibility >= 0.3 && rightShoulder && rightShoulder.visibility >= 0.3) {
+      // x 좌표로 판단: 작은 쪽이 L, 큰 쪽이 R
+      if(leftShoulder.x < rightShoulder.x) {
+        // MediaPipe left가 이미지 왼쪽 → L_acromion
+        keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
+        keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
+      } else {
+        // MediaPipe left가 이미지 오른쪽 → R_acromion으로 매핑 (반대로)
+        keypointMap['L_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
+        keypointMap['R_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
+      }
+    } else if(leftShoulder && leftShoulder.visibility >= 0.3) {
       keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
-    }
-    if(rightShoulder && rightShoulder.visibility >= 0.3) {
+    } else if(rightShoulder && rightShoulder.visibility >= 0.3) {
       keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
     }
     
@@ -6271,31 +6265,52 @@ function mapPoseToKeypoints(pose, orientation) {
       };
     }
     
-    // 골반 (ASIS): MediaPipe left/right를 그대로 매핑 (환자 기준)
-    if(leftHip && leftHip.visibility >= 0.3) {
+    // 골반 (ASIS): x 좌표 기준으로 매핑
+    if(leftHip && leftHip.visibility >= 0.3 && rightHip && rightHip.visibility >= 0.3) {
+      if(leftHip.x < rightHip.x) {
+        keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
+        keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
+      } else {
+        keypointMap['L_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
+        keypointMap['R_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
+      }
+    } else if(leftHip && leftHip.visibility >= 0.3) {
       keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
-    }
-    if(rightHip && rightHip.visibility >= 0.3) {
+    } else if(rightHip && rightHip.visibility >= 0.3) {
       keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
     }
     
-    // 무릎: MediaPipe left/right를 그대로 매핑 (환자 기준)
-    if(leftKnee && leftKnee.visibility >= 0.3) {
+    // 무릎: x 좌표 기준으로 매핑
+    if(leftKnee && leftKnee.visibility >= 0.3 && rightKnee && rightKnee.visibility >= 0.3) {
+      if(leftKnee.x < rightKnee.x) {
+        keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
+        keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
+      } else {
+        keypointMap['L_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
+        keypointMap['R_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
+      }
+    } else if(leftKnee && leftKnee.visibility >= 0.3) {
       keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
-    }
-    if(rightKnee && rightKnee.visibility >= 0.3) {
+    } else if(rightKnee && rightKnee.visibility >= 0.3) {
       keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
     }
     
-    // 발목: MediaPipe left/right를 그대로 매핑 (환자 기준)
-    if(leftAnkle && leftAnkle.visibility >= 0.3) {
+    // 발목: x 좌표 기준으로 매핑
+    if(leftAnkle && leftAnkle.visibility >= 0.3 && rightAnkle && rightAnkle.visibility >= 0.3) {
+      if(leftAnkle.x < rightAnkle.x) {
+        keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
+        keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
+      } else {
+        keypointMap['L_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
+        keypointMap['R_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
+      }
+    } else if(leftAnkle && leftAnkle.visibility >= 0.3) {
       keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
-    }
-    if(rightAnkle && rightAnkle.visibility >= 0.3) {
+    } else if(rightAnkle && rightAnkle.visibility >= 0.3) {
       keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
     }
     
-    console.log('정면 랜드마크 매핑 (환자 기준):', Object.keys(keypointMap));
+    console.log('정면 랜드마크 매핑 (이미지 좌표 기준):', Object.keys(keypointMap));
   }
   
   return keypointMap;
