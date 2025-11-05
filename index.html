@@ -1238,18 +1238,18 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     
     // 하위 호환성
     if (L_asis && R_asis) {
-      const pelvisMid = {
-        x: (L_asis.x + R_asis.x) / 2,
-        y: (L_asis.y + R_asis.y) / 2
-      };
-      const dx = C7.x - pelvisMid.x;
-      const dy = C7.y - pelvisMid.y;
+    const pelvisMid = {
+      x: (L_asis.x + R_asis.x) / 2,
+      y: (L_asis.y + R_asis.y) / 2
+    };
+    const dx = C7.x - pelvisMid.x;
+    const dy = C7.y - pelvisMid.y;
       const angle = rad2deg(Math.atan2(Math.abs(dx), Math.abs(dy)));
-      result.Trunk_Lateral_Tilt = {
-        value_deg: angle,
+    result.Trunk_Lateral_Tilt = {
+      value_deg: angle,
         status: angle <= 2 ? "normal" : angle <= 5 ? "mild" : angle <= 8 ? "moderate" : "severe",
-        meaning: "체간의 좌우 기울기",
-      };
+      meaning: "체간의 좌우 기울기",
+    };
     }
   }
   
@@ -2291,12 +2291,34 @@ const internalAngle = (a,b,c) => {
   return d;
 };
 
-document.getElementById("btnBefore").onclick = () => switchSession("Before");
-document.getElementById("btnAfter").onclick = () => switchSession("After");
+// Before/After 세션 전환 버튼 (DOM 로드 후 안전하게 연결)
+function initSessionButtons() {
+  const btnBefore = document.getElementById("btnBefore");
+  const btnAfter = document.getElementById("btnAfter");
+  if(btnBefore) {
+    btnBefore.onclick = () => switchSession("Before");
+  }
+  if(btnAfter) {
+    btnAfter.onclick = () => switchSession("After");
+  }
 
 // 정면/옆모습 선택 버튼
-document.getElementById("btnOrientationSide").onclick = () => setOrientation("side");
-document.getElementById("btnOrientationFront").onclick = () => setOrientation("front");
+  const btnOrientationSide = document.getElementById("btnOrientationSide");
+  const btnOrientationFront = document.getElementById("btnOrientationFront");
+  if(btnOrientationSide) {
+    btnOrientationSide.onclick = () => setOrientation("side");
+  }
+  if(btnOrientationFront) {
+    btnOrientationFront.onclick = () => setOrientation("front");
+  }
+}
+
+// 즉시 실행 (DOM이 이미 로드되었을 수 있음)
+if(document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSessionButtons);
+} else {
+  initSessionButtons();
+}
 
 function updateCoordSelectOptions() {
   const selectEl = document.getElementById("coordSelectPoint");
@@ -2334,8 +2356,12 @@ function setOrientation(orientation) {
   } else {
     sessions[cur].poseData.orientation = orientation;
   }
-  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
-  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  if(btnSide) btnSide.classList.toggle("active", orientation === "side");
+  if(btnFront) btnFront.classList.toggle("active", orientation === "front");
+  
   console.log(`${cur} 세션의 방향을 ${orientation === "side" ? "옆모습" : "정면"}으로 설정`);
   
   // 좌표 선택 드롭다운 업데이트
@@ -2349,22 +2375,33 @@ function setOrientation(orientation) {
   
   // orientation 변경 시 캔버스 다시 그리기
   const currentImg = orientation === "front" ? sessions[cur].imgFront : sessions[cur].imgSide;
-  if(currentImg) {
+  if(currentImg && currentImg.complete && currentImg.naturalWidth > 0) {
     resizeCanvasFor(currentImg);
+    draw();
+  } else {
+    // 이미지가 없거나 로드 중이면 기본 크기로 설정하고 그리기
+    resizeCanvasFor(null);
+    draw();
   }
-  draw();
 }
 
 function switchSession(s) {
   cur = s;
-  document.getElementById("btnBefore").classList.toggle("active", s === "Before");
-  document.getElementById("btnAfter").classList.toggle("active", s === "After");
-  document.getElementById("currentSession").textContent = s;
+  
+  const btnBefore = document.getElementById("btnBefore");
+  const btnAfter = document.getElementById("btnAfter");
+  const currentSessionEl = document.getElementById("currentSession");
+  
+  if(btnBefore) btnBefore.classList.toggle("active", s === "Before");
+  if(btnAfter) btnAfter.classList.toggle("active", s === "After");
+  if(currentSessionEl) currentSessionEl.textContent = s;
   
   // 세션 전환 시 orientation 버튼 업데이트
   const orientation = sessions[s].poseData?.orientation || "side";
-  document.getElementById("btnOrientationSide").classList.toggle("active", orientation === "side");
-  document.getElementById("btnOrientationFront").classList.toggle("active", orientation === "front");
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  if(btnSide) btnSide.classList.toggle("active", orientation === "side");
+  if(btnFront) btnFront.classList.toggle("active", orientation === "front");
   
   // 좌표 선택 드롭다운 업데이트
   updateCoordSelectOptions();
@@ -2377,11 +2414,15 @@ function switchSession(s) {
   
   // 세션의 이미지로 캔버스 크기 조정
   const img = orientation === "front" ? sessions[s].imgFront : sessions[s].imgSide;
-  if(img) {
+  if(img && img.complete && img.naturalWidth > 0) {
     resizeCanvasFor(img);
+    draw();
+  } else {
+    // 이미지가 없거나 로드 중이면 기본 크기로 설정하고 그리기
+    resizeCanvasFor(null);
+    draw();
   }
   
-  draw();
   // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
   if(sessions[s].analysis) {
     // 기존 분석이 있으면 전체 업데이트
@@ -2397,22 +2438,27 @@ function switchSession(s) {
 
 function resizeCanvasFor(img) {
   const canvasWrap = cv.parentElement;
+  if(!canvasWrap) {
+    console.error("canvasWrap를 찾을 수 없습니다");
+    return;
+  }
+  
   const maxW = canvasWrap.clientWidth - 24;
   const maxH = canvasWrap.clientHeight - 24;
   
   // 원본 크기 계산 (처음 한 번만 또는 editMode가 아닐 때)
   let baseW, baseH;
   if(!editMode || originalCanvasSize.width === 0 || originalCanvasSize.height === 0) {
-  if(img) {
-    // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
-    const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
-    baseW = Math.round(img.naturalWidth * r);
-    baseH = Math.round(img.naturalHeight * r);
-  } else {
-    baseW = 1200;
-    baseH = 800;
-  }
-  
+    if(img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
+      const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+      baseW = Math.round(img.naturalWidth * r);
+      baseH = Math.round(img.naturalHeight * r);
+    } else {
+      baseW = 1200;
+      baseH = 800;
+    }
+    
     // 원본 크기 저장
     originalCanvasSize.width = baseW;
     originalCanvasSize.height = baseH;
@@ -2540,7 +2586,7 @@ function draw() {
   const orientation = S.poseData?.orientation || "side";
   const currentImg = orientation === "front" ? S.imgFront : S.imgSide;
 
-  if(currentImg) {
+  if(currentImg && currentImg.complete && currentImg.naturalWidth > 0 && currentImg.naturalHeight > 0) {
     // 원본 크기 저장 (처음 한 번만)
     if(originalCanvasSize.width === 0) {
       const maxW = cv.parentElement.clientWidth - 24;
@@ -2552,7 +2598,17 @@ function draw() {
       originalCanvasSize.styleHeight = originalCanvasSize.height;
     }
     // 이미지 그리기 (비율 유지하며 확대된 크기로)
-    ctx.drawImage(currentImg, 0, 0, W, H);
+    try {
+      ctx.drawImage(currentImg, 0, 0, W, H);
+    } catch(err) {
+      console.error("이미지 그리기 실패:", err);
+    }
+  } else if(currentImg && !currentImg.complete) {
+    // 이미지가 아직 로드 중이면 다시 시도
+    currentImg.onload = () => {
+      resizeCanvasFor(currentImg);
+      draw();
+    };
   }
 
   ensureDefaultPoints(cur);
@@ -4976,7 +5032,14 @@ window.addEventListener('touchcancel', (e) => {
     const imgKey = orientation === "front" ? "imgFront" : "imgSide";
     
     const img = new Image();
+    img.onerror = (e) => {
+      console.error("이미지 로드 실패:", e);
+      alert("이미지를 불러올 수 없습니다. 파일 형식을 확인해주세요.");
+    };
+    
     img.onload = async () => {
+      console.log("이미지 로드 완료:", imgKey, "naturalWidth:", img.naturalWidth, "naturalHeight:", img.naturalHeight);
+      
       // 기존 이미지가 있으면 메모리 정리 (orientation별로)
       const existingImg = sessions[cur][imgKey];
       if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
@@ -4992,22 +5055,32 @@ window.addEventListener('touchcancel', (e) => {
       originalCanvasSize.styleWidth = 0;
       originalCanvasSize.styleHeight = 0;
       
+      // 캔버스 크기 조정
       resizeCanvasFor(img);
       
       // 해당 orientation에 맞는 키포인트만 초기화
       const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
       currentPoints.clear();
       
-      draw();
-      computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+      // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
+      setTimeout(() => {
+        draw();
+        computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+      }, 100);
       
       // 포즈 감지 자동 실행 (선택된 orientation 사용)
       if(typeof applyPoseDetection === 'function') {
-        await applyPoseDetection(img, cur);
+        try {
+          await applyPoseDetection(img, cur);
+        } catch(err) {
+          console.error("포즈 감지 실패:", err);
+        }
       }
     };
+    
     img.crossOrigin = "anonymous";
-    img.src = URL.createObjectURL(f);
+    const blobUrl = URL.createObjectURL(f);
+    img.src = blobUrl;
     
     // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
     e.target.value = '';
@@ -5829,10 +5902,10 @@ async function loadPoseModels() {
     // 정면 모델 로드
     if (!modelsLoading.front && !modelsLoaded.front) {
       modelsLoading.front = true;
-      detectors.front = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-      );
+    detectors.front = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+    );
       modelsLoaded.front = true;
       modelsLoading.front = false;
       console.log("✅ 정면 모델 로드 완료");
@@ -5841,10 +5914,10 @@ async function loadPoseModels() {
     // 옆모습 모델 로드
     if (!modelsLoading.side && !modelsLoaded.side) {
       modelsLoading.side = true;
-      detectors.side = await poseDetection.createDetector(
-        poseDetection.SupportedModels.BlazePose,
-        { runtime: "tfjs", modelType: "full", enableSmoothing: true }
-      );
+    detectors.side = await poseDetection.createDetector(
+      poseDetection.SupportedModels.BlazePose,
+      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+    );
       modelsLoaded.side = true;
       modelsLoading.side = false;
       console.log("✅ 옆모습 모델 로드 완료");
@@ -5883,7 +5956,7 @@ async function detectPose(img, orientation) {
     
     if (!detectors[orientation]) {
       alert(`${orientation}용 모델 로드에 실패했습니다. 페이지를 새로고침해주세요.`);
-      return null;
+    return null;
     }
   }
   
