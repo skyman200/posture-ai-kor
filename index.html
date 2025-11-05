@@ -270,69 +270,150 @@ canvas {
   <div id="metricsDescPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
     <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📋 분석 항목 설명</div>
     <div id="metricsDescContent" style="max-height:300px; overflow-y:auto; font-size:11px; line-height:1.6;">
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">CVA (Craniovertebral Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">귀 뒤 유양돌기와 제7경추 사이 각도. 거북목 평가 지표. 정상: ≥50°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">CVA (Craniovertebral Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 귀 뒤 유양돌기(Tragus)와 제7경추(C7) 사이의 각도<br>
+          <strong>의미:</strong> 거북목 자세의 정도를 평가하는 가장 중요한 지표입니다. 각도가 작을수록 머리가 앞으로 나온 상태입니다.<br>
+          <strong>정상 범위:</strong> ≥50° (각도가 클수록 좋음)<br>
+          <strong>임상적 의미:</strong> CVA < 50°는 전방두부자세(FHP)를 의미하며, 경추 근육 긴장, 두통, 목 통증의 원인이 됩니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">HPD (Head Protrusion Distance)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">귀와 어깨 사이 수평 거리. 머리 전방 돌출 정도. 정상: ≤2cm</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">HPD (Head Protrusion Distance)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 귀(Tragus)와 어깨(Acromion) 사이의 수평 거리<br>
+          <strong>의미:</strong> 머리가 몸통에서 얼마나 앞으로 돌출되어 있는지를 cm 단위로 측정합니다.<br>
+          <strong>정상 범위:</strong> ≤2cm<br>
+          <strong>임상적 의미:</strong> 2cm 초과 시 경추 부담 증가, 상부 승모근 과긴장, 목-어깨 통증 유발 가능성이 높습니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">NIA (Neck Inclination Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">어깨에서 귀로 향하는 선의 수평 각도. 목 기울기. 정상: 0-20°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">NIA (Neck Inclination Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 어깨에서 귀로 향하는 선과 수평선 사이의 각도<br>
+          <strong>의미:</strong> 목의 전방 기울기 정도를 나타냅니다. CVA와 함께 거북목을 평가합니다.<br>
+          <strong>정상 범위:</strong> 0-20°<br>
+          <strong>임상적 의미:</strong> 20° 초과 시 경추 신전근 약화 및 굴곡근 긴장이 의심됩니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">TIA (Trunk Inclination Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">어깨와 골반 연결선의 수직 각도. 몸통 기울기. 정상: 0-10°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">TIA (Trunk Inclination Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 어깨(Acromion)와 골반(Hip)을 연결한 선과 수직선 사이의 각도<br>
+          <strong>의미:</strong> 몸통의 앞뒤 기울기를 평가하여 전체적인 체간 정렬을 확인합니다.<br>
+          <strong>정상 범위:</strong> 0-10°<br>
+          <strong>임상적 의미:</strong> 10° 초과 시 요추 과전만 또는 평평한 등(Flat Back) 위험이 있습니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">SAA (Scapular Alignment Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">어깨뼈 정렬 각도. 어깨와 골반 후면 기울기. 정상: 0-10°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">SAA (Scapular Alignment Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 어깨(Acromion)와 골반 후면(PSIS)을 연결한 선과 수평선 사이의 각도<br>
+          <strong>의미:</strong> 어깨뼈의 정렬 상태와 상부 체간의 자세를 평가합니다.<br>
+          <strong>정상 범위:</strong> 0-10°<br>
+          <strong>임상적 의미:</strong> 이상 시 견갑골 날개뼈(Winging) 또는 어깨 전방 말림이 의심됩니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">PTA (Pelvic Tilt Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">골반 전후방 경사각. PSIS와 ASIS 연결선 각도. 정상: 0-15°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">PTA (Pelvic Tilt Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 후상장골극(PSIS)과 전상장골극(ASIS)을 연결한 선과 수평선 사이의 각도<br>
+          <strong>의미:</strong> 골반의 전방 또는 후방 기울기를 평가하는 핵심 지표입니다.<br>
+          <strong>정상 범위:</strong> 0-15° (약간의 전방 경사는 정상)<br>
+          <strong>임상적 의미:</strong> >15°는 골반 전방 경사(요추 과전만), <0°는 골반 후방 경사(요추 평평)를 의미합니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">KA (Knee Alignment Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">고관절-무릎-발목 정렬 각도. 무릎 신전 정도. 정상: 175-185°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">KA (Knee Alignment Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 고관절(Hip)-무릎(Knee)-발목(Ankle) 세 점이 이루는 각도<br>
+          <strong>의미:</strong> 무릎 관절의 신전(펴짐) 정도를 평가합니다.<br>
+          <strong>정상 범위:</strong> 175-185°<br>
+          <strong>임상적 의미:</strong> <175°는 무릎 과굴곡(슬개건 부담), >185°는 무릎 과신전(관절 불안정성)을 나타냅니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">Tibial Angle (경골 경사각)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">무릎과 발목 연결선의 수직 각도. 정강이 기울기. 정상: 0-10°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Tibial Angle (경골 경사각)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 무릎(Knee)과 발목(Ankle)을 연결한 선과 수직선 사이의 각도<br>
+          <strong>의미:</strong> 정강이(경골)의 앞뒤 기울기를 측정합니다.<br>
+          <strong>정상 범위:</strong> 0-10°<br>
+          <strong>임상적 의미:</strong> 과도한 경사는 발목 불안정성 및 종아리 근육 불균형을 유발할 수 있습니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">Q-Angle (대퇴사두근 각도)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">ASIS-슬개골-경골조면 각도. 무릎 정렬 평가. 정상: 10-20°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Q-Angle (대퇴사두근 각도)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> ASIS-슬개골(Patella)-경골조면(Tibial Tuberosity) 세 점이 이루는 각도<br>
+          <strong>의미:</strong> 대퇴사두근의 당김 방향을 평가하여 무릎 정렬을 확인합니다.<br>
+          <strong>정상 범위:</strong> 남성 10-15°, 여성 15-20°<br>
+          <strong>임상적 의미:</strong> >20°는 슬개골 외측 전위 및 슬개대퇴 통증 증후군의 위험 요인입니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">Knee Deviation (무릎 높이 차)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">좌우 무릎 높이 차이. 골반 불균형 지표. 정상: 0-3°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Knee Deviation (무릎 높이 차)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 좌우 무릎의 높이 차이를 각도로 환산<br>
+          <strong>의미:</strong> 양쪽 무릎의 수평 정렬을 평가하여 골반 기울기를 간접적으로 확인합니다.<br>
+          <strong>정상 범위:</strong> 0-3°<br>
+          <strong>임상적 의미:</strong> 3° 초과 시 골반 회전(Pelvic Rotation) 또는 척추 측만증이 의심됩니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">LLD (Leg Length Discrepancy)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">다리 길이 차이. 좌우 다리 길이 불균형. 정상: ≤1cm</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">LLD (Leg Length Discrepancy)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 좌우 다리 길이(Hip-Ankle) 차이를 cm 단위로 측정<br>
+          <strong>의미:</strong> 기능적 또는 구조적 다리 길이 차이를 평가합니다.<br>
+          <strong>정상 범위:</strong> ≤1cm<br>
+          <strong>임상적 의미:</strong> 1cm 초과 시 골반 비대칭, 척추 측만, 보행 이상이 발생할 수 있으며 보상 자세로 인한 만성 통증의 원인이 됩니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">GSB (Global Sagittal Balance)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">전신 시상면 균형. 귀와 발목의 수평 정렬. 정상: ≤2cm</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">GSB (Global Sagittal Balance)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 귀(Tragus)와 발목(Ankle)의 수평 거리<br>
+          <strong>의미:</strong> 전신의 시상면(옆에서 본) 균형을 종합적으로 평가하는 지표입니다.<br>
+          <strong>정상 범위:</strong> ≤2cm<br>
+          <strong>임상적 의미:</strong> 2cm 초과 시 중력 중심선 이탈로 인한 전체 근골격계 부담 증가 및 에너지 소모가 증가합니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">BVA (Body Vertical Alignment)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">전신 수직 정렬. 주요 관절의 수직선 범위. 정상: ≤2cm</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">BVA (Body Vertical Alignment)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 머리-어깨-골반-무릎-발목 등 주요 관절의 수직선 정렬 범위<br>
+          <strong>의미:</strong> 모든 주요 관절이 하나의 수직선상에 정렬되어 있는지 평가합니다.<br>
+          <strong>정상 범위:</strong> ≤2cm (최대 편차)<br>
+          <strong>임상적 의미:</strong> 불량한 수직 정렬은 특정 관절 및 근육에 과부하를 일으켜 만성 통증과 퇴행성 변화를 가속화합니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">SCI (Spinal Curvature Index)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">척추 만곡 지수. 경추/요추 전만 정도. 정상: 0.15-0.35</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">SCI (Spinal Curvature Index)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 척추의 경추 및 요추 전만(앞으로 굽음) 곡선의 비율<br>
+          <strong>의미:</strong> 척추의 자연스러운 S자 곡선이 적절하게 유지되는지 평가합니다.<br>
+          <strong>정상 범위:</strong> 0.15-0.35<br>
+          <strong>임상적 의미:</strong> <0.15는 평평한 척추(충격 흡수↓), >0.35는 과도한 만곡(디스크 압력↑)을 의미합니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">HPA (Head–Pelvis Angle)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">머리와 골반 정렬 각도. 전신 자세 평가. 정상: 0-10°</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">HPA (Head–Pelvis Angle)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 머리(Tragus)와 골반(PSIS)을 연결한 선과 수직선 사이의 각도<br>
+          <strong>의미:</strong> 머리와 골반의 상대적 위치 관계를 통해 전신 자세를 종합 평가합니다.<br>
+          <strong>정상 범위:</strong> 0-10°<br>
+          <strong>임상적 의미:</strong> 이상 각도는 머리-골반 분절 간 협응 부족을 나타내며, 전신 자세 불균형의 지표입니다.
+        </div>
       </details>
-      <details style="margin-bottom:6px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">PDS (Postural Deviation Score)</summary>
-        <div style="padding:6px 0 0 12px; color:var(--muted);">자세 편차 종합 점수. 모든 항목의 이상 정도 합계. 정상: 0-10</div>
+      <details style="margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">PDS (Postural Deviation Score)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> 위 15개 항목의 비정상 정도를 점수화하여 합산<br>
+          <strong>의미:</strong> 전체적인 자세 불균형의 정도를 하나의 숫자로 요약한 종합 지표입니다.<br>
+          <strong>정상 범위:</strong> 0-10점<br>
+          <strong>분류:</strong> 0-10 (정상), 11-20 (경미), 21-30 (중등도), 31+ (심각)<br>
+          <strong>임상적 의미:</strong> 점수가 높을수록 다양한 자세 문제가 복합적으로 나타나며, 전문적인 교정 치료가 필요합니다.
+        </div>
       </details>
     </div>
   </div>
@@ -370,15 +451,6 @@ canvas {
     <div id="pilatesList" style="font-size:12px; line-height:1.6;"></div>
   </div>
 
-  <div id="chartPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📊 자세 분석 차트</div>
-    <div style="margin-bottom:12px;">
-      <canvas id="radarChart" style="max-width:100%; height:280px;"></canvas>
-    </div>
-    <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
-      <canvas id="barChart" style="max-width:100%; height:200px;"></canvas>
-    </div>
-  </div>
 
   <div style="margin-top:12px; max-height:400px; overflow-y:auto;">
     <table class="tbl">
@@ -411,7 +483,6 @@ canvas {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"></script>
@@ -1794,16 +1865,16 @@ function resizeCanvasFor(img) {
   // 원본 크기 계산 (처음 한 번만 또는 editMode가 아닐 때)
   let baseW, baseH;
   if(!editMode || originalCanvasSize.width === 0 || originalCanvasSize.height === 0) {
-    if(img) {
-      // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
-      const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
-      baseW = Math.round(img.naturalWidth * r);
-      baseH = Math.round(img.naturalHeight * r);
-    } else {
-      baseW = 1200;
-      baseH = 800;
-    }
-    
+  if(img) {
+    // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
+    const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+    baseW = Math.round(img.naturalWidth * r);
+    baseH = Math.round(img.naturalHeight * r);
+  } else {
+    baseW = 1200;
+    baseH = 800;
+  }
+  
     // 원본 크기 저장
     originalCanvasSize.width = baseW;
     originalCanvasSize.height = baseH;
@@ -2194,10 +2265,6 @@ function computeAll() {
     updateCompare();
     updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
     
-    // 차트 업데이트
-    if(sideMetrics) {
-      updateCharts(sideMetrics);
-    }
   } else if(frontMetrics.status !== "not_available") {
     // 정면 분석만 있는 경우
     S.metrics = { 
@@ -2273,154 +2340,8 @@ function displayFrontAnalysis(fullMetrics) {
   commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
   commentPanel.style.display = "block";
   
-  // 차트 표시
-  updateCharts(fullMetrics);
 }
 
-// ✅ 차트 시각화 함수
-function updateCharts(metrics) {
-  if(!metrics || Object.keys(metrics).length === 0) {
-    document.getElementById("chartPanel").style.display = "none";
-    return;
-  }
-  
-  // 메트릭 파싱
-  const metricList = [];
-  for(const [key, value] of Object.entries(metrics)) {
-    if(value && (value.value_deg != null || value.value_cm != null)) {
-      metricList.push({
-        name: key,
-        value: value.value_deg != null ? value.value_deg : value.value_cm,
-        status: value.status || "unknown"
-      });
-    }
-  }
-  
-  if(metricList.length === 0) {
-    document.getElementById("chartPanel").style.display = "none";
-    return;
-  }
-  
-  const labels = metricList.map(m => m.name);
-  const values = metricList.map(m => m.value);
-  const statusColors = metricList.map(m => {
-    switch(m.status) {
-      case "normal": return "#2ec4b6";
-      case "mild": return "#ffd166";
-      case "moderate": return "#ffb86c";
-      case "severe": return "#ff6b6b";
-      default: return "#9bb0c7";
-    }
-  });
-  
-  // 기존 차트 파괴
-  if(calibrationChart) {
-    calibrationChart.destroy();
-  }
-  if(calibrationBarChart) {
-    calibrationBarChart.destroy();
-  }
-  
-  // Radar Chart
-  const radarCtx = document.getElementById("radarChart").getContext("2d");
-  calibrationChart = new Chart(radarCtx, {
-    type: 'radar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '자세 분석',
-        data: values,
-        backgroundColor: 'rgba(124, 156, 255, 0.2)',
-        borderColor: 'rgba(124, 156, 255, 0.8)',
-        pointBackgroundColor: 'rgba(124, 156, 255, 1)',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgba(124, 156, 255, 1)'
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
-      },
-      scales: {
-        r: {
-          beginAtZero: true,
-          ticks: {
-            color: 'rgba(231, 238, 247, 0.7)',
-            font: {
-              size: 10
-            }
-          },
-          grid: {
-            color: 'rgba(255, 255, 255, 0.1)'
-          },
-          pointLabels: {
-            color: 'rgba(231, 238, 247, 0.9)',
-            font: {
-              size: 11
-            }
-          }
-        }
-      }
-    }
-  });
-  
-  // Bar Chart
-  const barCtx = document.getElementById("barChart").getContext("2d");
-  calibrationBarChart = new Chart(barCtx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '값',
-        data: values,
-        backgroundColor: statusColors,
-        borderColor: statusColors.map(c => c.replace('0.8', '1')),
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            color: 'rgba(231, 238, 247, 0.7)',
-            font: {
-              size: 10
-            }
-          },
-          grid: {
-            color: 'rgba(255, 255, 255, 0.1)'
-          }
-        },
-        x: {
-          ticks: {
-            color: 'rgba(231, 238, 247, 0.7)',
-            font: {
-              size: 10
-            }
-          },
-          grid: {
-            display: false
-          }
-        }
-      }
-    }
-  });
-  
-  document.getElementById("chartPanel").style.display = "block";
-}
 
 function computeScore(cva, pelvic, knee) {
   let penalties = 0;
@@ -4067,9 +3988,6 @@ document.getElementById("btnReset").onclick = () => {
 let calibrationMode = false;
 let calibrationPoint1 = null;
 let calibrationPoint2 = null;
-let calibrationChart = null;
-let calibrationBarChart = null;
-
 document.getElementById("btnCalibrate").onclick = () => {
   calibrationMode = !calibrationMode;
   const panel = document.getElementById("calibrationPanel");
