@@ -633,6 +633,10 @@ const keypointsFront = [
   {key:'R_ankle', color:'#7c9cff'},
   {key:'L_knee', color:'#7c9cff'},
   {key:'R_knee', color:'#7c9cff'},
+  {key:'L_patella', color:'#ff6b6b'},  // Q-angle 측정용: 슬개골 중심
+  {key:'R_patella', color:'#ff6b6b'},  // Q-angle 측정용: 슬개골 중심
+  {key:'L_tibial_tub', color:'#ff6b6b'},  // Q-angle 측정용: 경골 결절
+  {key:'R_tibial_tub', color:'#ff6b6b'},  // Q-angle 측정용: 경골 결절
 ];
 
 // 기존 호환성을 위해 keypoints 변수 유지 (getKeypoints 함수로 동적 반환)
@@ -1030,21 +1034,7 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.HPA.meaning = result.HPA.desc;
   }
   
-  // 1️⃣3️⃣ Q-Angle (슬개정렬): ASIS–patella–tibial_tub 각도
-  const patella = p("patella") || p("Patella");
-  const tibialTub = p("tibial_tub") || p("Tibial_Tub");
-  if (ASIS && patella && tibialTub) {
-    const qAngle = angleAt(patella, ASIS, tibialTub);
-    result.Q_Angle = {
-      value: qAngle,
-      status: (qAngle >= 10 && qAngle <= 20) ? "normal" : "abnormal",
-      unit: "°",
-      desc: "Q-Angle (슬개정렬)"
-    };
-    // 하위 호환성
-    result.Q_Angle.value_deg = qAngle;
-    result.Q_Angle.meaning = result.Q_Angle.desc;
-  }
+  // Q-Angle은 정면 분석에서만 측정 (측면 분석에서는 제거)
   
   // 1️⃣4️⃣ Knee_Deviation (무릎 높이 차이): L_knee와 R_knee 수평선 각도
   const L_knee = p("L_knee") || p("L_Knee");
@@ -1419,19 +1409,92 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   }
   
   // 7️⃣ Q-Angle: ASIS → patella 중심 → tibial tuberosity
-  // (정면에서만 측정 가능, 측면 분석에는 포함하지 않음)
-  const L_patella = p("L_patella") || p("L_Patella") || L_knee;
-  const R_patella = p("R_patella") || p("R_Patella") || R_knee;
-  if (L_asis && L_patella && L_ankle) {
-    // Q-Angle은 ASIS에서 무릎까지의 선과 무릎에서 발목까지의 선 사이의 각도
-    // 실제로는 무릎에서 ASIS와 발목으로 가는 각도
-    const qAngle = angleAt(L_patella, L_asis, L_ankle);
+  // (정면에서만 측정 가능)
+  const L_patella = p("L_patella") || p("L_Patella");
+  const R_patella = p("R_patella") || p("R_Patella");
+  const L_tibial_tub = p("L_tibial_tub") || p("L_Tibial_Tub");
+  const R_tibial_tub = p("R_tibial_tub") || p("R_Tibial_Tub");
+  
+  // 좌측 Q-Angle 계산
+  if (L_asis && L_patella && L_tibial_tub) {
+    // Q-Angle: ASIS → patella 중심 → tibial tuberosity 각도
+    const qAngleL = angleAt(L_patella, L_asis, L_tibial_tub);
+    result.Q_Angle_L = {
+      value: qAngleL,
+      value_deg: qAngleL,
+      status: classifyRange({
+        v: qAngleL,
+        nMin: 10, nMax: 20, // 일반적으로 여성이 더 큼
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Q-Angle Left (좌측 대퇴사두근 각도)",
+      meaning: "좌측 Q-Angle (10–20° 정상, 여성이 더 큼)"
+    };
+  }
+  
+  // 우측 Q-Angle 계산
+  if (R_asis && R_patella && R_tibial_tub) {
+    const qAngleR = angleAt(R_patella, R_asis, R_tibial_tub);
+    result.Q_Angle_R = {
+      value: qAngleR,
+      value_deg: qAngleR,
+      status: classifyRange({
+        v: qAngleR,
+        nMin: 10, nMax: 20,
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Q-Angle Right (우측 대퇴사두근 각도)",
+      meaning: "우측 Q-Angle (10–20° 정상, 여성이 더 큼)"
+    };
+  }
+  
+  // 평균 Q-Angle (좌우 모두 있을 때)
+  if (result.Q_Angle_L && result.Q_Angle_R) {
+    const avgQAngle = (result.Q_Angle_L.value + result.Q_Angle_R.value) / 2;
+    result.Q_Angle = {
+      value: avgQAngle,
+      value_deg: avgQAngle,
+      status: classifyRange({
+        v: avgQAngle,
+        nMin: 10, nMax: 20,
+        mildMin: 20, mildMax: 25,
+        modMin: 25, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Q-Angle (대퇴사두근 각도)",
+      meaning: "Q-Angle 평균 (10–20° 정상, 여성이 더 큼)"
+    };
+  } else if (result.Q_Angle_L) {
+    // 좌측만 있을 때
+    result.Q_Angle = result.Q_Angle_L;
+    result.Q_Angle.desc = "Q-Angle (대퇴사두근 각도)";
+    result.Q_Angle.meaning = "Q-Angle (10–20° 정상, 여성이 더 큼)";
+  } else if (result.Q_Angle_R) {
+    // 우측만 있을 때
+    result.Q_Angle = result.Q_Angle_R;
+    result.Q_Angle.desc = "Q-Angle (대퇴사두근 각도)";
+    result.Q_Angle.meaning = "Q-Angle (10–20° 정상, 여성이 더 큼)";
+  }
+  
+  // 하위 호환성: patella나 tibial_tub가 없을 때 무릎 중심 사용 (기존 방식)
+  if (!result.Q_Angle && L_asis && L_knee && L_ankle) {
+    const qAngle = angleAt(L_knee, L_asis, L_ankle);
     result.Q_Angle = {
       value: qAngle,
       value_deg: qAngle,
       status: classifyRange({
         v: qAngle,
-        nMin: 10, nMax: 20, // 일반적으로 여성이 더 큼
+        nMin: 10, nMax: 20,
         mildMin: 20, mildMax: 25,
         modMin: 25, modMax: 30,
         sevMin: 30, sevMax: null,
@@ -2147,6 +2210,291 @@ const pilatesPatterns = {
   }
 };
 
+// 필라테스 운동 상세 설명 데이터베이스
+const pilatesExerciseDescriptions = {
+  // 거북목(FHP) 관련 운동
+  'Chin Tuck & Axial Elongation': {
+    ko: '턱당기기 + 축신장',
+    description: '목과 척추를 정렬하면서 경추를 안정화하는 기본 동작입니다. 벽에 등을 대고 서서 턱을 뒤로 당기며 머리 꼭대기를 천장 방향으로 늘립니다. 상부 승모근의 긴장을 완화하고 심부 경부 굴근을 활성화합니다.',
+    instructions: '1) 벽에 등을 대고 서서 뒤통수가 벽에 닿도록 합니다. 2) 턱을 뒤로 당기며 목 앞쪽 근육을 수축합니다. 3) 머리 꼭대기를 천장 방향으로 늘리며 10초 유지합니다. 4) 천천히 원래 자세로 돌아옵니다. 5회 반복합니다.',
+    benefits: '경추 정렬 개선, 상부 승모근 긴장 완화, 심부 경부 굴근 강화, 거북목 자세 교정',
+    precautions: '목 통증이 있으면 즉시 중단하고, 과도한 힘을 주지 않습니다.'
+  },
+  'Swan Prep': {
+    ko: '스완 준비',
+    description: '흉추 신전을 유도하면서 하부 승모근을 강화하는 동작입니다. 복부와 둔근을 활성화하여 척추를 안정적으로 지지하면서 상체를 들어올립니다.',
+    instructions: '1) 엎드린 자세에서 손바닥을 어깨 옆에 둡니다. 2) 복부와 둔근을 수축하여 척추를 안정화합니다. 3) 상체를 천천히 들어올리며 어깨뼈를 아래로 눌러 모읍니다. 4) 목은 자연스럽게 연장하여 턱이 앞으로 나가지 않도록 합니다. 5) 5-10초 유지 후 천천히 내려옵니다. 5회 반복합니다.',
+    benefits: '흉추 신전 개선, 하부 승모근 강화, 어깨뼈 안정화, 거북목 자세 보조 교정',
+    precautions: '요통이 있으면 높이를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  'Pulling Straps': {
+    ko: '풀링 스트랩',
+    description: '리포머를 사용한 견갑 후방 안정화 운동입니다. 어깨뼈를 후인시키고 하부 승모근을 활성화하여 라운드 숄더와 거북목 자세를 교정합니다.',
+    instructions: '1) 리포머에 앉아 스트랩을 잡습니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 팔을 앞으로 뻗은 상태에서 시작합니다. 4) 어깨뼈를 모으며 팔꿈치를 뒤로 당깁니다. 5) 어깨뼈가 아래로 눌러지도록 의식하며 10회 반복합니다.',
+    benefits: '견갑 후인 강화, 하부 승모근 활성화, 라운드 숄더 교정, 어깨 안정성 향상',
+    precautions: '목을 앞으로 내밀지 않고, 어깨를 올리지 않도록 주의합니다.'
+  },
+  'Tower Swan': {
+    ko: '타워 스완',
+    description: '캐딜락 타워를 사용한 흉추 신전 및 견갑 후방 운동입니다. 상체를 들어올리면서 어깨뼈를 안정적으로 위치시키고 흉추 가동성을 개선합니다.',
+    instructions: '1) 캐딜락 타워 앞에 엎드립니다. 2) 팔을 타워 바에 올려놓고 복부를 수축합니다. 3) 상체를 들어올리며 어깨뼈를 아래로 눌러 모읍니다. 4) 흉추를 차례로 신전시키며 척추를 연장합니다. 5) 5-10초 유지 후 천천히 내려옵니다. 5회 반복합니다.',
+    benefits: '흉추 신전 개선, 어깨뼈 안정화, 하부 승모근 강화, 거북목 자세 교정',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  'Press Down Front': {
+    ko: '프레스 다운 프론트',
+    description: '필라테스 체어를 사용한 경추 정렬 및 전거근 활성화 운동입니다. 팔을 아래로 누르면서 어깨뼈를 안정화하고 경추를 중립 위치로 유지합니다.',
+    instructions: '1) 체어에 앉아 손바닥을 팔걸이에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 팔을 아래로 누르면서 어깨뼈를 안정화합니다. 4) 목을 자연스럽게 연장하여 턱이 앞으로 나가지 않도록 합니다. 5) 5-10회 반복합니다.',
+    benefits: '경추 정렬 개선, 전거근 활성화, 어깨뼈 안정화, 거북목 자세 교정',
+    precautions: '어깨를 올리지 않고, 목에 과도한 긴장을 주지 않습니다.'
+  },
+  'Swan on Ladder Barrel': {
+    ko: '래더 배럴 스완',
+    description: '래더 배럴을 사용한 흉추 가동성 및 승모근 하부 강화 운동입니다. 상체를 뒤로 젖히면서 흉추를 신전시키고 어깨뼈를 안정화합니다.',
+    instructions: '1) 래더 배럴에 등을 대고 앉습니다. 2) 복부를 수축하여 척추를 안정화합니다. 3) 상체를 뒤로 젖히면서 흉추를 차례로 신전시킵니다. 4) 어깨뼈를 아래로 눌러 모으며 하부 승모근을 활성화합니다. 5) 5-10초 유지 후 천천히 돌아옵니다. 5회 반복합니다.',
+    benefits: '흉추 가동성 향상, 승모근 하부 강화, 어깨뼈 안정화, 거북목 자세 보조 교정',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  
+  // 라운드 숄더(RSP) 관련 운동
+  'Prone Scapular Retraction': {
+    ko: '프론 사투라 견갑골 후인',
+    description: '엎드린 자세에서 어깨뼈를 후인시키는 운동입니다. 능형근과 중부 승모근을 활성화하여 라운드 숄더를 교정합니다.',
+    instructions: '1) 엎드린 자세에서 팔을 옆으로 뻗습니다. 2) 복부를 수축하여 척추를 안정화합니다. 3) 어깨뼈를 모으며 팔을 약간 들어올립니다. 4) 어깨뼈가 아래로 눌러지도록 의식하며 10초 유지합니다. 5) 천천히 내려옵니다. 10회 반복합니다.',
+    benefits: '견갑 후인 강화, 능형근 활성화, 라운드 숄더 교정, 어깨 안정성 향상',
+    precautions: '어깨를 올리지 않고, 목에 긴장을 주지 않습니다.'
+  },
+  'Rowing Back / Pulling Straps': {
+    ko: '로잉 백 / 풀링 스트랩',
+    description: '리포머를 사용한 견갑 안정화 운동입니다. 팔을 뒤로 당기면서 어깨뼈를 후인시키고 하부 승모근을 강화합니다.',
+    instructions: '1) 리포머에 앉아 스트랩을 잡습니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 팔을 앞으로 뻗은 상태에서 시작합니다. 4) 어깨뼈를 모으며 팔꿈치를 뒤로 당깁니다. 5) 어깨뼈가 아래로 눌러지도록 의식하며 10회 반복합니다.',
+    benefits: '견갑 안정화, 하부 승모근 강화, 라운드 숄더 교정, 어깨 후방근 활성화',
+    precautions: '목을 앞으로 내밀지 않고, 어깨를 올리지 않도록 주의합니다.'
+  },
+  'Arm Springs - Extension': {
+    ko: '암 스프링 - 익스텐션',
+    description: '캐딜락 암 스프링을 사용한 어깨 후방근 강화 운동입니다. 팔을 뒤로 뻗으면서 어깨뼈를 안정화하고 후방 근육을 활성화합니다.',
+    instructions: '1) 캐딜락에 앉아 암 스프링을 잡습니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 팔을 앞으로 뻗은 상태에서 시작합니다. 4) 어깨뼈를 모으며 팔을 뒤로 뻗습니다. 5) 어깨뼈가 아래로 눌러지도록 의식하며 10회 반복합니다.',
+    benefits: '어깨 후방근 강화, 견갑 안정화, 라운드 숄더 교정, 어깨 가동성 향상',
+    precautions: '어깨를 올리지 않고, 목에 긴장을 주지 않습니다.'
+  },
+  'Spine Stretch Forward (Chair Ver.)': {
+    ko: '스파인 스트레치 포워드 (체어 버전)',
+    description: '필라테스 체어를 사용한 견갑 안정화 및 흉추 신전 운동입니다. 상체를 앞으로 숙이면서 척추를 연장시키고 어깨뼈를 안정화합니다.',
+    instructions: '1) 체어에 앉아 복부를 수축합니다. 2) 척추를 하나씩 앞으로 굽히면서 상체를 숙입니다. 3) 어깨뼈를 아래로 눌러 모으며 안정화합니다. 4) 천천히 척추를 하나씩 펴면서 돌아옵니다. 5) 5-10회 반복합니다.',
+    benefits: '견갑 안정화, 흉추 가동성 향상, 척추 연장, 라운드 숄더 보조 교정',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  'Shoulder Extension on Barrel': {
+    ko: '배럴 어깨 익스텐션',
+    description: '배럴을 사용한 흉추 가동성 및 어깨 후인근 강화 운동입니다. 상체를 뒤로 젖히면서 흉추를 신전시키고 어깨뼈를 안정화합니다.',
+    instructions: '1) 배럴에 등을 대고 앉습니다. 2) 복부를 수축하여 척추를 안정화합니다. 3) 상체를 뒤로 젖히면서 흉추를 차례로 신전시킵니다. 4) 어깨뼈를 아래로 눌러 모으며 후인근을 활성화합니다. 5) 5-10초 유지 후 천천히 돌아옵니다. 5회 반복합니다.',
+    benefits: '흉추 가동성 향상, 어깨 후인근 강화, 어깨뼈 안정화, 라운드 숄더 교정',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  
+  // 과전경사 골반 관련 운동
+  'Pelvic Curl': {
+    ko: '펠빅 컬',
+    description: '골반 후경사를 유도하는 기본 동작입니다. 복부와 둔근을 활성화하여 골반을 뒤로 기울이고 요추 전만을 감소시킵니다.',
+    instructions: '1) 누워서 무릎을 구부리고 발을 바닥에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 골반을 뒤로 기울이며 엉덩이를 천천히 들어올립니다. 4) 척추를 하나씩 바닥에서 떼어냅니다. 5) 최고점에서 5-10초 유지 후 천천히 내려옵니다. 10회 반복합니다.',
+    benefits: '골반 후경사 유도, 둔근 강화, 요추 전만 감소, 골반 안정화',
+    precautions: '목 통증이 있으면 베개를 사용하고, 요통이 있으면 범위를 줄입니다.'
+  },
+  'Dead Bug / Toe Tap': {
+    ko: '데드 버그 / 토 탭',
+    description: '복횡근을 활성화하는 코어 안정화 운동입니다. 팔과 다리를 움직이면서 복부를 안정적으로 유지하여 골반 전방경사를 교정합니다.',
+    instructions: '1) 누워서 무릎을 90도로 구부리고 팔을 위로 올립니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 반대편 팔과 다리를 천천히 내립니다. 4) 복부가 튀어나오지 않도록 유지하며 원래 자세로 돌아옵니다. 5) 좌우 교대로 10회 반복합니다.',
+    benefits: '복횡근 활성화, 코어 안정화, 골반 전방경사 교정, 요추 안정성 향상',
+    precautions: '요통이 있으면 범위를 줄이고, 복부가 튀어나오면 즉시 중단합니다.'
+  },
+  'Bridge on Reformer': {
+    ko: '리포머 브릿지',
+    description: '리포머를 사용한 후방 사슬 강화 운동입니다. 둔근과 햄스트링을 활성화하여 골반을 안정화하고 요추 전만을 감소시킵니다.',
+    instructions: '1) 리포머에 누워 발을 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 골반을 뒤로 기울이며 엉덩이를 천천히 들어올립니다. 4) 둔근과 햄스트링을 활성화하며 10회 반복합니다.',
+    benefits: '후방 사슬 강화, 둔근 활성화, 골반 안정화, 요추 전만 감소',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 베개를 사용합니다.'
+  },
+  'Roll Down with Push Through Bar': {
+    ko: '롤 다운 (푸시 스루 바)',
+    description: '캐딜락 푸시 스루 바를 사용한 복부 코어 조절 운동입니다. 상체를 굽히면서 복횡근을 활성화하여 골반 전방경사를 교정합니다.',
+    instructions: '1) 캐딜락에 앉아 푸시 스루 바를 잡습니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 척추를 하나씩 굽히면서 상체를 앞으로 숙입니다. 4) 복부가 튀어나오지 않도록 유지하며 천천히 돌아옵니다. 5) 10회 반복합니다.',
+    benefits: '복부 코어 조절, 복횡근 활성화, 골반 전방경사 교정, 척추 가동성 향상',
+    precautions: '요통이 있으면 범위를 줄이고, 복부가 튀어나오면 즉시 중단합니다.'
+  },
+  'Standing Hip Extension': {
+    ko: '스탠딩 힙 익스텐션',
+    description: '서서 하는 둔근 강화 운동입니다. 한쪽 다리를 뒤로 뻗으면서 둔근을 활성화하여 골반을 안정화합니다.',
+    instructions: '1) 서서 한쪽 손을 벽에 대고 균형을 유지합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 한쪽 다리를 뒤로 뻗으며 둔근을 활성화합니다. 4) 골반이 기울어지지 않도록 유지하며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '둔근 강화, 골반 안정화, 요추 전만 감소, 하지 후방 사슬 활성화',
+    precautions: '요통이 있으면 범위를 줄이고, 균형 문제가 있으면 벽을 잡습니다.'
+  },
+  'Short Box Round Back': {
+    ko: '숏 박스 라운드 백',
+    description: '숏 박스를 사용한 코어 및 후방 사슬 강화 운동입니다. 상체를 굽히면서 복부를 활성화하고 둔근을 강화합니다.',
+    instructions: '1) 숏 박스에 앉아 복부를 수축합니다. 2) 척추를 하나씩 굽히면서 상체를 앞으로 숙입니다. 3) 복부가 튀어나오지 않도록 유지하며 천천히 돌아옵니다. 4) 10회 반복합니다.',
+    benefits: '코어 강화, 후방 사슬 활성화, 골반 전방경사 교정, 척추 안정성 향상',
+    precautions: '요통이 있으면 범위를 줄이고, 복부가 튀어나오면 즉시 중단합니다.'
+  },
+  
+  // 후경사 골반 관련 운동
+  'Leg Pull Front': {
+    ko: '레그 풀 프론트',
+    description: '전방 사슬 강화 운동입니다. 플랭크 자세에서 한쪽 다리를 들어올리면서 복부와 대퇴직근을 활성화합니다.',
+    instructions: '1) 플랭크 자세에서 시작합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 한쪽 다리를 들어올리며 대퇴직근을 활성화합니다. 4) 골반이 기울어지지 않도록 유지하며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '전방 사슬 강화, 복부 활성화, 대퇴직근 강화, 골반 후경사 교정',
+    precautions: '요통이 있으면 즉시 중단하고, 어깨 통증이 있으면 무릎을 내립니다.'
+  },
+  'Footwork - Parallel Heels': {
+    ko: '풋워크 - 패럴렐 힐즈',
+    description: '리포머를 사용한 고관절 신전 활성화 운동입니다. 발뒤꿈치를 풋바에 대고 다리를 밀면서 고관절 신전근을 활성화합니다.',
+    instructions: '1) 리포머에 누워 발뒤꿈치를 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 밀면서 고관절을 신전시킵니다. 4) 천천히 돌아오며 10회 반복합니다.',
+    benefits: '고관절 신전 활성화, 장요근 기능적 수축, 골반 후경사 교정, 하지 전방 사슬 강화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Leg Springs - Supine': {
+    ko: '레그 스프링 - 슈파인',
+    description: '캐딜락 레그 스프링을 사용한 장요근 기능적 수축 운동입니다. 누운 자세에서 다리를 들어올리면서 장요근을 활성화합니다.',
+    instructions: '1) 캐딜락에 누워 레그 스프링에 다리를 연결합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 들어올리며 장요근을 활성화합니다. 4) 천천히 내리며 10회 반복합니다.',
+    benefits: '장요근 기능적 수축, 고관절 굴곡 활성화, 골반 후경사 교정, 하지 전방 사슬 강화',
+    precautions: '요통이 있으면 범위를 줄이고, 복부가 튀어나오면 즉시 중단합니다.'
+  },
+  'Swan Press': {
+    ko: '스완 프레스',
+    description: '필라테스 체어를 사용한 요추 신전 강화 운동입니다. 상체를 뒤로 젖히면서 척추기립근을 활성화합니다.',
+    instructions: '1) 체어에 앉아 복부를 수축합니다. 2) 척추를 하나씩 뒤로 젖히면서 상체를 연장합니다. 3) 척추기립근을 활성화하며 5-10초 유지합니다. 4) 천천히 돌아오며 10회 반복합니다.',
+    benefits: '요추 신전 강화, 척추기립근 활성화, 골반 후경사 교정, 척추 가동성 향상',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  'Swan on Barrel': {
+    ko: '배럴 스완',
+    description: '배럴을 사용한 요추 가동성 향상 운동입니다. 상체를 뒤로 젖히면서 척추를 신전시키고 가동성을 개선합니다.',
+    instructions: '1) 배럴에 등을 대고 앉습니다. 2) 복부를 수축하여 척추를 안정화합니다. 3) 상체를 뒤로 젖히면서 척추를 차례로 신전시킵니다. 4) 5-10초 유지 후 천천히 돌아옵니다. 5) 5회 반복합니다.',
+    benefits: '요추 가동성 향상, 척추기립근 활성화, 골반 후경사 교정, 척추 연장',
+    precautions: '요통이 있으면 범위를 줄이고, 목 통증이 있으면 즉시 중단합니다.'
+  },
+  
+  // X자 다리 관련 운동
+  'Side-Lying Leg Lift': {
+    ko: '사이드 라잉 레그 리프트',
+    description: '옆으로 누워서 하는 중둔근 강화 운동입니다. 다리를 옆으로 들어올리면서 고관절 외전근을 활성화하여 X자 다리를 교정합니다.',
+    instructions: '1) 옆으로 누워서 아래쪽 팔로 머리를 지지합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 위쪽 다리를 들어올리며 중둔근을 활성화합니다. 4) 골반이 앞뒤로 기울어지지 않도록 유지하며 15회 반복합니다. 5) 반대편으로 돌아서 반복합니다.',
+    benefits: '중둔근 강화, 고관절 외전 활성화, X자 다리 교정, 골반 안정화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Side Splits': {
+    ko: '사이드 스플릿',
+    description: '리포머를 사용한 외측 안정화 운동입니다. 다리를 옆으로 벌리면서 고관절 외전근을 활성화합니다.',
+    instructions: '1) 리포머에 앉아 다리를 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 옆으로 벌리며 고관절 외전근을 활성화합니다. 4) 천천히 모으며 10회 반복합니다.',
+    benefits: '외측 안정화, 고관절 외전 강화, X자 다리 교정, 골반 안정성 향상',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Standing Hip Abduction': {
+    ko: '스탠딩 힙 외전',
+    description: '서서 하는 고관절 외전 강화 운동입니다. 한쪽 다리를 옆으로 뻗으면서 중둔근을 활성화합니다.',
+    instructions: '1) 서서 한쪽 손을 벽에 대고 균형을 유지합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 한쪽 다리를 옆으로 뻗으며 중둔근을 활성화합니다. 4) 골반이 기울어지지 않도록 유지하며 15회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '고관절 외전 강화, 중둔근 활성화, X자 다리 교정, 골반 안정화',
+    precautions: '요통이 있으면 범위를 줄이고, 균형 문제가 있으면 벽을 잡습니다.'
+  },
+  'Step Up Lateral': {
+    ko: '스텝 업 레터럴',
+    description: '옆으로 올라가는 하지 외측 안정성 운동입니다. 박스를 옆으로 올라가면서 고관절 외전근을 활성화합니다.',
+    instructions: '1) 박스 옆에 서서 복부를 수축합니다. 2) 한쪽 다리로 박스에 올라가며 중둔근을 활성화합니다. 3) 골반이 기울어지지 않도록 유지하며 10회 반복합니다. 4) 반대편 다리로 교대합니다.',
+    benefits: '하지 외측 안정성, 고관절 외전 강화, X자 다리 교정, 기능적 움직임 개선',
+    precautions: '무릎 통증이 있으면 즉시 중단하고, 균형 문제가 있으면 벽을 잡습니다.'
+  },
+  'Side Bend Stretch': {
+    ko: '사이드 벤드 스트레치',
+    description: '배럴을 사용한 고관절 정렬 및 안정성 개선 운동입니다. 옆으로 기울면서 고관절 외전근을 스트레칭하고 안정화합니다.',
+    instructions: '1) 배럴 옆에 서서 한쪽 다리를 배럴에 올립니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 옆으로 기울면서 고관절 외전근을 스트레칭합니다. 4) 30초 유지 후 천천히 돌아옵니다. 5) 반대편으로 교대합니다.',
+    benefits: '고관절 정렬 개선, 외전근 스트레칭, 안정성 향상, X자 다리 보조 교정',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  
+  // O자 다리 관련 운동
+  'Ball Squeeze Bridge': {
+    ko: '볼 스퀴즈 브릿지',
+    description: '볼을 무릎 사이에 끼우고 하는 내전근 활성화 운동입니다. 엉덩이를 들어올리면서 내전근을 수축하여 O자 다리를 교정합니다.',
+    instructions: '1) 누워서 무릎을 구부리고 발을 바닥에 둡니다. 2) 무릎 사이에 볼을 끼웁니다. 3) 복부를 수축하여 척추를 중립으로 유지합니다. 4) 볼을 쥐어짜며 엉덩이를 들어올립니다. 5) 10초 유지 후 천천히 내려옵니다. 10회 반복합니다.',
+    benefits: '내전근 활성화, 둔근 강화, O자 다리 교정, 골반 안정화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Footwork - Small V Position': {
+    ko: '풋워크 - 스몰 V 포지션',
+    description: '리포머를 사용한 내측광근 강화 운동입니다. 발을 작은 V자 형태로 두고 다리를 밀면서 내측 근육을 활성화합니다.',
+    instructions: '1) 리포머에 누워 발을 작은 V자 형태로 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 밀면서 내측광근을 활성화합니다. 4) 천천히 돌아오며 10회 반복합니다.',
+    benefits: '내측광근 강화, 내전근 활성화, O자 다리 교정, 무릎 정렬 개선',
+    precautions: '무릎 통증이 있으면 즉시 중단하고, 요통이 있으면 범위를 줄입니다.'
+  },
+  'Standing Leg Press - Adduction': {
+    ko: '스탠딩 레그 프레스 - 내전',
+    description: '캐딜락을 사용한 내전근 강화 운동입니다. 서서 다리를 안쪽으로 당기면서 내전근을 활성화합니다.',
+    instructions: '1) 캐딜락 옆에 서서 한쪽 다리를 스프링에 연결합니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 안쪽으로 당기며 내전근을 활성화합니다. 4) 천천히 돌아오며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '내전근 강화, 내측 근육 활성화, O자 다리 교정, 골반 안정화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Seated Adduction': {
+    ko: '시티드 내전',
+    description: '필라테스 체어를 사용한 내측 근육 조절 운동입니다. 앉아서 다리를 모으면서 내전근을 활성화합니다.',
+    instructions: '1) 체어에 앉아 복부를 수축합니다. 2) 다리를 모으며 내전근을 활성화합니다. 3) 골반이 기울어지지 않도록 유지하며 10회 반복합니다.',
+    benefits: '내측 근육 조절, 내전근 활성화, O자 다리 교정, 골반 안정화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Adductor Stretch on Barrel': {
+    ko: '배럴 내전근 스트레치',
+    description: '배럴을 사용한 내전근 가동성 향상 운동입니다. 다리를 벌리면서 내전근을 스트레칭하고 가동성을 개선합니다.',
+    instructions: '1) 배럴에 등을 대고 앉아 다리를 벌립니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 내전근을 스트레칭하며 30초 유지합니다. 4) 천천히 돌아옵니다.',
+    benefits: '내전근 가동성 향상, 스트레칭, O자 다리 보조 교정, 고관절 가동성 개선',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  
+  // 체중 중심 전방 관련 운동
+  'Scooter': {
+    ko: '스쿠터',
+    description: '리포머를 사용한 둔근 신전 조절 운동입니다. 한쪽 다리를 밀면서 둔근을 활성화하여 체중 중심을 후방으로 이동시킵니다.',
+    instructions: '1) 리포머에 앉아 한쪽 다리를 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 밀면서 둔근을 활성화합니다. 4) 천천히 돌아오며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '둔근 신전 조절, 체중 중심 후방 이동, 골반 안정화, 하지 후방 사슬 활성화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Tower Roll Up': {
+    ko: '타워 롤 업',
+    description: '캐딜락 타워를 사용한 코어 활성화 운동입니다. 상체를 굽히면서 복부를 활성화하여 체중 중심을 조절합니다.',
+    instructions: '1) 캐딜락 타워 앞에 앉아 복부를 수축합니다. 2) 척추를 하나씩 굽히면서 상체를 앞으로 숙입니다. 3) 복부가 튀어나오지 않도록 유지하며 천천히 돌아옵니다. 4) 10회 반복합니다.',
+    benefits: '코어 활성화, 복부 강화, 체중 중심 조절, 척추 안정성 향상',
+    precautions: '요통이 있으면 범위를 줄이고, 복부가 튀어나오면 즉시 중단합니다.'
+  },
+  'Standing Leg Press': {
+    ko: '스탠딩 레그 프레스',
+    description: '필라테스 체어를 사용한 후방 체중 이동 훈련입니다. 서서 다리를 밀면서 체중 중심을 후방으로 이동시킵니다.',
+    instructions: '1) 체어 옆에 서서 한쪽 다리를 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 다리를 밀면서 체중을 후방으로 이동시킵니다. 4) 천천히 돌아오며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '후방 체중 이동 훈련, 둔근 활성화, 체중 중심 조절, 기능적 움직임 개선',
+    precautions: '요통이 있으면 범위를 줄이고, 균형 문제가 있으면 벽을 잡습니다.'
+  },
+  
+  // 체중 중심 후방 관련 운동
+  'Standing Lunge': {
+    ko: '스탠딩 런지',
+    description: '서서 하는 고관절 신전/굴곡 밸런스 운동입니다. 앞다리를 밀면서 장요근을 활성화하여 체중 중심을 전방으로 이동시킵니다.',
+    instructions: '1) 리포머 옆에 서서 한쪽 다리를 풋바에 둡니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 앞다리를 밀면서 장요근을 활성화합니다. 4) 천천히 돌아오며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '고관절 신전/굴곡 밸런스, 장요근 활성화, 체중 중심 전방 이동, 하지 전방 사슬 강화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  },
+  'Step Up Front': {
+    ko: '스텝 업 프론트',
+    description: '앞으로 올라가는 하지 전방 안정화 운동입니다. 박스를 앞으로 올라가면서 장요근을 활성화합니다.',
+    instructions: '1) 박스 앞에 서서 복부를 수축합니다. 2) 한쪽 다리로 박스에 올라가며 장요근을 활성화합니다. 3) 골반이 기울어지지 않도록 유지하며 10회 반복합니다. 4) 반대편 다리로 교대합니다.',
+    benefits: '하지 전방 안정화, 장요근 활성화, 체중 중심 전방 이동, 기능적 움직임 개선',
+    precautions: '무릎 통증이 있으면 즉시 중단하고, 균형 문제가 있으면 벽을 잡습니다.'
+  },
+  'Lunge on Barrel': {
+    ko: '배럴 런지',
+    description: '배럴을 사용한 고관절 전방이동 훈련입니다. 한쪽 다리를 앞으로 내밀면서 장요근을 활성화합니다.',
+    instructions: '1) 배럴 앞에 서서 한쪽 다리를 배럴에 올립니다. 2) 복부를 수축하여 척추를 중립으로 유지합니다. 3) 앞다리를 밀면서 장요근을 활성화합니다. 4) 천천히 돌아오며 10회 반복합니다. 5) 반대편 다리로 교대합니다.',
+    benefits: '고관절 전방이동 훈련, 장요근 활성화, 체중 중심 전방 이동, 하지 전방 사슬 강화',
+    precautions: '요통이 있으면 범위를 줄이고, 무릎 통증이 있으면 즉시 중단합니다.'
+  }
+};
+
 // 하위 호환성을 위한 기존 pilatesData 유지
 const pilatesData = {
   '목 신전근 긴장': {
@@ -2468,7 +2816,7 @@ function setOrientation(orientation) {
   } else {
     // 이미지가 없거나 로드 중이면 기본 크기로 설정하고 그리기
     resizeCanvasFor(null);
-    draw();
+  draw();
   }
 }
 
@@ -2503,7 +2851,7 @@ function switchSession(s) {
   const img = orientation === "front" ? sessions[s].imgFront : sessions[s].imgSide;
   if(img && img.complete && img.naturalWidth > 0) {
     resizeCanvasFor(img);
-    draw();
+  draw();
   } else {
     // 이미지가 없거나 로드 중이면 기본 크기로 설정하고 그리기
     resizeCanvasFor(null);
@@ -2537,17 +2885,17 @@ function resizeCanvasFor(img) {
   let baseW, baseH;
   if(!editMode || originalCanvasSize.width === 0 || originalCanvasSize.height === 0) {
     if(img && img.naturalWidth > 0 && img.naturalHeight > 0) {
-      // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
-      const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
-      baseW = Math.round(img.naturalWidth * r);
-      baseH = Math.round(img.naturalHeight * r);
+    // 컨테이너에 맞게 원본 비율 유지하며 크기 계산
+    const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+    baseW = Math.round(img.naturalWidth * r);
+    baseH = Math.round(img.naturalHeight * r);
       console.log("이미지 기반 캔버스 크기:", {baseW, baseH, naturalW: img.naturalWidth, naturalH: img.naturalHeight});
-    } else {
+  } else {
       baseW = Math.min(maxW, 1200);
       baseH = Math.min(maxH, 800);
       console.log("기본 캔버스 크기:", {baseW, baseH});
-    }
-    
+  }
+  
     // 원본 크기 저장
     originalCanvasSize.width = baseW;
     originalCanvasSize.height = baseH;
@@ -2611,6 +2959,11 @@ function ensureDefaultPoints(session) {
       R_knee: {x:W*0.6, y:H*0.75},
       L_ankle: {x:W*0.4, y:H*0.95},
       R_ankle: {x:W*0.6, y:H*0.95},
+      // Q-angle 측정용 dot (무릎 중심 근처)
+      L_patella: {x:W*0.4, y:H*0.75},  // 좌측 슬개골 중심
+      R_patella: {x:W*0.6, y:H*0.75},  // 우측 슬개골 중심
+      L_tibial_tub: {x:W*0.4, y:H*0.78},  // 좌측 경골 결절 (슬개골 아래 약간)
+      R_tibial_tub: {x:W*0.6, y:H*0.78},  // 우측 경골 결절 (슬개골 아래 약간)
     } : {
       tragus: {x:W*0.35, y:H*0.3},
       c7: {x:W*0.3, y:H*0.35},
@@ -2688,7 +3041,7 @@ function draw() {
     }
     // 이미지 그리기 (비율 유지하며 확대된 크기로)
     try {
-      ctx.drawImage(currentImg, 0, 0, W, H);
+    ctx.drawImage(currentImg, 0, 0, W, H);
     } catch(err) {
       console.error("이미지 그리기 실패:", err);
     }
@@ -2975,6 +3328,19 @@ function computeAll() {
   const sideMetrics = analysisResult.side;
   const frontMetrics = analysisResult.front;
   
+  // 측면 및 정면 분석 결과를 통합하여 fullMetrics에 저장
+  const mergedMetrics = {};
+  
+  // 측면 분석 결과 통합
+  if(sideMetrics.status !== "not_available") {
+    Object.assign(mergedMetrics, sideMetrics);
+  }
+  
+  // 정면 분석 결과 통합 (측면 결과와 병합)
+  if(frontMetrics.status !== "not_available") {
+    Object.assign(mergedMetrics, frontMetrics);
+  }
+  
   // 측면 분석 결과가 있으면 기존 방식으로도 저장
   if(sideMetrics.status !== "not_available") {
     const cva = sideMetrics.CVA?.value_deg || null;
@@ -2985,15 +3351,16 @@ function computeAll() {
       cva, 
       pelvic, 
       knee,
-      fullMetrics: sideMetrics,
-      orientation: "side"
+      fullMetrics: mergedMetrics,  // 측면 + 정면 통합 결과
+      orientation: "side",
+      frontMetrics: frontMetrics.status !== "not_available" ? frontMetrics : null  // 정면 분석 결과 별도 저장
     };
     
     const score = computeScore(cva, pelvic, knee);
     S.score = score;
     
-    // AI 분석 실행
-    const analysis = analyzeMuscles(cva, pelvic, knee, sideMetrics);
+    // AI 분석 실행 (통합된 fullMetrics 사용)
+    const analysis = analyzeMuscles(cva, pelvic, knee, mergedMetrics);
     S.analysis = analysis;
     
     updateDisplay();
@@ -3003,12 +3370,13 @@ function computeAll() {
   } else if(frontMetrics.status !== "not_available") {
     // 정면 분석만 있는 경우
     S.metrics = { 
-      fullMetrics: frontMetrics,
-      orientation: "front"
+      fullMetrics: mergedMetrics,  // 정면 분석 결과
+      orientation: "front",
+      frontMetrics: frontMetrics
     };
     S.score = null;
     S.analysis = { 
-      fullMetrics: frontMetrics,
+      fullMetrics: mergedMetrics,
       orientation: "front",
       comments: [],
       details: [],
@@ -4005,7 +4373,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', type: 'side'},
       {key: 'KA', name: 'KA(무릎각)', unit: '°', type: 'side'},
       {key: 'Tibial_Angle', name: 'Tibial(경골경사각)', unit: '°', type: 'side'},
-      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'side'},
       {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', type: 'side'},
       {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', type: 'side'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', type: 'side'},
@@ -4025,6 +4392,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'TD', name: 'TD(체간편위)', unit: '°', type: 'front'},
       {key: 'HTA', name: 'HTA(머리기울기각)', unit: '°', type: 'front'},
       {key: 'SPP', name: 'SPP(어깨골반평행도)', unit: '°', type: 'front'},
+      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'front'},  // 정면 분석 항목으로 이동
       {key: 'KAS', name: 'KAS(무릎정렬대칭성)', unit: '°', type: 'front'},
       {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'},
       {key: 'FBA', name: 'FBA(발정렬각)', unit: '°', type: 'front'}
@@ -4241,7 +4609,6 @@ function updateCompare() {
     {key: 'PTA', id: 'Pta', unit: '°'},
     {key: 'KA', id: 'Ka', unit: '°'},
     {key: 'Tibial_Angle', id: 'Tibial', unit: '°'},
-    {key: 'Q_Angle', id: 'Qangle', unit: '°'},
     {key: 'Knee_Deviation', id: 'Kneedev', unit: '°'},
     {key: 'LLD', id: 'Lld', unit: 'cm'},
     {key: 'GSB', id: 'Gsb', unit: 'cm'},
@@ -4256,6 +4623,7 @@ function updateCompare() {
     {key: 'TD', id: 'Td', unit: '°'},
     {key: 'HTA', id: 'Hta', unit: '°'},
     {key: 'SPP', id: 'Spp', unit: '°'},
+    {key: 'Q_Angle', id: 'Qangle', unit: '°'},  // 정면 분석 항목으로 이동
     {key: 'KAS', id: 'Kas', unit: '°'},
     {key: 'LLAS', id: 'Llas', unit: '°'},
     {key: 'FBA', id: 'Fba', unit: '°'}
@@ -4873,10 +5241,10 @@ function startDrag(e) {
       if(!p) continue;
       
       // 일반 모드에서는 CSS 좌표 기준으로 거리 계산
-      // pos는 이미 원본 크기 기준으로 변환되어 있음
+        // pos는 이미 원본 크기 기준으로 변환되어 있음
       const d = Math.hypot(p.x - pos.x, p.y - pos.y);
       
-      if(d < threshold) {
+        if(d < threshold) {
         console.log('✅ 일반 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
       }
       
@@ -5283,14 +5651,14 @@ window.addEventListener('touchcancel', (e) => {
       
       // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
       setTimeout(() => {
-        draw();
-        computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+      draw();
+      computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
       }, 100);
       
       // 포즈 감지 자동 실행 (선택된 orientation 사용)
       if(typeof applyPoseDetection === 'function') {
         try {
-          await applyPoseDetection(img, cur);
+        await applyPoseDetection(img, cur);
         } catch(err) {
           console.error("포즈 감지 실패:", err);
         }
@@ -5786,7 +6154,6 @@ document.getElementById("btnImage").onclick = async () => {
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', normal: '0-15°'},
       {key: 'KA', name: 'KA(무릎각)', unit: '°', normal: '175-185°'},
       {key: 'Tibial_Angle', name: 'Tibial(경골경사각)', unit: '°', normal: '0-10°'},
-      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', normal: '10-20°'},
       {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', normal: '0-3°'},
       {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', normal: '≤1cm'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', normal: '≤2cm'},
@@ -5801,6 +6168,7 @@ document.getElementById("btnImage").onclick = async () => {
       {key: 'TD', name: 'TD(체간편위)', unit: '°', normal: '0-3°'},
       {key: 'HTA', name: 'HTA(머리기울기각)', unit: '°', normal: '≤3°'},
       {key: 'SPP', name: 'SPP(어깨골반평행도)', unit: '°', normal: '0-3°'},
+      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', normal: '10-20°'},  // 정면 분석 항목으로 이동
       {key: 'KAS', name: 'KAS(무릎정렬대칭성)', unit: '°', normal: '0-3°'},
       {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', normal: '0-3°'},
       {key: 'FBA', name: 'FBA(발정렬각)', unit: '°', normal: '0-3°'}
@@ -6115,16 +6483,16 @@ let detectors = { front: null, side: null };
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 document.addEventListener("DOMContentLoaded", () => {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
-  
-  // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
-  // sessions 객체에 orientation과 landmarks 정보 추가
-  if(!sessions.Before.poseData) {
-    sessions.Before.poseData = { orientation: "side", landmarks: null };
-  }
-  if(!sessions.After.poseData) {
-    sessions.After.poseData = { orientation: "side", landmarks: null };
-  }
-  
+
+// 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
+// sessions 객체에 orientation과 landmarks 정보 추가
+if(!sessions.Before.poseData) {
+  sessions.Before.poseData = { orientation: "side", landmarks: null };
+}
+if(!sessions.After.poseData) {
+  sessions.After.poseData = { orientation: "side", landmarks: null };
+}
+
   // 버튼 이벤트 핸들러 초기화
   initSessionButtons();
   
