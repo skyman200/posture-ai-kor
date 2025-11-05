@@ -4800,39 +4800,12 @@ function startDrag(e) {
       const p = P[k.key];
       if(!p) continue;
       
-      let d;
+      // 일반 모드에서는 CSS 좌표 기준으로 거리 계산
+      // pos는 이미 원본 크기 기준으로 변환되어 있음
+      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
       
-      // 일반 모드에서는 확대/축소 없이 CSS 좌표 기준으로 거리 계산
-        // pos는 이미 원본 크기 기준으로 변환되어 있음
-        // 모든 확대 배율에서 동일한 계산 방식 사용
-        d = Math.hypot(p.x - pos.x, p.y - pos.y);
-        if(d < threshold) {
-          console.log('✅ 확대 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
-        }
-      } else {
-        // 일반 모드: 화면 좌표 기준으로 거리 계산 (라벨 영역 포함)
-        const scaleX = 1;
-        const scaleY = 1;
-        const screenPtX = p.x * scaleX;
-        const screenPtY = p.y * scaleY;
-        const screenPosX = pos.x * scaleX;
-        const screenPosY = pos.y * scaleY;
-        
-        // 점과의 거리 계산
-        d = Math.hypot(screenPtX - screenPosX, screenPtY - screenPosY);
-        
-        // 라벨 영역 체크 (점 오른쪽에 라벨이 있음)
-        // 라벨은 점 오른쪽에 위치: x + 10부터 시작, 너비는 대략 100픽셀, 높이는 16픽셀
-        const labelX = screenPtX + 10;
-        const labelY = screenPtY - 12;
-        const labelWidth = 100; // 라벨 최대 너비
-        const labelHeight = 16;
-        
-        // 라벨 영역 내에 있는지 확인
-        if(screenPosX >= labelX && screenPosX <= labelX + labelWidth &&
-           screenPosY >= labelY && screenPosY <= labelY + labelHeight) {
-          d = 0; // 라벨 영역 내에 있으면 최우선
-        }
+      if(d < threshold) {
+        console.log('✅ 일반 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
       }
       
       if(d < threshold && d < bestDistance) {
