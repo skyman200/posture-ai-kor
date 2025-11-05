@@ -3165,6 +3165,99 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
   }
   
+  // 정면 항목 (청록색으로 표시되는 항목들)
+  
+  // 16. STA (Shoulder Tilt Angle) - 정상 ≤3°
+  const sta = fullMetrics.STA_F?.value || fullMetrics.STA?.value;
+  if(sta != null && sta > 3) {
+    const delta = sta - 3;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`STA ${sta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 17. POA (Pelvic Obliquity Angle) - 정상 ≤3°
+  const poa = fullMetrics.POA_F?.value || fullMetrics.POA?.value;
+  if(poa != null && poa > 3) {
+    const delta = poa - 3;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 18. LLD_F (Leg Length Discrepancy) - 정상 ≤1cm (측면 LLD와 중복될 수 있으므로 둘 중 하나만 계산)
+  const lld_f = fullMetrics.LLD_F?.value;
+  if(lld_f != null && lld_f > 1) {
+    // 측면 LLD가 이미 계산되지 않았을 때만 계산
+    if(!fullMetrics.LLD || fullMetrics.LLD.value === lld_f) {
+      const delta = lld_f - 1;
+      const penalty = Math.min(25, delta * 10);
+      penalties += penalty;
+      reasons.push(`LLD_F ${lld_f.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  // 19. TD (Trunk Deviation) - 정상 ±2°
+  const td = fullMetrics.TD?.value;
+  if(td != null && td > 2) {
+    const delta = td - 2;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`TD ${td.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 20. HTA (Head Tilt Angle) - 정상 ≤3°
+  const hta = fullMetrics.HTA?.value;
+  if(hta != null && hta > 3) {
+    const delta = hta - 3;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`HTA ${hta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 21. SPP (Shoulder–Pelvis Parallelism) - 정상 0-3°
+  const spp = fullMetrics.SPP?.value;
+  if(spp != null && spp > 3) {
+    const delta = spp - 3;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`SPP ${spp.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 22. KAS (Knee Alignment Symmetry) - 정상 ±2°
+  const kas = fullMetrics.KAS?.value;
+  if(kas != null && kas > 2) {
+    const delta = kas - 2;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`KAS ${kas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 23. LLAS (Lower Limb Axis Symmetry) - 정상 ±2°
+  const llas = fullMetrics.LLAS?.value;
+  if(llas != null && llas > 2) {
+    const delta = llas - 2;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 24. FBA (Foot Base Angle) - 정상 0-10°
+  const fba = fullMetrics.FBA?.value;
+  if(fba != null) {
+    if(fba > 10) {
+      const delta = fba - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`FBA ${fba.toFixed(1)}° (정상 0-10°, 과도한 외회전) - ${penalty.toFixed(0)}점 감점`);
+    } else if(fba < 0) {
+      const delta = Math.abs(fba);
+      const penalty = Math.min(10, delta * 2);
+      penalties += penalty;
+      reasons.push(`FBA ${fba.toFixed(1)}° (정상 0-10°, 회내 경향) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
   // PDS는 별도로 계산되므로 여기서는 제외
   
   const score = Math.round(clamp(100 - penalties, 0, 100));
@@ -3815,37 +3908,78 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const S = sessions[cur];
   const fullMetrics = S.metrics?.fullMetrics || {};
   if(allMetricsList && fullMetrics) {
-    const metricsOrder = [
-      {key: 'CVA', name: 'CVA', unit: '°'},
-      {key: 'HPD', name: 'HPD', unit: 'cm'},
-      {key: 'NIA', name: 'NIA', unit: '°'},
-      {key: 'TIA', name: 'TIA', unit: '°'},
-      {key: 'SAA', name: 'SAA', unit: '°'},
-      {key: 'PTA', name: 'PTA', unit: '°'},
-      {key: 'KA', name: 'KA', unit: '°'},
-      {key: 'Tibial_Angle', name: 'Tibial', unit: '°'},
-      {key: 'Q_Angle', name: 'Q-Angle', unit: '°'},
-      {key: 'Knee_Deviation', name: 'Knee Dev', unit: '°'},
-      {key: 'LLD', name: 'LLD', unit: 'cm'},
-      {key: 'GSB', name: 'GSB', unit: 'cm'},
-      {key: 'BVA', name: 'BVA', unit: 'cm'},
-      {key: 'SCI', name: 'SCI', unit: 'ratio'},
-      {key: 'HPA', name: 'HPA', unit: '°'},
-      {key: 'PDS', name: 'PDS', unit: 'score'}
+    // 측면 항목 (파란색 #7c9cff)
+    const sideMetricsOrder = [
+      {key: 'CVA', name: 'CVA', unit: '°', type: 'side'},
+      {key: 'HPD', name: 'HPD', unit: 'cm', type: 'side'},
+      {key: 'NIA', name: 'NIA', unit: '°', type: 'side'},
+      {key: 'TIA', name: 'TIA', unit: '°', type: 'side'},
+      {key: 'SAA', name: 'SAA', unit: '°', type: 'side'},
+      {key: 'PTA', name: 'PTA', unit: '°', type: 'side'},
+      {key: 'KA', name: 'KA', unit: '°', type: 'side'},
+      {key: 'Tibial_Angle', name: 'Tibial', unit: '°', type: 'side'},
+      {key: 'Q_Angle', name: 'Q-Angle', unit: '°', type: 'side'},
+      {key: 'Knee_Deviation', name: 'Knee Dev', unit: '°', type: 'side'},
+      {key: 'GSB', name: 'GSB', unit: 'cm', type: 'side'},
+      {key: 'BVA', name: 'BVA', unit: 'cm', type: 'side'},
+      {key: 'SCI', name: 'SCI', unit: 'ratio', type: 'side'},
+      {key: 'HPA', name: 'HPA', unit: '°', type: 'side'},
+      {key: 'PDS', name: 'PDS', unit: 'score', type: 'side'}
     ];
     
+    // 정면 항목 (청록색 #2ec4b6)
+    const frontMetricsOrder = [
+      {key: 'STA_F', name: 'STA', unit: '°', type: 'front'},
+      {key: 'STA', name: 'STA', unit: '°', type: 'front'}, // 하위 호환성
+      {key: 'POA_F', name: 'POA', unit: '°', type: 'front'},
+      {key: 'POA', name: 'POA', unit: '°', type: 'front'}, // 하위 호환성
+      {key: 'LLD_F', name: 'LLD_F', unit: 'cm', type: 'front'},
+      {key: 'TD', name: 'TD', unit: '°', type: 'front'},
+      {key: 'HTA', name: 'HTA', unit: '°', type: 'front'},
+      {key: 'SPP', name: 'SPP', unit: '°', type: 'front'},
+      {key: 'KAS', name: 'KAS', unit: '°', type: 'front'},
+      {key: 'LLAS', name: 'LLAS', unit: '°', type: 'front'},
+      {key: 'FBA', name: 'FBA', unit: '°', type: 'front'}
+    ];
+    
+    // 모든 항목 합치기 (측면 먼저, 정면 나중)
+    const metricsOrder = [...sideMetricsOrder, ...frontMetricsOrder];
+    
     let html = '';
+    const processedKeys = new Set(); // 중복 방지
+    
     metricsOrder.forEach(m => {
-      const metric = fullMetrics[m.key];
+      // 이미 처리된 키는 건너뛰기
+      if(processedKeys.has(m.key)) return;
+      
+      // STA_F와 STA 중 하나만, POA_F와 POA 중 하나만 선택
+      let metricKey = m.key;
+      if(m.key === 'STA' && fullMetrics['STA_F']) {
+        metricKey = 'STA_F';
+        if(processedKeys.has('STA_F')) return;
+      }
+      if(m.key === 'POA' && fullMetrics['POA_F']) {
+        metricKey = 'POA_F';
+        if(processedKeys.has('POA_F')) return;
+      }
+      
+      const metric = fullMetrics[metricKey] || fullMetrics[m.key];
       if(metric) {
+        processedKeys.add(metricKey);
+        if(m.key !== metricKey) processedKeys.add(m.key);
+        
         const value = metric.value !== undefined ? metric.value : (metric.value_deg !== undefined ? metric.value_deg : (metric.value_cm !== undefined ? metric.value_cm : null));
         const status = metric.status || 'unknown';
         const unit = metric.unit || m.unit;
         if(value !== null && value !== undefined) {
           const statusColor = status === 'normal' ? '#2ec4b6' : status === 'mild' ? '#ffd166' : status === 'moderate' ? '#ffb86c' : '#ff6b6b';
           const statusText = status === 'normal' ? '✓' : status === 'mild' ? '⚠' : status === 'moderate' ? '⚠⚠' : status === 'severe' ? '✗' : '?';
+          
+          // 측면 항목은 파란색, 정면 항목은 청록색으로 이름 표시
+          const nameColor = m.type === 'front' ? '#2ec4b6' : '#7c9cff';
+          
           html += `<div style="display:flex; justify-content:space-between; margin-bottom:3px; padding:2px 0;">
-            <span style="color:var(--muted);">${m.name}:</span>
+            <span style="color:${nameColor}; font-weight:${m.type === 'front' ? '600' : '400'};">${m.name}:</span>
             <span style="color:${statusColor};">${value.toFixed(1)}${unit} ${statusText}</span>
           </div>`;
         }
