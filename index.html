@@ -6022,18 +6022,18 @@ setTimeout(() => {
 // 포즈 감지 모델 관리
 let detectors = { front: null, side: null };
 
-// 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
-// sessions 객체에 orientation과 landmarks 정보 추가
-if(!sessions.Before.poseData) {
-  sessions.Before.poseData = { orientation: "side", landmarks: null };
-}
-if(!sessions.After.poseData) {
-  sessions.After.poseData = { orientation: "side", landmarks: null };
-}
-
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 document.addEventListener("DOMContentLoaded", () => {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
+  
+  // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
+  // sessions 객체에 orientation과 landmarks 정보 추가
+  if(!sessions.Before.poseData) {
+    sessions.Before.poseData = { orientation: "side", landmarks: null };
+  }
+  if(!sessions.After.poseData) {
+    sessions.After.poseData = { orientation: "side", landmarks: null };
+  }
   
   // 버튼 이벤트 핸들러 초기화
   initSessionButtons();
