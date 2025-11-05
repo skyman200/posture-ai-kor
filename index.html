@@ -508,20 +508,21 @@ let longPressDetected = false;
 let longPressNearPoint = null; // long press가 감지된 점
 
 // 옆모습 키포인트
+// 측면 키포인트 (Flutter와 1:1 매칭: 소문자 통일)
 const keypointsSide = [
-  {key:'Tragus', color:'#7c9cff'},
-  {key:'C7', color:'#7c9cff'},
-  {key:'Shoulder', color:'#7c9cff'},
-  {key:'Hip', color:'#7c9cff'},
-  {key:'Knee', color:'#7c9cff'},
-  {key:'Ankle', color:'#7c9cff'},
-  {key:'ASIS', color:'#ffb86c'},
-  {key:'PSIS', color:'#ffb86c'},
+  {key:'tragus', color:'#7c9cff'},
+  {key:'c7', color:'#7c9cff'},
+  {key:'acromion', color:'#7c9cff'},
+  {key:'hip', color:'#7c9cff'},
+  {key:'knee', color:'#7c9cff'},
+  {key:'ankle', color:'#7c9cff'},
+  {key:'asis', color:'#ffb86c'},
+  {key:'psis', color:'#ffb86c'},
 ];
 
-// 정면 키포인트
+// 정면 키포인트 (Flutter와 1:1 매칭)
 const keypointsFront = [
-  {key:'C7', color:'#7c9cff'},
+  {key:'c7', color:'#7c9cff'},
   {key:'L_acromion', color:'#7c9cff'},
   {key:'R_acromion', color:'#7c9cff'},
   {key:'L_asis', color:'#ffb86c'},
@@ -646,14 +647,15 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   
   const result = {};
   
-  const tragus = p("Tragus") || p("tragus");
-  const C7 = p("C7") || p("c7");
-  const acromion = p("Shoulder") || p("Acromion") || p("acromion");
-  const ASIS = p("ASIS") || p("asis");
-  const PSIS = p("PSIS") || p("psis");
-  const hip = p("Hip") || p("hip");
-  const knee = p("Knee") || p("knee");
-  const ankle = p("Ankle") || p("ankle");
+  // Flutter 1:1 매칭 키 (소문자 우선, 기존 대문자는 fallback)
+  const tragus = p("tragus") || p("Tragus");
+  const C7 = p("c7") || p("C7");
+  const acromion = p("acromion") || p("Shoulder") || p("Acromion");
+  const ASIS = p("asis") || p("ASIS");
+  const PSIS = p("psis") || p("PSIS");
+  const hip = p("hip") || p("Hip");
+  const knee = p("knee") || p("Knee");
+  const ankle = p("ankle") || p("Ankle");
   
   // 1️⃣ CVA (Craniovertebral Angle): Dart 코드 방식 (90 - angleToHorizontal(tragus, c7)).abs()
   if (tragus && C7) {
@@ -998,9 +1000,10 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   const R_acr = p("R_acromion") || p("R_Shoulder");
   const L_asis = p("L_asis") || p("L_ASIS");
   const R_asis = p("R_asis") || p("R_ASIS");
-  const C7 = p("C7") || p("c7");
-  const L_ankle = p("L_ankle") || p("L_Ankle");
-  const R_ankle = p("R_ankle") || p("R_Ankle");
+  // Flutter 1:1 매칭 키 (소문자 우선)
+  const C7 = p("c7") || p("C7");
+  const L_ankle = p("L_ankle");
+  const R_ankle = p("R_ankle");
   
   // 1️⃣ 어깨 기울기
   if (L_acr && R_acr) {
@@ -1960,7 +1963,29 @@ function getPts(session) {
   const map = orientation === "front" ? sessions[session].frontPoints : sessions[session].sidePoints;
   const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
   const out = {};
-  for(const k of currentKeypoints) out[k.key] = map.get(k.key);
+  
+  // 새로운 소문자 키로 저장된 값 가져오기
+  for(const k of currentKeypoints) {
+    out[k.key] = map.get(k.key);
+  }
+  
+  // 기존 대문자 키 호환성 레이어 (draw, computeMetricsOnly 등에서 사용)
+  if(orientation === "side") {
+    out['Tragus'] = out['tragus'];
+    out['C7'] = out['c7'];
+    out['Shoulder'] = out['acromion'];  // 기존 Shoulder 키 지원
+    out['Acromion'] = out['acromion'];
+    out['Hip'] = out['hip'];
+    out['Knee'] = out['knee'];
+    out['Ankle'] = out['ankle'];
+    out['ASIS'] = out['asis'];
+    out['PSIS'] = out['psis'];
+  }
+  // 정면은 이미 일치하므로 추가 매핑 불필요 (c7만 처리)
+  if(orientation === "front") {
+    out['C7'] = out['c7'];
+  }
+  
   return out;
 }
 
@@ -5032,60 +5057,60 @@ function mapPoseToKeypoints(pose, orientation) {
     
     console.log('옆모습 감지:', useLeft ? '왼쪽 사용' : '오른쪽 사용');
     
-    // Tragus: ear (더 보이는 쪽)
+    // tragus: ear (더 보이는 쪽) - Flutter 1:1 매칭
     const ear = useLeft ? leftEar : rightEar;
     if(ear && ear.visibility >= 0.3) {
-      keypointMap['Tragus'] = { x: ear.x, y: ear.y, score: ear.visibility };
+      keypointMap['tragus'] = { x: ear.x, y: ear.y, score: ear.visibility };
     } else if(!ear || ear.visibility < 0.3) {
       // ear가 안 보이면 nose 사용
       if(nose && nose.visibility >= 0.3) {
-        keypointMap['Tragus'] = { x: nose.x, y: nose.y + 0.03, score: nose.visibility * 0.8 };
+        keypointMap['tragus'] = { x: nose.x, y: nose.y + 0.03, score: nose.visibility * 0.8 };
       }
     }
     
-    // Shoulder/Acromion: 어깨 (더 보이는 쪽)
+    // acromion: 어깨 (더 보이는 쪽) - Flutter 1:1 매칭
     const shoulder = useLeft ? leftShoulder : rightShoulder;
     if(shoulder && shoulder.visibility >= 0.3) {
-      keypointMap['Shoulder'] = { x: shoulder.x, y: shoulder.y, score: shoulder.visibility };
+      keypointMap['acromion'] = { x: shoulder.x, y: shoulder.y, score: shoulder.visibility };
       
-      // C7: 어깨보다 약간 위/뒤
-      keypointMap['C7'] = { 
+      // c7: 어깨보다 약간 위/뒤 - Flutter 1:1 매칭
+      keypointMap['c7'] = { 
         x: shoulder.x - 0.02, // 어깨보다 약간 뒤
         y: shoulder.y - 0.03, // 어깨보다 약간 위
         score: shoulder.visibility * 0.9
       };
     }
     
-    // Hip: 골반 (더 보이는 쪽)
+    // hip: 골반 (더 보이는 쪽) - Flutter 1:1 매칭
     const hip = useLeft ? leftHip : rightHip;
     if(hip && hip.visibility >= 0.3) {
-      keypointMap['Hip'] = { x: hip.x, y: hip.y, score: hip.visibility };
+      keypointMap['hip'] = { x: hip.x, y: hip.y, score: hip.visibility };
       
-      // ASIS: Hip보다 약간 앞/위
-      keypointMap['ASIS'] = { 
+      // asis: hip보다 약간 앞/위 - Flutter 1:1 매칭
+      keypointMap['asis'] = { 
         x: hip.x + 0.03, // 앞쪽
         y: hip.y - 0.01, // 약간 위
         score: hip.visibility * 0.85 
       };
       
-      // PSIS: Hip보다 약간 뒤
-      keypointMap['PSIS'] = { 
+      // psis: hip보다 약간 뒤 - Flutter 1:1 매칭
+      keypointMap['psis'] = { 
         x: hip.x - 0.03, // 뒤쪽
         y: hip.y - 0.01, // 약간 위
         score: hip.visibility * 0.85 
       };
     }
     
-    // Knee: 무릎 (더 보이는 쪽)
+    // knee: 무릎 (더 보이는 쪽) - Flutter 1:1 매칭
     const knee = useLeft ? leftKnee : rightKnee;
     if(knee && knee.visibility >= 0.3) {
-      keypointMap['Knee'] = { x: knee.x, y: knee.y, score: knee.visibility };
+      keypointMap['knee'] = { x: knee.x, y: knee.y, score: knee.visibility };
     }
     
-    // Ankle: 발목 (더 보이는 쪽)
+    // ankle: 발목 (더 보이는 쪽) - Flutter 1:1 매칭
     const ankle = useLeft ? leftAnkle : rightAnkle;
     if(ankle && ankle.visibility >= 0.3) {
-      keypointMap['Ankle'] = { x: ankle.x, y: ankle.y, score: ankle.visibility };
+      keypointMap['ankle'] = { x: ankle.x, y: ankle.y, score: ankle.visibility };
     }
     
     console.log('옆모습 랜드마크 매핑:', Object.keys(keypointMap));
@@ -5110,21 +5135,21 @@ function mapPoseToKeypoints(pose, orientation) {
       keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
     }
     
-    // C7: 양쪽 어깨 중간 (목 아래)
+    // c7: 양쪽 어깨 중간 (목 아래) - Flutter 1:1 매칭
     if(keypointMap['L_acromion'] && keypointMap['R_acromion']) {
-      keypointMap['C7'] = {
+      keypointMap['c7'] = {
         x: (keypointMap['L_acromion'].x + keypointMap['R_acromion'].x) / 2,
         y: Math.min(keypointMap['L_acromion'].y, keypointMap['R_acromion'].y) - 0.04,
         score: Math.min(keypointMap['L_acromion'].score, keypointMap['R_acromion'].score)
       };
     } else if(keypointMap['L_acromion']) {
-      keypointMap['C7'] = {
+      keypointMap['c7'] = {
         x: keypointMap['L_acromion'].x,
         y: keypointMap['L_acromion'].y - 0.04,
         score: keypointMap['L_acromion'].score * 0.8
       };
     } else if(keypointMap['R_acromion']) {
-      keypointMap['C7'] = {
+      keypointMap['c7'] = {
         x: keypointMap['R_acromion'].x,
         y: keypointMap['R_acromion'].y - 0.04,
         score: keypointMap['R_acromion'].score * 0.8
