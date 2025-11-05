@@ -1116,15 +1116,20 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   // 스펙 기반: 정면 지표 추가 (TypeScript spec v1.0)
   
   // 1️⃣ STA_F (Shoulder Tilt Angle): 어깨 좌우 기울기
+  // 0° = 수평, +각도 = 오른쪽 어깨가 높을 때, -각도 = 왼쪽 어깨가 높을 때
   if (L_acr && R_acr) {
-    const verticalDiff = Math.abs(L_acr.y - R_acr.y);
+    const verticalDiff = L_acr.y - R_acr.y; // L이 높으면 양수, R이 높으면 음수
     const horizontalDist = Math.abs(L_acr.x - R_acr.x);
-    const sta = horizontalDist > 0 ? rad2deg(Math.atan2(verticalDiff, horizontalDist)) : 0;
+    // 수평선 기준 각도: atan2(verticalDiff, horizontalDist)
+    // verticalDiff > 0 (L이 높음) → 음수 각도
+    // verticalDiff < 0 (R이 높음) → 양수 각도
+    const sta = horizontalDist > 0 ? rad2deg(Math.atan2(-verticalDiff, horizontalDist)) : 0;
     
     result.STA_F = {
-      value: sta,
+      value: Math.abs(sta), // 표시는 절대값
+      value_signed: sta, // 부호 포함 값 (내부 사용)
       status: classifyRange({
-        v: sta,
+        v: Math.abs(sta),
         nMin: 0, nMax: 3,
         mildMin: 3, mildMax: 6,
         modMin: 6, modMax: 10,
@@ -1134,7 +1139,7 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
       unit: "°",
       desc: "Shoulder Tilt Angle (어깨 좌우 기울기)"
     };
-    result.STA_F.value_deg = sta;
+    result.STA_F.value_deg = Math.abs(sta);
     result.STA_F.meaning = result.STA_F.desc;
     
     // 하위 호환성
@@ -1142,15 +1147,20 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   }
   
   // 2️⃣ POA_F (Pelvic Obliquity Angle): 골반 좌우 기울기
+  // 0° = 수평, +각도 = 오른쪽 ASIS가 높을 때, -각도 = 왼쪽 ASIS가 높을 때
   if (L_asis && R_asis) {
-    const verticalDiff = Math.abs(L_asis.y - R_asis.y);
+    const verticalDiff = L_asis.y - R_asis.y; // L이 높으면 양수, R이 높으면 음수
     const horizontalDist = Math.abs(L_asis.x - R_asis.x);
-    const poa = horizontalDist > 0 ? rad2deg(Math.atan2(verticalDiff, horizontalDist)) : 0;
+    // 수평선 기준 각도: atan2(verticalDiff, horizontalDist)
+    // verticalDiff > 0 (L이 높음) → 음수 각도
+    // verticalDiff < 0 (R이 높음) → 양수 각도
+    const poa = horizontalDist > 0 ? rad2deg(Math.atan2(-verticalDiff, horizontalDist)) : 0;
     
     result.POA_F = {
-      value: poa,
+      value: Math.abs(poa), // 표시는 절대값
+      value_signed: poa, // 부호 포함 값 (내부 사용)
       status: classifyRange({
-        v: poa,
+        v: Math.abs(poa),
         nMin: 0, nMax: 3,
         mildMin: 3, mildMax: 6,
         modMin: 6, modMax: 10,
@@ -1160,7 +1170,7 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
       unit: "°",
       desc: "Pelvic Obliquity Angle (골반 좌우 기울기)"
     };
-    result.POA_F.value_deg = poa;
+    result.POA_F.value_deg = Math.abs(poa);
     result.POA_F.meaning = result.POA_F.desc;
     
     // 하위 호환성
@@ -1214,20 +1224,25 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   }
   
   // 4️⃣ TD (Trunk Deviation): 체간 좌우 편위
+  // 0° = C7이 midline 위에, +각도 = 오른쪽으로 이동, -각도 = 왼쪽으로 이동
   if (C7 && L_ankle && R_ankle) {
     // 중간선: 좌우 발목 중점
     const midlineX = (L_ankle.x + R_ankle.x) / 2;
     const midlineY = (L_ankle.y + R_ankle.y) / 2;
     
-    // C7에서 중간선까지의 수평 거리
+    // C7에서 중간선까지의 수평 거리 (오른쪽이면 양수, 왼쪽이면 음수)
     const horizontalDeviation = C7.x - midlineX;
     const verticalDist = Math.abs(C7.y - midlineY);
-    const td = verticalDist > 0 ? rad2deg(Math.atan2(Math.abs(horizontalDeviation), verticalDist)) : 0;
+    // 수직선 기준 각도: atan2(horizontalDeviation, verticalDist)
+    // horizontalDeviation > 0 (오른쪽) → 양수 각도
+    // horizontalDeviation < 0 (왼쪽) → 음수 각도
+    const td = verticalDist > 0 ? rad2deg(Math.atan2(horizontalDeviation, verticalDist)) : 0;
     
     result.TD = {
-      value: td,
+      value: Math.abs(td), // 표시는 절대값
+      value_signed: td, // 부호 포함 값 (내부 사용)
       status: classifyRange({
-        v: td,
+        v: Math.abs(td),
         nMin: 0, nMax: 2,
         mildMin: 2, mildMax: 5,
         modMin: 5, mildMax: 8,
@@ -1237,7 +1252,7 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
       unit: "°",
       desc: "Trunk Deviation (체간 좌우 편위)"
     };
-    result.TD.value_deg = td;
+    result.TD.value_deg = Math.abs(td);
     result.TD.meaning = result.TD.desc;
     
     // 하위 호환성
@@ -1257,18 +1272,23 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     }
   }
   
-  // 5️⃣ HTA (Head Tilt Angle): 머리 좌우 기울기 (정면에서는 tragus 좌우가 필요하지만, 측면만 있는 경우 추정)
+  // 5️⃣ HTA (Head Tilt Angle): 머리 좌우 기울기
+  // 0° = 수평, +각도 = 오른쪽 Tragus가 높을 때, -각도 = 왼쪽 Tragus가 높을 때
   const L_tragus = p("L_tragus");
   const R_tragus = p("R_tragus");
   if (L_tragus && R_tragus) {
-    const verticalDiff = Math.abs(L_tragus.y - R_tragus.y);
+    const verticalDiff = L_tragus.y - R_tragus.y; // L이 높으면 양수, R이 높으면 음수
     const horizontalDist = Math.abs(L_tragus.x - R_tragus.x);
-    const hta = horizontalDist > 0 ? rad2deg(Math.atan2(verticalDiff, horizontalDist)) : 0;
+    // 수평선 기준 각도: atan2(verticalDiff, horizontalDist)
+    // verticalDiff > 0 (L이 높음) → 음수 각도
+    // verticalDiff < 0 (R이 높음) → 양수 각도
+    const hta = horizontalDist > 0 ? rad2deg(Math.atan2(-verticalDiff, horizontalDist)) : 0;
     
     result.HTA = {
-      value: hta,
+      value: Math.abs(hta), // 표시는 절대값
+      value_signed: hta, // 부호 포함 값 (내부 사용)
       status: classifyRange({
-        v: hta,
+        v: Math.abs(hta),
         nMin: 0, nMax: 3,
         mildMin: 3, mildMax: 6,
         modMin: 6, modMax: 10,
@@ -1278,7 +1298,7 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
       unit: "°",
       desc: "Head Tilt Angle (머리 좌우 기울기)"
     };
-    result.HTA.value_deg = hta;
+    result.HTA.value_deg = Math.abs(hta);
     result.HTA.meaning = result.HTA.desc;
   }
   
@@ -1315,27 +1335,35 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     result.SPP.meaning = result.SPP.desc;
   }
   
-  // 7️⃣ FBA (Foot Base Angle): 발 정렬 각도 (발목과 발가락 필요, 현재는 발목만 있으므로 추정 불가)
+  // 7️⃣ FBA (Foot Base Angle): 발 정렬 각도
+  // 0° = 발이 중심선과 일직선일 때, +각도 = 발끝이 바깥쪽(외회전), -각도 = 발끝이 안쪽(내회전)
   // 발가락 좌표가 없으면 계산하지 않음
   const L_toe = p("L_toe");
   const R_toe = p("R_toe");
   if (L_ankle && L_toe && R_ankle && R_toe) {
-    // 좌측 발 정렬
+    // 신체 중심선 (midline)
+    const midlineX = (L_ankle.x + R_ankle.x) / 2;
+    
+    // 좌측 발 정렬: ankle-toe 라인과 중심선의 각도
     const L_dx = L_toe.x - L_ankle.x;
     const L_dy = L_toe.y - L_ankle.y;
-    const L_angle = rad2deg(Math.atan2(L_dy, L_dx));
+    // 중심선 기준 각도: atan2(dy, dx) - 중심선이 수직이므로 x 방향 기준
+    // 발끝이 오른쪽(바깥쪽)이면 양수, 왼쪽(안쪽)이면 음수
+    const L_angle = rad2deg(Math.atan2(L_dy, L_dx - midlineX));
     
     // 우측 발 정렬
     const R_dx = R_toe.x - R_ankle.x;
     const R_dy = R_toe.y - R_ankle.y;
-    const R_angle = rad2deg(Math.atan2(R_dy, R_dx));
+    const R_angle = rad2deg(Math.atan2(R_dy, R_dx - midlineX));
     
     // 평균 각도 (외회전 각도)
     const avgAngle = (L_angle + R_angle) / 2;
-    const fba = Math.abs(avgAngle - 90); // 90도에서 벗어난 정도
+    // 0° = 중심선과 일직선, 양수 = 외회전, 음수 = 내회전
+    const fba = Math.abs(avgAngle); // 표시는 절대값
     
     result.FBA = {
       value: fba,
+      value_signed: avgAngle, // 부호 포함 값 (내부 사용)
       status: classifyRange({
         v: fba,
         nMin: 0, nMax: 10,
@@ -4799,7 +4827,7 @@ function startDrag(e) {
   
   console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
   
-  // 좌표 수정 모드에서만 드래그 허용 (선택된 점만)
+  // 좌표 수정 모드일 때는 선택된 점만 체크
   if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
@@ -4820,9 +4848,25 @@ function startDrag(e) {
     console.log('⚠️ 좌표 수정 모드이지만 선택된 점이 없어서 드래그 불가');
     return false;
   } else {
-    // 일반 모드 (editMode가 false): 드래그 비활성화
-    console.log('⚠️ 좌표 수정 모드가 비활성화되어 있어 드래그 불가. 좌표 수정 모드를 활성화하세요.');
-    return false;
+    // 일반 모드 (editMode가 false): 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
+    const currentKeypoints = getKeypoints();
+    for(const k of currentKeypoints) {
+      const p = P[k.key];
+      if(!p) continue;
+      
+      // 일반 모드에서는 CSS 좌표 기준으로 거리 계산
+      // pos는 이미 원본 크기 기준으로 변환되어 있음
+      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+      
+      if(d < threshold) {
+        console.log('✅ 일반 모드 점 감지:', k.key, '점 좌표:', p, '터치 좌표:', pos, '거리:', d.toFixed(2), 'threshold:', threshold, 'zoom:', currentZoom);
+      }
+      
+      if(d < threshold && d < bestDistance) {
+        bestPoint = k.key;
+        bestDistance = d;
+      }
+    }
   }
   
   // 점 근처를 터치했을 때만 드래그 모드로 전환
