@@ -1569,15 +1569,221 @@ class LivePostureAnalyzer {
 // 전역 실시간 분석기 인스턴스
 const liveAnalyzer = new LivePostureAnalyzer();
 
-// 필라테스 동작 데이터
-const pilatesData = {
-  '목 굴곡근 약화': {
-    매트: ['Neck Pull', 'Roll-Up'],
-    리포머: ['Short Box - Round Back'],
-    캐딜락: ['Roll Down Bar'],
-    체어: ['Swan Prep'],
-    바렐: ['Back Extension']
+// 🏋️‍♀️ 패턴 기반 필라테스 추천 시스템 (BASI/Polestar/STOTT 기준)
+const pilatesPatterns = {
+  // 1️⃣ 거북목(FHP): CVA↓, NIA↑, HPD↑
+  'FHP': {
+    name: '거북목 (Forward Head Posture)',
+    condition: 'CVA↓ / NIA↑ / HPD↑',
+    tight: ['SCM', '상부승모', '견갑거근', '소흉근'],
+    weak: ['심부경부굴근', '하부승모', '전거근'],
+    interpretation: '머리 전방 돌출, 경추 전만 감소',
+    exercises: {
+      매트: [
+        { en: 'Chin Tuck & Axial Elongation', ko: '턱당기기 + 축신장', purpose: '경추 안정화' },
+        { en: 'Swan Prep', ko: '스완 준비', purpose: '흉추 신전, 승모근 하부 강화' }
+      ],
+      리포머: [
+        { en: 'Pulling Straps', ko: '풀링 스트랩', purpose: '견갑 후방 안정화' }
+      ],
+      캐딜락: [
+        { en: 'Tower Swan', ko: '타워 스완', purpose: '흉추 신전 + 견갑 후방운동' }
+      ],
+      체어: [
+        { en: 'Press Down Front', ko: '프레스 다운 프론트', purpose: '경추 정렬 + 전거근 활성화' }
+      ],
+      바렐: [
+        { en: 'Swan on Ladder Barrel', ko: '래더 배럴 스완', purpose: '흉추 가동성, 승모하부 강화' }
+      ]
+    }
   },
+  
+  // 2️⃣ 라운드숄더(RSP): SAA↑
+  'RSP': {
+    name: '라운드숄더 (Rounded Shoulder Posture)',
+    condition: 'SAA↑',
+    tight: ['대흉근', '소흉근', '상부승모'],
+    weak: ['하부승모', '능형근', '전거근'],
+    interpretation: '견갑 전인·상방회전',
+    exercises: {
+      매트: [
+        { en: 'Prone Scapular Retraction', ko: '프론 사투라 견갑골 후인', purpose: '견갑골 후인 강화' }
+      ],
+      리포머: [
+        { en: 'Rowing Back / Pulling Straps', ko: '로잉 백 / 풀링 스트랩', purpose: '견갑 안정화' }
+      ],
+      캐딜락: [
+        { en: 'Arm Springs - Extension', ko: '암 스프링 - 익스텐션', purpose: '어깨 후방근 강화' }
+      ],
+      체어: [
+        { en: 'Spine Stretch Forward (Chair Ver.)', ko: '스파인 스트레치 포워드 (체어 버전)', purpose: '견갑 안정화 및 흉추 신전' }
+      ],
+      바렐: [
+        { en: 'Shoulder Extension on Barrel', ko: '배럴 어깨 익스텐션', purpose: '흉추 가동성 + 어깨 후인근 강화' }
+      ]
+    }
+  },
+  
+  // 3️⃣ 과전경사 골반: PTA↑
+  'AnteriorTilt': {
+    name: '과전경사 골반 (Anterior Pelvic Tilt)',
+    condition: 'PTA↑, ASIS 하강, PSIS 상승',
+    tight: ['장요근', '대퇴직근', '척추기립근'],
+    weak: ['복직근', '복횡근', '둔근'],
+    interpretation: '골반 전방경사 / 요추 전만 증가',
+    exercises: {
+      매트: [
+        { en: 'Pelvic Curl', ko: '펠빅 컬', purpose: '골반 후경사 유도' },
+        { en: 'Dead Bug / Toe Tap', ko: '데드 버그 / 토 탭', purpose: '복횡근 활성화' }
+      ],
+      리포머: [
+        { en: 'Bridge on Reformer', ko: '리포머 브릿지', purpose: '후방 사슬 강화' }
+      ],
+      캐딜락: [
+        { en: 'Roll Down with Push Through Bar', ko: '롤 다운 (푸시 스루 바)', purpose: '복부 코어 조절' }
+      ],
+      체어: [
+        { en: 'Standing Hip Extension', ko: '스탠딩 힙 익스텐션', purpose: '둔근 강화' }
+      ],
+      바렐: [
+        { en: 'Short Box Round Back', ko: '숏 박스 라운드 백', purpose: '코어 + 후방 사슬 강화' }
+      ]
+    }
+  },
+  
+  // 4️⃣ 후경사 골반: PTA↓
+  'PosteriorTilt': {
+    name: '후경사 골반 (Posterior Pelvic Tilt)',
+    condition: 'PTA↓, PSIS 하강',
+    tight: ['햄스트링', '복직근'],
+    weak: ['장요근', '대퇴직근', '척추기립근'],
+    interpretation: '골반 후방경사 / 요추 편평',
+    exercises: {
+      매트: [
+        { en: 'Leg Pull Front', ko: '레그 풀 프론트', purpose: '전방 사슬 강화' }
+      ],
+      리포머: [
+        { en: 'Footwork - Parallel Heels', ko: '풋워크 - 패럴렐 힐즈', purpose: '고관절 신전 활성화' }
+      ],
+      캐딜락: [
+        { en: 'Leg Springs - Supine', ko: '레그 스프링 - 슈파인', purpose: '장요근 기능적 수축' }
+      ],
+      체어: [
+        { en: 'Swan Press', ko: '스완 프레스', purpose: '요추 신전 강화' }
+      ],
+      바렐: [
+        { en: 'Swan on Barrel', ko: '배럴 스완', purpose: '요추 가동성 향상' }
+      ]
+    }
+  },
+  
+  // 5️⃣ X자 다리: KA↓, Q-Angle↑
+  'GenuValgum': {
+    name: 'X자 다리 (Genu Valgum)',
+    condition: 'KA↓, Q-Angle↑',
+    tight: ['내전근', '내측광근'],
+    weak: ['중둔근', '외회전근', '외측광근'],
+    interpretation: '슬개골 외측 압박 패턴',
+    exercises: {
+      매트: [
+        { en: 'Side-Lying Leg Lift', ko: '사이드 라잉 레그 리프트', purpose: '중둔근 강화' }
+      ],
+      리포머: [
+        { en: 'Side Splits', ko: '사이드 스플릿', purpose: '외측 안정화' }
+      ],
+      캐딜락: [
+        { en: 'Standing Hip Abduction', ko: '스탠딩 힙 외전', purpose: '고관절 외전 강화' }
+      ],
+      체어: [
+        { en: 'Step Up Lateral', ko: '스텝 업 레터럴', purpose: '하지 외측 안정성' }
+      ],
+      바렐: [
+        { en: 'Side Bend Stretch', ko: '사이드 벤드 스트레치', purpose: '고관절 정렬 및 안정성 개선' }
+      ]
+    }
+  },
+  
+  // 6️⃣ O자 다리: KA↑
+  'GenuVarum': {
+    name: 'O자 다리 (Genu Varum)',
+    condition: 'KA↑',
+    tight: ['외측광근', '비복근', '대퇴이두'],
+    weak: ['내전근', '내측광근'],
+    interpretation: '외측 과부하',
+    exercises: {
+      매트: [
+        { en: 'Ball Squeeze Bridge', ko: '볼 스퀴즈 브릿지', purpose: '내전근 활성화' }
+      ],
+      리포머: [
+        { en: 'Footwork - Small V Position', ko: '풋워크 - 스몰 V 포지션', purpose: '내측광근 강화' }
+      ],
+      캐딜락: [
+        { en: 'Standing Leg Press - Adduction', ko: '스탠딩 레그 프레스 - 내전', purpose: '내전근 강화' }
+      ],
+      체어: [
+        { en: 'Seated Adduction', ko: '시티드 내전', purpose: '내측 근육 조절' }
+      ],
+      바렐: [
+        { en: 'Adductor Stretch on Barrel', ko: '배럴 내전근 스트레치', purpose: '내전근 가동성 향상' }
+      ]
+    }
+  },
+  
+  // 7️⃣ 체중 중심 전방: GSB↑, BVA↑
+  'ForwardCenter': {
+    name: '체중 중심 전방 (Forward Center)',
+    condition: 'GSB↑, BVA↑',
+    tight: ['대퇴직근', '요추기립근', '종아리근'],
+    weak: ['둔근', '햄스트링', '복부'],
+    interpretation: '체간 전방기울임',
+    exercises: {
+      매트: [
+        { en: 'Pelvic Curl', ko: '펠빅 컬', purpose: '둔근/햄스트링 강화' }
+      ],
+      리포머: [
+        { en: 'Scooter', ko: '스쿠터', purpose: '둔근 신전 조절' }
+      ],
+      캐딜락: [
+        { en: 'Tower Roll Up', ko: '타워 롤 업', purpose: '코어 활성화' }
+      ],
+      체어: [
+        { en: 'Standing Leg Press', ko: '스탠딩 레그 프레스', purpose: '후방 체중 이동 훈련' }
+      ],
+      바렐: [
+        { en: 'Swan', ko: '스완', purpose: '흉추 안정화' }
+      ]
+    }
+  },
+  
+  // 8️⃣ 체중 중심 후방: GSB↓, BVA↓
+  'BackwardCenter': {
+    name: '체중 중심 후방 (Backward Center)',
+    condition: 'GSB↓, BVA↓',
+    tight: ['햄스트링', '둔근'],
+    weak: ['장요근', '대퇴직근'],
+    interpretation: '체간 후방기울임',
+    exercises: {
+      매트: [
+        { en: 'Hip Flexor Stretch', ko: '힙 플렉서 스트레치', purpose: '전방 사슬 활성화' }
+      ],
+      리포머: [
+        { en: 'Standing Lunge', ko: '스탠딩 런지', purpose: '고관절 신전/굴곡 밸런스' }
+      ],
+      캐딜락: [
+        { en: 'Leg Springs - Supine', ko: '레그 스프링 - 슈파인', purpose: '장요근 강화' }
+      ],
+      체어: [
+        { en: 'Step Up Front', ko: '스텝 업 프론트', purpose: '하지 전방 안정화' }
+      ],
+      바렐: [
+        { en: 'Lunge on Barrel', ko: '배럴 런지', purpose: '고관절 전방이동 훈련' }
+      ]
+    }
+  }
+};
+
+// 하위 호환성을 위한 기존 pilatesData 유지
+const pilatesData = {
   '목 신전근 긴장': {
     매트: ['Roll-Up', 'Spine Stretch Forward'],
     리포머: ['Neck Stretch on Box'],
@@ -2131,6 +2337,35 @@ function draw() {
     ctx.fillText('좌표를 입력하고 "적용" 버튼을 클릭하세요', W / 2, H / 2);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+  }
+  
+  // 캘리브레이션 점 표시 (캘리브레이션 모드일 때)
+  if(calibrationMode && S.calibrationPoint1) {
+    ctx.fillStyle = '#ffb86c';
+    ctx.strokeStyle = '#ffb86c';
+    ctx.lineWidth = 2;
+    
+    // 점 1 표시
+    const p1 = S.calibrationPoint1;
+    ctx.beginPath();
+    ctx.arc(p1.x * scaleX, p1.y * scaleY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // 점 2가 있으면 표시하고 선 그리기
+    if(S.calibrationPoint2) {
+      const p2 = S.calibrationPoint2;
+      ctx.beginPath();
+      ctx.arc(p2.x * scaleX, p2.y * scaleY, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // 두 점 사이 선 그리기
+      ctx.beginPath();
+      ctx.moveTo(p1.x * scaleX, p1.y * scaleY);
+      ctx.lineTo(p2.x * scaleX, p2.y * scaleY);
+      ctx.stroke();
+    }
   }
 }
 
@@ -4474,64 +4709,80 @@ document.getElementById("btnReset").onclick = () => {
 
 // ✅ 캘리브레이션 기능
 let calibrationMode = false;
-let calibrationPoint1 = null;
-let calibrationPoint2 = null;
 document.getElementById("btnCalibrate").onclick = () => {
   calibrationMode = !calibrationMode;
   const panel = document.getElementById("calibrationPanel");
+  const S = sessions[cur];
+  
   if(calibrationMode) {
     panel.style.display = "block";
-    calibrationPoint1 = null;
-    calibrationPoint2 = null;
+    // 세션에 캘리브레이션 점 저장
+    S.calibrationPoint1 = null;
+    S.calibrationPoint2 = null;
     document.getElementById("calPoint1").textContent = "클릭하여 선택";
     document.getElementById("calPoint2").textContent = "클릭하여 선택";
     document.getElementById("calibrationResult").textContent = "";
     // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
     cv.style.cursor = "crosshair";
+    draw(); // 초기화
   } else {
     panel.style.display = "none";
     cv.style.cursor = "default";
     calibrationMode = false;
+    // 캘리브레이션 점 초기화
+    S.calibrationPoint1 = null;
+    S.calibrationPoint2 = null;
+    draw();
   }
 };
 
-// 캘리브레이션 클릭 핸들러
-let calibrationClickHandler = null;
-cv.addEventListener('click', calibrationClickHandler = (e) => {
+// 캘리브레이션 클릭 핸들러 (다른 이벤트와 충돌 방지)
+cv.addEventListener('click', (e) => {
   if(!calibrationMode) return;
   
-  const pos = getEventPos(e);
+  // 다른 이벤트와 충돌 방지
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
   
-  if(!calibrationPoint1) {
-    calibrationPoint1 = pos;
+  const pos = getEventPos(e);
+  const S = sessions[cur];
+  
+  if(!S.calibrationPoint1) {
+    // 점 1 저장
+    S.calibrationPoint1 = pos;
     document.getElementById("calPoint1").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
-    draw();
-    // 점 1 표시
-    ctx.fillStyle = '#ffb86c';
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
-    ctx.fill();
-  } else if(!calibrationPoint2) {
-    calibrationPoint2 = pos;
+    draw(); // 점이 영구적으로 표시됨
+    console.log('캘리브레이션 점 1:', pos);
+  } else if(!S.calibrationPoint2) {
+    // 점 2 저장
+    S.calibrationPoint2 = pos;
     document.getElementById("calPoint2").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+    draw(); // 점과 선이 영구적으로 표시됨
+    console.log('캘리브레이션 점 2:', pos);
+    
+    // 두 점 사이 거리 계산해서 미리보기 표시
+    if(S.calibrationPoint1 && S.calibrationPoint2) {
+      const distPx = dist(S.calibrationPoint1, S.calibrationPoint2);
+      document.getElementById("calibrationResult").textContent = 
+        `거리: ${distPx.toFixed(1)}px (실제 길이 입력 후 계산 버튼 클릭)`;
+      document.getElementById("calibrationResult").style.color = "var(--muted)";
+    }
+  } else {
+    // 두 점 모두 선택되었으면 다시 시작
+    S.calibrationPoint1 = pos;
+    S.calibrationPoint2 = null;
+    document.getElementById("calPoint1").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+    document.getElementById("calPoint2").textContent = "클릭하여 선택";
+    document.getElementById("calibrationResult").textContent = "";
     draw();
-    // 점 2 표시
-    ctx.fillStyle = '#ffb86c';
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
-    ctx.fill();
-    // 선 그리기
-    ctx.strokeStyle = '#ffb86c';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(calibrationPoint1.x, calibrationPoint1.y);
-    ctx.lineTo(calibrationPoint2.x, calibrationPoint2.y);
-    ctx.stroke();
+    console.log('캘리브레이션 재시작 - 점 1:', pos);
   }
-});
+}, true); // capture phase에서 먼저 처리
 
 document.getElementById("btnCalibrateConfirm").onclick = () => {
-  if(!calibrationPoint1 || !calibrationPoint2) {
+  const S = sessions[cur];
+  if(!S.calibrationPoint1 || !S.calibrationPoint2) {
     alert("두 점을 모두 선택해주세요.");
     return;
   }
@@ -4543,8 +4794,8 @@ document.getElementById("btnCalibrateConfirm").onclick = () => {
   }
   
   try {
-    const pxPerCm = calibratePxPerCm(calibrationPoint1, calibrationPoint2, realLengthCm);
-    sessions[cur].pxPerCm = pxPerCm;
+    const pxPerCm = calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
+    S.pxPerCm = pxPerCm;
     document.getElementById("calibrationResult").textContent = 
       `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
     document.getElementById("calibrationResult").style.color = "#2ec4b6";
@@ -4561,8 +4812,9 @@ document.getElementById("btnCalibrateConfirm").onclick = () => {
 document.getElementById("btnCalibrateCancel").onclick = () => {
   calibrationMode = false;
   document.getElementById("calibrationPanel").style.display = "none";
-  calibrationPoint1 = null;
-  calibrationPoint2 = null;
+  const S = sessions[cur];
+  S.calibrationPoint1 = null;
+  S.calibrationPoint2 = null;
   cv.style.cursor = "default";
   draw();
 };
@@ -4882,7 +5134,7 @@ document.getElementById("btnPDF").onclick = async () => {
   }
 };
 
-// 그림으로 저장 (PDF와 동일한 형식)
+// 그림으로 저장 (전체 내용 포함)
 document.getElementById("btnImage").onclick = async () => {
   try {
     // 모바일에서 로딩 표시
@@ -4892,145 +5144,205 @@ document.getElementById("btnImage").onclick = async () => {
     btn.disabled = true;
     
     const S = sessions[cur];
-    const M = S.metrics || {};
+    const fullMetrics = S.metrics?.fullMetrics || {};
     const scoreData = S.score || {};
     const analysis = S.analysis || {};
     
-    // 첫 페이지: 제목과 이미지
-    const page1Container = document.createElement("div");
-    page1Container.style.position = "fixed";
-    page1Container.style.left = "-9999px";
-    page1Container.style.top = "0";
-    page1Container.style.width = "794px"; // A4 너비 @96dpi
-    page1Container.style.padding = "30px 25px";
-    page1Container.style.paddingBottom = "40px";
-    page1Container.style.background = "#ffffff";
-    page1Container.style.color = "#111";
-    page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
-    page1Container.style.fontSize = "12px";
-    page1Container.style.lineHeight = "1.6";
-    page1Container.style.boxSizing = "border-box";
-    page1Container.style.overflow = "hidden";
-    page1Container.style.wordWrap = "break-word";
+    // 전체 컨테이너 생성 (모든 내용 포함)
+    const fullContainer = document.createElement("div");
+    fullContainer.style.position = "fixed";
+    fullContainer.style.left = "-9999px";
+    fullContainer.style.top = "0";
+    fullContainer.style.width = "794px"; // A4 너비 @96dpi
+    fullContainer.style.padding = "30px 25px";
+    fullContainer.style.paddingBottom = "40px";
+    fullContainer.style.background = "#ffffff";
+    fullContainer.style.color = "#111";
+    fullContainer.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+    fullContainer.style.fontSize = "12px";
+    fullContainer.style.lineHeight = "1.6";
+    fullContainer.style.boxSizing = "border-box";
+    fullContainer.style.wordWrap = "break-word";
     
     // 캔버스 이미지 가져오기
     const cvImg = cv.toDataURL("image/png");
     
-    page1Container.innerHTML = `
-      <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
-      <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
-      <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:950px; object-fit:contain;" />
-    `;
+    // 전체 분석 항목 HTML 생성
+    const metricsOrder = [
+      {key: 'CVA', name: 'CVA', unit: '°', normal: '≥50°'},
+      {key: 'HPD', name: 'HPD', unit: 'cm', normal: '≤2cm'},
+      {key: 'NIA', name: 'NIA', unit: '°', normal: '0-20°'},
+      {key: 'TIA', name: 'TIA', unit: '°', normal: '0-10°'},
+      {key: 'SAA', name: 'SAA', unit: '°', normal: '0-10°'},
+      {key: 'PTA', name: 'PTA', unit: '°', normal: '0-15°'},
+      {key: 'KA', name: 'KA', unit: '°', normal: '175-185°'},
+      {key: 'Tibial_Angle', name: 'Tibial', unit: '°', normal: '0-10°'},
+      {key: 'Q_Angle', name: 'Q-Angle', unit: '°', normal: '10-20°'},
+      {key: 'Knee_Deviation', name: 'Knee Dev', unit: '°', normal: '0-3°'},
+      {key: 'LLD', name: 'LLD', unit: 'cm', normal: '≤1cm'},
+      {key: 'GSB', name: 'GSB', unit: 'cm', normal: '≤2cm'},
+      {key: 'BVA', name: 'BVA', unit: 'cm', normal: '≤2cm'},
+      {key: 'SCI', name: 'SCI', unit: '', normal: '0.15-0.35'},
+      {key: 'HPA', name: 'HPA', unit: '°', normal: '0-10°'},
+      {key: 'PDS', name: 'PDS', unit: '점', normal: '정상'}
+    ];
     
-    document.body.appendChild(page1Container);
-    
-    // 첫 페이지 캡처
-    const canvas1 = await html2canvas(page1Container, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      windowWidth: page1Container.scrollWidth,
-      windowHeight: page1Container.scrollHeight
+    let allMetricsHTML = '';
+    metricsOrder.forEach(m => {
+      const metric = fullMetrics[m.key];
+      if(metric && metric.value != null) {
+        const value = metric.value;
+        const status = metric.status || 'unknown';
+        const statusColor = status === 'normal' ? '#2ec4b6' : status === 'mild' ? '#ffd166' : status === 'moderate' ? '#ffb86c' : '#ff6b6b';
+        const statusText = status === 'normal' ? '✓' : status === 'mild' ? '⚠' : status === 'moderate' ? '⚠⚠' : status === 'severe' ? '✗' : '?';
+        allMetricsHTML += `
+          <tr>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word;">${m.name}</td>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word; color:${statusColor};"><strong>${value.toFixed(1)}${m.unit}</strong> ${statusText}</td>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word;">${m.normal}</td>
+          </tr>
+        `;
+      }
     });
     
-    document.body.removeChild(page1Container);
+    // Before/After 비교 HTML 생성
+    const B = sessions.Before;
+    const A = sessions.After;
+    let compareHTML = '';
+    metricsOrder.forEach(m => {
+      const bVal = B.metrics?.fullMetrics?.[m.key]?.value;
+      const aVal = A.metrics?.fullMetrics?.[m.key]?.value;
+      if(bVal != null || aVal != null) {
+        const delta = (aVal != null && bVal != null) ? (aVal - bVal) : null;
+        const deltaStr = delta != null ? (delta >= 0 ? '+' : '') + delta.toFixed(1) + m.unit : '—';
+        compareHTML += `
+          <tr>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word;">${m.name}</td>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word;">${bVal != null ? bVal.toFixed(1) + m.unit : '—'}</td>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word;">${aVal != null ? aVal.toFixed(1) + m.unit : '—'}</td>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word; color:${delta != null && delta < 0 ? '#2ec4b6' : delta != null && delta > 0 ? '#ff6b6b' : '#666'};">${deltaStr}</td>
+            <td style="padding:8px; border:1px solid #ddd; word-wrap:break-word;">${m.normal}</td>
+          </tr>
+        `;
+      }
+    });
     
-    // 두 번째 페이지: 체형 종합 점수부터 시작
-    const page2Container = document.createElement("div");
-    page2Container.style.position = "fixed";
-    page2Container.style.left = "-9999px";
-    page2Container.style.top = "0";
-    page2Container.style.width = "794px";
-    page2Container.style.padding = "30px 25px";
-    page2Container.style.paddingBottom = "40px";
-    page2Container.style.background = "#ffffff";
-    page2Container.style.color = "#111";
-    page2Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
-    page2Container.style.fontSize = "12px";
-    page2Container.style.lineHeight = "1.6";
-    page2Container.style.boxSizing = "border-box";
-    page2Container.style.overflow = "hidden";
-    page2Container.style.wordWrap = "break-word";
+    // 필라테스 추천 HTML 생성
+    let pilatesHTML = '';
+    if(analysis.pilates && analysis.pilates.length > 0) {
+      analysis.pilates.forEach(item => {
+        pilatesHTML += `<div style="margin-bottom:15px; padding:12px; background:#f9f9f9; border-radius:8px; border-left:3px solid #9c88ff;">`;
+        pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue} (${item.muscles.join(', ')})</div>`;
+        const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+        tools.forEach(tool => {
+          if(item.pilates[tool] && item.pilates[tool].length > 0) {
+            pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
+          }
+        });
+        pilatesHTML += `</div>`;
+      });
+    }
     
-    page2Container.innerHTML = `
-      <div style="margin-bottom:25px; padding:18px; background:#f5f5f5; border-radius:10px; box-sizing:border-box; overflow:hidden;">
-        <div style="font-size:16px; font-weight:700; margin-bottom:12px; line-height:1.4; word-wrap:break-word;">📊 체형 종합 점수</div>
-        <div style="font-size:42px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:10px; line-height:1.2;">${scoreData.score != null ? scoreData.score : '—'}</div>
-        <div style="font-size:11px; color:#666; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join(", ") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
+    fullContainer.innerHTML = `
+      <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3;">DIT 자세 분석 리포트</h1>
+      <div style="font-size:11px; color:#666; margin-bottom:25px;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
+      
+      <!-- 이미지 -->
+      <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; margin-bottom:30px; max-height:950px; object-fit:contain;" />
+      
+      <!-- 체형 종합 점수 -->
+      <div style="margin-bottom:25px; padding:18px; background:#f5f5f5; border-radius:10px;">
+        <div style="font-size:16px; font-weight:700; margin-bottom:12px;">📊 체형 종합 점수</div>
+        <div style="font-size:42px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:10px;">${scoreData.score != null ? scoreData.score : '—'}</div>
+        <div style="font-size:11px; color:#666; line-height:1.5;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join("<br>") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
+        ${fullMetrics.PDS ? `<div style="margin-top:10px; font-size:12px; color:#666;">PDS: <strong style="color:#7c9cff;">${fullMetrics.PDS.value.toFixed(1)}</strong> (${fullMetrics.PDS.status})</div>` : ''}
       </div>
       
-      <div style="margin-bottom:25px; box-sizing:border-box;">
-        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📐 측정 각도</div>
-        <table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed;">
-          <tr style="background:#f0f0f0;"><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">측정값</th><th style="padding:10px 8px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">정상 범위</th></tr>
-          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">CVA</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.cva != null ? M.cva.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">≥50°</td></tr>
-          <tr style="background:#fafafa;"><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">TRUNK</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">|0–5°|</td></tr>
-          <tr><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">KNEE</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">${M.knee != null ? M.knee.toFixed(1) + "°" : "—"}</td><td style="padding:10px 8px; border:1px solid #ddd; word-wrap:break-word;">175–185°</td></tr>
+      <!-- 전체 분석 항목 -->
+      ${allMetricsHTML ? `
+      <div style="margin-bottom:25px;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📊 전체 분석 항목 (16가지)</div>
+        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+          <tr style="background:#f0f0f0;">
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">항목</th>
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">측정값</th>
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">정상 범위</th>
+          </tr>
+          ${allMetricsHTML}
         </table>
       </div>
+      ` : ''}
       
+      <!-- Before/After 비교 -->
+      ${compareHTML ? `
+      <div style="margin-bottom:25px;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📊 Before/After 비교</div>
+        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+          <tr style="background:#f0f0f0;">
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">항목</th>
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">Before</th>
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">After</th>
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">변화</th>
+            <th style="padding:8px; text-align:left; border:1px solid #ddd; font-weight:600;">정상</th>
+          </tr>
+          ${compareHTML}
+        </table>
+      </div>
+      ` : ''}
+      
+      <!-- AI 분석 -->
       ${analysis.comments && analysis.comments.length > 0 ? `
-      <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
-        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🤖 AI 실시간 분석</div>
-        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
-        ${analysis.details && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+      <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">🤖 AI 체형 분석</div>
+        <div style="font-size:12px; line-height:1.6;">${analysis.comments.join(" ")}</div>
       </div>
-      ` : ""}
+      ` : ''}
       
+      <!-- 근육 상태 -->
       ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
-      <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden;">
-        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c; line-height:1.4; word-wrap:break-word;">💪 근육 상태 분석</div>
-        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
-        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+      <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
+        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ''}
+        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ''}
       </div>
-      ` : ""}
+      ` : ''}
       
+      <!-- 필라테스 추천 -->
+      ${pilatesHTML ? `
+      <div style="margin-bottom:25px; padding:18px; background:#f3e5f5; border-radius:10px; border-left:4px solid #9c88ff;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#9c88ff;">🧘 필라테스 세션 추천</div>
+        ${pilatesHTML}
+      </div>
+      ` : ''}
+      
+      <!-- 추천 운동 -->
       ${analysis.exercises && analysis.exercises.length > 0 ? `
-      <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
-        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🏋️ 추천 운동</div>
-        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+      <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6;">🏋️ 추천 운동</div>
+        <div style="font-size:12px; line-height:1.8;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
       </div>
-      ` : ""}
+      ` : ''}
       
-      <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
-        <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
-        <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
-      </div>
-      
-      <div style="margin-top:20px; font-size:10px; color:#999; text-align:center; line-height:1.5;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
+      <div style="margin-top:30px; font-size:10px; color:#999; text-align:center;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
     `;
     
-    document.body.appendChild(page2Container);
+    document.body.appendChild(fullContainer);
     
-    // 두 번째 페이지 캡처
-    const canvas2 = await html2canvas(page2Container, {
+    // 전체 컨테이너 캡처
+    const fullCanvas = await html2canvas(fullContainer, {
       scale: 2,
       backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
       logging: false,
-      windowWidth: page2Container.scrollWidth,
-      windowHeight: page2Container.scrollHeight
+      windowWidth: fullContainer.scrollWidth,
+      windowHeight: fullContainer.scrollHeight
     });
     
-    document.body.removeChild(page2Container);
-    
-    // 두 이미지를 세로로 합치기
-    const totalHeight = canvas1.height + canvas2.height + 20; // 20px 여백
-    const combinedCanvas = document.createElement("canvas");
-    combinedCanvas.width = canvas1.width;
-    combinedCanvas.height = totalHeight;
-    const ctx = combinedCanvas.getContext("2d");
-    
-    // 첫 번째 이미지 그리기
-    ctx.drawImage(canvas1, 0, 0);
-    // 두 번째 이미지 그리기 (여백 포함)
-    ctx.drawImage(canvas2, 0, canvas1.height + 20);
+    document.body.removeChild(fullContainer);
     
     // 이미지 다운로드
-    const imgData = combinedCanvas.toDataURL("image/png");
+    const imgData = fullCanvas.toDataURL("image/png");
     const link = document.createElement("a");
     link.href = imgData;
     link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
