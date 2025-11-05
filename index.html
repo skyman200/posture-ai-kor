@@ -2641,72 +2641,321 @@ function analyzePostureType(metrics) {
     return "분석 데이터가 충분하지 않습니다.";
   }
   
-  let postureTypes = [];
+  let analysis = [];
+  let summarySection = '';
+  let detailSections = [];
+  let recommendations = [];
   
-  // 1. 거북목 (Forward Head Posture)
+  // 측정값 추출
   const cva = metrics.CVA?.value;
   const hpd = metrics.HPD?.value;
-  if(cva != null && cva < 50) {
-    postureTypes.push(`<strong style="color:#ff6b6b;">거북목 자세</strong>: 머리가 앞으로 나와 경추에 부담이 가해지고 있습니다. (CVA: ${cva.toFixed(1)}°)`);
-  }
-  
-  // 2. 골반 전방 경사 (Anterior Pelvic Tilt)
+  const nia = metrics.NIA?.value;
   const pta = metrics.PTA?.value;
-  if(pta != null && pta > 15) {
-    postureTypes.push(`<strong style="color:#ffb86c;">골반 전방 경사</strong>: 골반이 앞으로 기울어져 요추 과전만이 발생할 수 있습니다. (PTA: ${pta.toFixed(1)}°)`);
-  } else if(pta != null && pta < 0) {
-    postureTypes.push(`<strong style="color:#ffb86c;">골반 후방 경사</strong>: 골반이 뒤로 기울어져 요추가 평평해질 수 있습니다. (PTA: ${pta.toFixed(1)}°)`);
-  }
-  
-  // 3. 무릎 과신전 또는 과굴곡
+  const tia = metrics.TIA?.value;
   const ka = metrics.KA?.value;
-  if(ka != null && ka > 185) {
-    postureTypes.push(`<strong style="color:#ffd166;">무릎 과신전</strong>: 무릎이 과도하게 펴져 있어 관절에 부담이 갈 수 있습니다. (KA: ${ka.toFixed(1)}°)`);
-  } else if(ka != null && ka < 175) {
-    postureTypes.push(`<strong style="color:#ffd166;">무릎 과굴곡</strong>: 무릎이 과도하게 굽혀져 있어 대퇴사두근에 부담이 갑니다. (KA: ${ka.toFixed(1)}°)`);
-  }
-  
-  // 4. 다리 길이 불균형
   const lld = metrics.LLD?.value;
-  if(lld != null && lld > 1) {
-    postureTypes.push(`<strong style="color:#ff6b6b;">다리 길이 불균형</strong>: 좌우 다리 길이 차이로 인해 골반이 틀어질 수 있습니다. (LLD: ${lld.toFixed(1)}cm)`);
-  }
-  
-  // 5. 전신 불균형
   const bva = metrics.BVA?.value;
   const gsb = metrics.GSB?.value;
-  if((bva != null && bva > 2) || (gsb != null && gsb > 2)) {
-    postureTypes.push(`<strong style="color:#ff6b6b;">전신 정렬 불균형</strong>: 주요 관절들이 수직선에서 벗어나 있어 전체적인 균형이 깨져 있습니다.`);
-  }
-  
-  // 6. 척추 만곡 이상
   const sci = metrics.SCI?.value;
-  if(sci != null && (sci < 0.15 || sci > 0.35)) {
-    if(sci < 0.15) {
-      postureTypes.push(`<strong style="color:#ffb86c;">척추 만곡 부족</strong>: 척추의 자연스러운 만곡이 부족하여 충격 흡수가 어려울 수 있습니다. (SCI: ${sci.toFixed(2)})`);
-    } else {
-      postureTypes.push(`<strong style="color:#ffb86c;">척추 과만곡</strong>: 척추의 만곡이 과도하여 허리나 목에 부담이 갈 수 있습니다. (SCI: ${sci.toFixed(2)})`);
-    }
-  }
-  
-  // 7. PDS 종합 평가
+  const hpa = metrics.HPA?.value;
+  const qAngle = metrics['Q_Angle']?.value;
+  const kneeDev = metrics['Knee_Deviation']?.value;
   const pds = metrics.PDS?.value;
   const pdsStatus = metrics.PDS?.status;
-  if(pds != null) {
-    if(pdsStatus === 'normal') {
-      postureTypes.push(`<strong style="color:#2ec4b6;">✓ 전반적으로 양호한 자세</strong>: 대부분의 측정값이 정상 범위에 있습니다. (PDS: ${pds.toFixed(1)})`);
-    } else if(pdsStatus === 'mild') {
-      postureTypes.push(`<strong style="color:#ffd166;">경미한 자세 불균형</strong>: 일부 항목에서 개선이 필요합니다. (PDS: ${pds.toFixed(1)})`);
-    } else {
-      postureTypes.push(`<strong style="color:#ff6b6b;">자세 교정 필요</strong>: 여러 항목에서 정상 범위를 벗어났습니다. 전문가 상담을 권장합니다. (PDS: ${pds.toFixed(1)})`);
+  
+  // 문제 카운트
+  let issueCount = 0;
+  
+  // === 1. 거북목 자세 (Forward Head Posture) ===
+  if(cva != null && cva < 50) {
+    issueCount++;
+    const severity = cva < 40 ? '심각' : cva < 45 ? '중등도' : '경미';
+    detailSections.push(`
+      <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
+        <strong style="color:#ff6b6b; font-size:13px;">📍 거북목 자세 (Forward Head Posture) - ${severity}</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+          <strong>현재 상태:</strong> CVA ${cva.toFixed(1)}° (정상: ≥50°), HPD ${hpd != null ? hpd.toFixed(1) + 'cm' : '미측정'}<br>
+          <strong>주요 원인:</strong> 장시간 스마트폰·컴퓨터 사용, 잘못된 베개 높이, 깊은 근육(Deep neck flexor) 약화<br>
+          <strong>발생 증상:</strong> 
+          • 목뒤 통증 및 경직 (Upper trapezius, Levator scapulae 긴장)
+          • 두통 (Tension headache), 어지럼증
+          • 어깨 결림 및 날개뼈 통증
+          • 턱관절 장애(TMJ disorder) 유발 가능<br>
+          <strong>근육 불균형:</strong>
+          • 긴장된 근육: 상부 승모근, 견갑거근, 흉쇄유돌근, 후두하근
+          • 약화된 근육: 심부 경추 굴곡근(Longus colli, capitis), 하부 승모근<br>
+          <strong>교정 방향:</strong>
+          ① 턱당김 운동(Chin tuck): 심부 경추 굴곡근 강화
+          ② 흉추 신전 운동: 등 윗부분 유연성 확보
+          ③ 견갑골 후인 운동: 어깨를 뒤로 당기는 근육 강화
+          ④ 작업 환경 개선: 모니터 눈높이 조정, 스마트폰 사용 자세 개선<br>
+          <strong>주의사항:</strong> 급격한 교정 시도는 경추 디스크에 무리를 줄 수 있으므로 점진적으로 접근해야 합니다.
+        </div>
+      </div>
+    `);
+  }
+  
+  // === 2. 골반 경사 문제 ===
+  if(pta != null && (pta > 15 || pta < 0)) {
+    issueCount++;
+    if(pta > 15) {
+      const severity = pta > 25 ? '심각' : pta > 20 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ffb86c; font-size:13px;">📍 골반 전방 경사 (Anterior Pelvic Tilt) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> PTA ${pta.toFixed(1)}° (정상: 0-15°)<br>
+            <strong>주요 원인:</strong> 장시간 앉아있는 생활, 하이힐 착용, 복부 근력 약화, 임신 후 회복 부족<br>
+            <strong>발생 증상:</strong>
+            • 요추 과전만(Hyperlordosis)으로 인한 만성 요통
+            • 하복부 돌출 (pseudo-pregnancy appearance)
+            • 엉덩이가 뒤로 튀어나온 자세
+            • 고관절 굴곡근(Hip flexor) 단축으로 인한 보행 장애<br>
+            <strong>근육 불균형:</strong>
+            • 긴장·단축된 근육: 장요근(Iliopsoas), 대퇴직근(Rectus femoris), 척추기립근(Erector spinae)
+            • 약화·신장된 근육: 복직근(Rectus abdominis), 대둔근(Gluteus maximus), 햄스트링<br>
+            <strong>교정 방향:</strong>
+            ① 고관절 굴곡근 스트레칭: 런지 자세에서 장요근 늘리기
+            ② 코어 강화: 플랭크, 데드버그(Dead bug) 운동
+            ③ 대둔근 활성화: 브릿지, 힙 쓰러스트, 클램쉘
+            ④ 골반 후방 경사 연습: 벽에 등대고 골반 중립 자세 학습<br>
+            <strong>복합 증후군:</strong> Lower Cross Syndrome(하부 교차 증후군)의 핵심 특징입니다.
+          </div>
+        </div>
+      `);
+    } else if(pta < 0) {
+      detailSections.push(`
+        <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ffb86c; font-size:13px;">📍 골반 후방 경사 (Posterior Pelvic Tilt)</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> PTA ${pta.toFixed(1)}° (정상: 0-15°)<br>
+            <strong>주요 원인:</strong> 과도한 코어 운동, 장시간 구부정한 앉은 자세, 햄스트링 과긴장<br>
+            <strong>발생 증상:</strong>
+            • 평평한 허리(Flat back)로 인한 충격 흡수 감소
+            • 골반저근 기능 저하
+            • 엉덩이 편평화, 하체 혈액순환 저하<br>
+            <strong>교정 방향:</strong>
+            ① 햄스트링 스트레칭
+            ② 대둔근·척추기립근 강화
+            ③ 골반 전방 경사 연습 (단, 과하지 않게)
+          </div>
+        </div>
+      `);
     }
   }
   
-  if(postureTypes.length === 0) {
-    return "현재 자세는 전반적으로 양호합니다.";
+  // === 3. 상부 교차 증후군 (Upper Cross Syndrome) 체크 ===
+  const hasUpperCross = (cva != null && cva < 50) && (nia != null && nia > 20);
+  if(hasUpperCross) {
+    issueCount++;
+    detailSections.push(`
+      <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px; background:rgba(255,107,107,0.05); padding:10px;">
+        <strong style="color:#ff6b6b; font-size:13px;">⚠️ 상부 교차 증후군 (Upper Cross Syndrome) 의심</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+          <strong>증후군 설명:</strong> 거북목과 둥근 어깨가 동시에 나타나는 현대인의 대표적 자세 불균형 패턴입니다.<br>
+          <strong>전형적 특징:</strong>
+          • 머리 전방 돌출 (CVA: ${cva.toFixed(1)}°)
+          • 목 과도한 신전 (NIA: ${nia != null ? nia.toFixed(1) + '°' : '미측정'})
+          • 흉추 후만 증가 (등이 굽음)
+          • 어깨 전방 회전<br>
+          <strong>교정 우선순위:</strong>
+          ① 긴장 해소: 상부 승모근, 대흉근, 흉쇄유돌근 이완
+          ② 활성화: 심부 경추 굴곡근, 중·하부 승모근, 전거근
+          ③ 자세 교육: 앉은 자세에서 흉추 신전 유지
+        </div>
+      </div>
+    `);
   }
   
-  return postureTypes.join("<br><br>");
+  // === 4. 무릎 정렬 문제 ===
+  if(ka != null && (ka > 185 || ka < 175)) {
+    issueCount++;
+    if(ka > 185) {
+      const severity = ka > 195 ? '심각' : ka > 190 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #ffd166; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ffd166; font-size:13px;">📍 무릎 과신전 (Genu Recurvatum) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> KA ${ka.toFixed(1)}° (정상: 175-185°)<br>
+            <strong>주요 원인:</strong> 관절 과이완성(Joint hypermobility), 대퇴사두근 우세, 햄스트링 약화, 잘못된 서기 습관<br>
+            <strong>발생 증상:</strong>
+            • 무릎 후방 인대 과부하 (PCL, 후방 관절낭 스트레스)
+            • 슬개골 압박 증가로 슬개대퇴 통증 증후군 위험
+            • 무릎 불안정성, 장기적으로 조기 관절염 유발<br>
+            <strong>교정 방향:</strong>
+            ① 햄스트링 강화: 레그컬, 루마니안 데드리프트
+            ② 대퇴사두근 과긴장 완화
+            ③ 서기 자세 교정: 무릎을 살짝 구부린 상태 유지 연습
+            ④ 고유수용성 훈련: 한 발 서기, 밸런스 보드<br>
+            <strong>주의사항:</strong> 무릎을 "딱" 펴는 습관을 즉시 중단해야 합니다.
+          </div>
+        </div>
+      `);
+    } else {
+      detailSections.push(`
+        <div style="border-left:3px solid #ffd166; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ffd166; font-size:13px;">📍 무릎 과굴곡 자세</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> KA ${ka.toFixed(1)}° (정상: 175-185°)<br>
+            <strong>주요 원인:</strong> 햄스트링 과긴장, 종아리 근육 단축, 골반 후방 경사 동반<br>
+            <strong>교정 방향:</strong> 햄스트링·종아리 스트레칭, 대퇴사두근 강화
+          </div>
+        </div>
+      `);
+    }
+  }
+  
+  // === 5. 다리 길이 불균형 & 측만 위험 ===
+  if(lld != null && lld > 1) {
+    issueCount++;
+    const severity = lld > 2 ? '심각' : lld > 1.5 ? '중등도' : '경미';
+    detailSections.push(`
+      <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
+        <strong style="color:#ff6b6b; font-size:13px;">📍 다리 길이 불균형 (Leg Length Discrepancy) - ${severity}</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+          <strong>현재 상태:</strong> LLD ${lld.toFixed(1)}cm (정상: ≤1cm)<br>
+          <strong>구분:</strong>
+          • 구조적 불균형: 실제 뼈 길이 차이 (X-ray 촬영 필요)
+          • 기능적 불균형: 근육 불균형·골반 회전으로 인한 겉보기 차이<br>
+          <strong>발생 증상:</strong>
+          • 골반 기울어짐 → 척추 측만증(Scoliosis) 유발
+          • 보행 시 비대칭 → 무릎·고관절·허리 통증
+          • 한쪽 다리 피로 누적<br>
+          <strong>교정 방향:</strong>
+          ① 기능적 불균형: 골반 교정 운동, 중둔근(Gluteus medius) 강화, TFL·QL 스트레칭
+          ② 구조적 불균형: 깔창(Heel lift) 사용 고려, 전문의 상담 필수<br>
+          <strong>연쇄 반응:</strong> LLD → 골반 기울어짐 → 척추 측만 → 어깨 높이 차이 → 목 통증
+        </div>
+      </div>
+    `);
+  }
+  
+  // === 6. 전신 균형 문제 ===
+  if((bva != null && bva > 2) || (gsb != null && gsb > 2)) {
+    issueCount++;
+    detailSections.push(`
+      <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
+        <strong style="color:#ff6b6b; font-size:13px;">📍 전신 정렬 불균형 (Global Postural Imbalance)</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+          <strong>현재 상태:</strong> BVA ${bva != null ? bva.toFixed(1) + 'cm' : '미측정'}, GSB ${gsb != null ? gsb.toFixed(1) + 'cm' : '미측정'}<br>
+          <strong>의미:</strong> 주요 관절들이 수직 중력선에서 크게 벗어나 있어 전신 근골격계에 과부하가 걸린 상태입니다.<br>
+          <strong>발생 증상:</strong>
+          • 쉽게 피로함, 장시간 서 있거나 걷기 힘듦
+          • 만성 통증의 다발성 발생 (목, 어깨, 허리, 무릎 등)
+          • 에너지 소모 증가, 호흡 효율 감소<br>
+          <strong>교정 방향:</strong>
+          ① 전체적인 자세 재정렬 프로그램 필요 (통합적 접근)
+          ② 필라테스, 요가 등 전신 균형 운동
+          ③ 전문가(물리치료사, 카이로프랙터) 상담 권장
+        </div>
+      </div>
+    `);
+  }
+  
+  // === 7. 척추 만곡 이상 ===
+  if(sci != null && (sci < 0.15 || sci > 0.35)) {
+    issueCount++;
+    if(sci < 0.15) {
+      detailSections.push(`
+        <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ffb86c; font-size:13px;">📍 척추 만곡 부족 (Hypolordosis / Flat Back)</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> SCI ${sci.toFixed(2)} (정상: 0.15-0.35)<br>
+            <strong>의미:</strong> 척추의 자연스러운 S자 곡선이 부족하여 충격 흡수 능력이 저하된 상태<br>
+            <strong>발생 증상:</strong> 허리 피로 증가, 디스크 압력 증가, 뻣뻣한 등<br>
+            <strong>교정 방향:</strong> 척추 신전 운동(Cat-Cow, Cobra pose), 흉추 모빌리티 확보
+          </div>
+        </div>
+      `);
+    } else {
+      detailSections.push(`
+        <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ffb86c; font-size:13px;">📍 척추 과만곡 (Hyperlordosis / Swayback)</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> SCI ${sci.toFixed(2)} (정상: 0.15-0.35)<br>
+            <strong>의미:</strong> 척추 만곡이 과도하여 디스크와 후관절에 압박이 가중됨<br>
+            <strong>발생 증상:</strong> 요통, 디스크 압박, 척추 불안정성<br>
+            <strong>교정 방향:</strong> 코어 안정화, 골반 중립 자세 훈련, 과전만 감소 운동
+          </div>
+        </div>
+      `);
+    }
+  }
+  
+  // === 종합 평가 및 요약 ===
+  if(pds != null) {
+    if(pdsStatus === 'normal') {
+      summarySection = `<div style="background:rgba(46,196,182,0.1); padding:12px; border-radius:8px; margin-bottom:16px;">
+        <strong style="color:#2ec4b6; font-size:14px;">✓ 전반적으로 양호한 자세</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.6; color:var(--muted);">
+          대부분의 측정값이 정상 범위에 있습니다. (PDS: ${pds.toFixed(1)}점)<br>
+          현재 상태를 유지하기 위해 규칙적인 스트레칭과 근력 운동을 지속하세요.
+        </div>
+      </div>`;
+    } else if(pdsStatus === 'mild') {
+      summarySection = `<div style="background:rgba(255,209,102,0.1); padding:12px; border-radius:8px; margin-bottom:16px;">
+        <strong style="color:#ffd166; font-size:14px;">⚠️ 경미한 자세 불균형</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.6; color:var(--muted);">
+          ${issueCount}개 항목에서 개선이 필요합니다. (PDS: ${pds.toFixed(1)}점)<br>
+          지금부터 교정을 시작하면 단기간 내 개선이 가능한 수준입니다.
+        </div>
+      </div>`;
+    } else if(pdsStatus === 'moderate') {
+      summarySection = `<div style="background:rgba(255,184,108,0.1); padding:12px; border-radius:8px; margin-bottom:16px;">
+        <strong style="color:#ffb86c; font-size:14px;">⚠️ 중등도 자세 불균형</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.6; color:var(--muted);">
+          ${issueCount}개 항목에서 교정이 필요합니다. (PDS: ${pds.toFixed(1)}점)<br>
+          체계적인 교정 운동 프로그램과 생활 습관 개선이 필요합니다.
+        </div>
+      </div>`;
+    } else {
+      summarySection = `<div style="background:rgba(255,107,107,0.1); padding:12px; border-radius:8px; margin-bottom:16px;">
+        <strong style="color:#ff6b6b; font-size:14px;">🚨 심각한 자세 불균형</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.6; color:var(--muted);">
+          ${issueCount}개 항목에서 정상 범위를 벗어났습니다. (PDS: ${pds.toFixed(1)}점)<br>
+          <strong>전문가 상담을 강력히 권장합니다.</strong> (물리치료사, 정형외과 전문의, 카이로프랙터)<br>
+          방치 시 만성 통증 및 구조적 변형이 고착될 수 있습니다.
+        </div>
+      </div>`;
+    }
+  }
+  
+  // === 통합 권장사항 ===
+  if(issueCount > 0) {
+    recommendations.push(`
+      <div style="background:rgba(124,156,255,0.08); padding:12px; border-radius:8px; margin-top:16px;">
+        <strong style="color:#7c9cff; font-size:13px;">💡 통합 교정 권장사항</strong>
+        <div style="margin-top:8px; font-size:11px; line-height:1.7; color:var(--muted);">
+          <strong>1. 일상생활 개선:</strong><br>
+          • 작업 환경: 모니터 눈높이, 의자 높이, 책상 거리 조정<br>
+          • 수면 자세: 경추 지지 베개, 옆으로 누워 자기<br>
+          • 스마트폰: 눈높이까지 들고 보기, 사용 시간 제한<br><br>
+          
+          <strong>2. 운동 프로그램:</strong><br>
+          • 매일: 스트레칭 10-15분 (긴장된 근육 이완)<br>
+          • 주 3-4회: 근력 운동 30분 (약화된 근육 강화)<br>
+          • 주 2-3회: 유산소 운동 30분 (전신 순환 개선)<br><br>
+          
+          <strong>3. 전문가 도움:</strong><br>
+          • 물리치료: 수기 치료, 도수 치료, 운동 치료<br>
+          • 필라테스/요가: 전문 강사의 1:1 교정 수업<br>
+          • 정기 검진: 3-6개월마다 자세 재평가<br><br>
+          
+          <strong>4. 교정 순서:</strong><br>
+          ① 1-2주차: 긴장된 근육 이완 (마사지, 폼롤러, 스트레칭)<br>
+          ② 3-4주차: 약화된 근육 활성화 (저강도 운동)<br>
+          ③ 5주차 이후: 점진적 강화 및 자세 통합 훈련
+        </div>
+      </div>
+    `);
+  }
+  
+  // === 최종 출력 조합 ===
+  if(detailSections.length === 0) {
+    return summarySection || "현재 자세는 전반적으로 양호합니다.";
+  }
+  
+  return summarySection + detailSections.join('') + recommendations.join('');
 }
 
 function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
