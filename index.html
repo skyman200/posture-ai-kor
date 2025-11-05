@@ -655,10 +655,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   const knee = p("knee") || p("Knee");
   const ankle = p("ankle") || p("Ankle");
   
-  // 1️⃣ CVA (Craniovertebral Angle): Dart 코드 방식 (90 - angleToHorizontal(tragus, c7)).abs()
+  // 1️⃣ CVA (Craniovertebral Angle): 수평선에서의 각도
   if (tragus && C7) {
-    const nia = angleToHorizontal(tragus, C7);
-    const cva = Math.abs(90 - nia);
+    const rawAngle = angleToHorizontal(tragus, C7);
+    // CVA는 angleToHorizontal의 결과를 그대로 사용 (90도 → 정상, 0도 → 거북목)
+    const cva = rawAngle;
     
     result.CVA = {
       value: cva,
@@ -699,14 +700,16 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.HPD.meaning = result.HPD.desc;
   }
   
-  // 3️⃣ NIA (Neck Inclination Angle): acromion-tragus와 수평선
+  // 3️⃣ NIA (Neck Inclination Angle): 목의 기울기 (90도 기준)
   if (tragus && acromion) {
-    const nia = angleToHorizontal(acromion, tragus);
+    const rawAngle = angleToHorizontal(acromion, tragus);
+    // NIA는 90도에서 빼서 계산 (수평 = 0도, 90도 각도 = 0도 NIA, 110도 각도 = 20도 NIA)
+    const nia = Math.abs(90 - rawAngle);
     result.NIA = {
       value: nia,
       status: classifyRange({
         v: nia,
-        nMin: 10, nMax: 20,
+        nMin: 0, nMax: 20,
         mildMin: 21, mildMax: 25,
         modMin: 26, modMax: 30,
         sevMin: 30, sevMax: null,
