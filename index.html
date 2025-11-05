@@ -591,7 +591,17 @@ function angleAt(v, a, b) {
 // 수직선(90°)과 라인 각도 차이 절대값
 function angleToVertical(p1, p2) {
   const a = angleP1P2(p1, p2);
-  return Math.abs(90 - Math.abs(a));
+  // 수직선(90도)에서의 편차 계산
+  // 175.4도 → 180 - 175.4 = 4.6도 (수직선에서 4.6도 벗어남)
+  // 85.4도 → 90 - 85.4 = 4.6도
+  const absA = Math.abs(a);
+  if (absA > 90) {
+    // 90도 이상이면 180도에서 빼서 계산
+    return Math.abs(180 - absA);
+  } else {
+    // 90도 미만이면 90도에서 빼서 계산
+    return Math.abs(90 - absA);
+  }
 }
 
 // 수평선과 라인 각도 절대값
@@ -2374,7 +2384,196 @@ function displayFrontAnalysis(fullMetrics) {
 }
 
 
+// 전체 분석 항목 기준으로 체형 종합 점수 계산
+function computeScoreFromFullMetrics(fullMetrics) {
+  if(!fullMetrics || Object.keys(fullMetrics).length === 0) {
+    return { score: null, reasons: [], penalties: 0 };
+  }
+  
+  let penalties = 0;
+  let reasons = [];
+  
+  // 1. CVA (Craniovertebral Angle) - 정상 ≥50°
+  const cva = fullMetrics.CVA?.value;
+  if(cva != null) {
+    if(cva < 50) {
+      const delta = 50 - cva;
+      const penalty = Math.min(40, delta * 1.6);
+      penalties += penalty;
+      reasons.push(`CVA ${cva.toFixed(1)}° (정상 ≥50°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  // 2. HPD (Head Protrusion Distance) - 정상 ≤2cm
+  const hpd = fullMetrics.HPD?.value;
+  if(hpd != null && hpd > 2) {
+    const delta = hpd - 2;
+    const penalty = Math.min(20, delta * 5);
+    penalties += penalty;
+    reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 3. NIA (Neck Inclination Angle) - 정상 0-20°
+  const nia = fullMetrics.NIA?.value;
+  if(nia != null && nia > 20) {
+    const delta = nia - 20;
+    const penalty = Math.min(15, delta * 1.5);
+    penalties += penalty;
+    reasons.push(`NIA ${nia.toFixed(1)}° (정상 0-20°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 4. TIA (Trunk Inclination Angle) - 정상 0-10°
+  const tia = fullMetrics.TIA?.value;
+  if(tia != null && tia > 10) {
+    const delta = tia - 10;
+    const penalty = Math.min(20, delta * 2);
+    penalties += penalty;
+    reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 5. SAA (Scapular Alignment Angle) - 정상 0-10°
+  const saa = fullMetrics.SAA?.value;
+  if(saa != null && saa > 10) {
+    const delta = saa - 10;
+    const penalty = Math.min(15, delta * 1.5);
+    penalties += penalty;
+    reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 6. PTA (Pelvic Tilt Angle) - 정상 0-15°
+  const pta = fullMetrics.PTA?.value;
+  if(pta != null) {
+    if(pta > 15) {
+      const delta = pta - 15;
+      const penalty = Math.min(30, delta * 2);
+      penalties += penalty;
+      reasons.push(`PTA ${pta.toFixed(1)}° (정상 0-15°) - ${penalty.toFixed(0)}점 감점`);
+    } else if(pta < 0) {
+      const delta = Math.abs(pta);
+      const penalty = Math.min(20, delta * 2);
+      penalties += penalty;
+      reasons.push(`PTA ${pta.toFixed(1)}° (정상 0-15°, 후방 경사) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  // 7. KA (Knee Alignment Angle) - 정상 175-185°
+  const ka = fullMetrics.KA?.value;
+  if(ka != null) {
+    if(ka < 175) {
+      const delta = 175 - ka;
+      const penalty = Math.min(25, delta * 2.5);
+      penalties += penalty;
+      reasons.push(`KA ${ka.toFixed(1)}° (정상 175-185°) - ${penalty.toFixed(0)}점 감점`);
+    } else if(ka > 185) {
+      const delta = ka - 185;
+      const penalty = Math.min(25, delta * 2.5);
+      penalties += penalty;
+      reasons.push(`KA ${ka.toFixed(1)}° (정상 175-185°, 과신전) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  // 8. Tibial Angle - 정상 0-10°
+  const tibial = fullMetrics.Tibial_Angle?.value;
+  if(tibial != null && tibial > 10) {
+    const delta = tibial - 10;
+    const penalty = Math.min(15, delta * 1.5);
+    penalties += penalty;
+    reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 9. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°)
+  const qAngle = fullMetrics.Q_Angle?.value;
+  if(qAngle != null) {
+    if(qAngle < 10) {
+      const delta = 10 - qAngle;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+    } else if(qAngle > 20) {
+      const delta = qAngle - 20;
+      const penalty = Math.min(20, delta * 2);
+      penalties += penalty;
+      reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  // 10. Knee Deviation - 정상 0-3°
+  const kneeDev = fullMetrics.Knee_Deviation?.value;
+  if(kneeDev != null && kneeDev > 3) {
+    const delta = kneeDev - 3;
+    const penalty = Math.min(15, delta * 3);
+    penalties += penalty;
+    reasons.push(`Knee Dev ${kneeDev.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 11. LLD (Leg Length Discrepancy) - 정상 ≤1cm
+  const lld = fullMetrics.LLD?.value;
+  if(lld != null && lld > 1) {
+    const delta = lld - 1;
+    const penalty = Math.min(25, delta * 10);
+    penalties += penalty;
+    reasons.push(`LLD ${lld.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 12. GSB (Global Sagittal Balance) - 정상 ≤2cm
+  const gsb = fullMetrics.GSB?.value;
+  if(gsb != null && gsb > 2) {
+    const delta = gsb - 2;
+    const penalty = Math.min(20, delta * 5);
+    penalties += penalty;
+    reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 13. BVA (Body Vertical Alignment) - 정상 ≤2cm
+  const bva = fullMetrics.BVA?.value;
+  if(bva != null && bva > 2) {
+    const delta = bva - 2;
+    const penalty = Math.min(20, delta * 5);
+    penalties += penalty;
+    reasons.push(`BVA ${bva.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // 14. SCI (Spinal Curvature Index) - 정상 0.15-0.35
+  const sci = fullMetrics.SCI?.value;
+  if(sci != null) {
+    if(sci < 0.15) {
+      const delta = 0.15 - sci;
+      const penalty = Math.min(15, delta * 50);
+      penalties += penalty;
+      reasons.push(`SCI ${sci.toFixed(2)} (정상 0.15-0.35, 만곡 부족) - ${penalty.toFixed(0)}점 감점`);
+    } else if(sci > 0.35) {
+      const delta = sci - 0.35;
+      const penalty = Math.min(15, delta * 50);
+      penalties += penalty;
+      reasons.push(`SCI ${sci.toFixed(2)} (정상 0.15-0.35, 과만곡) - ${penalty.toFixed(0)}점 감점`);
+    }
+  }
+  
+  // 15. HPA (Head–Pelvis Angle) - 정상 0-10°
+  const hpa = fullMetrics.HPA?.value;
+  if(hpa != null && hpa > 10) {
+    const delta = hpa - 10;
+    const penalty = Math.min(15, delta * 1.5);
+    penalties += penalty;
+    reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+  }
+  
+  // PDS는 별도로 계산되므로 여기서는 제외
+  
+  const score = Math.round(clamp(100 - penalties, 0, 100));
+  return { score, reasons, penalties };
+}
+
+// 기존 호환성을 위한 함수 (하위 호환)
 function computeScore(cva, pelvic, knee) {
+  // fullMetrics가 없으면 기존 방식 사용
+  const S = sessions[cur];
+  const fullMetrics = S.metrics?.fullMetrics;
+  if(fullMetrics && Object.keys(fullMetrics).length > 0) {
+    return computeScoreFromFullMetrics(fullMetrics);
+  }
+  
+  // 기존 방식 (fallback)
   let penalties = 0;
   let reasons = [];
   
@@ -3056,6 +3255,14 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       pdsValueEl.style.color = pdsColor;
     } else if(pdsValueEl) {
       pdsValueEl.textContent = '—';
+    }
+  }
+  
+  // 전체 분석 항목 기준으로 점수 재계산 (fullMetrics가 있으면)
+  if(fullMetrics && Object.keys(fullMetrics).length > 0) {
+    const scoreResult = computeScoreFromFullMetrics(fullMetrics);
+    if(scoreResult.score != null) {
+      scoreData = scoreResult;
     }
   }
   
@@ -3787,24 +3994,28 @@ function startDrag(e) {
   
   console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
   
-  // 좌표 수정 모드일 때는 선택된 점만 체크 (다른 점은 절대 드래그 불가)
+  // 좌표 수정 모드일 때는 선택된 점만 체크 (배율 1일 때도 동일하게 적용)
   if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
-      // 확대 모드에서는 원본 좌표 기준으로 거리 계산 (threshold도 원본 기준)
+      // 배율 1이어도 원본 좌표 기준으로 거리 계산 (threshold도 원본 기준)
       // pos는 이미 원본 크기 기준으로 변환되어 있음
       const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
       if(d < threshold) {
         bestPoint = selectedPoint;
         bestDistance = d;
-        console.log('✅ 선택된 점 드래그 시작:', selectedPoint, '거리:', d.toFixed(2));
+        console.log('✅ 선택된 점 드래그 시작 (배율 ' + currentZoom + '):', selectedPoint, '거리:', d.toFixed(2));
       } else {
         console.log('❌ 선택된 점이 너무 멀어서 드래그 불가:', selectedPoint, '거리:', d.toFixed(2), 'threshold:', threshold);
       }
     }
     // 선택된 점만 체크하므로 다른 점은 체크하지 않음 (bestPoint가 null이면 드래그 시작 안 됨)
+  } else if(editMode && !selectedPoint) {
+    // editMode지만 선택된 점이 없으면 드래그 불가
+    console.log('⚠️ editMode이지만 선택된 점이 없어서 드래그 불가');
+    return false;
   } else {
-    // 일반 모드: 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
+    // 일반 모드 (editMode가 false): 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
     const currentKeypoints = getKeypoints();
     for(const k of currentKeypoints) {
       const p = P[k.key];
@@ -3812,8 +4023,7 @@ function startDrag(e) {
       
       let d;
       
-      if(editMode && currentZoom > 1) {
-        // 확대 모드: 원본 좌표 기준으로 거리 계산
+      // 일반 모드에서는 확대/축소 없이 CSS 좌표 기준으로 거리 계산
         // pos는 이미 원본 크기 기준으로 변환되어 있음
         // 모든 확대 배율에서 동일한 계산 방식 사용
         d = Math.hypot(p.x - pos.x, p.y - pos.y);
