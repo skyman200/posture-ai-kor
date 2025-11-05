@@ -544,6 +544,19 @@ canvas {
     <div id="pilatesList" style="font-size:12px; line-height:1.6;"></div>
   </div>
 
+  <!-- 필라테스 운동 상세 설명 모달 -->
+  <div id="pilatesExerciseModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; overflow-y:auto; padding:20px; box-sizing:border-box;">
+    <div style="max-width:600px; margin:0 auto; background:#1a1a2e; border-radius:12px; padding:20px; box-shadow:0 4px 20px rgba(0,0,0,0.5);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 id="modalExerciseTitle" style="margin:0; color:#9c88ff; font-size:18px; font-weight:600;"></h3>
+        <button id="closeModalBtn" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer; padding:0; width:30px; height:30px; display:flex; align-items:center; justify-content:center;">&times;</button>
+      </div>
+      <div id="modalExerciseContent" style="color:#e0e0e0; line-height:1.8; font-size:13px;">
+        <!-- 운동 상세 설명이 여기에 표시됩니다 -->
+      </div>
+    </div>
+  </div>
+
 
   <div style="margin-top:12px; max-height:400px; overflow-y:auto;">
     <table class="tbl">
@@ -4005,8 +4018,146 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
     exercises.push('3. 자세 교정 운동: 벽에 등을 대고 서서 몸 정렬 유지 (1분×3회)');
   }
   
-  // 필라테스 추천
-  const pilates = recommendPilates([...new Set(tight)], [...new Set(weak)]);
+  // 필라테스 추천 (패턴 기반)
+  const pilates = [];
+  
+  if(fullMetrics) {
+    // 패턴 기반 필라테스 추천 생성
+    // 1. 거북목(FHP)
+    const cvaVal = fullMetrics.CVA?.value_deg;
+    const niaVal = fullMetrics.NIA?.value_deg;
+    const hpdVal = fullMetrics.HPD?.value_cm;
+    if(cvaVal != null && cvaVal < 50 && niaVal != null && niaVal > 20 && hpdVal != null && hpdVal > 2) {
+      if(pilatesPatterns.FHP) {
+        pilates.push({
+          pattern: 'FHP',
+          name: pilatesPatterns.FHP.name,
+          condition: pilatesPatterns.FHP.condition,
+          interpretation: pilatesPatterns.FHP.interpretation,
+          tight: pilatesPatterns.FHP.tight,
+          weak: pilatesPatterns.FHP.weak,
+          exercises: pilatesPatterns.FHP.exercises
+        });
+      }
+    }
+    
+    // 2. 라운드 숄더(RSP)
+    const saaVal = fullMetrics.SAA?.value_deg;
+    if(saaVal != null && saaVal > 10) {
+      if(pilatesPatterns.RSP) {
+        pilates.push({
+          pattern: 'RSP',
+          name: pilatesPatterns.RSP.name,
+          condition: pilatesPatterns.RSP.condition,
+          interpretation: pilatesPatterns.RSP.interpretation,
+          tight: pilatesPatterns.RSP.tight,
+          weak: pilatesPatterns.RSP.weak,
+          exercises: pilatesPatterns.RSP.exercises
+        });
+      }
+    }
+    
+    // 3. 과전경사 골반
+    const ptaVal = fullMetrics.PTA?.value_deg;
+    if(ptaVal != null && ptaVal > 15) {
+      if(pilatesPatterns.AnteriorTilt) {
+        pilates.push({
+          pattern: 'AnteriorTilt',
+          name: pilatesPatterns.AnteriorTilt.name,
+          condition: pilatesPatterns.AnteriorTilt.condition,
+          interpretation: pilatesPatterns.AnteriorTilt.interpretation,
+          tight: pilatesPatterns.AnteriorTilt.tight,
+          weak: pilatesPatterns.AnteriorTilt.weak,
+          exercises: pilatesPatterns.AnteriorTilt.exercises
+        });
+      }
+    }
+    
+    // 4. 후경사 골반
+    if(ptaVal != null && ptaVal < 5) {
+      if(pilatesPatterns.PosteriorTilt) {
+        pilates.push({
+          pattern: 'PosteriorTilt',
+          name: pilatesPatterns.PosteriorTilt.name,
+          condition: pilatesPatterns.PosteriorTilt.condition,
+          interpretation: pilatesPatterns.PosteriorTilt.interpretation,
+          tight: pilatesPatterns.PosteriorTilt.tight,
+          weak: pilatesPatterns.PosteriorTilt.weak,
+          exercises: pilatesPatterns.PosteriorTilt.exercises
+        });
+      }
+    }
+    
+    // 5. X자 다리
+    const kaVal = fullMetrics.KA?.value_deg;
+    const qAngleVal = fullMetrics.Q_Angle?.value_deg;
+    if(kaVal != null && kaVal < 175) {
+      if(pilatesPatterns.GenuValgum) {
+        pilates.push({
+          pattern: 'GenuValgum',
+          name: pilatesPatterns.GenuValgum.name,
+          condition: pilatesPatterns.GenuValgum.condition,
+          interpretation: pilatesPatterns.GenuValgum.interpretation,
+          tight: pilatesPatterns.GenuValgum.tight,
+          weak: pilatesPatterns.GenuValgum.weak,
+          exercises: pilatesPatterns.GenuValgum.exercises
+        });
+      }
+    }
+    
+    // 6. O자 다리
+    if(kaVal != null && kaVal > 180) {
+      if(pilatesPatterns.GenuVarum) {
+        pilates.push({
+          pattern: 'GenuVarum',
+          name: pilatesPatterns.GenuVarum.name,
+          condition: pilatesPatterns.GenuVarum.condition,
+          interpretation: pilatesPatterns.GenuVarum.interpretation,
+          tight: pilatesPatterns.GenuVarum.tight,
+          weak: pilatesPatterns.GenuVarum.weak,
+          exercises: pilatesPatterns.GenuVarum.exercises
+        });
+      }
+    }
+    
+    // 7. 체중 중심 전방
+    const bvaVal = fullMetrics.BVA?.value_deg;
+    const gsbVal = fullMetrics.GSB?.value_cm;
+    if(bvaVal != null && bvaVal > 2 && gsbVal != null && gsbVal > 2) {
+      if(pilatesPatterns.ForwardCenter) {
+        pilates.push({
+          pattern: 'ForwardCenter',
+          name: pilatesPatterns.ForwardCenter.name,
+          condition: pilatesPatterns.ForwardCenter.condition,
+          interpretation: pilatesPatterns.ForwardCenter.interpretation,
+          tight: pilatesPatterns.ForwardCenter.tight,
+          weak: pilatesPatterns.ForwardCenter.weak,
+          exercises: pilatesPatterns.ForwardCenter.exercises
+        });
+      }
+    }
+    
+    // 8. 체중 중심 후방
+    if(bvaVal != null && bvaVal < -2 || (gsbVal != null && gsbVal < -2)) {
+      if(pilatesPatterns.BackwardCenter) {
+        pilates.push({
+          pattern: 'BackwardCenter',
+          name: pilatesPatterns.BackwardCenter.name,
+          condition: pilatesPatterns.BackwardCenter.condition,
+          interpretation: pilatesPatterns.BackwardCenter.interpretation,
+          tight: pilatesPatterns.BackwardCenter.tight,
+          weak: pilatesPatterns.BackwardCenter.weak,
+          exercises: pilatesPatterns.BackwardCenter.exercises
+        });
+      }
+    }
+  }
+  
+  // 패턴 기반 추천이 없으면 기존 방식 사용
+  if(pilates.length === 0) {
+    const oldPilates = recommendPilates([...new Set(tight)], [...new Set(weak)]);
+    pilates.push(...oldPilates);
+  }
   
   return { 
     tight: [...new Set(tight)], 
@@ -4540,17 +4691,57 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     exercisePanel.style.display = "none";
   }
   
-  // 필라테스 추천
+  // 필라테스 추천 (패턴 기반)
   if(analysis && analysis.pilates && analysis.pilates.length > 0) {
     let pilatesHTML = '';
     analysis.pilates.forEach((item, idx) => {
+      const itemName = item.name || item.issue || `패턴 ${idx + 1}`;
+      const itemCondition = item.condition || '';
+      const itemInterpretation = item.interpretation || '';
+      const itemTight = item.tight || item.muscles || [];
+      const itemWeak = item.weak || [];
+      const itemExercises = item.exercises || item.pilates || {};
+      
       pilatesHTML += `<div style="margin-bottom:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">`;
-      pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#9c88ff;">${idx + 1}. ${item.issue} (${item.muscles.join(', ')})</div>`;
-      pilatesHTML += `<div style="font-size:11px; color:var(--muted); margin-bottom:6px;">${item.type === '긴장' ? '긴장 완화' : '강화'} 필요</div>`;
+      pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#9c88ff;">${idx + 1}. ${itemName}</div>`;
+      if(itemCondition) {
+        pilatesHTML += `<div style="font-size:11px; color:var(--muted); margin-bottom:4px;">조건: ${itemCondition}</div>`;
+      }
+      if(itemInterpretation) {
+        pilatesHTML += `<div style="font-size:11px; color:var(--muted); margin-bottom:4px;">해석: ${itemInterpretation}</div>`;
+      }
+      if(itemTight.length > 0) {
+        pilatesHTML += `<div style="font-size:11px; margin-bottom:4px;"><span style="color:#ff6b6b;">긴장된 근육:</span> <span style="color:var(--ink);">${Array.isArray(itemTight) ? itemTight.join(', ') : itemTight}</span></div>`;
+      }
+      if(itemWeak.length > 0) {
+        pilatesHTML += `<div style="font-size:11px; margin-bottom:6px;"><span style="color:#7c9cff;">약화된 근육:</span> <span style="color:var(--ink);">${Array.isArray(itemWeak) ? itemWeak.join(', ') : itemWeak}</span></div>`;
+      }
+      
       const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
       tools.forEach(tool => {
-        if(item.pilates[tool] && item.pilates[tool].length > 0) {
-          pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong style="color:#9c88ff;">${tool}:</strong> <span style="color:var(--ink);">${item.pilates[tool].join(', ')}</span></div>`;
+        if(itemExercises[tool] && itemExercises[tool].length > 0) {
+          pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong style="color:#9c88ff;">${tool}:</strong>`;
+          itemExercises[tool].forEach((exercise, exIdx) => {
+            // exercise가 객체인 경우 (en, ko, purpose 포함)
+            if(typeof exercise === 'object' && exercise.en) {
+              const exerciseName = `${exercise.en} (${exercise.ko})`;
+              const exerciseId = `exercise-${idx}-${tool}-${exIdx}`;
+              pilatesHTML += `<div style="margin-left:8px; margin-top:2px;">`;
+              pilatesHTML += `<span id="${exerciseId}" style="color:#2ec4b6; cursor:pointer; text-decoration:underline; border-bottom:1px dotted #2ec4b6;" onclick="showExerciseModal('${exercise.en}', '${exercise.ko}', '${exercise.purpose || ''}')">${exerciseName}</span>`;
+              if(exercise.purpose) {
+                pilatesHTML += ` <span style="color:var(--muted); font-size:10px;">(${exercise.purpose})</span>`;
+              }
+              pilatesHTML += `</div>`;
+            } else {
+              // exercise가 문자열인 경우 (기존 방식 호환)
+              const exerciseName = typeof exercise === 'string' ? exercise : '';
+              const exerciseId = `exercise-${idx}-${tool}-${exIdx}`;
+              pilatesHTML += `<div style="margin-left:8px; margin-top:2px;">`;
+              pilatesHTML += `<span id="${exerciseId}" style="color:#2ec4b6; cursor:pointer; text-decoration:underline; border-bottom:1px dotted #2ec4b6;" onclick="showExerciseModal('${exerciseName}', '${exerciseName}', '')">${exerciseName}</span>`;
+              pilatesHTML += `</div>`;
+            }
+          });
+          pilatesHTML += `</div>`;
         }
       });
       pilatesHTML += `</div>`;
@@ -4560,6 +4751,77 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   } else {
     pilatesPanel.style.display = "none";
   }
+}
+
+// 필라테스 운동 상세 설명 모달 표시 함수
+function showExerciseModal(exerciseEn, exerciseKo, purpose) {
+  const modal = document.getElementById("pilatesExerciseModal");
+  const modalTitle = document.getElementById("modalExerciseTitle");
+  const modalContent = document.getElementById("modalExerciseContent");
+  const closeBtn = document.getElementById("closeModalBtn");
+  
+  if(!modal || !modalTitle || !modalContent) return;
+  
+  // 운동 설명 데이터 가져오기
+  const exerciseDesc = pilatesExerciseDescriptions[exerciseEn];
+  
+  modalTitle.textContent = `${exerciseEn} (${exerciseKo})`;
+  
+  let contentHTML = '';
+  
+  if(exerciseDesc) {
+    contentHTML += `<div style="margin-bottom:20px;">`;
+    contentHTML += `<h4 style="color:#2ec4b6; font-size:15px; margin-bottom:10px; border-bottom:2px solid #2ec4b6; padding-bottom:5px;">운동 설명</h4>`;
+    contentHTML += `<p style="margin-bottom:15px; line-height:1.8;">${exerciseDesc.description}</p>`;
+    contentHTML += `</div>`;
+    
+    contentHTML += `<div style="margin-bottom:20px;">`;
+    contentHTML += `<h4 style="color:#2ec4b6; font-size:15px; margin-bottom:10px; border-bottom:2px solid #2ec4b6; padding-bottom:5px;">수행 방법</h4>`;
+    contentHTML += `<p style="margin-bottom:15px; line-height:1.8; white-space:pre-line;">${exerciseDesc.instructions}</p>`;
+    contentHTML += `</div>`;
+    
+    contentHTML += `<div style="margin-bottom:20px;">`;
+    contentHTML += `<h4 style="color:#2ec4b6; font-size:15px; margin-bottom:10px; border-bottom:2px solid #2ec4b6; padding-bottom:5px;">운동 효과</h4>`;
+    contentHTML += `<p style="margin-bottom:15px; line-height:1.8;">${exerciseDesc.benefits}</p>`;
+    contentHTML += `</div>`;
+    
+    contentHTML += `<div style="margin-bottom:20px;">`;
+    contentHTML += `<h4 style="color:#ff6b6b; font-size:15px; margin-bottom:10px; border-bottom:2px solid #ff6b6b; padding-bottom:5px;">주의사항</h4>`;
+    contentHTML += `<p style="margin-bottom:15px; line-height:1.8; color:#ffb86c;">${exerciseDesc.precautions}</p>`;
+    contentHTML += `</div>`;
+  } else {
+    // 운동 설명 데이터가 없을 때
+    contentHTML += `<div style="margin-bottom:20px;">`;
+    contentHTML += `<p style="margin-bottom:15px; line-height:1.8;">${exerciseKo}</p>`;
+    if(purpose) {
+      contentHTML += `<p style="margin-bottom:15px; line-height:1.8; color:#2ec4b6;">목적: ${purpose}</p>`;
+    }
+    contentHTML += `<p style="margin-bottom:15px; line-height:1.8; color:var(--muted);">상세 설명은 곧 추가될 예정입니다.</p>`;
+    contentHTML += `</div>`;
+  }
+  
+  modalContent.innerHTML = contentHTML;
+  modal.style.display = "block";
+  
+  // 모달 닫기 이벤트
+  closeBtn.onclick = () => {
+    modal.style.display = "none";
+  };
+  
+  // 모달 외부 클릭 시 닫기
+  modal.onclick = (e) => {
+    if(e.target === modal) {
+      modal.style.display = "none";
+    }
+  };
+  
+  // ESC 키로 닫기
+  document.addEventListener('keydown', function escHandler(e) {
+    if(e.key === 'Escape' && modal.style.display === 'block') {
+      modal.style.display = "none";
+      document.removeEventListener('keydown', escHandler);
+    }
+  });
 }
 
 function updateDisplay() {
