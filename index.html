@@ -760,11 +760,10 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   const knee = p("knee") || p("Knee");
   const ankle = p("ankle") || p("Ankle");
   
-  // 1️⃣ CVA (Craniovertebral Angle): 수평선에서의 각도
+  // 1️⃣ CVA (Craniovertebral Angle): angle(line(C7, Tragus), horizontal)
+  // 스펙: C7에서 Tragus로 가는 라인이 수평선과 이루는 각도
   if (tragus && C7) {
-    const rawAngle = angleToHorizontal(tragus, C7);
-    // CVA는 angleToHorizontal의 결과를 그대로 사용 (90도 → 정상, 0도 → 거북목)
-    const cva = rawAngle;
+    const cva = angleToHorizontal(C7, tragus);
     
     result.CVA = {
       value: cva,
@@ -805,20 +804,22 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.HPD.meaning = result.HPD.desc;
   }
   
-  // 3️⃣ NIA (Neck Inclination Angle): 목의 기울기 (90도 기준)
+  // 3️⃣ NIA (Neck Inclination Angle): angle(line(Acromion, Tragus), horizontal)
+  // 스펙: Acromion에서 Tragus로 가는 라인이 수평선과 이루는 각도
+  // 정상 범위: 10°–20° (수평선 기준)
   if (tragus && acromion) {
     const rawAngle = angleToHorizontal(acromion, tragus);
-    // NIA는 90도에서 빼서 계산 (수평 = 0도, 90도 각도 = 0도 NIA, 110도 각도 = 20도 NIA)
-    const nia = Math.abs(90 - rawAngle);
+    // 스펙: 수평선 기준 각도를 직접 사용 (10-20도가 정상)
+    const nia = rawAngle;
     result.NIA = {
       value: nia,
       status: classifyRange({
         v: nia,
-        nMin: 0, nMax: 20,
-        mildMin: 21, mildMax: 25,
-        modMin: 26, modMax: 30,
+        nMin: 10, nMax: 20,
+        mildMin: 5, mildMax: 9,
+        modMin: 21, modMax: 30,
         sevMin: 30, sevMax: null,
-        higherIsWorse: true
+        higherIsWorse: false
       }),
       unit: "°",
       desc: "Neck Inclination Angle"
@@ -828,9 +829,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.NIA.meaning = result.NIA.desc;
   }
   
-  // 4️⃣ TIA (Trunk Inclination Angle): acromion–hip와 수직선
+  // 4️⃣ TIA (Trunk Inclination Angle): angle(line(Hip, Acromion), vertical)
+  // 스펙: Hip에서 Acromion으로 가는 라인이 수직선과 이루는 각도
+  // 정상 범위: 0°–5° (수직선 기준)
   if (acromion && hip) {
-    const tia = angleToVertical(acromion, hip);
+    const tia = angleToVertical(hip, acromion);
     result.TIA = {
       value: tia,
       status: classifyRange({
@@ -849,9 +852,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.TIA.meaning = result.TIA.desc;
   }
   
-  // 5️⃣ SAA (Scapular Alignment Angle): acromion–PSIS와 수평선
+  // 5️⃣ SAA (Scapular Alignment Angle): angle(line(PSIS, Acromion), horizontal)
+  // 스펙: PSIS에서 Acromion으로 가는 라인이 수평선과 이루는 각도
+  // 정상 범위: 0°–10°
   if (acromion && PSIS) {
-    const saa = angleToHorizontal(acromion, PSIS);
+    const saa = angleToHorizontal(PSIS, acromion);
     result.SAA = {
       value: saa,
       status: classifyRange({
@@ -912,13 +917,17 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.KA.meaning = result.KA.desc;
   }
   
-  // 8️⃣ Tibial_Angle (Tibial Inclination): knee–ankle와 수직선
+  // 8️⃣ Tibial_Angle (Tibial Inclination): angle(line(Knee, Ankle), vertical)
+  // 스펙: Knee에서 Ankle로 가는 라인이 수직선과 이루는 각도
+  // 정상 범위: 85°–90° (수직선 기준)
   if (knee && ankle) {
-    const tia2 = angleToVertical(knee, ankle);
+    const tba = angleToVertical(knee, ankle);
+    // 스펙: 85-90도가 정상이므로, 수직선에서 벗어난 각도를 계산
+    const tbaValue = Math.abs(90 - tba);
     result.Tibial_Angle = {
-      value: tia2,
+      value: tbaValue,
       status: classifyRange({
-        v: tia2,
+        v: tbaValue,
         nMin: 0, nMax: 5,
         mildMin: 5, mildMax: 8,
         modMin: 8, modMax: 12,
@@ -929,7 +938,7 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
       desc: "Tibial Inclination"
     };
     // 하위 호환성
-    result.Tibial_Angle.value_deg = tia2;
+    result.Tibial_Angle.value_deg = tbaValue;
     result.Tibial_Angle.meaning = result.Tibial_Angle.desc;
     result.Tibial_Inclination = result.Tibial_Angle;
   }
@@ -956,22 +965,28 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.GSB.meaning = result.GSB.desc;
   }
   
-  // 1️⃣0️⃣ BVA (Body Vertical Alignment): 범위 기반
-  if (tragus && C7 && acromion && hip && knee && ankle) {
-    const verticals = [tragus, C7, acromion, hip, knee, ankle];
-    const dxs = verticals.map(p => p.x);
-    const minX = Math.min(...dxs);
-    const maxX = Math.max(...dxs);
-    const range = pxToCm(Math.abs(maxX - minX), pxPerCm);
-    
+  // 1️⃣0️⃣ BVA (Body Vertical Alignment): angle(line(Ankle, Tragus), vertical)
+  // 스펙: Ankle에서 Tragus로 가는 라인이 수직선과 이루는 각도
+  // 정상 범위: ±2° (수직선 기준)
+  if (tragus && ankle) {
+    const bva = angleToVertical(ankle, tragus);
     result.BVA = {
-      value: range,
-      status: range <= 2 ? "normal" : range <= 4 ? "mild" : "moderate",
-      unit: "cm",
+      value: Math.abs(bva),
+      value_signed: bva, // 부호 포함 값 (내부 사용)
+      status: classifyRange({
+        v: Math.abs(bva),
+        nMin: 0, nMax: 2,
+        mildMin: 2, mildMax: 4,
+        modMin: 4, modMax: 6,
+        sevMin: 6, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
       desc: "Body Vertical Alignment"
     };
     // 하위 호환성
-    result.BVA.value_cm = range;
+    result.BVA.value_deg = Math.abs(bva);
+    result.BVA.value_cm = pxToCm(Math.abs(tragus.x - ankle.x), pxPerCm); // 기존 cm 값 유지
     result.BVA.meaning = result.BVA.desc;
   }
   
@@ -990,9 +1005,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.SCI.meaning = result.SCI.desc;
   }
   
-  // 1️⃣2️⃣ HPA (Head–Pelvis Angle): tragus–PSIS와 수직선
+  // 1️⃣2️⃣ HPA (Head–Pelvis Angle): angle(line(PSIS, Tragus), vertical)
+  // 스펙: PSIS에서 Tragus로 가는 라인이 수직선과 이루는 각도
+  // 정상 범위: 0°–5° (수직선 기준)
   if (tragus && PSIS) {
-    const hpa = angleToVertical(tragus, PSIS);
+    const hpa = angleToVertical(PSIS, tragus);
     result.HPA = {
       value: hpa,
       status: classifyRange({
