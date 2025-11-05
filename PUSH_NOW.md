@@ -61,3 +61,8 @@ npm run deploy
 약 1-2분 후 접속:
 https://skyman200.github.io/posture-ai-kor
 
+
+
+
+
+

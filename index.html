@@ -602,9 +602,20 @@ canvas {
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"></script>
 <script>
-const { jsPDF } = window.jspdf;
+// 라이브러리 로드 확인 함수
+function checkLibraries() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
+  }
+  if (typeof html2canvas === 'undefined') {
+    throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
+  }
+  return true;
+}
+
+// jsPDF는 함수 내에서 동적으로 가져옴 (라이브러리 로드 확인 후)
 const cv = document.getElementById("cv");
-const ctx = cv.getContext("2d");
+const ctx = cv ? cv.getContext("2d") : null;
 let DPR = window.devicePixelRatio || 1;
 let dragKey = null;
 let editMode = false;
@@ -680,9 +691,61 @@ const rad2deg = r => r * 180 / Math.PI;
 const deg2rad = d => d * Math.PI / 180;
 const angleBetween = (a,b) => Math.atan2(b.y - a.y, b.x - a.x);
 
-// 두 점 사이 각도(수평 기준, p1->p2), 화면 y-down 좌표계 가정
+// ✅ 새로운 각도 유틸 함수들 (정규화 및 정확한 계산)
+function angleFromHorizontalDeg(a, b) {
+  return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI; // -180~+180
+}
+
+// -90~+90 로 정규화(항상 예각)
+function normalizeToAcuteDeg(theta) {
+  let t = theta;
+  if (t > 90)  t -= 180;
+  if (t < -90) t += 180;
+  return t;
+}
+
+// 수직 기준에서 전/후방 부호(+전방, -후방)
+function angleFromVerticalSignedDeg(top, bottom) {
+  const dx = top.x - bottom.x;
+  const dy = bottom.y - top.y; // 위->아래
+  const acute = Math.atan2(Math.abs(dx), Math.abs(dy)) * 180 / Math.PI; // 0~90
+  return dx >= 0 ? +acute : -acute;
+}
+
+// 관절내부각 (B-vertex)
+function jointAngleDeg(a, b, c) {
+  const v1x = a.x - b.x, v1y = a.y - b.y;
+  const v2x = c.x - b.x, v2y = c.y - b.y;
+  const dot = v1x*v2x + v1y*v2y;
+  const m1 = Math.hypot(v1x, v1y), m2 = Math.hypot(v2x, v2y);
+  const cos = Math.min(1, Math.max(-1, dot/(m1*m2)));
+  return Math.acos(cos) * 180/Math.PI;
+}
+
+// 좌/우 정규화 유틸
+function isRightSideView(pts) {
+  const t = pts["tragus"] || pts["Tragus"];
+  const c7 = pts["c7"] || pts["C7"];
+  if (!t || !c7) return false;
+  return t.x < c7.x;
+}
+
+function mirrorToLeft(points, imageWidth) {
+  const out = {};
+  for (const k in points) {
+    const p = points[k];
+    out[k] = { x: imageWidth - p.x, y: p.y };
+  }
+  return out;
+}
+
+function ensureLeftSide(points, imageWidth) {
+  return isRightSideView(points) ? mirrorToLeft(points, imageWidth) : points;
+}
+
+// 두 점 사이 각도(수평 기준, p1->p2), 화면 y-down 좌표계 가정 (하위 호환성)
 function angleP1P2(p1, p2) {
-  return rad2deg(Math.atan2(p2.y - p1.y, p2.x - p1.x));
+  return angleFromHorizontalDeg(p1, p2);
 }
 
 // 두 점 사이 거리(픽셀)
@@ -777,10 +840,12 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
   const knee = p("knee") || p("Knee");
   const ankle = p("ankle") || p("Ankle");
   
-  // 1️⃣ CVA (Craniovertebral Angle): angle(line(C7, Tragus), horizontal)
-  // 스펙: C7에서 Tragus로 가는 라인이 수평선과 이루는 각도
+  // 1️⃣ CVA (Craniovertebral Angle): 90 - |(C7->Tragus 수평각의 예각)|
+  // 스펙: CVA = 90 - abs(normalizeToAcute(atan2(...)))
   if (tragus && C7) {
-    const cva = angleToHorizontal(C7, tragus);
+    const cv_theta = angleFromHorizontalDeg(C7, tragus);
+    const cv_acute = normalizeToAcuteDeg(cv_theta);
+    const cva = 90 - Math.abs(cv_acute);
     
     result.CVA = {
       value: cva,
@@ -821,13 +886,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.HPD.meaning = result.HPD.desc;
   }
   
-  // 3️⃣ NIA (Neck Inclination Angle): angle(line(Acromion, Tragus), horizontal)
-  // 스펙: Acromion에서 Tragus로 가는 라인이 수평선과 이루는 각도
-  // 정상 범위: 10°–20° (수평선 기준)
+  // 3️⃣ NIA (Neck Inclination Angle): |(Acromion->Tragus 수평각의 예각)|
+  // 스펙: normalizeToAcuteDeg 적용
   if (tragus && acromion) {
-    const rawAngle = angleToHorizontal(acromion, tragus);
-    // 스펙: 수평선 기준 각도를 직접 사용 (10-20도가 정상)
-    const nia = rawAngle;
+    const nia_theta = angleFromHorizontalDeg(acromion, tragus);
+    const nia = Math.abs(normalizeToAcuteDeg(nia_theta));
     result.NIA = {
       value: nia,
       status: classifyRange({
@@ -846,15 +909,14 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.NIA.meaning = result.NIA.desc;
   }
   
-  // 4️⃣ TIA (Trunk Inclination Angle): angle(line(Hip, Acromion), vertical)
-  // 스펙: Hip에서 Acromion으로 가는 라인이 수직선과 이루는 각도
-  // 정상 범위: 0°–5° (수직선 기준)
+  // 4️⃣ TIA (Trunk Inclination Angle): vertical signed (윗점=Acromion, +전방/-후방)
   if (acromion && hip) {
-    const tia = angleToVertical(hip, acromion);
+    const tia = angleFromVerticalSignedDeg(acromion, hip);
     result.TIA = {
-      value: tia,
+      value: Math.abs(tia),
+      value_signed: tia, // 부호 포함 값
       status: classifyRange({
-        v: tia,
+        v: Math.abs(tia),
         nMin: 0, nMax: 5,
         mildMin: 5, mildMax: 10,
         modMin: 10, modMax: 15,
@@ -865,15 +927,14 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
       desc: "Trunk Inclination Angle"
     };
     // 하위 호환성
-    result.TIA.value_deg = tia;
+    result.TIA.value_deg = Math.abs(tia);
     result.TIA.meaning = result.TIA.desc;
   }
   
-  // 5️⃣ SAA (Scapular Alignment Angle): angle(line(PSIS, Acromion), horizontal)
-  // 스펙: PSIS에서 Acromion으로 가는 라인이 수평선과 이루는 각도
-  // 정상 범위: 0°–10°
+  // 5️⃣ SAA (Scapular Alignment Angle): |(PSIS->Acromion 수평각의 예각)|
   if (acromion && PSIS) {
-    const saa = angleToHorizontal(PSIS, acromion);
+    const saa_theta = angleFromHorizontalDeg(PSIS, acromion);
+    const saa = Math.abs(normalizeToAcuteDeg(saa_theta));
     result.SAA = {
       value: saa,
       status: classifyRange({
@@ -892,13 +953,17 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.SAA.meaning = result.SAA.desc;
   }
   
-  // 6️⃣ PTA (Pelvic Tilt Angle): PSIS–ASIS와 수평선 (Dart: angleToHorizontal(psis, asis))
+  // 6️⃣ PTA (Pelvic Tilt Angle): 임상부호 (+전방/-후방)
+  // PTA = 임상부호 (+전방경사 when ASIS.y > PSIS.y, -후방경사 when ASIS.y < PSIS.y)
   if (ASIS && PSIS) {
-    const pta = angleToHorizontal(PSIS, ASIS);
+    const pta_theta = angleFromHorizontalDeg(PSIS, ASIS);
+    const pta_abs = Math.abs(normalizeToAcuteDeg(pta_theta));
+    const pta = (ASIS.y > PSIS.y) ? +pta_abs : -pta_abs; // +전방/-후방
     result.PTA = {
-      value: pta,
+      value: Math.abs(pta),
+      value_signed: pta, // 부호 포함 값
       status: classifyRange({
-        v: pta,
+        v: Math.abs(pta),
         nMin: 5, nMax: 15,
         mildMin: 0, mildMax: 4,
         modMin: 16, modMax: 20,
@@ -909,13 +974,13 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
       desc: "Pelvic Tilt Angle"
     };
     // 하위 호환성
-    result.PTA.value_deg = pta;
+    result.PTA.value_deg = Math.abs(pta);
     result.PTA.meaning = result.PTA.desc;
   }
   
-  // 7️⃣ KA (Knee Alignment Angle): hip–knee–ankle 세 점 각도
+  // 7️⃣ KA (Knee Alignment Angle): ∠(Hip, Knee, Ankle)
   if (hip && knee && ankle) {
-    const ka = angleAt(knee, hip, ankle);
+    const ka = jointAngleDeg(hip, knee, ankle);
     result.KA = {
       value: ka,
       status: classifyRange({
@@ -934,13 +999,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.KA.meaning = result.KA.desc;
   }
   
-  // 8️⃣ Tibial_Angle (Tibial Inclination): angle(line(Knee, Ankle), vertical)
-  // 스펙: Knee에서 Ankle로 가는 라인이 수직선과 이루는 각도
-  // 정상 범위: 85°–90° (수직선 기준)
+  // 8️⃣ Tibial_Angle (Tibial Inclination): vertical signed (윗점=Knee)
   if (knee && ankle) {
-    const tba = angleToVertical(knee, ankle);
+    const tba = angleFromVerticalSignedDeg(knee, ankle);
     // 스펙: 85-90도가 정상이므로, 수직선에서 벗어난 각도를 계산
-    const tbaValue = Math.abs(90 - tba);
+    const tbaValue = Math.abs(tba);
     result.Tibial_Angle = {
       value: tbaValue,
       status: classifyRange({
@@ -982,11 +1045,9 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.GSB.meaning = result.GSB.desc;
   }
   
-  // 1️⃣0️⃣ BVA (Body Vertical Alignment): angle(line(Ankle, Tragus), vertical)
-  // 스펙: Ankle에서 Tragus로 가는 라인이 수직선과 이루는 각도
-  // 정상 범위: ±2° (수직선 기준)
+  // 1️⃣0️⃣ BVA (Body Vertical Alignment): vertical signed (윗점=Tragus, 아랫점=Ankle)
   if (tragus && ankle) {
-    const bva = angleToVertical(ankle, tragus);
+    const bva = angleFromVerticalSignedDeg(tragus, ankle);
     result.BVA = {
       value: Math.abs(bva),
       value_signed: bva, // 부호 포함 값 (내부 사용)
@@ -1022,15 +1083,14 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     result.SCI.meaning = result.SCI.desc;
   }
   
-  // 1️⃣2️⃣ HPA (Head–Pelvis Angle): angle(line(PSIS, Tragus), vertical)
-  // 스펙: PSIS에서 Tragus로 가는 라인이 수직선과 이루는 각도
-  // 정상 범위: 0°–5° (수직선 기준)
+  // 1️⃣2️⃣ HPA (Head–Pelvis Angle): vertical signed (윗점=Tragus, 아랫점=PSIS)
   if (tragus && PSIS) {
-    const hpa = angleToVertical(PSIS, tragus);
+    const hpa = angleFromVerticalSignedDeg(tragus, PSIS);
     result.HPA = {
-      value: hpa,
+      value: Math.abs(hpa),
+      value_signed: hpa, // 부호 포함 값
       status: classifyRange({
-        v: hpa,
+        v: Math.abs(hpa),
         nMin: 0, nMax: 5,
         mildMin: 5, mildMax: 10,
         modMin: 10, modMax: 15,
@@ -6109,6 +6169,16 @@ function exportAsPdf(options = {}) {
   
   return new Promise(async (resolve, reject) => {
     try {
+      // 라이브러리 확인
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다.");
+      }
+      if (typeof html2canvas === 'undefined') {
+        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다.");
+      }
+      
+      const { jsPDF } = window.jspdf;
+      
       const S = sessions[cur];
       const M = S.metrics || {};
       const scoreData = S.score || {};
@@ -6334,52 +6404,85 @@ function exportAsPdf(options = {}) {
 }
 
 // PDF 저장 (모바일 최적화, 페이지 분리)
-document.getElementById("btnPDF").onclick = async () => {
-  try {
-    // 모바일에서 로딩 표시
-    const btn = document.getElementById("btnPDF");
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ PDF 생성 중...";
-    btn.disabled = true;
-    
-    // 사용자명 입력 받기 (한 번만)
-    let userName = localStorage.getItem('userName');
-    if(!userName) {
-      userName = prompt("사용자명을 입력하세요 (나중에 변경 가능):", "사용자") || "사용자";
-      localStorage.setItem('userName', userName);
+const btnPDF = document.getElementById("btnPDF");
+if (btnPDF) {
+  btnPDF.onclick = async () => {
+    try {
+      // 라이브러리 확인
+      checkLibraries();
+      
+      // 모바일에서 로딩 표시
+      const btn = document.getElementById("btnPDF");
+      const originalText = btn.textContent;
+      btn.textContent = "⏳ PDF 생성 중...";
+      btn.disabled = true;
+      
+      // 세션 데이터 확인
+      const S = sessions[cur];
+      if (!S || (!S.sidePoints && !S.frontPoints)) {
+        alert("먼저 이미지를 업로드하고 분석을 완료해주세요.");
+        btn.textContent = originalText;
+        btn.disabled = false;
+        return;
+      }
+      
+      // 사용자명 입력 받기 (한 번만)
+      let userName = localStorage.getItem('userName');
+      if(!userName) {
+        userName = prompt("사용자명을 입력하세요 (나중에 변경 가능):", "사용자") || "사용자";
+        localStorage.setItem('userName', userName);
+      }
+      
+      await exportAsPdf({
+        userName: userName,
+        appName: 'DIT 자세 분석 AI'
+      });
+      
+      btn.textContent = originalText;
+      btn.disabled = false;
+      
+      // 모바일에서 성공 메시지
+      if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        alert("PDF가 저장되었습니다!");
+      }
+    } catch(error) {
+      console.error("PDF 생성 실패:", error);
+      alert("PDF 생성에 실패했습니다: " + error.message);
+      const btn = document.getElementById("btnPDF");
+      if (btn) {
+        btn.textContent = "📄 PDF 저장";
+        btn.disabled = false;
+      }
     }
-    
-    await exportAsPdf({
-      userName: userName,
-      appName: 'DIT 자세 분석 AI'
-    });
-    
-    btn.textContent = originalText;
-    btn.disabled = false;
-    
-    // 모바일에서 성공 메시지
-    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      alert("PDF가 저장되었습니다!");
-    }
-  } catch(error) {
-    console.error("PDF 생성 실패:", error);
-    alert("PDF 생성에 실패했습니다: " + error.message);
-    const btn = document.getElementById("btnPDF");
-    btn.textContent = "📄 PDF 저장";
-    btn.disabled = false;
-  }
-};
+  };
+}
 
 // 그림으로 저장 (전체 내용 포함)
-document.getElementById("btnImage").onclick = async () => {
-  try {
-    // 모바일에서 로딩 표시
-    const btn = document.getElementById("btnImage");
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ 이미지 생성 중...";
-    btn.disabled = true;
-    
-    const S = sessions[cur];
+const btnImage = document.getElementById("btnImage");
+if (btnImage) {
+  btnImage.onclick = async () => {
+    try {
+      // 라이브러리 확인
+      checkLibraries();
+      
+      // 모바일에서 로딩 표시
+      const btn = document.getElementById("btnImage");
+      const originalText = btn.textContent;
+      btn.textContent = "⏳ 이미지 생성 중...";
+      btn.disabled = true;
+      
+      const S = sessions[cur];
+      if (!S || (!S.sidePoints && !S.frontPoints)) {
+        alert("먼저 이미지를 업로드하고 분석을 완료해주세요.");
+        btn.textContent = originalText;
+        btn.disabled = false;
+        return;
+      }
+      
+      // 캔버스 확인
+      if (!cv || !cv.toDataURL) {
+        throw new Error("캔버스가 준비되지 않았습니다.");
+      }
     const fullMetrics = S.metrics?.fullMetrics || {};
     const scoreData = S.score || {};
     const analysis = S.analysis || {};
@@ -6603,18 +6706,21 @@ document.getElementById("btnImage").onclick = async () => {
     btn.textContent = originalText;
     btn.disabled = false;
     
-    // 모바일에서 성공 메시지
-    if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      alert("이미지가 저장되었습니다!");
+      // 모바일에서 성공 메시지
+      if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        alert("이미지가 저장되었습니다!");
+      }
+    } catch(error) {
+      console.error("이미지 생성 실패:", error);
+      alert("이미지 생성에 실패했습니다: " + error.message);
+      const btn = document.getElementById("btnImage");
+      if (btn) {
+        btn.textContent = "🖼️ 그림으로 저장";
+        btn.disabled = false;
+      }
     }
-  } catch(error) {
-    console.error("이미지 생성 실패:", error);
-    alert("이미지 생성에 실패했습니다: " + error.message);
-    const btn = document.getElementById("btnImage");
-    btn.textContent = "🖼️ 그림으로 저장";
-    btn.disabled = false;
-  }
-};
+  };
+}
 
 // 공유하기 (Web Share API 사용)
 document.getElementById("btnShare").onclick = async () => {

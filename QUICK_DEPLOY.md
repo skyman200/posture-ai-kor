@@ -22,3 +22,8 @@ npm run deploy
 
 완료! https://skyman200.github.io/posture-ai-kor
 
+
+
+
+
+

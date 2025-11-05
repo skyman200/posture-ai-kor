@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Exercise" representedClassName="Exercise" syncable="YES" codeGenerationType="class">
+        <attribute name="difficulty" optional="YES" attributeType="String"/>
+        <attribute name="instructions" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="equipment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="PilatesEquipment" inverseName="exercises" inverseEntity="PilatesEquipment"/>
+        <relationship name="muscleGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MuscleGroup" inverseName="exercises" inverseEntity="MuscleGroup"/>
+    </entity>
+    <entity name="ExerciseRecommendation" representedClassName="ExerciseRecommendation" syncable="YES" codeGenerationType="class">
+        <attribute name="priority" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="exercise" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Exercise" inverseName="recommendations" inverseEntity="Exercise"/>
+        <relationship name="muscleProblem" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MuscleProblem" inverseName="recommendations" inverseEntity="MuscleProblem"/>
+    </entity>
+    <entity name="MuscleGroup" representedClassName="MuscleGroup" syncable="YES" codeGenerationType="class">
+        <attribute name="category" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="exercises" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Exercise" inverseName="muscleGroup" inverseEntity="Exercise"/>
+    </entity>
+    <entity name="MuscleProblem" representedClassName="MuscleProblem" syncable="YES" codeGenerationType="class">
+        <attribute name="category" optional="YES" attributeType="String"/>
+        <attribute name="description" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="recommendations" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ExerciseRecommendation" inverseName="muscleProblem" inverseEntity="ExerciseRecommendation"/>
+    </entity>
+    <entity name="PilatesEquipment" representedClassName="PilatesEquipment" syncable="YES" codeGenerationType="class">
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+        <relationship name="exercises" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Exercise" inverseName="equipment" inverseEntity="Exercise"/>
+    </entity>
+</model>
+
+
+
+
+
