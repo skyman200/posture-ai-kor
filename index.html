@@ -258,8 +258,85 @@ canvas {
   </div>
 
   <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🤖 AI 체형 분석</div>
     <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5;"></div>
+    
+    <!-- 개인별 체형 분석 설명 -->
+    <div id="postureTypeDesc" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.1); border-radius:8px; border-left:3px solid #2ec4b6;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#2ec4b6;">📌 체형 유형 분석</div>
+      <div id="postureTypeContent" style="font-size:11px; line-height:1.6; color:var(--muted);"></div>
+    </div>
+  </div>
+  
+  <!-- 16개 항목 상세 설명 -->
+  <div id="metricsDescPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📋 분석 항목 설명</div>
+    <div id="metricsDescContent" style="max-height:300px; overflow-y:auto; font-size:11px; line-height:1.6;">
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">CVA (Craniovertebral Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">귀 뒤 유양돌기와 제7경추 사이 각도. 거북목 평가 지표. 정상: ≥50°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">HPD (Head Protrusion Distance)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">귀와 어깨 사이 수평 거리. 머리 전방 돌출 정도. 정상: ≤2cm</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">NIA (Neck Inclination Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">어깨에서 귀로 향하는 선의 수평 각도. 목 기울기. 정상: 0-20°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">TIA (Trunk Inclination Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">어깨와 골반 연결선의 수직 각도. 몸통 기울기. 정상: 0-10°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">SAA (Scapular Alignment Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">어깨뼈 정렬 각도. 어깨와 골반 후면 기울기. 정상: 0-10°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">PTA (Pelvic Tilt Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">골반 전후방 경사각. PSIS와 ASIS 연결선 각도. 정상: 0-15°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">KA (Knee Alignment Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">고관절-무릎-발목 정렬 각도. 무릎 신전 정도. 정상: 175-185°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">Tibial Angle (경골 경사각)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">무릎과 발목 연결선의 수직 각도. 정강이 기울기. 정상: 0-10°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">Q-Angle (대퇴사두근 각도)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">ASIS-슬개골-경골조면 각도. 무릎 정렬 평가. 정상: 10-20°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">Knee Deviation (무릎 높이 차)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">좌우 무릎 높이 차이. 골반 불균형 지표. 정상: 0-3°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">LLD (Leg Length Discrepancy)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">다리 길이 차이. 좌우 다리 길이 불균형. 정상: ≤1cm</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">GSB (Global Sagittal Balance)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">전신 시상면 균형. 귀와 발목의 수평 정렬. 정상: ≤2cm</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">BVA (Body Vertical Alignment)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">전신 수직 정렬. 주요 관절의 수직선 범위. 정상: ≤2cm</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">SCI (Spinal Curvature Index)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">척추 만곡 지수. 경추/요추 전만 정도. 정상: 0.15-0.35</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">HPA (Head–Pelvis Angle)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">머리와 골반 정렬 각도. 전신 자세 평가. 정상: 0-10°</div>
+      </details>
+      <details style="margin-bottom:6px;">
+        <summary style="cursor:pointer; font-weight:600; color:#7c9cff;">PDS (Postural Deviation Score)</summary>
+        <div style="padding:6px 0 0 12px; color:var(--muted);">자세 편차 종합 점수. 모든 항목의 이상 정도 합계. 정상: 0-10</div>
+      </details>
+    </div>
   </div>
   
   <!-- 실시간 분석 결과 패널 -->
@@ -2639,6 +2716,80 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
   };
 }
 
+// 체형 유형 분석 함수
+function analyzePostureType(metrics) {
+  if(!metrics || Object.keys(metrics).length === 0) {
+    return "분석 데이터가 충분하지 않습니다.";
+  }
+  
+  let postureTypes = [];
+  
+  // 1. 거북목 (Forward Head Posture)
+  const cva = metrics.CVA?.value;
+  const hpd = metrics.HPD?.value;
+  if(cva != null && cva < 50) {
+    postureTypes.push(`<strong style="color:#ff6b6b;">거북목 자세</strong>: 머리가 앞으로 나와 경추에 부담이 가해지고 있습니다. (CVA: ${cva.toFixed(1)}°)`);
+  }
+  
+  // 2. 골반 전방 경사 (Anterior Pelvic Tilt)
+  const pta = metrics.PTA?.value;
+  if(pta != null && pta > 15) {
+    postureTypes.push(`<strong style="color:#ffb86c;">골반 전방 경사</strong>: 골반이 앞으로 기울어져 요추 과전만이 발생할 수 있습니다. (PTA: ${pta.toFixed(1)}°)`);
+  } else if(pta != null && pta < 0) {
+    postureTypes.push(`<strong style="color:#ffb86c;">골반 후방 경사</strong>: 골반이 뒤로 기울어져 요추가 평평해질 수 있습니다. (PTA: ${pta.toFixed(1)}°)`);
+  }
+  
+  // 3. 무릎 과신전 또는 과굴곡
+  const ka = metrics.KA?.value;
+  if(ka != null && ka > 185) {
+    postureTypes.push(`<strong style="color:#ffd166;">무릎 과신전</strong>: 무릎이 과도하게 펴져 있어 관절에 부담이 갈 수 있습니다. (KA: ${ka.toFixed(1)}°)`);
+  } else if(ka != null && ka < 175) {
+    postureTypes.push(`<strong style="color:#ffd166;">무릎 과굴곡</strong>: 무릎이 과도하게 굽혀져 있어 대퇴사두근에 부담이 갑니다. (KA: ${ka.toFixed(1)}°)`);
+  }
+  
+  // 4. 다리 길이 불균형
+  const lld = metrics.LLD?.value;
+  if(lld != null && lld > 1) {
+    postureTypes.push(`<strong style="color:#ff6b6b;">다리 길이 불균형</strong>: 좌우 다리 길이 차이로 인해 골반이 틀어질 수 있습니다. (LLD: ${lld.toFixed(1)}cm)`);
+  }
+  
+  // 5. 전신 불균형
+  const bva = metrics.BVA?.value;
+  const gsb = metrics.GSB?.value;
+  if((bva != null && bva > 2) || (gsb != null && gsb > 2)) {
+    postureTypes.push(`<strong style="color:#ff6b6b;">전신 정렬 불균형</strong>: 주요 관절들이 수직선에서 벗어나 있어 전체적인 균형이 깨져 있습니다.`);
+  }
+  
+  // 6. 척추 만곡 이상
+  const sci = metrics.SCI?.value;
+  if(sci != null && (sci < 0.15 || sci > 0.35)) {
+    if(sci < 0.15) {
+      postureTypes.push(`<strong style="color:#ffb86c;">척추 만곡 부족</strong>: 척추의 자연스러운 만곡이 부족하여 충격 흡수가 어려울 수 있습니다. (SCI: ${sci.toFixed(2)})`);
+    } else {
+      postureTypes.push(`<strong style="color:#ffb86c;">척추 과만곡</strong>: 척추의 만곡이 과도하여 허리나 목에 부담이 갈 수 있습니다. (SCI: ${sci.toFixed(2)})`);
+    }
+  }
+  
+  // 7. PDS 종합 평가
+  const pds = metrics.PDS?.value;
+  const pdsStatus = metrics.PDS?.status;
+  if(pds != null) {
+    if(pdsStatus === 'normal') {
+      postureTypes.push(`<strong style="color:#2ec4b6;">✓ 전반적으로 양호한 자세</strong>: 대부분의 측정값이 정상 범위에 있습니다. (PDS: ${pds.toFixed(1)})`);
+    } else if(pdsStatus === 'mild') {
+      postureTypes.push(`<strong style="color:#ffd166;">경미한 자세 불균형</strong>: 일부 항목에서 개선이 필요합니다. (PDS: ${pds.toFixed(1)})`);
+    } else {
+      postureTypes.push(`<strong style="color:#ff6b6b;">자세 교정 필요</strong>: 여러 항목에서 정상 범위를 벗어났습니다. 전문가 상담을 권장합니다. (PDS: ${pds.toFixed(1)})`);
+    }
+  }
+  
+  if(postureTypes.length === 0) {
+    return "현재 자세는 전반적으로 양호합니다.";
+  }
+  
+  return postureTypes.join("<br><br>");
+}
+
 function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const scoreEl = document.getElementById("totalScore");
   const reasonEl = document.getElementById("scoreReason");
@@ -2741,6 +2892,13 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     }
     commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
     commentPanel.style.display = "block";
+    
+    // 체형 유형 분석 추가
+    const postureTypeContent = document.getElementById("postureTypeContent");
+    if(postureTypeContent && fullMetrics) {
+      let postureType = analyzePostureType(fullMetrics);
+      postureTypeContent.innerHTML = postureType;
+    }
   } else {
     commentPanel.style.display = "none";
   }
@@ -3430,7 +3588,7 @@ function startDrag(e) {
   
   console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
   
-  // 좌표 수정 모드일 때는 선택된 점만 체크
+  // 좌표 수정 모드일 때는 선택된 점만 체크 (다른 점은 절대 드래그 불가)
   if(editMode && selectedPoint) {
     const pt = P[selectedPoint];
     if(pt) {
@@ -3440,8 +3598,12 @@ function startDrag(e) {
       if(d < threshold) {
         bestPoint = selectedPoint;
         bestDistance = d;
+        console.log('✅ 선택된 점 드래그 시작:', selectedPoint, '거리:', d.toFixed(2));
+      } else {
+        console.log('❌ 선택된 점이 너무 멀어서 드래그 불가:', selectedPoint, '거리:', d.toFixed(2), 'threshold:', threshold);
       }
     }
+    // 선택된 점만 체크하므로 다른 점은 체크하지 않음 (bestPoint가 null이면 드래그 시작 안 됨)
   } else {
     // 일반 모드: 모든 점 체크 (현재 orientation에 맞는 키포인트 사용)
     const currentKeypoints = getKeypoints();
@@ -3599,11 +3761,12 @@ function doDrag(e) {
       return;
     }
     
-    // 좌표 수정 모드에서는 선택된 점만 이동
+    // 좌표 수정 모드에서는 선택된 점만 이동 (다른 점은 절대 이동 불가)
     if(editMode && selectedPoint) {
       if(dragKey !== selectedPoint) {
-        // 선택된 점이 아니면 드래그 종료하지 않고 계속 진행
-        // (다른 점을 드래그하는 경우를 허용)
+        // 선택된 점이 아니면 드래그 무시
+        console.log('⚠️ 선택된 점이 아니므로 드래그 무시:', 'dragKey:', dragKey, 'selectedPoint:', selectedPoint);
+        dragKey = null; // 드래그 종료
         return;
       }
     }
