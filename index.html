@@ -661,33 +661,6 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 🔟 BVA (Body Vertical Alignment): tragus–C7–acromion–hip–knee–ankle가 수직선상에 있는가
-  if (tragus && C7 && acromion && hip && knee && ankle) {
-    // 모든 점의 x 좌표 표준편차 계산
-    const points = [tragus, C7, acromion, hip, knee, ankle];
-    const xCoords = points.map(p => p.x);
-    const meanX = xCoords.reduce((a, b) => a + b, 0) / xCoords.length;
-    const variance = xCoords.reduce((sum, x) => sum + Math.pow(x - meanX, 2), 0) / xCoords.length;
-    const stdDev = Math.sqrt(variance);
-    const stdDevCm = pxToCm(stdDev, pxPerCm);
-    
-    // 각도로 변환 (대략적인 각도 편차)
-    const angleDev = rad2deg(Math.atan(stdDev / (Math.abs(tragus.y - ankle.y) || 1)));
-    
-    result.BVA = {
-      value_deg: angleDev,
-      status: classifyRange({
-        v: angleDev,
-        nMin: null, nMax: 2,
-        mildMin: 2, mildMax: 4,
-        modMin: 4, modMax: 6,
-        sevMin: 6, sevMax: null,
-        higherIsWorse: true
-      }),
-      meaning: "전신 수직 정렬 (±2° 정상)"
-    };
-  }
-  
   // 1️⃣1️⃣ SCI (Spinal Curvature Index): C7–PSIS–ankle 세 점 간 곡률 비율
   if (C7 && PSIS && ankle) {
     const d1 = dist(C7, PSIS);
@@ -725,45 +698,83 @@ function analyzeFullPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 1️⃣3️⃣ PDS (Postural Deviation Score): CVA, PTA, KA, BVA 등 합산지수
+  // 1️⃣3️⃣ Q-Angle (슬개정렬): ASIS–patella–tibial_tub 각도
+  const patella = p("patella") || p("Patella");
+  const tibialTub = p("tibial_tub") || p("Tibial_Tub");
+  if (ASIS && patella && tibialTub) {
+    const qAngle = angleAt(patella, ASIS, tibialTub);
+    result.Q_Angle = {
+      value_deg: qAngle,
+      status: (qAngle >= 10 && qAngle <= 20) ? "normal" : "abnormal",
+      meaning: "Q-Angle (슬개정렬, 10–20° 정상)"
+    };
+  }
+  
+  // 1️⃣4️⃣ Knee_Deviation (무릎 높이 차이): L_knee와 R_knee 수평선 각도
+  const L_knee = p("L_knee") || p("L_Knee");
+  const R_knee = p("R_knee") || p("R_Knee");
+  if (L_knee && R_knee) {
+    const kd = angleToHorizontal(L_knee, R_knee);
+    result.Knee_Deviation = {
+      value_deg: kd,
+      status: classifyRange({
+        v: kd,
+        nMin: 0, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      meaning: "무릎 높이 차이 (0–3° 정상)"
+    };
+  }
+  
+  // 1️⃣5️⃣ LLD (Leg Length Discrepancy): 좌우 다리 길이 차이
+  const L_asis = p("L_asis") || p("L_ASIS");
+  const R_asis = p("R_asis") || p("R_ASIS");
+  const L_ankle = p("L_ankle") || p("L_Ankle");
+  const R_ankle = p("R_ankle") || p("R_Ankle");
+  if (L_asis && L_ankle && R_asis && R_ankle) {
+    const lLen = dist(L_asis, L_ankle);
+    const rLen = dist(R_asis, R_ankle);
+    const lld = pxToCm(Math.abs(lLen - rLen), pxPerCm);
+    result.LLD = {
+      value_cm: lld,
+      status: lld <= 1 ? "normal" : lld <= 2 ? "mild" : "severe",
+      meaning: "다리 길이 차이 (≤1cm 정상)"
+    };
+  }
+  
+  // BVA 계산 방식 수정 (Dart 코드 기준: 범위 기반)
+  if (tragus && C7 && acromion && hip && knee && ankle) {
+    const verticals = [tragus, C7, acromion, hip, knee, ankle];
+    const dxs = verticals.map(p => p.x);
+    const minX = Math.min(...dxs);
+    const maxX = Math.max(...dxs);
+    const range = pxToCm(Math.abs(maxX - minX), pxPerCm);
+    
+    result.BVA = {
+      value_cm: range,
+      status: range <= 2 ? "normal" : range <= 4 ? "mild" : "moderate",
+      meaning: "전신 수직 정렬 범위 (≤2cm 정상)",
+      unit: "cm"
+    };
+  }
+  
+  // 1️⃣6️⃣ PDS (Postural Deviation Score): 모든 지표 합산지수
   let pdsScore = 0;
-  let pdsMax = 10;
-  if (result.CVA) {
-    const s = result.CVA.status;
-    if (s === "severe") pdsScore += 3;
-    else if (s === "moderate") pdsScore += 2;
-    else if (s === "mild") pdsScore += 1;
-  }
-  if (result.PTA) {
-    const s = result.PTA.status;
-    if (s === "severe") pdsScore += 2;
-    else if (s === "moderate") pdsScore += 1.5;
-    else if (s === "mild") pdsScore += 1;
-  }
-  if (result.KA) {
-    const s = result.KA.status;
-    if (s === "severe") pdsScore += 2;
-    else if (s === "moderate") pdsScore += 1.5;
-    else if (s === "mild") pdsScore += 1;
-  }
-  if (result.BVA) {
-    const s = result.BVA.status;
-    if (s === "severe") pdsScore += 2;
-    else if (s === "moderate") pdsScore += 1.5;
-    else if (s === "mild") pdsScore += 1;
-  }
+  const statusMap = { "normal": 0, "mild": 1, "moderate": 2, "severe": 3, "abnormal": 2 };
+  Object.keys(result).forEach(key => {
+    if (key !== "PDS" && result[key].status) {
+      pdsScore += statusMap[result[key].status] || 0;
+    }
+  });
   
   result.PDS = {
     value: pdsScore,
-    status: classifyRange({
-      v: pdsScore,
-      nMin: null, nMax: 2,
-      mildMin: 2, mildMax: 4,
-      modMin: 4, modMax: 6,
-      sevMin: 6, sevMax: null,
-      higherIsWorse: true
-    }),
-    meaning: "자세 편차 점수 (0–10점, 낮을수록 정상)"
+    status: pdsScore <= 10 ? "normal" : pdsScore <= 15 ? "mild" : "moderate",
+    unit: "score",
+    meaning: "Postural Deviation Score (0–10: normal, 10↑: 불균형)"
   };
   
   return result;
@@ -804,19 +815,32 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 2️⃣ 골반 기울기
+  // 2️⃣ 골반 기울기 (POA - Pelvic Obliquity Angle)
   if (L_asis && R_asis) {
-    const pelvicAngle = angleToHorizontal(L_asis, R_asis);
-    result.Pelvic_Obliquity = {
-      value_deg: pelvicAngle,
-      status: pelvicAngle <= 3
-        ? "normal"
-        : pelvicAngle <= 6
-          ? "mild"
-          : pelvicAngle <= 10
-            ? "moderate"
-            : "severe",
-      meaning: "좌우 골반 높이 차",
+    const poa = angleToHorizontal(L_asis, R_asis);
+    result.POA = {
+      value_deg: poa,
+      status: classifyRange({
+        v: poa,
+        nMin: 0, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      meaning: "Pelvic Obliquity Angle (골반 기울기)"
+    };
+    // 하위 호환성을 위해
+    result.Pelvic_Obliquity = result.POA;
+    
+    // PRA (Pelvic Rotation): 좌우 ASIS 간 x좌표 차이
+    const pra = pxToCm(Math.abs(R_asis.x - L_asis.x), pxPerCm);
+    result.PRA = {
+      value_cm: pra,
+      status: pra <= 1 ? "normal" : pra <= 2 ? "mild" : pra <= 3 ? "moderate" : "severe",
+      unit: "cm",
+      meaning: "Pelvic Rotation (골반 좌우 비틀림)"
     };
   }
   
@@ -859,27 +883,6 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 5️⃣ PRA (Pelvic Rotation Angle): 좌·우 ASIS 간 수평면 회전각
-  if (L_asis && R_asis) {
-    // 수평 거리와 수직 거리 비율로 회전 각도 추정
-    const dx = Math.abs(L_asis.x - R_asis.x);
-    const dy = Math.abs(L_asis.y - R_asis.y);
-    const angle = rad2deg(Math.atan2(dy, dx));
-    // 수평선에서 벗어난 각도 (0도에 가까울수록 정상)
-    const rotationAngle = Math.abs(angle - 0);
-    result.PRA = {
-      value_deg: rotationAngle,
-      status: classifyRange({
-        v: rotationAngle,
-        nMin: null, nMax: 5,
-        mildMin: 5, mildMax: 10,
-        modMin: 10, modMax: 15,
-        sevMin: 15, sevMax: null,
-        higherIsWorse: true
-      }),
-      meaning: "골반 회전 각도 (≤5° 정상)"
-    };
-  }
   
   // 6️⃣ Knee Deviation (Front): 좌우 knee 높이 차이
   const L_knee = p("L_knee") || p("L_Knee");
@@ -3138,7 +3141,7 @@ function getEventPos(e) {
   const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
   
-  // 캔버스 상대 좌표 (화면 기준)
+  // 캔버스 상대 좌표 (화면 기준, 뷰포트 내에서의 위치)
   let x = clientX - r.left;
   let y = clientY - r.top;
   
@@ -3147,12 +3150,20 @@ function getEventPos(e) {
     const canvasWrap = cv.parentElement;
     const scrollX = canvasWrap.scrollLeft || 0;
     const scrollY = canvasWrap.scrollTop || 0;
-    // 스크롤 오프셋을 더함
+    
+    // 뷰포트 내 위치 + 스크롤 오프셋 = 확대된 캔버스에서의 실제 위치
     x += scrollX;
     y += scrollY;
+    
     // 확대된 CSS 좌표를 원본 크기로 변환
     x = x / currentZoom;
     y = y / currentZoom;
+    
+    // 원본 크기 범위로 제한
+    const originalW = originalCanvasSize.width || (cv.width / DPR / currentZoom);
+    const originalH = originalCanvasSize.height || (cv.height / DPR / currentZoom);
+    x = Math.max(0, Math.min(x, originalW));
+    y = Math.max(0, Math.min(y, originalH));
   }
   
   return { x, y };
