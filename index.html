@@ -271,7 +271,9 @@ canvas {
   <!-- 16개 항목 상세 설명 -->
   <div id="metricsDescPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
     <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📋 분석 항목 설명</div>
-    <div id="metricsDescContent" style="max-height:300px; overflow-y:auto; font-size:11px; line-height:1.6;">
+    <div style="font-size:11px; color:#7c9cff; margin-bottom:8px; padding:4px 8px; background:rgba(124,156,255,0.2); border-radius:4px; display:inline-block;">측면 항목 (옆모습)</div>
+    <div style="font-size:11px; color:#2ec4b6; margin-bottom:8px; padding:4px 8px; background:rgba(46,196,182,0.2); border-radius:4px; display:inline-block; margin-left:8px;">정면 항목 (앞모습)</div>
+    <div id="metricsDescContent" style="max-height:400px; overflow-y:auto; font-size:11px; line-height:1.6;">
       <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">CVA (Craniovertebral Angle)</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
@@ -415,6 +417,97 @@ canvas {
           <strong>정상 범위:</strong> 0-10점<br>
           <strong>분류:</strong> 0-10 (정상), 11-20 (경미), 21-30 (중등도), 31+ (심각)<br>
           <strong>임상적 의미:</strong> 점수가 높을수록 다양한 자세 문제가 복합적으로 나타나며, 전문적인 교정 치료가 필요합니다.
+        </div>
+      </details>
+      
+      <!-- 정면 항목 (앞모습) - 색상: #2ec4b6 -->
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">STA (Shoulder Tilt Angle) - 어깨 좌우 기울기</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle(line(L_acromion, R_acromion), horizontal)<br>
+          <strong>측정 방법:</strong> ① 카메라를 가슴 중앙 높이에 고정하고 피험자는 정면으로 선 자세 유지. ② 좌·우 Acromion의 좌표를 인식. ③ Δy를 각도로 변환(atan(Δy / Δx)).<br>
+          <strong>정상 범위:</strong> ≤ 3°<br>
+          <strong>해석:</strong> ↑ → 어깨 좌우 불균형, 승모근·능형근 긴장 차이 가능성.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">POA (Pelvic Obliquity Angle) - 골반 좌우 기울기</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle(line(L_ASIS, R_ASIS), horizontal)<br>
+          <strong>측정 방법:</strong> ① 카메라를 골반 높이에 맞추고 정면에서 촬영. ② 좌·우 ASIS를 인식하고 Δy 계산. ③ 각도 계산: POA = atan(Δy / Δx).<br>
+          <strong>정상 범위:</strong> ≤ 3°<br>
+          <strong>해석:</strong> ↑ → 골반 좌우 비대칭 / 하지 길이 차 / 요추 측만 가능성.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">LLD (Leg Length Discrepancy) - 하지 길이 차</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> |distance(L_ASIS, L_ankle) - distance(R_ASIS, R_ankle)|<br>
+          <strong>측정 방법:</strong> ① 전신이 보이도록 정면 촬영. ② 좌·우 ASIS 및 발목(Ankle) 좌표 인식. ③ 거리(cm) 환산(pxPerCm 보정).<br>
+          <strong>정상 범위:</strong> ≤ 1 cm<br>
+          <strong>해석:</strong> ↑ → 구조적 또는 기능적 하지 길이 차 존재.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">TD (Trunk Deviation) - 체간 편위</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> horizontal deviation(C7, midline(L_ankle, R_ankle))<br>
+          <strong>측정 방법:</strong> ① 카메라를 정면, 양 발목이 수평에 오도록 촬영. ② L/R Ankle 좌표로 중간선(midpoint) 계산. ③ C7의 수평 거리 편차 계산.<br>
+          <strong>정상 범위:</strong> ± 2°<br>
+          <strong>해석:</strong> ↑ → 체간이 좌우로 기울어짐 / 체중 중심 불균형.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">HTA (Head Tilt Angle) - 머리 좌우 기울기</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle(line(L_tragus, R_tragus), horizontal)<br>
+          <strong>측정 방법:</strong> ① 정면에서 Tragus 좌우가 명확히 보이도록 촬영. ② 두 점의 y좌표 차이 계산 → 각도로 변환.<br>
+          <strong>정상 범위:</strong> ≤ 3°<br>
+          <strong>해석:</strong> ↑ → 경부 측굴 또는 측만성 긴장 패턴.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">SPP (Shoulder–Pelvis Parallelism) - 어깨-골반 평행도</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle_diff(line(L_acromion, R_acromion), line(L_ASIS, R_ASIS))<br>
+          <strong>측정 방법:</strong> ① 정면 촬영 시 L/R 어깨와 L/R ASIS가 모두 보여야 함. ② 두 선의 각도 차 계산.<br>
+          <strong>정상 범위:</strong> 0–3°<br>
+          <strong>해석:</strong> ↑ → 체간 회전 / 골반 비틀림 / 척추 회전성 불균형.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">KAS (Knee Alignment Symmetry) - 무릎 정렬 대칭성</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle_diff(line(L_knee, L_ankle), line(R_knee, R_ankle))<br>
+          <strong>측정 방법:</strong> ① 정면에서 무릎과 발목 모두 인식. ② 각 무릎–발목 수직선의 각도 비교.<br>
+          <strong>정상 범위:</strong> 대칭(±2° 이내)<br>
+          <strong>해석:</strong> ↑ → 한쪽 내반/외반 또는 하지 회전 패턴.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">LLAS (Lower Limb Axis Symmetry) - 하지 축 대칭성</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle_diff(line(L_ASIS, L_ankle), line(R_ASIS, R_ankle))<br>
+          <strong>측정 방법:</strong> ① 정면에서 하지 전체 촬영. ② 각 하지축 라인 각도 비교.<br>
+          <strong>정상 범위:</strong> ±2°<br>
+          <strong>해석:</strong> ↑ → 한쪽 회내·회외 또는 하지 회전성 불균형.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">FBA (Foot Base Angle) - 발 정렬 각도</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle(line(ankle, toe), body midline)<br>
+          <strong>측정 방법:</strong> ① 피험자는 발끝까지 보이게 정면으로 선다. ② 발 중심선(ankle–toe)과 몸 중심선 간 각도 계산.<br>
+          <strong>정상 범위:</strong> 0–10°<br>
+          <strong>해석:</strong> ↑ → 과도한 외회전(회외) / ↓ → 회내 경향.
         </div>
       </details>
     </div>
@@ -1287,6 +1380,7 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     // 실제로는 무릎에서 ASIS와 발목으로 가는 각도
     const qAngle = angleAt(L_patella, L_asis, L_ankle);
     result.Q_Angle = {
+      value: qAngle,
       value_deg: qAngle,
       status: classifyRange({
         v: qAngle,
@@ -1296,7 +1390,75 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
         sevMin: 30, sevMax: null,
         higherIsWorse: true
       }),
+      unit: "°",
+      desc: "Q-Angle (대퇴사두근 각도)",
       meaning: "Q-Angle (10–20° 정상, 여성이 더 큼)"
+    };
+  }
+  
+  // 8️⃣ KAS (Knee Alignment Symmetry): 무릎 정렬 대칭성
+  if (L_knee && L_ankle && R_knee && R_ankle) {
+    // 좌측 무릎-발목 선의 각도
+    const L_dx = L_ankle.x - L_knee.x;
+    const L_dy = L_ankle.y - L_knee.y;
+    const L_angle = rad2deg(Math.atan2(L_dy, L_dx));
+    
+    // 우측 무릎-발목 선의 각도
+    const R_dx = R_ankle.x - R_knee.x;
+    const R_dy = R_ankle.y - R_knee.y;
+    const R_angle = rad2deg(Math.atan2(R_dy, R_dx));
+    
+    // 각도 차이
+    let angleDiff = Math.abs(L_angle - R_angle);
+    if (angleDiff > 90) angleDiff = 180 - angleDiff; // 0-90도 범위로 정규화
+    
+    result.KAS = {
+      value: angleDiff,
+      value_deg: angleDiff,
+      status: classifyRange({
+        v: angleDiff,
+        nMin: 0, nMax: 2,
+        mildMin: 2, mildMax: 5,
+        modMin: 5, modMax: 8,
+        sevMin: 8, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Knee Alignment Symmetry (무릎 정렬 대칭성)",
+      meaning: "무릎 정렬 대칭성 (대칭 ±2° 이내)"
+    };
+  }
+  
+  // 9️⃣ LLAS (Lower Limb Axis Symmetry): 하지 축 대칭성
+  if (L_asis && L_ankle && R_asis && R_ankle) {
+    // 좌측 ASIS-발목 선의 각도
+    const L_dx = L_ankle.x - L_asis.x;
+    const L_dy = L_ankle.y - L_asis.y;
+    const L_angle = rad2deg(Math.atan2(L_dy, L_dx));
+    
+    // 우측 ASIS-발목 선의 각도
+    const R_dx = R_ankle.x - R_asis.x;
+    const R_dy = R_ankle.y - R_asis.y;
+    const R_angle = rad2deg(Math.atan2(R_dy, R_dx));
+    
+    // 각도 차이
+    let angleDiff = Math.abs(L_angle - R_angle);
+    if (angleDiff > 90) angleDiff = 180 - angleDiff; // 0-90도 범위로 정규화
+    
+    result.LLAS = {
+      value: angleDiff,
+      value_deg: angleDiff,
+      status: classifyRange({
+        v: angleDiff,
+        nMin: 0, nMax: 2,
+        mildMin: 2, mildMax: 5,
+        modMin: 5, modMax: 8,
+        sevMin: 8, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Lower Limb Axis Symmetry (하지 축 대칭성)",
+      meaning: "하지 축 대칭성 (±2° 이내)"
     };
   }
   
