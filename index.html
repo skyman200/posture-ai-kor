@@ -1018,27 +1018,42 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   const L_ankle = p("L_ankle");
   const R_ankle = p("R_ankle");
   
-  // 1️⃣ 어깨 기울기
+  // 스펙 기반: 정면 지표 추가 (TypeScript spec v1.0)
+  
+  // 1️⃣ STA_F (Shoulder Tilt Angle): 어깨 좌우 기울기
   if (L_acr && R_acr) {
-    const shoulderAngle = angleToHorizontal(L_acr, R_acr);
-    result.Shoulder_Tilt = {
-      value_deg: shoulderAngle,
-      status: shoulderAngle <= 3
-        ? "normal"
-        : shoulderAngle <= 6
-          ? "mild"
-          : shoulderAngle <= 10
-            ? "moderate"
-            : "severe",
-      meaning: "좌우 어깨 높이 차",
+    const verticalDiff = Math.abs(L_acr.y - R_acr.y);
+    const horizontalDist = Math.abs(L_acr.x - R_acr.x);
+    const sta = horizontalDist > 0 ? rad2deg(Math.atan2(verticalDiff, horizontalDist)) : 0;
+    
+    result.STA_F = {
+      value: sta,
+      status: classifyRange({
+        v: sta,
+        nMin: 0, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Shoulder Tilt Angle (어깨 좌우 기울기)"
     };
+    result.STA_F.value_deg = sta;
+    result.STA_F.meaning = result.STA_F.desc;
+    
+    // 하위 호환성
+    result.Shoulder_Tilt = result.STA_F;
   }
   
-  // 2️⃣ 골반 기울기 (POA - Pelvic Obliquity Angle)
+  // 2️⃣ POA_F (Pelvic Obliquity Angle): 골반 좌우 기울기
   if (L_asis && R_asis) {
-    const poa = angleToHorizontal(L_asis, R_asis);
-    result.POA = {
-      value_deg: poa,
+    const verticalDiff = Math.abs(L_asis.y - R_asis.y);
+    const horizontalDist = Math.abs(L_asis.x - R_asis.x);
+    const poa = horizontalDist > 0 ? rad2deg(Math.atan2(verticalDiff, horizontalDist)) : 0;
+    
+    result.POA_F = {
+      value: poa,
       status: classifyRange({
         v: poa,
         nMin: 0, nMax: 3,
@@ -1048,14 +1063,19 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
         higherIsWorse: true
       }),
       unit: "°",
-      meaning: "Pelvic Obliquity Angle (골반 기울기)"
+      desc: "Pelvic Obliquity Angle (골반 좌우 기울기)"
     };
-    // 하위 호환성을 위해
-    result.Pelvic_Obliquity = result.POA;
+    result.POA_F.value_deg = poa;
+    result.POA_F.meaning = result.POA_F.desc;
     
-    // PRA (Pelvic Rotation): 좌우 ASIS 간 x좌표 차이
+    // 하위 호환성
+    result.POA = result.POA_F;
+    result.Pelvic_Obliquity = result.POA_F;
+    
+    // PRA (Pelvic Rotation): 좌우 ASIS 간 x좌표 차이 (스펙에는 없지만 유지)
     const pra = pxToCm(Math.abs(R_asis.x - L_asis.x), pxPerCm);
     result.PRA = {
+      value: pra,
       value_cm: pra,
       status: pra <= 1 ? "normal" : pra <= 2 ? "mild" : pra <= 3 ? "moderate" : "severe",
       unit: "cm",
@@ -1063,43 +1083,177 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 3️⃣ 체간 기울기 (C7–중간 골반 중앙점)
-  if (C7 && L_asis && R_asis) {
-    const pelvisMid = {
-      x: (L_asis.x + R_asis.x) / 2,
-      y: (L_asis.y + R_asis.y) / 2
+  // 3️⃣ LLD_F (Leg Length Discrepancy): 다리 길이 차이
+  if (L_asis && L_ankle && R_asis && R_ankle) {
+    const lLen = dist(L_asis, L_ankle);
+    const rLen = dist(R_asis, R_ankle);
+    const lld = pxToCm(Math.abs(lLen - rLen), pxPerCm);
+    
+    result.LLD_F = {
+      value: lld,
+      status: classifyRange({
+        v: lld,
+        nMin: 0, nMax: 1,
+        mildMin: 1, mildMax: 2,
+        modMin: 2, modMax: 3,
+        sevMin: 3, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "cm",
+      desc: "Leg Length Discrepancy (하지 길이 차)"
     };
-    const dx = C7.x - pelvisMid.x;
-    const dy = C7.y - pelvisMid.y;
-    const angle = rad2deg(Math.atan2(Math.abs(dx), Math.abs(dy))); // 수직대비 기울기
-    result.Trunk_Lateral_Tilt = {
-      value_deg: angle,
-      status: angle <= 2
-        ? "normal"
-        : angle <= 5
-          ? "mild"
-          : angle <= 8
-            ? "moderate"
-            : "severe",
-      meaning: "체간의 좌우 기울기",
-    };
+    result.LLD_F.value_cm = lld;
+    result.LLD_F.meaning = result.LLD_F.desc;
+    
+    // 하위 호환성
+    result.LLD = result.LLD_F;
+    if (L_ankle && R_ankle) {
+      const diffPx = Math.abs(L_ankle.y - R_ankle.y);
+      const diffCm = pxToCm(diffPx, pxPerCm);
+      result.Leg_Length_Diff = {
+        value_cm: diffCm,
+        status: diffCm <= 1 ? "normal" : diffCm <= 2 ? "mild" : diffCm <= 3 ? "moderate" : "severe",
+        meaning: "다리 길이 차이 (1cm 이하 정상)",
+      };
+    }
   }
   
-  // 4️⃣ 다리 길이 비대칭 (ankle 높이 차)
-  if (L_ankle && R_ankle) {
-    const diffPx = Math.abs(L_ankle.y - R_ankle.y);
-    const diffCm = pxToCm(diffPx, pxPerCm);
-    result.Leg_Length_Diff = {
-      value_cm: diffCm,
-      status: diffCm <= 1
-        ? "normal"
-        : diffCm <= 2
-          ? "mild"
-          : diffCm <= 3
-            ? "moderate"
-            : "severe",
-      meaning: "다리 길이 차이 (1cm 이하 정상)",
+  // 4️⃣ TD (Trunk Deviation): 체간 좌우 편위
+  if (C7 && L_ankle && R_ankle) {
+    // 중간선: 좌우 발목 중점
+    const midlineX = (L_ankle.x + R_ankle.x) / 2;
+    const midlineY = (L_ankle.y + R_ankle.y) / 2;
+    
+    // C7에서 중간선까지의 수평 거리
+    const horizontalDeviation = C7.x - midlineX;
+    const verticalDist = Math.abs(C7.y - midlineY);
+    const td = verticalDist > 0 ? rad2deg(Math.atan2(Math.abs(horizontalDeviation), verticalDist)) : 0;
+    
+    result.TD = {
+      value: td,
+      status: classifyRange({
+        v: td,
+        nMin: 0, nMax: 2,
+        mildMin: 2, mildMax: 5,
+        modMin: 5, mildMax: 8,
+        sevMin: 8, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Trunk Deviation (체간 좌우 편위)"
     };
+    result.TD.value_deg = td;
+    result.TD.meaning = result.TD.desc;
+    
+    // 하위 호환성
+    if (L_asis && R_asis) {
+      const pelvisMid = {
+        x: (L_asis.x + R_asis.x) / 2,
+        y: (L_asis.y + R_asis.y) / 2
+      };
+      const dx = C7.x - pelvisMid.x;
+      const dy = C7.y - pelvisMid.y;
+      const angle = rad2deg(Math.atan2(Math.abs(dx), Math.abs(dy)));
+      result.Trunk_Lateral_Tilt = {
+        value_deg: angle,
+        status: angle <= 2 ? "normal" : angle <= 5 ? "mild" : angle <= 8 ? "moderate" : "severe",
+        meaning: "체간의 좌우 기울기",
+      };
+    }
+  }
+  
+  // 5️⃣ HTA (Head Tilt Angle): 머리 좌우 기울기 (정면에서는 tragus 좌우가 필요하지만, 측면만 있는 경우 추정)
+  const L_tragus = p("L_tragus");
+  const R_tragus = p("R_tragus");
+  if (L_tragus && R_tragus) {
+    const verticalDiff = Math.abs(L_tragus.y - R_tragus.y);
+    const horizontalDist = Math.abs(L_tragus.x - R_tragus.x);
+    const hta = horizontalDist > 0 ? rad2deg(Math.atan2(verticalDiff, horizontalDist)) : 0;
+    
+    result.HTA = {
+      value: hta,
+      status: classifyRange({
+        v: hta,
+        nMin: 0, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Head Tilt Angle (머리 좌우 기울기)"
+    };
+    result.HTA.value_deg = hta;
+    result.HTA.meaning = result.HTA.desc;
+  }
+  
+  // 6️⃣ SPP (Shoulder–Pelvis Parallelism): 어깨-골반 평행도
+  if (L_acr && R_acr && L_asis && R_asis) {
+    // 어깨선 각도
+    const shoulderDx = R_acr.x - L_acr.x;
+    const shoulderDy = R_acr.y - L_acr.y;
+    const shoulderAngle = rad2deg(Math.atan2(shoulderDy, shoulderDx));
+    
+    // 골반선 각도
+    const pelvisDx = R_asis.x - L_asis.x;
+    const pelvisDy = R_asis.y - L_asis.y;
+    const pelvisAngle = rad2deg(Math.atan2(pelvisDy, pelvisDx));
+    
+    // 각도 차이
+    let angleDiff = Math.abs(shoulderAngle - pelvisAngle);
+    if (angleDiff > 90) angleDiff = 180 - angleDiff; // 0-90도 범위로 정규화
+    
+    result.SPP = {
+      value: angleDiff,
+      status: classifyRange({
+        v: angleDiff,
+        nMin: 0, nMax: 3,
+        mildMin: 3, mildMax: 6,
+        modMin: 6, modMax: 10,
+        sevMin: 10, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Shoulder–Pelvis Parallelism (어깨-골반 평행도)"
+    };
+    result.SPP.value_deg = angleDiff;
+    result.SPP.meaning = result.SPP.desc;
+  }
+  
+  // 7️⃣ FBA (Foot Base Angle): 발 정렬 각도 (발목과 발가락 필요, 현재는 발목만 있으므로 추정 불가)
+  // 발가락 좌표가 없으면 계산하지 않음
+  const L_toe = p("L_toe");
+  const R_toe = p("R_toe");
+  if (L_ankle && L_toe && R_ankle && R_toe) {
+    // 좌측 발 정렬
+    const L_dx = L_toe.x - L_ankle.x;
+    const L_dy = L_toe.y - L_ankle.y;
+    const L_angle = rad2deg(Math.atan2(L_dy, L_dx));
+    
+    // 우측 발 정렬
+    const R_dx = R_toe.x - R_ankle.x;
+    const R_dy = R_toe.y - R_ankle.y;
+    const R_angle = rad2deg(Math.atan2(R_dy, R_dx));
+    
+    // 평균 각도 (외회전 각도)
+    const avgAngle = (L_angle + R_angle) / 2;
+    const fba = Math.abs(avgAngle - 90); // 90도에서 벗어난 정도
+    
+    result.FBA = {
+      value: fba,
+      status: classifyRange({
+        v: fba,
+        nMin: 0, nMax: 10,
+        mildMin: 10, mildMax: 20,
+        modMin: 20, modMax: 30,
+        sevMin: 30, sevMax: null,
+        higherIsWorse: true
+      }),
+      unit: "°",
+      desc: "Foot Base Angle (발 정렬 각도)"
+    };
+    result.FBA.value_deg = fba;
+    result.FBA.meaning = result.FBA.desc;
   }
   
   
