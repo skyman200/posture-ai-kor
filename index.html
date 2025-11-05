@@ -381,24 +381,6 @@ canvas {
         </div>
       </details>
       <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">BVA (Body Vertical Alignment)</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> 머리-어깨-골반-무릎-발목 등 주요 관절의 수직선 정렬 범위<br>
-          <strong>의미:</strong> 모든 주요 관절이 하나의 수직선상에 정렬되어 있는지 평가합니다.<br>
-          <strong>정상 범위:</strong> ≤2cm (최대 편차)<br>
-          <strong>임상적 의미:</strong> 불량한 수직 정렬은 특정 관절 및 근육에 과부하를 일으켜 만성 통증과 퇴행성 변화를 가속화합니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">SCI (Spinal Curvature Index)</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> 척추의 경추 및 요추 전만(앞으로 굽음) 곡선의 비율<br>
-          <strong>의미:</strong> 척추의 자연스러운 S자 곡선이 적절하게 유지되는지 평가합니다.<br>
-          <strong>정상 범위:</strong> 0.15-0.35<br>
-          <strong>임상적 의미:</strong> &lt;0.15는 평평한 척추(충격 흡수↓), &gt;0.35는 과도한 만곡(디스크 압력↑)을 의미합니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">HPA (Head–Pelvis Angle)</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
           <strong>측정 방법:</strong> 머리(Tragus)와 골반(PSIS)을 연결한 선과 수직선 사이의 각도<br>
@@ -574,8 +556,6 @@ canvas {
         <tr><td>Knee Dev(무릎편위)</td><td id="cmpKneedevB">—</td><td id="cmpKneedevA">—</td><td id="cmpKneedevD">—</td><td>0-3°</td></tr>
         <tr><td>LLD(하지길이차)</td><td id="cmpLldB">—</td><td id="cmpLldA">—</td><td id="cmpLldD">—</td><td>≤1cm</td></tr>
         <tr><td>GSB(중력중심선)</td><td id="cmpGsbB">—</td><td id="cmpGsbA">—</td><td id="cmpGsbD">—</td><td>≤2cm</td></tr>
-        <tr><td>BVA(체중전방이동)</td><td id="cmpBvaB">—</td><td id="cmpBvaA">—</td><td id="cmpBvaD">—</td><td>≤2cm</td></tr>
-        <tr><td>SCI(척추곡률지수)</td><td id="cmpSciB">—</td><td id="cmpSciA">—</td><td id="cmpSciD">—</td><td>0.15-0.35</td></tr>
         <tr><td>HPA(고관절각)</td><td id="cmpHpaB">—</td><td id="cmpHpaA">—</td><td id="cmpHpaD">—</td><td>0-10°</td></tr>
         <tr><td>PDS(자세점수)</td><td id="cmpPdsB">—</td><td id="cmpPdsA">—</td><td id="cmpPdsD">—</td><td>0-10</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">STA(어깨기울기각)</td><td id="cmpStaB">—</td><td id="cmpStaA">—</td><td id="cmpStaD">—</td><td>≤3°</td></tr>
@@ -935,14 +915,13 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     result.TIA.meaning = result.TIA.desc;
   }
   
-  // 5️⃣ SAA (Shoulder Anterior Angle): Acromion->PSIS 수평각의 예각 (부호 유지)
-  // +각: Acromion이 PSIS보다 전방(+x) + 아래(+y) → Rounded Shoulder
-  // -각: Acromion이 PSIS보다 후방(-x) + 위(-y) → 견갑 후인 과다
-  // 0° = 완전 수평 (어깨와 골반이 같은 높이)
+  // 5️⃣ SAA (Shoulder Anterior Angle): PSIS 기준 수직선과 Acromion의 각도
+  // 0° = Acromion과 PSIS가 같은 x축 (수직 정렬)
+  // +각: Acromion이 PSIS보다 전방(앞)으로 이동 → Rounded Shoulder
+  // -각: Acromion이 PSIS보다 후방(뒤)으로 이동 → 견갑 후인 과다
+  // PSIS가 축(기준점), Acromion이 전방이면 +각도 (1도부터 시작)
   if (acromion && PSIS) {
-    const saa_theta = angleFromHorizontalDeg(acromion, PSIS);
-    const saa_acute = normalizeToAcuteDeg(saa_theta);
-    const saa = saa_acute; // 부호 유지 (-90° ~ +90°)
+    const saa = angleFromVerticalSignedDeg(acromion, PSIS); // 수직선 기준 각도
     result.SAA = {
       value: Math.abs(saa), // 절댓값 (0~90°)
       value_signed: saa, // 부호 포함 값 (+전방/-후방)
@@ -1052,44 +1031,6 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     // 하위 호환성
     result.GSB.value_cm = gsb;
     result.GSB.meaning = result.GSB.desc;
-  }
-  
-  // 1️⃣0️⃣ BVA (Body Vertical Alignment): vertical signed (윗점=Tragus, 아랫점=Ankle)
-  if (tragus && ankle) {
-    const bva = angleFromVerticalSignedDeg(tragus, ankle);
-    result.BVA = {
-      value: Math.abs(bva),
-      value_signed: bva, // 부호 포함 값 (내부 사용)
-      status: classifyRange({
-        v: Math.abs(bva),
-        nMin: 0, nMax: 2,
-        mildMin: 2, mildMax: 4,
-        modMin: 4, modMax: 6,
-        sevMin: 6, sevMax: null,
-        higherIsWorse: true
-      }),
-      unit: "°",
-      desc: "Body Vertical Alignment"
-    };
-    // 하위 호환성
-    result.BVA.value_deg = Math.abs(bva);
-    result.BVA.value_cm = pxToCm(Math.abs(tragus.x - ankle.x), pxPerCm); // 기존 cm 값 유지
-    result.BVA.meaning = result.BVA.desc;
-  }
-  
-  // 1️⃣1️⃣ SCI (Spinal Curvature Index): C7–PSIS–ankle 곡률 비율
-  if (C7 && PSIS && ankle) {
-    const total = dist(C7, ankle);
-    const mid = dist(C7, PSIS) + dist(PSIS, ankle);
-    const sci = total > 0 ? mid / total : 1.0;
-    result.SCI = {
-      value: sci,
-      status: sci >= 0.95 && sci <= 1.05 ? "neutral" : sci > 1.1 ? "kyphotic" : "flat",
-      unit: "ratio",
-      desc: "Spinal Curvature Index"
-    };
-    // 하위 호환성
-    result.SCI.meaning = result.SCI.desc;
   }
   
   // 1️⃣2️⃣ HPA (Head–Pelvis Angle): vertical signed (윗점=Tragus, 아랫점=PSIS)
@@ -1728,7 +1669,6 @@ function generatePostureRecommendations(analysis) {
   const saa = side.SAA?.value_deg;
   const pta = side.PTA?.value_deg;
   const ka = side.KA?.value_deg;
-  const bva = side.BVA?.value_deg;
   const gsb = side.GSB?.value_cm;
   
   // 정면 지표
@@ -1841,7 +1781,7 @@ function generatePostureRecommendations(analysis) {
   if (gsb != null && gsb > 2) {
     addPattern({
       pattern: "체중 중심 전방 (Forward Center)",
-      condition: "GSB↑, BVA↑",
+      condition: "GSB↑",
       tight: ["대퇴직근", "요추기립근", "종아리근"],
       weak: ["둔근", "햄스트링", "복부"],
       exercises: {
@@ -1858,7 +1798,7 @@ function generatePostureRecommendations(analysis) {
   if (gsb != null && gsb < -2) {
     addPattern({
       pattern: "체중 중심 후방 (Backward Center)",
-      condition: "GSB↓, BVA↓",
+      condition: "GSB↓",
       tight: ["햄스트링", "둔근"],
       weak: ["장요근", "대퇴직근"],
       exercises: {
@@ -2240,10 +2180,10 @@ const pilatesPatterns = {
     }
   },
   
-  // 7️⃣ 체중 중심 전방: GSB↑, BVA↑
+  // 7️⃣ 체중 중심 전방: GSB↑
   'ForwardCenter': {
     name: '체중 중심 전방 (Forward Center)',
-    condition: 'GSB↑, BVA↑',
+    condition: 'GSB↑',
     tight: ['대퇴직근', '요추기립근', '종아리근'],
     weak: ['둔근', '햄스트링', '복부'],
     interpretation: '체간 전방기울임',
@@ -2266,10 +2206,10 @@ const pilatesPatterns = {
     }
   },
   
-  // 8️⃣ 체중 중심 후방: GSB↓, BVA↓
+  // 8️⃣ 체중 중심 후방: GSB↓
   'BackwardCenter': {
     name: '체중 중심 후방 (Backward Center)',
-    condition: 'GSB↓, BVA↓',
+    condition: 'GSB↓',
     tight: ['햄스트링', '둔근'],
     weak: ['장요근', '대퇴직근'],
     interpretation: '체간 후방기울임',
@@ -3659,31 +3599,6 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 13. BVA (Body Vertical Alignment) - 정상 ≤2cm
-  const bva = fullMetrics.BVA?.value;
-  if(bva != null && bva > 2) {
-    const delta = bva - 2;
-    const penalty = Math.min(20, delta * 5);
-    penalties += penalty;
-    reasons.push(`BVA ${bva.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 14. SCI (Spinal Curvature Index) - 정상 0.15-0.35
-  const sci = fullMetrics.SCI?.value;
-  if(sci != null) {
-    if(sci < 0.15) {
-      const delta = 0.15 - sci;
-      const penalty = Math.min(15, delta * 50);
-      penalties += penalty;
-      reasons.push(`SCI ${sci.toFixed(2)} (정상 0.15-0.35, 만곡 부족) - ${penalty.toFixed(0)}점 감점`);
-    } else if(sci > 0.35) {
-      const delta = sci - 0.35;
-      const penalty = Math.min(15, delta * 50);
-      penalties += penalty;
-      reasons.push(`SCI ${sci.toFixed(2)} (정상 0.15-0.35, 과만곡) - ${penalty.toFixed(0)}점 감점`);
-    }
-  }
-  
   // 15. HPA (Head–Pelvis Angle) - 정상 0-10°
   const hpa = fullMetrics.HPA?.value;
   if(hpa != null && hpa > 10) {
@@ -3930,13 +3845,12 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
       weak.push('대둔근', '중둔근', '대퇴내전근');
     }
     
-    // 패턴 7: 체중 중심 전방 이동: BVA↑, GSB↑
-    const bvaVal = fullMetrics.BVA?.value_deg;
+    // 패턴 7: 체중 중심 전방 이동: GSB↑
     const gsbVal = fullMetrics.GSB?.value_cm;
-    if(bvaVal != null && bvaVal > 2 && gsbVal != null && gsbVal > 2) {
+    if(gsbVal != null && gsbVal > 2) {
       patterns.push({
         name: "체중 중심 전방 이동",
-        description: `BVA↑(${bvaVal.toFixed(1)}°), GSB↑(${gsbVal.toFixed(1)}cm)`,
+        description: `GSB↑(${gsbVal.toFixed(1)}cm)`,
         meaning: "요추 전만, 종골 스트레스",
         priority: "medium"
       });
@@ -3944,11 +3858,11 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
       weak.push('복횡근', '둔근');
     }
     
-    // 패턴 8: 체중 중심 후방 이동: BVA↓, GSB↓
-    if(bvaVal != null && bvaVal < -2 || (gsbVal != null && gsbVal < -2)) {
+    // 패턴 8: 체중 중심 후방 이동: GSB↓
+    if(gsbVal != null && gsbVal < -2) {
       patterns.push({
         name: "체중 중심 후방 이동",
-        description: `BVA↓(${bvaVal.toFixed(1)}°), GSB↓(${gsbVal.toFixed(1)}cm)`,
+        description: `GSB↓(${gsbVal.toFixed(1)}cm)`,
         meaning: "둔근 긴장, 햄스트링 단축",
         priority: "medium"
       });
@@ -4183,9 +4097,8 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
     }
     
     // 7. 체중 중심 전방
-    const bvaVal = fullMetrics.BVA?.value_deg;
     const gsbVal = fullMetrics.GSB?.value_cm;
-    if(bvaVal != null && bvaVal > 2 && gsbVal != null && gsbVal > 2) {
+    if(gsbVal != null && gsbVal > 2) {
       if(pilatesPatterns.ForwardCenter) {
         pilates.push({
           pattern: 'ForwardCenter',
@@ -4200,7 +4113,7 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
     }
     
     // 8. 체중 중심 후방
-    if(bvaVal != null && bvaVal < -2 || (gsbVal != null && gsbVal < -2)) {
+    if(gsbVal != null && gsbVal < -2) {
       if(pilatesPatterns.BackwardCenter) {
         pilates.push({
           pattern: 'BackwardCenter',
@@ -4250,10 +4163,8 @@ function analyzePostureType(metrics) {
   const tia = metrics.TIA?.value;
   const ka = metrics.KA?.value;
   const lld = metrics.LLD?.value;
-  const bva = metrics.BVA?.value;
   const gsb = metrics.GSB?.value;
-  const sci = metrics.SCI?.value;
-  const hpa = metrics.HPA?.value;
+    const hpa = metrics.HPA?.value;
   const qAngle = metrics['Q_Angle']?.value;
   const kneeDev = metrics['Knee_Deviation']?.value;
   const pds = metrics.PDS?.value;
@@ -4427,13 +4338,13 @@ function analyzePostureType(metrics) {
   }
   
   // === 6. 전신 균형 문제 ===
-  if((bva != null && bva > 2) || (gsb != null && gsb > 2)) {
+  if(gsb != null && gsb > 2) {
     issueCount++;
     detailSections.push(`
       <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
         <strong style="color:#ff6b6b; font-size:13px;">📍 전신 정렬 불균형 (Global Postural Imbalance)</strong>
         <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
-          <strong>현재 상태:</strong> BVA ${bva != null ? bva.toFixed(1) + 'cm' : '미측정'}, GSB ${gsb != null ? gsb.toFixed(1) + 'cm' : '미측정'}<br>
+          <strong>현재 상태:</strong> GSB ${gsb.toFixed(1)}cm<br>
           <strong>의미:</strong> 주요 관절들이 수직 중력선에서 크게 벗어나 있어 전신 근골격계에 과부하가 걸린 상태입니다.<br>
           <strong>발생 증상:</strong>
           • 쉽게 피로함, 장시간 서 있거나 걷기 힘듦
@@ -4446,36 +4357,6 @@ function analyzePostureType(metrics) {
         </div>
       </div>
     `);
-  }
-  
-  // === 7. 척추 만곡 이상 ===
-  if(sci != null && (sci < 0.15 || sci > 0.35)) {
-    issueCount++;
-    if(sci < 0.15) {
-      detailSections.push(`
-        <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
-          <strong style="color:#ffb86c; font-size:13px;">📍 척추 만곡 부족 (Hypolordosis / Flat Back)</strong>
-          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
-            <strong>현재 상태:</strong> SCI ${sci.toFixed(2)} (정상: 0.15-0.35)<br>
-            <strong>의미:</strong> 척추의 자연스러운 S자 곡선이 부족하여 충격 흡수 능력이 저하된 상태<br>
-            <strong>발생 증상:</strong> 허리 피로 증가, 디스크 압력 증가, 뻣뻣한 등<br>
-            <strong>교정 방향:</strong> 척추 신전 운동(Cat-Cow, Cobra pose), 흉추 모빌리티 확보
-          </div>
-        </div>
-      `);
-    } else {
-      detailSections.push(`
-        <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
-          <strong style="color:#ffb86c; font-size:13px;">📍 척추 과만곡 (Hyperlordosis / Swayback)</strong>
-          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
-            <strong>현재 상태:</strong> SCI ${sci.toFixed(2)} (정상: 0.15-0.35)<br>
-            <strong>의미:</strong> 척추 만곡이 과도하여 디스크와 후관절에 압박이 가중됨<br>
-            <strong>발생 증상:</strong> 요통, 디스크 압박, 척추 불안정성<br>
-            <strong>교정 방향:</strong> 코어 안정화, 골반 중립 자세 훈련, 과전만 감소 운동
-          </div>
-        </div>
-      `);
-    }
   }
   
   // === 종합 평가 및 요약 ===
@@ -4587,8 +4468,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', type: 'side'},
       {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', type: 'side'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', type: 'side'},
-      {key: 'BVA', name: 'BVA(체중전방이동)', unit: 'cm', type: 'side'},
-      {key: 'SCI', name: 'SCI(척추곡률지수)', unit: 'ratio', type: 'side'},
       {key: 'HPA', name: 'HPA(고관절각)', unit: '°', type: 'side'},
       {key: 'PDS', name: 'PDS(자세점수)', unit: 'score', type: 'side'}
     ];
@@ -4934,8 +4813,6 @@ function updateCompare() {
     {key: 'Knee_Deviation', id: 'Kneedev', unit: '°'},
     {key: 'LLD', id: 'Lld', unit: 'cm'},
     {key: 'GSB', id: 'Gsb', unit: 'cm'},
-    {key: 'BVA', id: 'Bva', unit: 'cm'},
-    {key: 'SCI', id: 'Sci', unit: ''},
     {key: 'HPA', id: 'Hpa', unit: '°'},
     {key: 'PDS', id: 'Pds', unit: ''},
     // 정면 항목
@@ -6522,8 +6399,6 @@ if (btnImage) {
       {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', normal: '0-3°'},
       {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', normal: '≤1cm'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', normal: '≤2cm'},
-      {key: 'BVA', name: 'BVA(체중전방이동)', unit: 'cm', normal: '≤2cm'},
-      {key: 'SCI', name: 'SCI(척추곡률지수)', unit: '', normal: '0.15-0.35'},
       {key: 'HPA', name: 'HPA(고관절각)', unit: '°', normal: '0-10°'},
       {key: 'PDS', name: 'PDS(자세점수)', unit: '점', normal: '정상'},
       // 정면 항목

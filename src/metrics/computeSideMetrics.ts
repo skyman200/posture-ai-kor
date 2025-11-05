@@ -46,12 +46,11 @@ export function computeSideMetrics(raw: Pts, imageWidth: number): SideOutput {
   // 3) TIA = vertical signed (윗점=Acromion, +전방/-후방)
   const TIA       = angleFromVerticalSignedDeg(acromion, hip);
 
-  // 4) SAA = Acromion->PSIS 수평각의 예각 (부호 유지)
-  // +각: Acromion이 PSIS보다 전방(+x) + 아래(+y) → Rounded Shoulder
-  // -각: Acromion이 PSIS보다 후방(-x) + 위(-y) → 견갑 후인 과다
-  const saa_theta = angleFromHorizontalDeg(acromion, psis);
-  const saa_acute = normalizeToAcuteDeg(saa_theta);
-  const SAA       = saa_acute; // 부호 유지 (-90° ~ +90°)
+  // 4) SAA = PSIS 기준 수직선과 Acromion의 각도
+  // 0° = Acromion과 PSIS가 같은 x축 (수직 정렬)
+  // +각: Acromion이 PSIS보다 전방(앞)으로 이동 → Rounded Shoulder
+  // -각: Acromion이 PSIS보다 후방(뒤)으로 이동 → 견갑 후인 과다
+  const SAA = angleFromVerticalSignedDeg(acromion, psis); // 수직선 기준 각도
 
   // 5) PTA = 임상부호 (+전방/-후방)
   const pta_theta = angleFromHorizontalDeg(psis, asis);
