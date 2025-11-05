@@ -567,6 +567,15 @@ canvas {
         <tr><td>SCI</td><td id="cmpSciB">—</td><td id="cmpSciA">—</td><td id="cmpSciD">—</td><td>0.15-0.35</td></tr>
         <tr><td>HPA</td><td id="cmpHpaB">—</td><td id="cmpHpaA">—</td><td id="cmpHpaD">—</td><td>0-10°</td></tr>
         <tr><td>PDS</td><td id="cmpPdsB">—</td><td id="cmpPdsA">—</td><td id="cmpPdsD">—</td><td>0-10</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">STA</td><td id="cmpStaB">—</td><td id="cmpStaA">—</td><td id="cmpStaD">—</td><td>≤3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">POA</td><td id="cmpPoaB">—</td><td id="cmpPoaA">—</td><td id="cmpPoaD">—</td><td>≤3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">LLD (정면)</td><td id="cmpLldfB">—</td><td id="cmpLldfA">—</td><td id="cmpLldfD">—</td><td>≤1cm</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">TD</td><td id="cmpTdB">—</td><td id="cmpTdA">—</td><td id="cmpTdD">—</td><td>0-3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">HTA</td><td id="cmpHtaB">—</td><td id="cmpHtaA">—</td><td id="cmpHtaD">—</td><td>≤3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">SPP</td><td id="cmpSppB">—</td><td id="cmpSppA">—</td><td id="cmpSppD">—</td><td>0-3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">KAS</td><td id="cmpKasB">—</td><td id="cmpKasA">—</td><td id="cmpKasD">—</td><td>0-3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">LLAS</td><td id="cmpLlasB">—</td><td id="cmpLlasA">—</td><td id="cmpLlasD">—</td><td>0-3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">FBA</td><td id="cmpFbaB">—</td><td id="cmpFbaA">—</td><td id="cmpFbaD">—</td><td>0-3°</td></tr>
         <tr style="background:#f0f0f0; font-weight:600;"><td>체형 점수</td><td id="cmpScoreB">—</td><td id="cmpScoreA">—</td><td id="cmpScoreD">—</td><td>0–100</td></tr>
       </tbody>
     </table>
@@ -4175,8 +4184,9 @@ function updateCompare() {
            (metric.value_cm !== undefined ? metric.value_cm : null));
   };
   
-  // 16가지 항목 업데이트
+  // 측면 + 정면 항목 업데이트
   const compareItems = [
+    // 측면 항목
     {key: 'CVA', id: 'Cva', unit: '°'},
     {key: 'HPD', id: 'Hpd', unit: 'cm'},
     {key: 'NIA', id: 'Nia', unit: '°'},
@@ -4192,12 +4202,33 @@ function updateCompare() {
     {key: 'BVA', id: 'Bva', unit: 'cm'},
     {key: 'SCI', id: 'Sci', unit: ''},
     {key: 'HPA', id: 'Hpa', unit: '°'},
-    {key: 'PDS', id: 'Pds', unit: ''}
+    {key: 'PDS', id: 'Pds', unit: ''},
+    // 정면 항목
+    {key: 'STA_F', altKey: 'STA', id: 'Sta', unit: '°'},
+    {key: 'POA_F', altKey: 'POA', id: 'Poa', unit: '°'},
+    {key: 'LLD_F', id: 'Lldf', unit: 'cm'},
+    {key: 'TD', id: 'Td', unit: '°'},
+    {key: 'HTA', id: 'Hta', unit: '°'},
+    {key: 'SPP', id: 'Spp', unit: '°'},
+    {key: 'KAS', id: 'Kas', unit: '°'},
+    {key: 'LLAS', id: 'Llas', unit: '°'},
+    {key: 'FBA', id: 'Fba', unit: '°'}
   ];
   
+  // 헬퍼 함수: 정면 메트릭 키 가져오기 (하위 호환성)
+  const getFrontMetricKey = (metrics, key, altKey) => {
+    if(metrics[key]) return key;
+    if(altKey && metrics[altKey]) return altKey;
+    return key;
+  };
+  
   compareItems.forEach(item => {
-    const vB = getMetricValue(bMetrics, item.key);
-    const vA = getMetricValue(aMetrics, item.key);
+    // 정면 항목의 경우 하위 호환성 키 확인
+    const metricKeyB = item.altKey ? getFrontMetricKey(bMetrics, item.key, item.altKey) : item.key;
+    const metricKeyA = item.altKey ? getFrontMetricKey(aMetrics, item.key, item.altKey) : item.key;
+    
+    const vB = getMetricValue(bMetrics, metricKeyB);
+    const vA = getMetricValue(aMetrics, metricKeyA);
     
     const elB = document.getElementById(`cmp${item.id}B`);
     const elA = document.getElementById(`cmp${item.id}A`);
@@ -5684,6 +5715,7 @@ document.getElementById("btnImage").onclick = async () => {
     
     // 전체 분석 항목 HTML 생성
     const metricsOrder = [
+      // 측면 항목
       {key: 'CVA', name: 'CVA', unit: '°', normal: '≥50°'},
       {key: 'HPD', name: 'HPD', unit: 'cm', normal: '≤2cm'},
       {key: 'NIA', name: 'NIA', unit: '°', normal: '0-20°'},
@@ -5699,12 +5731,24 @@ document.getElementById("btnImage").onclick = async () => {
       {key: 'BVA', name: 'BVA', unit: 'cm', normal: '≤2cm'},
       {key: 'SCI', name: 'SCI', unit: '', normal: '0.15-0.35'},
       {key: 'HPA', name: 'HPA', unit: '°', normal: '0-10°'},
-      {key: 'PDS', name: 'PDS', unit: '점', normal: '정상'}
+      {key: 'PDS', name: 'PDS', unit: '점', normal: '정상'},
+      // 정면 항목
+      {key: 'STA_F', altKey: 'STA', name: 'STA', unit: '°', normal: '≤3°'},
+      {key: 'POA_F', altKey: 'POA', name: 'POA', unit: '°', normal: '≤3°'},
+      {key: 'LLD_F', name: 'LLD (정면)', unit: 'cm', normal: '≤1cm'},
+      {key: 'TD', name: 'TD', unit: '°', normal: '0-3°'},
+      {key: 'HTA', name: 'HTA', unit: '°', normal: '≤3°'},
+      {key: 'SPP', name: 'SPP', unit: '°', normal: '0-3°'},
+      {key: 'KAS', name: 'KAS', unit: '°', normal: '0-3°'},
+      {key: 'LLAS', name: 'LLAS', unit: '°', normal: '0-3°'},
+      {key: 'FBA', name: 'FBA', unit: '°', normal: '0-3°'}
     ];
     
     let allMetricsHTML = '';
     metricsOrder.forEach(m => {
-      const metric = fullMetrics[m.key];
+      // 정면 항목의 경우 하위 호환성 키 확인
+      const metricKey = m.altKey && !fullMetrics[m.key] ? m.altKey : m.key;
+      const metric = fullMetrics[metricKey] || fullMetrics[m.key];
       if(metric && metric.value != null) {
         const value = metric.value;
         const status = metric.status || 'unknown';
@@ -5725,8 +5769,11 @@ document.getElementById("btnImage").onclick = async () => {
     const A = sessions.After;
     let compareHTML = '';
     metricsOrder.forEach(m => {
-      const bVal = B.metrics?.fullMetrics?.[m.key]?.value;
-      const aVal = A.metrics?.fullMetrics?.[m.key]?.value;
+      // 정면 항목의 경우 하위 호환성 키 확인
+      const bKey = m.altKey && !B.metrics?.fullMetrics?.[m.key] ? m.altKey : m.key;
+      const aKey = m.altKey && !A.metrics?.fullMetrics?.[m.key] ? m.altKey : m.key;
+      const bVal = B.metrics?.fullMetrics?.[bKey]?.value || B.metrics?.fullMetrics?.[m.key]?.value;
+      const aVal = A.metrics?.fullMetrics?.[aKey]?.value || A.metrics?.fullMetrics?.[m.key]?.value;
       if(bVal != null || aVal != null) {
         const delta = (aVal != null && bVal != null) ? (aVal - bVal) : null;
         const deltaStr = delta != null ? (delta >= 0 ? '+' : '') + delta.toFixed(1) + m.unit : '—';
