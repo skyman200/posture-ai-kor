@@ -2124,6 +2124,8 @@ function computeAll() {
     updateDisplay();
     updateCompare();
     displayFrontAnalysis(frontMetrics);
+    // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
+    updateScoreAndAnalysis(null, null, null, null, S.analysis);
   } else {
     // 분석 결과가 없는 경우
     S.metrics = {};
@@ -2131,6 +2133,8 @@ function computeAll() {
     S.analysis = null;
     updateDisplay();
     updateCompare();
+    // 빈 데이터로 UI 초기화
+    updateScoreAndAnalysis(null, null, null, null, null);
   }
 }
 
@@ -3257,6 +3261,25 @@ function getEventPos(e) {
     // 원본 크기 범위로 제한
     const originalW = originalCanvasSize.width || (cv.width / DPR / currentZoom);
     const originalH = originalCanvasSize.height || (cv.height / DPR / currentZoom);
+    x = Math.max(0, Math.min(x, originalW));
+    y = Math.max(0, Math.min(y, originalH));
+  } else {
+    // 일반 모드: CSS 좌표를 캔버스 논리 좌표로 변환
+    // r.width, r.height는 CSS 크기 (브라우저에 표시되는 크기)
+    // cv.width, cv.height는 캔버스 실제 픽셀 크기
+    // 우리는 논리적 좌표(원본 이미지 비율 유지)를 사용하므로 originalCanvasSize 기준으로 변환
+    const cssWidth = r.width;
+    const cssHeight = r.height;
+    
+    // 원본 크기 기준으로 변환
+    const originalW = originalCanvasSize.width || (cv.width / DPR);
+    const originalH = originalCanvasSize.height || (cv.height / DPR);
+    
+    // CSS 좌표를 논리 좌표로 변환
+    x = (x / cssWidth) * originalW;
+    y = (y / cssHeight) * originalH;
+    
+    // 범위 제한
     x = Math.max(0, Math.min(x, originalW));
     y = Math.max(0, Math.min(y, originalH));
   }
@@ -4595,116 +4618,153 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "side") {
     // 옆모습: 보이는 쪽의 랜드마크 사용 (confidence 높은 쪽 선택)
-    // Tragus: ear (7 또는 8)
     const leftEar = keypoints[7];
     const rightEar = keypoints[8];
-    if(leftEar && leftEar.visibility >= 0.5) {
-      keypointMap['Tragus'] = { x: leftEar.x, y: leftEar.y, score: leftEar.visibility };
-    } else if(rightEar && rightEar.visibility >= 0.5) {
-      keypointMap['Tragus'] = { x: rightEar.x, y: rightEar.y, score: rightEar.visibility };
-    }
-    
-    // C7: 어깨 중간점 (추정)
     const leftShoulder = keypoints[11];
     const rightShoulder = keypoints[12];
-    if(leftShoulder && leftShoulder.visibility >= 0.5) {
-      keypointMap['C7'] = { 
-        x: leftShoulder.x, 
-        y: leftShoulder.y - 0.05, // 어깨보다 약간 위
-        score: leftShoulder.visibility 
-      };
-    } else if(rightShoulder && rightShoulder.visibility >= 0.5) {
-      keypointMap['C7'] = { 
-        x: rightShoulder.x, 
-        y: rightShoulder.y - 0.05,
-        score: rightShoulder.visibility 
-      };
-    }
-    
-    // Shoulder/Acromion: 어깨 (더 가시적인 쪽)
-    if(leftShoulder && leftShoulder.visibility >= 0.5) {
-      keypointMap['Shoulder'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
-    } else if(rightShoulder && rightShoulder.visibility >= 0.5) {
-      keypointMap['Shoulder'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
-    }
-    
-    // Hip: 골반 (더 가시적인 쪽)
     const leftHip = keypoints[23];
     const rightHip = keypoints[24];
-    if(leftHip && leftHip.visibility >= 0.5) {
-      keypointMap['Hip'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
-    } else if(rightHip && rightHip.visibility >= 0.5) {
-      keypointMap['Hip'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
-    }
-    
-    // ASIS/PSIS: Hip 근처 (추정)
-    if(keypointMap['Hip']) {
-      const hip = keypointMap['Hip'];
-      keypointMap['ASIS'] = { x: hip.x, y: hip.y - 0.02, score: hip.score };
-      keypointMap['PSIS'] = { x: hip.x - 0.02, y: hip.y, score: hip.score };
-    }
-    
-    // Knee: 무릎 (더 가시적인 쪽)
     const leftKnee = keypoints[25];
     const rightKnee = keypoints[26];
-    if(leftKnee && leftKnee.visibility >= 0.5) {
-      keypointMap['Knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
-    } else if(rightKnee && rightKnee.visibility >= 0.5) {
-      keypointMap['Knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
-    }
-    
-    // Ankle: 발목 (더 가시적인 쪽)
     const leftAnkle = keypoints[27];
     const rightAnkle = keypoints[28];
-    if(leftAnkle && leftAnkle.visibility >= 0.5) {
-      keypointMap['Ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
-    } else if(rightAnkle && rightAnkle.visibility >= 0.5) {
-      keypointMap['Ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
+    const nose = keypoints[0];
+    
+    // 어느 쪽이 더 보이는지 판단 (x 좌표가 더 작거나 큰 쪽)
+    let useLeft = true;
+    if(leftShoulder && rightShoulder) {
+      // 어깨의 x 차이로 판단 (옆모습에서는 한쪽이 더 앞에 나와 있음)
+      const leftScore = (leftShoulder.visibility || 0) + (leftHip?.visibility || 0) + (leftKnee?.visibility || 0);
+      const rightScore = (rightShoulder.visibility || 0) + (rightHip?.visibility || 0) + (rightKnee?.visibility || 0);
+      useLeft = leftScore >= rightScore;
     }
+    
+    console.log('옆모습 감지:', useLeft ? '왼쪽 사용' : '오른쪽 사용');
+    
+    // Tragus: ear (더 보이는 쪽)
+    const ear = useLeft ? leftEar : rightEar;
+    if(ear && ear.visibility >= 0.3) {
+      keypointMap['Tragus'] = { x: ear.x, y: ear.y, score: ear.visibility };
+    } else if(!ear || ear.visibility < 0.3) {
+      // ear가 안 보이면 nose 사용
+      if(nose && nose.visibility >= 0.3) {
+        keypointMap['Tragus'] = { x: nose.x, y: nose.y + 0.03, score: nose.visibility * 0.8 };
+      }
+    }
+    
+    // Shoulder/Acromion: 어깨 (더 보이는 쪽)
+    const shoulder = useLeft ? leftShoulder : rightShoulder;
+    if(shoulder && shoulder.visibility >= 0.3) {
+      keypointMap['Shoulder'] = { x: shoulder.x, y: shoulder.y, score: shoulder.visibility };
+      
+      // C7: 어깨보다 약간 위/뒤
+      keypointMap['C7'] = { 
+        x: shoulder.x - 0.02, // 어깨보다 약간 뒤
+        y: shoulder.y - 0.03, // 어깨보다 약간 위
+        score: shoulder.visibility * 0.9
+      };
+    }
+    
+    // Hip: 골반 (더 보이는 쪽)
+    const hip = useLeft ? leftHip : rightHip;
+    if(hip && hip.visibility >= 0.3) {
+      keypointMap['Hip'] = { x: hip.x, y: hip.y, score: hip.visibility };
+      
+      // ASIS: Hip보다 약간 앞/위
+      keypointMap['ASIS'] = { 
+        x: hip.x + 0.03, // 앞쪽
+        y: hip.y - 0.01, // 약간 위
+        score: hip.visibility * 0.85 
+      };
+      
+      // PSIS: Hip보다 약간 뒤
+      keypointMap['PSIS'] = { 
+        x: hip.x - 0.03, // 뒤쪽
+        y: hip.y - 0.01, // 약간 위
+        score: hip.visibility * 0.85 
+      };
+    }
+    
+    // Knee: 무릎 (더 보이는 쪽)
+    const knee = useLeft ? leftKnee : rightKnee;
+    if(knee && knee.visibility >= 0.3) {
+      keypointMap['Knee'] = { x: knee.x, y: knee.y, score: knee.visibility };
+    }
+    
+    // Ankle: 발목 (더 보이는 쪽)
+    const ankle = useLeft ? leftAnkle : rightAnkle;
+    if(ankle && ankle.visibility >= 0.3) {
+      keypointMap['Ankle'] = { x: ankle.x, y: ankle.y, score: ankle.visibility };
+    }
+    
+    console.log('옆모습 랜드마크 매핑:', Object.keys(keypointMap));
   }
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시
-    // 어깨
-    if(keypoints[11] && keypoints[11].visibility >= 0.5) {
-      keypointMap['L_acromion'] = { x: keypoints[11].x, y: keypoints[11].y, score: keypoints[11].visibility };
+    const leftShoulder = keypoints[11];
+    const rightShoulder = keypoints[12];
+    const leftHip = keypoints[23];
+    const rightHip = keypoints[24];
+    const leftKnee = keypoints[25];
+    const rightKnee = keypoints[26];
+    const leftAnkle = keypoints[27];
+    const rightAnkle = keypoints[28];
+    
+    // 어깨 (confidence threshold 낮춤)
+    if(leftShoulder && leftShoulder.visibility >= 0.3) {
+      keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
     }
-    if(keypoints[12] && keypoints[12].visibility >= 0.5) {
-      keypointMap['R_acromion'] = { x: keypoints[12].x, y: keypoints[12].y, score: keypoints[12].visibility };
+    if(rightShoulder && rightShoulder.visibility >= 0.3) {
+      keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
     }
     
-    // C7: 양쪽 어깨 중간
+    // C7: 양쪽 어깨 중간 (목 아래)
     if(keypointMap['L_acromion'] && keypointMap['R_acromion']) {
       keypointMap['C7'] = {
         x: (keypointMap['L_acromion'].x + keypointMap['R_acromion'].x) / 2,
-        y: Math.min(keypointMap['L_acromion'].y, keypointMap['R_acromion'].y) - 0.05,
+        y: Math.min(keypointMap['L_acromion'].y, keypointMap['R_acromion'].y) - 0.04,
         score: Math.min(keypointMap['L_acromion'].score, keypointMap['R_acromion'].score)
+      };
+    } else if(keypointMap['L_acromion']) {
+      keypointMap['C7'] = {
+        x: keypointMap['L_acromion'].x,
+        y: keypointMap['L_acromion'].y - 0.04,
+        score: keypointMap['L_acromion'].score * 0.8
+      };
+    } else if(keypointMap['R_acromion']) {
+      keypointMap['C7'] = {
+        x: keypointMap['R_acromion'].x,
+        y: keypointMap['R_acromion'].y - 0.04,
+        score: keypointMap['R_acromion'].score * 0.8
       };
     }
     
-    // 골반
-    if(keypoints[23] && keypoints[23].visibility >= 0.5) {
-      keypointMap['L_asis'] = { x: keypoints[23].x, y: keypoints[23].y, score: keypoints[23].visibility };
+    // 골반 (ASIS)
+    if(leftHip && leftHip.visibility >= 0.3) {
+      keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
     }
-    if(keypoints[24] && keypoints[24].visibility >= 0.5) {
-      keypointMap['R_asis'] = { x: keypoints[24].x, y: keypoints[24].y, score: keypoints[24].visibility };
+    if(rightHip && rightHip.visibility >= 0.3) {
+      keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
     }
     
     // 무릎
-    if(keypoints[25] && keypoints[25].visibility >= 0.5) {
-      keypointMap['L_knee'] = { x: keypoints[25].x, y: keypoints[25].y, score: keypoints[25].visibility };
+    if(leftKnee && leftKnee.visibility >= 0.3) {
+      keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
     }
-    if(keypoints[26] && keypoints[26].visibility >= 0.5) {
-      keypointMap['R_knee'] = { x: keypoints[26].x, y: keypoints[26].y, score: keypoints[26].visibility };
+    if(rightKnee && rightKnee.visibility >= 0.3) {
+      keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
     }
     
     // 발목
-    if(keypoints[27] && keypoints[27].visibility >= 0.5) {
-      keypointMap['L_ankle'] = { x: keypoints[27].x, y: keypoints[27].y, score: keypoints[27].visibility };
+    if(leftAnkle && leftAnkle.visibility >= 0.3) {
+      keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
     }
-    if(keypoints[28] && keypoints[28].visibility >= 0.5) {
-      keypointMap['R_ankle'] = { x: keypoints[28].x, y: keypoints[28].y, score: keypoints[28].visibility };
+    if(rightAnkle && rightAnkle.visibility >= 0.3) {
+      keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
     }
+    
+    console.log('정면 랜드마크 매핑:', Object.keys(keypointMap));
   }
   
   return keypointMap;
@@ -4746,7 +4806,7 @@ async function applyPoseDetection(img, sessionName) {
     }
     
     for(const [key, value] of Object.entries(keypointMap)) {
-      if(value && value.x !== undefined && value.y !== undefined && value.score >= 0.4) {
+      if(value && value.x !== undefined && value.y !== undefined && value.score >= 0.2) {
         // MediaPipe는 정규화된 좌표(0-1)를 제공하므로 픽셀 좌표로 변환
         // 이미지 크기에 맞게 좌표 변환
         const imgX = value.x * img.naturalWidth;
@@ -4756,12 +4816,15 @@ async function applyPoseDetection(img, sessionName) {
         const scaleX = originalCanvasSize.width / img.naturalWidth;
         const scaleY = originalCanvasSize.height / img.naturalHeight;
         
+        const finalX = imgX * scaleX;
+        const finalY = imgY * scaleY;
+        
         map.set(key, {
-          x: imgX * scaleX,
-          y: imgY * scaleY
+          x: finalX,
+          y: finalY
         });
         
-        console.log(`✅ ${key} 매핑: (${value.x.toFixed(3)}, ${value.y.toFixed(3)}) → (${(imgX * scaleX).toFixed(1)}, ${(imgY * scaleY).toFixed(1)}) [score: ${value.score.toFixed(2)}]`);
+        console.log(`✅ ${key} 매핑: 원본(${value.x.toFixed(3)}, ${value.y.toFixed(3)}) → 이미지픽셀(${imgX.toFixed(1)}, ${imgY.toFixed(1)}) → 캔버스(${finalX.toFixed(1)}, ${finalY.toFixed(1)}) [confidence: ${value.score.toFixed(2)}]`);
       }
     }
     
