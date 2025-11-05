@@ -6230,6 +6230,7 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시
+    // MediaPipe의 left/right는 사용자 기준이므로, 이미지 좌표(x 좌표)로 판단하여 매핑
     const leftShoulder = keypoints[11];
     const rightShoulder = keypoints[12];
     const leftHip = keypoints[23];
@@ -6239,11 +6240,20 @@ function mapPoseToKeypoints(pose, orientation) {
     const leftAnkle = keypoints[27];
     const rightAnkle = keypoints[28];
     
-    // 어깨 (confidence threshold 낮춤)
-    if(leftShoulder && leftShoulder.visibility >= 0.3) {
+    // 어깨: x 좌표 기준으로 이미지에서 왼쪽이 L, 오른쪽이 R
+    // MediaPipe의 leftShoulder는 사용자 왼쪽(이미지 오른쪽)이므로 반대로 매핑
+    if(leftShoulder && leftShoulder.visibility >= 0.3 && rightShoulder && rightShoulder.visibility >= 0.3) {
+      // x 좌표로 판단: 작은 쪽이 L, 큰 쪽이 R
+      if(leftShoulder.x < rightShoulder.x) {
+        keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
+        keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
+      } else {
+        keypointMap['L_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
+        keypointMap['R_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
+      }
+    } else if(leftShoulder && leftShoulder.visibility >= 0.3) {
       keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
-    }
-    if(rightShoulder && rightShoulder.visibility >= 0.3) {
+    } else if(rightShoulder && rightShoulder.visibility >= 0.3) {
       keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
     }
     
@@ -6268,27 +6278,48 @@ function mapPoseToKeypoints(pose, orientation) {
       };
     }
     
-    // 골반 (ASIS)
-    if(leftHip && leftHip.visibility >= 0.3) {
+    // 골반 (ASIS): x 좌표 기준으로 매핑
+    if(leftHip && leftHip.visibility >= 0.3 && rightHip && rightHip.visibility >= 0.3) {
+      if(leftHip.x < rightHip.x) {
+        keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
+        keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
+      } else {
+        keypointMap['L_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
+        keypointMap['R_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
+      }
+    } else if(leftHip && leftHip.visibility >= 0.3) {
       keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
-    }
-    if(rightHip && rightHip.visibility >= 0.3) {
+    } else if(rightHip && rightHip.visibility >= 0.3) {
       keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
     }
     
-    // 무릎
-    if(leftKnee && leftKnee.visibility >= 0.3) {
+    // 무릎: x 좌표 기준으로 매핑
+    if(leftKnee && leftKnee.visibility >= 0.3 && rightKnee && rightKnee.visibility >= 0.3) {
+      if(leftKnee.x < rightKnee.x) {
+        keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
+        keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
+      } else {
+        keypointMap['L_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
+        keypointMap['R_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
+      }
+    } else if(leftKnee && leftKnee.visibility >= 0.3) {
       keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
-    }
-    if(rightKnee && rightKnee.visibility >= 0.3) {
+    } else if(rightKnee && rightKnee.visibility >= 0.3) {
       keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
     }
     
-    // 발목
-    if(leftAnkle && leftAnkle.visibility >= 0.3) {
+    // 발목: x 좌표 기준으로 매핑
+    if(leftAnkle && leftAnkle.visibility >= 0.3 && rightAnkle && rightAnkle.visibility >= 0.3) {
+      if(leftAnkle.x < rightAnkle.x) {
+        keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
+        keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
+      } else {
+        keypointMap['L_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
+        keypointMap['R_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
+      }
+    } else if(leftAnkle && leftAnkle.visibility >= 0.3) {
       keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
-    }
-    if(rightAnkle && rightAnkle.visibility >= 0.3) {
+    } else if(rightAnkle && rightAnkle.visibility >= 0.3) {
       keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
     }
     
