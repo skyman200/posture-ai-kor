@@ -4981,20 +4981,42 @@ document.addEventListener("DOMContentLoaded", () => {
   updateCoordSelectOptions();
 });
 
+// ✅ 모델 로드 상태 추적
+let modelsLoading = { front: false, side: false };
+let modelsLoaded = { front: false, side: false };
+
 // ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
 async function loadPoseModels() {
   try {
-    detectors.front = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-    );
-    detectors.side = await poseDetection.createDetector(
-      poseDetection.SupportedModels.BlazePose,
-      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
-    );
+    // 정면 모델 로드
+    if (!modelsLoading.front && !modelsLoaded.front) {
+      modelsLoading.front = true;
+      detectors.front = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      );
+      modelsLoaded.front = true;
+      modelsLoading.front = false;
+      console.log("✅ 정면 모델 로드 완료");
+    }
+    
+    // 옆모습 모델 로드
+    if (!modelsLoading.side && !modelsLoaded.side) {
+      modelsLoading.side = true;
+      detectors.side = await poseDetection.createDetector(
+        poseDetection.SupportedModels.BlazePose,
+        { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+      );
+      modelsLoaded.side = true;
+      modelsLoading.side = false;
+      console.log("✅ 옆모습 모델 로드 완료");
+    }
+    
     console.log("✅ 정면·옆모습 모델 로드 완료");
   } catch(error) {
     console.error("모델 로드 실패:", error);
+    modelsLoading.front = false;
+    modelsLoading.side = false;
   }
 }
 
@@ -5002,10 +5024,29 @@ loadPoseModels();
 
 // ✅ 분석 시 orientation에 맞는 모델 사용
 async function detectPose(img, orientation) {
+  // 모델이 로드 중이면 기다림
+  let waitCount = 0;
+  const maxWait = 50; // 최대 5초 대기 (100ms * 50)
+  
+  while (!modelsLoaded[orientation] && !detectors[orientation] && waitCount < maxWait) {
+    if (!modelsLoading[orientation]) {
+      // 모델 로드가 시작되지 않았으면 시작
+      await loadPoseModels();
+    }
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 대기
+    waitCount++;
+  }
+  
   const detector = detectors[orientation];
   if (!detector) {
-    alert(`${orientation}용 모델이 아직 준비되지 않았습니다`);
-    return null;
+    // 모델 로드 실패 시 재시도
+    console.log(`${orientation} 모델 재시도 중...`);
+    await loadPoseModels();
+    
+    if (!detectors[orientation]) {
+      alert(`${orientation}용 모델 로드에 실패했습니다. 페이지를 새로고침해주세요.`);
+      return null;
+    }
   }
   
   try {
