@@ -1930,8 +1930,9 @@ function ensureDefaultPoints(session) {
   const currentPoints = orientation === "front" ? S.frontPoints : S.sidePoints;
   
   if(currentPoints.size === 0 && currentImg) {
+    // Flutter 1:1 매칭 키로 기본값 설정
     const defaults = orientation === "front" ? {
-      C7: {x:W*0.5, y:H*0.2},
+      c7: {x:W*0.5, y:H*0.2},
       L_acromion: {x:W*0.3, y:H*0.3},
       R_acromion: {x:W*0.7, y:H*0.3},
       L_asis: {x:W*0.35, y:H*0.5},
@@ -1941,14 +1942,14 @@ function ensureDefaultPoints(session) {
       L_ankle: {x:W*0.4, y:H*0.95},
       R_ankle: {x:W*0.6, y:H*0.95},
     } : {
-      Tragus: {x:W*0.35, y:H*0.3},
-      C7: {x:W*0.3, y:H*0.35},
-      Shoulder: {x:W*0.35, y:H*0.4},
-      Hip: {x:W*0.38, y:H*0.6},
-      Knee: {x:W*0.42, y:H*0.8},
-      Ankle: {x:W*0.44, y:H*0.95},
-      ASIS: {x:W*0.40, y:H*0.58},
-      PSIS: {x:W*0.35, y:H*0.6},
+      tragus: {x:W*0.35, y:H*0.3},
+      c7: {x:W*0.3, y:H*0.35},
+      acromion: {x:W*0.35, y:H*0.4},
+      hip: {x:W*0.38, y:H*0.6},
+      knee: {x:W*0.42, y:H*0.8},
+      ankle: {x:W*0.44, y:H*0.95},
+      asis: {x:W*0.40, y:H*0.58},
+      psis: {x:W*0.35, y:H*0.6},
     };
     for(const kp of currentKeypoints) {
       if(defaults[kp.key]) currentPoints.set(kp.key, {...defaults[kp.key]});
