@@ -303,13 +303,27 @@ canvas {
     </div>
   </div>
 
-  <div style="margin-top:12px;">
+  <div style="margin-top:12px; max-height:400px; overflow-y:auto;">
     <table class="tbl">
       <thead><tr><th>항목</th><th>Before</th><th>After</th><th>변화</th><th>정상</th></tr></thead>
       <tbody>
         <tr><td>CVA</td><td id="cmpCvaB">—</td><td id="cmpCvaA">—</td><td id="cmpCvaD">—</td><td>≥50°</td></tr>
-        <tr><td>TRUNK</td><td id="cmpPelB">—</td><td id="cmpPelA">—</td><td id="cmpPelD">—</td><td>|0–5°|</td></tr>
-        <tr><td>KNEE</td><td id="cmpKneeB">—</td><td id="cmpKneeA">—</td><td id="cmpKneeD">—</td><td>175–185°</td></tr>
+        <tr><td>HPD</td><td id="cmpHpdB">—</td><td id="cmpHpdA">—</td><td id="cmpHpdD">—</td><td>≤2cm</td></tr>
+        <tr><td>NIA</td><td id="cmpNiaB">—</td><td id="cmpNiaA">—</td><td id="cmpNiaD">—</td><td>0-20°</td></tr>
+        <tr><td>TIA</td><td id="cmpTiaB">—</td><td id="cmpTiaA">—</td><td id="cmpTiaD">—</td><td>0-10°</td></tr>
+        <tr><td>SAA</td><td id="cmpSaaB">—</td><td id="cmpSaaA">—</td><td id="cmpSaaD">—</td><td>0-10°</td></tr>
+        <tr><td>PTA</td><td id="cmpPtaB">—</td><td id="cmpPtaA">—</td><td id="cmpPtaD">—</td><td>0-15°</td></tr>
+        <tr><td>KA</td><td id="cmpKaB">—</td><td id="cmpKaA">—</td><td id="cmpKaD">—</td><td>175-185°</td></tr>
+        <tr><td>Tibial</td><td id="cmpTibialB">—</td><td id="cmpTibialA">—</td><td id="cmpTibialD">—</td><td>0-10°</td></tr>
+        <tr><td>Q-Angle</td><td id="cmpQangleB">—</td><td id="cmpQangleA">—</td><td id="cmpQangleD">—</td><td>10-20°</td></tr>
+        <tr><td>Knee Dev</td><td id="cmpKneedevB">—</td><td id="cmpKneedevA">—</td><td id="cmpKneedevD">—</td><td>0-3°</td></tr>
+        <tr><td>LLD</td><td id="cmpLldB">—</td><td id="cmpLldA">—</td><td id="cmpLldD">—</td><td>≤1cm</td></tr>
+        <tr><td>GSB</td><td id="cmpGsbB">—</td><td id="cmpGsbA">—</td><td id="cmpGsbD">—</td><td>≤2cm</td></tr>
+        <tr><td>BVA</td><td id="cmpBvaB">—</td><td id="cmpBvaA">—</td><td id="cmpBvaD">—</td><td>≤2cm</td></tr>
+        <tr><td>SCI</td><td id="cmpSciB">—</td><td id="cmpSciA">—</td><td id="cmpSciD">—</td><td>0.15-0.35</td></tr>
+        <tr><td>HPA</td><td id="cmpHpaB">—</td><td id="cmpHpaA">—</td><td id="cmpHpaD">—</td><td>0-10°</td></tr>
+        <tr><td>PDS</td><td id="cmpPdsB">—</td><td id="cmpPdsA">—</td><td id="cmpPdsD">—</td><td>0-10</td></tr>
+        <tr style="background:#f0f0f0; font-weight:600;"><td>체형 점수</td><td id="cmpScoreB">—</td><td id="cmpScoreA">—</td><td id="cmpScoreD">—</td><td>0–100</td></tr>
       </tbody>
     </table>
   </div>
@@ -2807,39 +2821,84 @@ function deltaStr(b, a, suf = "") {
 
 function updateCompare() {
   const B = sessions.Before, A = sessions.After;
-  const cB = B.metrics.cva, cA = A.metrics.cva;
-  document.getElementById("cmpCvaB").textContent = fmtDeg(cB);
-  document.getElementById("cmpCvaA").textContent = fmtDeg(cA);
-  document.getElementById("cmpCvaD").textContent = deltaStr(cB, cA, "°");
-
-  const pB = B.metrics.pelvic, pA = A.metrics.pelvic;
-  document.getElementById("cmpPelB").textContent = fmtDeg(pB);
-  document.getElementById("cmpPelA").textContent = fmtDeg(pA);
-  document.getElementById("cmpPelD").textContent = deltaStr(pB, pA, "°");
-
-  const kB = B.metrics.knee, kA = A.metrics.knee;
-  document.getElementById("cmpKneeB").textContent = fmtDeg(kB);
-  document.getElementById("cmpKneeA").textContent = fmtDeg(kA);
-  document.getElementById("cmpKneeD").textContent = deltaStr(kB, kA, "°");
   
-  // 점수 비교 추가
+  // fullMetrics에서 16가지 항목 가져오기
+  const bMetrics = B.metrics?.fullMetrics || {};
+  const aMetrics = A.metrics?.fullMetrics || {};
+  
+  // 헬퍼 함수: 메트릭 값 가져오기
+  const getMetricValue = (metrics, key) => {
+    const metric = metrics[key];
+    if(!metric) return null;
+    return metric.value !== undefined ? metric.value : 
+           (metric.value_deg !== undefined ? metric.value_deg : 
+           (metric.value_cm !== undefined ? metric.value_cm : null));
+  };
+  
+  // 16가지 항목 업데이트
+  const compareItems = [
+    {key: 'CVA', id: 'Cva', unit: '°'},
+    {key: 'HPD', id: 'Hpd', unit: 'cm'},
+    {key: 'NIA', id: 'Nia', unit: '°'},
+    {key: 'TIA', id: 'Tia', unit: '°'},
+    {key: 'SAA', id: 'Saa', unit: '°'},
+    {key: 'PTA', id: 'Pta', unit: '°'},
+    {key: 'KA', id: 'Ka', unit: '°'},
+    {key: 'Tibial_Angle', id: 'Tibial', unit: '°'},
+    {key: 'Q_Angle', id: 'Qangle', unit: '°'},
+    {key: 'Knee_Deviation', id: 'Kneedev', unit: '°'},
+    {key: 'LLD', id: 'Lld', unit: 'cm'},
+    {key: 'GSB', id: 'Gsb', unit: 'cm'},
+    {key: 'BVA', id: 'Bva', unit: 'cm'},
+    {key: 'SCI', id: 'Sci', unit: ''},
+    {key: 'HPA', id: 'Hpa', unit: '°'},
+    {key: 'PDS', id: 'Pds', unit: ''}
+  ];
+  
+  compareItems.forEach(item => {
+    const vB = getMetricValue(bMetrics, item.key);
+    const vA = getMetricValue(aMetrics, item.key);
+    
+    const elB = document.getElementById(`cmp${item.id}B`);
+    const elA = document.getElementById(`cmp${item.id}A`);
+    const elD = document.getElementById(`cmp${item.id}D`);
+    
+    if(elB && elA && elD) {
+      if(vB != null) {
+        elB.textContent = vB.toFixed(item.unit === '' ? 2 : 1) + item.unit;
+      } else {
+        elB.textContent = "—";
+      }
+      
+      if(vA != null) {
+        elA.textContent = vA.toFixed(item.unit === '' ? 2 : 1) + item.unit;
+      } else {
+        elA.textContent = "—";
+      }
+      
+      if(vB != null && vA != null) {
+        elD.textContent = deltaStr(vB, vA, item.unit);
+      } else {
+        elD.textContent = "—";
+      }
+    }
+  });
+  
+  // 점수 비교 업데이트
   const sB = B.score ? B.score.score : null, sA = A.score ? A.score.score : null;
-  if(!document.getElementById("cmpScoreRow")) {
-    const tbody = document.querySelector(".tbl tbody");
-    const row = document.createElement("tr");
-    row.id = "cmpScoreRow";
-    row.innerHTML = `
-      <td>체형 점수</td>
-      <td id="cmpScoreB">—</td>
-      <td id="cmpScoreA">—</td>
-      <td id="cmpScoreD">—</td>
-      <td>0–100</td>
-    `;
-    tbody.appendChild(row);
+  const scoreElB = document.getElementById("cmpScoreB");
+  const scoreElA = document.getElementById("cmpScoreA");
+  const scoreElD = document.getElementById("cmpScoreD");
+  
+  if(scoreElB && scoreElA && scoreElD) {
+    scoreElB.textContent = sB != null ? sB : "—";
+    scoreElA.textContent = sA != null ? sA : "—";
+    if(sB != null && sA != null) {
+      scoreElD.textContent = deltaStr(sB, sA, "");
+    } else {
+      scoreElD.textContent = "—";
+    }
   }
-  document.getElementById("cmpScoreB").textContent = sB != null ? sB : "—";
-  document.getElementById("cmpScoreA").textContent = sA != null ? sA : "—";
-  document.getElementById("cmpScoreD").textContent = deltaStr(sB, sA, "");
 }
 
 // 좌표 수정 모드 토글
