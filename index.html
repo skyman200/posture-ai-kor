@@ -8041,13 +8041,13 @@ function exportAsPdf(options = {}) {
     
     // After metrics 추출 (DB 기반 분석용)
     const afterMetricsForDB = {};
-    const aMetrics = sessions.After?.metrics?.fullMetrics || {};
+    const aMetricsForDB = sessions.After?.metrics?.fullMetrics || {};
     const metricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA', 
                         'STA', 'STA_F', 'POA', 'POA_F', 'TD', 'HTA', 'SPP', 'LLD', 'LLD_F'];
     metricKeys.forEach(key => {
-      const val = aMetrics[key]?.value != null ? aMetrics[key].value : 
-                  (aMetrics[key]?.value_deg != null ? aMetrics[key].value_deg : 
-                  (aMetrics[key]?.value_cm != null ? aMetrics[key].value_cm : null));
+      const val = aMetricsForDB[key]?.value != null ? aMetricsForDB[key].value : 
+                  (aMetricsForDB[key]?.value_deg != null ? aMetricsForDB[key].value_deg : 
+                  (aMetricsForDB[key]?.value_cm != null ? aMetricsForDB[key].value_cm : null));
       if(val != null) {
         afterMetricsForDB[key] = val;
       }
