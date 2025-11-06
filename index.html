@@ -6033,9 +6033,20 @@ window.addEventListener('touchcancel', (e) => {
   endDrag(e);
 });
 
-// 업로드 (Before/After 각각 하나의 사진만 유지)
-["filePicker","cameraPicker"].forEach(id => {
-  document.getElementById(id).addEventListener("change", async e => {
+// 업로드 (Before/After 각각 하나의 사진만 유지) - DOM 준비 후 실행
+function setupFileUploads() {
+  ["filePicker","cameraPicker"].forEach(id => {
+    const input = document.getElementById(id);
+    if(!input) {
+      console.warn(`파일 입력 요소를 찾을 수 없습니다: ${id}`);
+      return;
+    }
+    
+    // 기존 이벤트 리스너 제거 후 재등록 (중복 방지)
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+    
+    newInput.addEventListener("change", async e => {
     const f = e.target.files[0];
     if(!f) return;
     
@@ -6076,8 +6087,22 @@ window.addEventListener('touchcancel', (e) => {
       
       // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
       setTimeout(() => {
-      draw();
-      computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+        try {
+          draw();
+          computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+          console.log("이미지 그리기 완료");
+        } catch(err) {
+          console.error("이미지 그리기 실패:", err);
+          // 재시도
+          setTimeout(() => {
+            try {
+              draw();
+              computeMetricsOnly();
+            } catch(err2) {
+              console.error("이미지 그리기 재시도 실패:", err2);
+            }
+          }, 200);
+        }
       }, 100);
       
       // 포즈 감지 자동 실행 (선택된 orientation 사용)
@@ -6096,17 +6121,33 @@ window.addEventListener('touchcancel', (e) => {
     
     // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
     e.target.value = '';
+    });
   });
-});
+}
+
+// DOM 준비 후 파일 업로드 설정
+if(document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupFileUploads);
+} else {
+  setupFileUploads();
+}
 
 // Reset 버튼
 document.getElementById("btnReset").onclick = () => {
   const orientation = sessions[cur].poseData?.orientation || "side";
   const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
   currentPoints.clear();
-  draw();
-  computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
-};
+    draw();
+    computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
+  };
+}
+
+// DOM 준비 후 Reset 버튼 설정
+if(document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupResetButton);
+} else {
+  setupResetButton();
+}
 
 // ✅ 캘리브레이션 기능
 let calibrationMode = false;
@@ -6221,7 +6262,11 @@ document.getElementById("btnCalibrateCancel").onclick = () => {
 };
 
 // 좌표 저장 (저장 버튼 - AI 분석 실행)
-document.getElementById("btnSaveJSON").onclick = () => {
+  };
+  }
+  
+  if(btnSaveJSON) {
+    btnSaveJSON.onclick = () => {
   // 저장 전에 AI 분석 실행
   computeAll();
   
@@ -6237,7 +6282,11 @@ document.getElementById("btnSaveJSON").onclick = () => {
 };
 
 // 좌표 불러오기
-document.getElementById("btnLoadJSON").onclick = () => {
+  };
+  }
+  
+  if(btnLoadJSON) {
+    btnLoadJSON.onclick = () => {
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'application/json';
