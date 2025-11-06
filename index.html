@@ -6511,11 +6511,23 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
 // ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
 function exportAsPdf(options = {}) {
   const {
-    fileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`,
+    fileName = null, // null이면 자동 생성
     userName = localStorage.getItem('userName') || '사용자',
+    centerName = localStorage.getItem('centerName') || null,
+    memberName = localStorage.getItem('memberName') || null,
     appName = 'DIT 자세 분석 AI',
     logoUrl = null
   } = options;
+  
+  // 파일명 자동 생성 (센터명/회원명 우선)
+  let finalFileName = fileName;
+  if(!finalFileName) {
+    if(centerName && memberName) {
+      finalFileName = `${centerName}_${memberName}_자세분석리포트_${new Date().toISOString().split('T')[0]}.pdf`;
+    } else {
+      finalFileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`;
+    }
+  }
   
   return new Promise(async (resolve, reject) => {
     try {
@@ -6680,8 +6692,10 @@ function exportAsPdf(options = {}) {
           <span style="font-size:10px; color:#666;">${dateStr}</span>
         </div>
         
-        <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">DIT 자세 분석 리포트</h1>
-        <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">사용자: ${userName}</div>
+        <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3; word-wrap:break-word;">🧘 AI Posture Analysis Report</h1>
+        ${centerName ? `<div style="font-size:13px; color:#333; margin-bottom:8px; word-wrap:break-word; font-weight:600;">센터명: ${centerName}</div>` : ''}
+        ${memberName ? `<div style="font-size:13px; color:#333; margin-bottom:8px; word-wrap:break-word; font-weight:600;">회원명: ${memberName}</div>` : ''}
+        <div style="font-size:11px; color:#666; margin-bottom:25px; word-wrap:break-word;">${centerName || memberName ? '' : `사용자: ${userName}`}</div>
         
         <!-- Before/After 이미지 비교 -->
         ${beforeImg && afterImg ? `
@@ -7227,15 +7241,37 @@ function setupPDFButton() {
         return;
       }
       
-      // 사용자명 입력 받기 (한 번만)
+      // 센터명과 회원명 입력 받기
+      let centerName = localStorage.getItem('centerName');
+      let memberName = localStorage.getItem('memberName');
+      
+      // 센터명 입력
+      if(!centerName) {
+        centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", "") || null;
+        if(centerName) {
+          localStorage.setItem('centerName', centerName);
+        }
+      }
+      
+      // 회원명 입력
+      if(!memberName) {
+        memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", "") || null;
+        if(memberName) {
+          localStorage.setItem('memberName', memberName);
+        }
+      }
+      
+      // 기존 사용자명 (하위 호환성)
       let userName = localStorage.getItem('userName');
-      if(!userName) {
+      if(!userName && !memberName) {
         userName = prompt("사용자명을 입력하세요 (나중에 변경 가능):", "사용자") || "사용자";
         localStorage.setItem('userName', userName);
       }
       
       await exportAsPdf({
         userName: userName,
+        centerName: centerName,
+        memberName: memberName,
         appName: 'DIT 자세 분석 AI'
       });
       
