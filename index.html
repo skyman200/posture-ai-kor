@@ -6132,11 +6132,17 @@ if(document.readyState === 'loading') {
   setupFileUploads();
 }
 
-// Reset 버튼
-document.getElementById("btnReset").onclick = () => {
-  const orientation = sessions[cur].poseData?.orientation || "side";
-  const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
-  currentPoints.clear();
+// Reset 버튼 (안전한 초기화)
+function setupResetButton() {
+  const btnReset = document.getElementById("btnReset");
+  if(!btnReset) {
+    console.warn("Reset 버튼을 찾을 수 없습니다.");
+    return;
+  }
+  btnReset.onclick = () => {
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+    currentPoints.clear();
     draw();
     computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
   };
@@ -6261,14 +6267,60 @@ document.getElementById("btnCalibrateCancel").onclick = () => {
   draw();
 };
 
-// 좌표 저장 (저장 버튼 - AI 분석 실행)
-  };
+// 캘리브레이션 관련 버튼들 초기화
+function setupCalibrationButtons() {
+  const btnConfirm = document.getElementById("btnCalibrateConfirm");
+  const btnCancel = document.getElementById("btnCalibrateCancel");
+  const btnSaveJSON = document.getElementById("btnSaveJSON");
+  const btnLoadJSON = document.getElementById("btnLoadJSON");
+  
+  if(btnConfirm) {
+    btnConfirm.onclick = () => {
+      const S = sessions[cur];
+      if(!S.calibrationPoint1 || !S.calibrationPoint2) {
+        alert("두 점을 모두 선택해주세요.");
+        return;
+      }
+      
+      const realLengthCm = parseFloat(document.getElementById("calibrationLength").value);
+      if(!realLengthCm || realLengthCm <= 0) {
+        alert("실제 길이(cm)를 올바르게 입력해주세요.");
+        return;
+      }
+      
+      try {
+        const pxPerCm = calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
+        S.pxPerCm = pxPerCm;
+        document.getElementById("calibrationResult").textContent = 
+          `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+        document.getElementById("calibrationResult").style.color = "#2ec4b6";
+        
+        // 메트릭 재계산
+        computeMetricsOnly();
+        
+        console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
+      } catch(err) {
+        alert("캘리브레이션 오류: " + err.message);
+      }
+    };
+  }
+  
+  if(btnCancel) {
+    btnCancel.onclick = () => {
+      calibrationMode = false;
+      document.getElementById("calibrationPanel").style.display = "none";
+      const S = sessions[cur];
+      S.calibrationPoint1 = null;
+      S.calibrationPoint2 = null;
+      cv.style.cursor = "default";
+      draw();
+    };
   }
   
   if(btnSaveJSON) {
     btnSaveJSON.onclick = () => {
-  // 저장 전에 AI 분석 실행
-  computeAll();
+      // 저장 전에 AI 분석 실행
+      computeAll();
   
   const orientation = sessions[cur].poseData?.orientation || "side";
   const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
@@ -6281,13 +6333,27 @@ document.getElementById("btnCalibrateCancel").onclick = () => {
   URL.revokeObjectURL(a.href);
 };
 
-// 좌표 불러오기
-  };
+      const orientation = sessions[cur].poseData?.orientation || "side";
+      const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+      const obj = Object.fromEntries(map);
+      const json = JSON.stringify(obj, null, 2);
+      const blob = new Blob([json], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `posture_coords_${cur}_${orientation}_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    };
   }
   
   if(btnLoadJSON) {
     btnLoadJSON.onclick = () => {
-  const inp = document.createElement('input');
+      const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'application/json';
   inp.onchange = e => {
@@ -6309,8 +6375,17 @@ document.getElementById("btnCalibrateCancel").onclick = () => {
     };
     r.readAsText(f);
   };
-  inp.click();
-};
+      inp.click();
+    };
+  }
+}
+
+// DOM 준비 후 캘리브레이션 관련 버튼들 설정
+if(document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupCalibrationButtons);
+} else {
+  setupCalibrationButtons();
+}
 
 // Before-After 오버레이 이미지 생성 (Canvas API 사용)
 async function createOverlayImage(beforeImgData, afterImgData, alpha = 0.5) {
