@@ -6223,7 +6223,13 @@ if(document.readyState === 'loading') {
 
 // ✅ 캘리브레이션 기능
 let calibrationMode = false;
-document.getElementById("btnCalibrate").onclick = () => {
+function setupCalibrateButton() {
+  const btnCalibrate = document.getElementById("btnCalibrate");
+  if(!btnCalibrate) {
+    console.warn("캘리브레이션 버튼을 찾을 수 없습니다.");
+    return;
+  }
+  btnCalibrate.onclick = () => {
   calibrationMode = !calibrationMode;
   const panel = document.getElementById("calibrationPanel");
   const S = sessions[cur];
