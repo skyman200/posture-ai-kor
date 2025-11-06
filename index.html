@@ -291,15 +291,6 @@ canvas {
         </div>
       </details>
       <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">NIA (Neck Inclination Angle)</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> 어깨에서 귀로 향하는 선과 수평선 사이의 각도<br>
-          <strong>의미:</strong> 목의 전방 기울기 정도를 나타냅니다. CVA와 함께 거북목을 평가합니다.<br>
-          <strong>정상 범위:</strong> 0-20°<br>
-          <strong>임상적 의미:</strong> 20° 초과 시 경추 신전근 약화 및 굴곡근 긴장이 의심됩니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">TIA (Trunk Inclination Angle)</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
           <strong>측정 방법:</strong> 어깨(Acromion)와 골반(Hip)을 연결한 선과 수직선 사이의 각도<br>
@@ -546,7 +537,6 @@ canvas {
       <tbody>
         <tr><td>CVA(두개경추각)</td><td id="cmpCvaB">—</td><td id="cmpCvaA">—</td><td id="cmpCvaD">—</td><td>≥50°</td></tr>
         <tr><td>HPD(두부전방이동)</td><td id="cmpHpdB">—</td><td id="cmpHpdA">—</td><td id="cmpHpdD">—</td><td>≤2cm</td></tr>
-        <tr><td>NIA(경추경사각)</td><td id="cmpNiaB">—</td><td id="cmpNiaA">—</td><td id="cmpNiaD">—</td><td>0-20°</td></tr>
         <tr><td>TIA(체간경사각)</td><td id="cmpTiaB">—</td><td id="cmpTiaA">—</td><td id="cmpTiaD">—</td><td>0-10°</td></tr>
         <tr><td>SAA(어깨전방각)</td><td id="cmpSaaB">—</td><td id="cmpSaaA">—</td><td id="cmpSaaD">—</td><td>0-10°</td></tr>
         <tr><td>PTA(골반 전후경사각)</td><td id="cmpPtaB">—</td><td id="cmpPtaA">—</td><td id="cmpPtaD">—</td><td>0-15°</td></tr>
@@ -868,29 +858,6 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     // 하위 호환성
     result.HPD.value_cm = hpd;
     result.HPD.meaning = result.HPD.desc;
-  }
-  
-  // 3️⃣ NIA (Neck Inclination Angle): |(Acromion->Tragus 수평각의 예각)|
-  // 스펙: normalizeToAcuteDeg 적용
-  if (tragus && acromion) {
-    const nia_theta = angleFromHorizontalDeg(acromion, tragus);
-    const nia = Math.abs(normalizeToAcuteDeg(nia_theta));
-    result.NIA = {
-      value: nia,
-      status: classifyRange({
-        v: nia,
-        nMin: 10, nMax: 20,
-        mildMin: 5, mildMax: 9,
-        modMin: 21, modMax: 30,
-        sevMin: 30, sevMax: null,
-        higherIsWorse: false
-      }),
-      unit: "°",
-      desc: "Neck Inclination Angle"
-    };
-    // 하위 호환성
-    result.NIA.value_deg = nia;
-    result.NIA.meaning = result.NIA.desc;
   }
   
   // 4️⃣ TIA (Trunk Inclination Angle): vertical signed (윗점=Acromion, +전방/-후방)
@@ -1610,9 +1577,11 @@ function buildAnalysisSummaryHtml(analysisResult) {
     for(const [key, value] of Object.entries(side)) {
       if(value && typeof value === 'object' && value.value != null && key !== 'status') {
         const unit = value.value_cm != null ? 'cm' : '°';
-        const val = value.value_deg != null ? value.value_deg : value.value_cm;
+        const val = value.value_deg != null ? value.value_deg : (value.value_cm != null ? value.value_cm : value.value);
         const status = value.status || 'unknown';
-        html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+        if(val != null && typeof val === 'number') {
+          html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+        }
       }
     }
     html += '<div style="margin-bottom:12px;"></div>';
@@ -1624,9 +1593,11 @@ function buildAnalysisSummaryHtml(analysisResult) {
     for(const [key, value] of Object.entries(front)) {
       if(value && typeof value === 'object' && value.value != null && key !== 'status') {
         const unit = value.value_cm != null ? 'cm' : '°';
-        const val = value.value_deg != null ? value.value_deg : value.value_cm;
+        const val = value.value_deg != null ? value.value_deg : (value.value_cm != null ? value.value_cm : value.value);
         const status = value.status || 'unknown';
-        html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+        if(val != null && typeof val === 'number') {
+          html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+        }
       }
     }
     html += '<div style="margin-bottom:12px;"></div>';
@@ -1664,7 +1635,6 @@ function generatePostureRecommendations(analysis) {
   
   // 측면 지표
   const cva = side.CVA?.value_deg;
-  const nia = side.NIA?.value_deg;
   const hpd = side.HPD?.value_cm;
   const saa = side.SAA?.value_deg;
   const pta = side.PTA?.value_deg;
@@ -1678,7 +1648,7 @@ function generatePostureRecommendations(analysis) {
   if (cva != null && cva < 50) {
     addPattern({
       pattern: "거북목(FHP)",
-      condition: "CVA↓ / NIA↑ / HPD↑",
+      condition: "CVA↓ / HPD↑",
       tight: ["SCM", "상부승모", "견갑거근", "소흉근"],
       weak: ["심부경부굴근", "하부승모", "전거근"],
       exercises: {
@@ -2022,10 +1992,10 @@ const liveAnalyzer = new LivePostureAnalyzer();
 
 // 🏋️‍♀️ 패턴 기반 필라테스 추천 시스템 (BASI/Polestar/STOTT 기준)
 const pilatesPatterns = {
-  // 1️⃣ 거북목(FHP): CVA↓, NIA↑, HPD↑
+  // 1️⃣ 거북목(FHP): CVA↓, HPD↑
   'FHP': {
     name: '거북목 (Forward Head Posture)',
-    condition: 'CVA↓ / NIA↑ / HPD↑',
+    condition: 'CVA↓ / HPD↑',
     tight: ['SCM', '상부승모', '견갑거근', '소흉근'],
     weak: ['심부경부굴근', '하부승모', '전거근'],
     interpretation: '머리 전방 돌출, 경추 전만 감소',
@@ -3488,14 +3458,6 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 3. NIA (Neck Inclination Angle) - 정상 0-20°
-  const nia = fullMetrics.NIA?.value;
-  if(nia != null && nia > 20) {
-    const delta = nia - 20;
-    const penalty = Math.min(15, delta * 1.5);
-    penalties += penalty;
-    reasons.push(`NIA ${nia.toFixed(1)}° (정상 0-20°) - ${penalty.toFixed(0)}점 감점`);
-  }
   
   // 4. TIA (Trunk Inclination Angle) - 정상 0-10°
   const tia = fullMetrics.TIA?.value;
@@ -3764,16 +3726,15 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
   // ⚙️ 해석 요약 패턴 분석
   const patterns = [];
   
-  // 패턴 1: 거북목(FHP): CVA↓, NIA↑, HPD↑
+  // 패턴 1: 거북목(FHP): CVA↓, HPD↑
   if(fullMetrics) {
     const cvaVal = fullMetrics.CVA?.value_deg;
-    const niaVal = fullMetrics.NIA?.value_deg;
     const hpdVal = fullMetrics.HPD?.value_cm;
     
-    if(cvaVal != null && cvaVal < 50 && niaVal != null && niaVal > 20 && hpdVal != null && hpdVal > 2) {
+    if(cvaVal != null && cvaVal < 50 && hpdVal != null && hpdVal > 2) {
       patterns.push({
         name: "거북목(FHP)",
-        description: `CVA↓(${cvaVal.toFixed(1)}°), NIA↑(${niaVal.toFixed(1)}°), HPD↑(${hpdVal.toFixed(1)}cm)`,
+        description: `CVA↓(${cvaVal.toFixed(1)}°), HPD↑(${hpdVal.toFixed(1)}cm)`,
         meaning: "경추 신전, 심부 굴근 약화",
         priority: "high"
       });
@@ -4252,7 +4213,7 @@ function analyzePostureType(metrics) {
   }
   
   // === 3. 상부 교차 증후군 (Upper Cross Syndrome) 체크 ===
-  const hasUpperCross = (cva != null && cva < 50) && (nia != null && nia > 20);
+  const hasUpperCross = (cva != null && cva < 50);
   if(hasUpperCross) {
     issueCount++;
     detailSections.push(`
@@ -4262,7 +4223,6 @@ function analyzePostureType(metrics) {
           <strong>증후군 설명:</strong> 거북목과 둥근 어깨가 동시에 나타나는 현대인의 대표적 자세 불균형 패턴입니다.<br>
           <strong>전형적 특징:</strong>
           • 머리 전방 돌출 (CVA: ${cva.toFixed(1)}°)
-          • 목 과도한 신전 (NIA: ${nia != null ? nia.toFixed(1) + '°' : '미측정'})
           • 흉추 후만 증가 (등이 굽음)
           • 어깨 전방 회전<br>
           <strong>교정 우선순위:</strong>
@@ -4459,7 +4419,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     const sideMetricsOrder = [
       {key: 'CVA', name: 'CVA(두개경추각)', unit: '°', type: 'side'},
       {key: 'HPD', name: 'HPD(두부전방이동)', unit: 'cm', type: 'side'},
-      {key: 'NIA', name: 'NIA(경추경사각)', unit: '°', type: 'side'},
       {key: 'TIA', name: 'TIA(체간경사각)', unit: '°', type: 'side'},
       {key: 'SAA', name: 'SAA(어깨전방각)', unit: '°', type: 'side'},
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', type: 'side'},
@@ -4804,7 +4763,6 @@ function updateCompare() {
     // 측면 항목
     {key: 'CVA', id: 'Cva', unit: '°'},
     {key: 'HPD', id: 'Hpd', unit: 'cm'},
-    {key: 'NIA', id: 'Nia', unit: '°'},
     {key: 'TIA', id: 'Tia', unit: '°'},
     {key: 'SAA', id: 'Saa', unit: '°'},
     {key: 'PTA', id: 'Pta', unit: '°'},
@@ -6184,33 +6142,35 @@ function exportAsPdf(options = {}) {
         </table>
       </div>
       
-      ${analysis.comments && analysis.comments.length > 0 ? `
+      ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
       <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
         <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🤖 AI 실시간 분석</div>
-        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
-        ${analysis.details && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${Array.isArray(analysis.comments) ? analysis.comments.join(" ") : (analysis.comments || '')}</div>
+        ${analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
       </div>
       ` : ""}
       
-      ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
+      ${(analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0) || (analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0) ? `
       <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden;">
         <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c; line-height:1.4; word-wrap:break-word;">💪 근육 상태 분석</div>
-        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
-        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+        ${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
       </div>
       ` : ""}
       
-      ${analysis.exercises && analysis.exercises.length > 0 ? `
+      ${analysis.exercises && Array.isArray(analysis.exercises) && analysis.exercises.length > 0 ? `
       <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
         <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🏋️ 추천 운동</div>
-        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.filter(ex => ex != null).map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
       </div>
       ` : ""}
       
+      ${sessions.Before && sessions.Before.metrics && sessions.After && sessions.After.metrics ? `
       <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
         <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
         <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
       </div>
+      ` : ''}
       
       <div style="margin-top:20px; font-size:10px; color:#999; text-align:center; line-height:1.5;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
     `;
@@ -6272,7 +6232,38 @@ function exportAsPdf(options = {}) {
       }
     }
     
-    pdf.save(fileName);
+    // PDF를 Blob으로 변환하여 다운로드 (브라우저 호환성 개선)
+    try {
+      const pdfBlob = pdf.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.position = 'fixed';
+      link.style.top = '-9999px';
+      link.style.left = '-9999px';
+      document.body.appendChild(link);
+      
+      // 강제로 다운로드 트리거
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true
+      });
+      link.dispatchEvent(clickEvent);
+      
+      // 약간의 지연 후 정리
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 500);
+    } catch (err) {
+      // 폴백: 직접 save 메서드 사용
+      console.warn('Blob 다운로드 실패, 폴백 사용:', err);
+      pdf.save(fileName);
+    }
     
     resolve();
   } catch(error) {
@@ -6420,7 +6411,6 @@ function setupImageButton() {
       // 측면 항목
       {key: 'CVA', name: 'CVA(두개경추각)', unit: '°', normal: '≥50°'},
       {key: 'HPD', name: 'HPD(두부전방이동)', unit: 'cm', normal: '≤2cm'},
-      {key: 'NIA', name: 'NIA(경추경사각)', unit: '°', normal: '0-20°'},
       {key: 'TIA', name: 'TIA(체간경사각)', unit: '°', normal: '0-10°'},
       {key: 'SAA', name: 'SAA(어깨전방각)', unit: '°', normal: '0-10°'},
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', normal: '0-15°'},
@@ -6493,14 +6483,20 @@ function setupImageButton() {
     let pilatesHTML = '';
     if(analysis.pilates && analysis.pilates.length > 0) {
       analysis.pilates.forEach(item => {
+        if(!item) return;
         pilatesHTML += `<div style="margin-bottom:15px; padding:12px; background:#f9f9f9; border-radius:8px; border-left:3px solid #9c88ff;">`;
-        pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue} (${item.muscles.join(', ')})</div>`;
-        const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
-        tools.forEach(tool => {
-          if(item.pilates[tool] && item.pilates[tool].length > 0) {
-            pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
-          }
-        });
+        const musclesText = (item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0) 
+          ? item.muscles.join(', ') 
+          : '해당 없음';
+        pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue || '분석 항목'} (${musclesText})</div>`;
+        if(item.pilates && typeof item.pilates === 'object') {
+          const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+          tools.forEach(tool => {
+            if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
+              pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
+            }
+          });
+        }
         pilatesHTML += `</div>`;
       });
     }
@@ -6517,7 +6513,7 @@ function setupImageButton() {
         <div style="font-size:16px; font-weight:700; margin-bottom:12px;">📊 체형 종합 점수</div>
         <div style="font-size:42px; font-weight:800; color:${scoreData.score >= 85 ? '#2ec4b6' : scoreData.score >= 70 ? '#ffd166' : '#ff6b6b'}; margin-bottom:10px;">${scoreData.score != null ? scoreData.score : '—'}</div>
         <div style="font-size:11px; color:#666; line-height:1.5;">${scoreData.reasons && scoreData.reasons.length > 0 ? scoreData.reasons.join("<br>") : "모든 측정값이 정상 범위 내에 있습니다."}</div>
-        ${fullMetrics.PDS ? `<div style="margin-top:10px; font-size:12px; color:#666;">PDS: <strong style="color:#7c9cff;">${fullMetrics.PDS.value.toFixed(1)}</strong> (${fullMetrics.PDS.status})</div>` : ''}
+        ${fullMetrics.PDS && fullMetrics.PDS.value != null ? `<div style="margin-top:10px; font-size:12px; color:#666;">PDS: <strong style="color:#7c9cff;">${fullMetrics.PDS.value.toFixed(1)}</strong> (${fullMetrics.PDS.status || 'N/A'})</div>` : ''}
       </div>
       
       <!-- 전체 분석 항목 -->
@@ -6553,19 +6549,19 @@ function setupImageButton() {
       ` : ''}
       
       <!-- AI 분석 -->
-      ${analysis.comments && analysis.comments.length > 0 ? `
+      ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
       <div style="margin-bottom:25px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6;">
         <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">🤖 AI 체형 분석</div>
-        <div style="font-size:12px; line-height:1.6;">${analysis.comments.join(" ")}</div>
+        <div style="font-size:12px; line-height:1.6;">${Array.isArray(analysis.comments) ? analysis.comments.join(" ") : (analysis.comments || '')}</div>
       </div>
       ` : ''}
       
       <!-- 근육 상태 -->
-      ${(analysis.tight && analysis.tight.length > 0) || (analysis.weak && analysis.weak.length > 0) ? `
+      ${(analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0) || (analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0) ? `
       <div style="margin-bottom:25px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c;">
         <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
-        ${analysis.tight && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ''}
-        ${analysis.weak && analysis.weak.length > 0 ? `<div style="line-height:1.5;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ''}
+        ${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ''}
+        ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div style="line-height:1.5;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ''}
       </div>
       ` : ''}
       
@@ -6578,10 +6574,10 @@ function setupImageButton() {
       ` : ''}
       
       <!-- 추천 운동 -->
-      ${analysis.exercises && analysis.exercises.length > 0 ? `
+      ${analysis.exercises && Array.isArray(analysis.exercises) && analysis.exercises.length > 0 ? `
       <div style="margin-bottom:25px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6;">
         <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6;">🏋️ 추천 운동</div>
-        <div style="font-size:12px; line-height:1.8;">${analysis.exercises.map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+        <div style="font-size:12px; line-height:1.8;">${analysis.exercises.filter(ex => ex != null).map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
       </div>
       ` : ''}
       
@@ -6603,20 +6599,77 @@ function setupImageButton() {
     
     document.body.removeChild(fullContainer);
     
-    // 이미지 다운로드
-    const imgData = fullCanvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.href = imgData;
-    link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
-    link.click();
-    
-    btn.textContent = originalText;
-    btn.disabled = false;
-    
-      // 모바일에서 성공 메시지
-      if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        alert("이미지가 저장되었습니다!");
-      }
+    // 이미지 다운로드 (Blob 방식으로 개선)
+    try {
+      // Canvas를 Blob으로 변환
+      fullCanvas.toBlob((blob) => {
+        if (!blob) {
+          throw new Error('이미지 변환 실패');
+        }
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        link.style.position = 'fixed';
+        link.style.top = '-9999px';
+        link.style.left = '-9999px';
+        document.body.appendChild(link);
+        
+        // 강제로 다운로드 트리거
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        link.dispatchEvent(clickEvent);
+        
+        // 약간의 지연 후 정리
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          btn.textContent = originalText;
+          btn.disabled = false;
+          
+          // 모바일에서 성공 메시지
+          if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            alert("이미지가 저장되었습니다!");
+          }
+        }, 500);
+      }, 'image/png');
+    } catch (err) {
+      // 폴백: data URL 방식
+      console.warn('Blob 다운로드 실패, data URL 폴백 사용:', err);
+      const imgData = fullCanvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = imgData;
+      link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+      link.style.position = 'fixed';
+      link.style.top = '-9999px';
+      link.style.left = '-9999px';
+      document.body.appendChild(link);
+      
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true
+      });
+      link.dispatchEvent(clickEvent);
+      
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        btn.textContent = originalText;
+        btn.disabled = false;
+        
+        if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          alert("이미지가 저장되었습니다!");
+        }
+      }, 500);
+    }
     } catch(error) {
       console.error("이미지 생성 실패:", error);
       alert("이미지 생성에 실패했습니다: " + error.message);
@@ -6652,9 +6705,9 @@ document.getElementById("btnShare").onclick = async () => {
       `  - CVA: ${M.cva != null ? M.cva.toFixed(1) + "°" : "—"} (정상: ≥50°)\n` +
       `  - TRUNK: ${M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—"} (정상: |0–5°|)\n` +
       `  - KNEE: ${M.knee != null ? M.knee.toFixed(1) + "°" : "—"} (정상: 175–185°)\n\n` +
-      `${analysis.comments && analysis.comments.length > 0 ? analysis.comments.join(" ") + "\n\n" : ""}` +
-      `${analysis.tight && analysis.tight.length > 0 ? "🔴 긴장된 근육: " + analysis.tight.join(", ") + "\n" : ""}` +
-      `${analysis.weak && analysis.weak.length > 0 ? "🔵 약화된 근육: " + analysis.weak.join(", ") + "\n" : ""}` +
+      `${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? analysis.comments.join(" ") + "\n\n" : ""}` +
+      `${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? "🔴 긴장된 근육: " + analysis.tight.join(", ") + "\n" : ""}` +
+      `${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? "🔵 약화된 근육: " + analysis.weak.join(", ") + "\n" : ""}` +
       `\n※ 본 리포트는 교육용으로 제공됩니다.`;
     
     // Web Share API 지원 여부 확인
@@ -6682,7 +6735,23 @@ document.getElementById("btnShare").onclick = async () => {
           const link = document.createElement('a');
           link.href = cvImg;
           link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
-          link.click();
+          link.style.position = 'fixed';
+          link.style.top = '-9999px';
+          link.style.left = '-9999px';
+          document.body.appendChild(link);
+          
+          const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true
+          });
+          link.dispatchEvent(clickEvent);
+          
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+          }, 500);
         }
         btn.textContent = originalText;
         btn.disabled = false;
@@ -6697,7 +6766,23 @@ document.getElementById("btnShare").onclick = async () => {
         const link = document.createElement('a');
         link.href = cvImg;
         link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
-        link.click();
+        link.style.position = 'fixed';
+        link.style.top = '-9999px';
+        link.style.left = '-9999px';
+        document.body.appendChild(link);
+        
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        link.dispatchEvent(clickEvent);
+        
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+        }, 500);
         
         alert('분석 결과가 클립보드에 복사되었고 이미지가 다운로드되었습니다!\n\n다른 앱에 붙여넣어 공유하세요.');
         btn.textContent = originalText;
@@ -6708,7 +6793,23 @@ document.getElementById("btnShare").onclick = async () => {
         const link = document.createElement('a');
         link.href = cvImg;
         link.download = `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`;
-        link.click();
+        link.style.position = 'fixed';
+        link.style.top = '-9999px';
+        link.style.left = '-9999px';
+        document.body.appendChild(link);
+        
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        link.dispatchEvent(clickEvent);
+        
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+        }, 500);
         alert('이미지가 다운로드되었습니다. 수동으로 공유해주세요.');
         btn.textContent = originalText;
         btn.disabled = false;
