@@ -7112,7 +7112,7 @@ function exportAsPdf(options = {}) {
     try {
       // 방법 1: 직접 save 메서드 시도 (가장 안정적)
       try {
-        pdf.save(fileName);
+        pdf.save(finalFileName);
         console.log('PDF 저장 성공 (직접 save)');
       } catch (saveErr) {
         console.warn('직접 save 실패, Blob 방식 시도:', saveErr);
@@ -7124,7 +7124,7 @@ function exportAsPdf(options = {}) {
             const url = URL.createObjectURL(pdfBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = fileName;
+            link.download = finalFileName;
             link.style.display = 'none';
             document.body.appendChild(link);
             
@@ -7161,7 +7161,7 @@ function exportAsPdf(options = {}) {
             const pdfDataUri = pdf.output('datauristring');
             const link = document.createElement('a');
             link.href = pdfDataUri;
-            link.download = fileName;
+            link.download = finalFileName;
             link.style.display = 'none';
             document.body.appendChild(link);
             
