@@ -7016,7 +7016,7 @@ function exportAsPdf(options = {}) {
     
     // ========== 페이지 6: 결론 ==========
     const page6Container = document.createElement("div");
-    Object.assign(page6Container.style, page3Container.style);
+    setPageContainerStyle(page6Container);
     page6Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">⚖️ 결론 및 향후 권장사항</h2>
       <div style="padding:20px; background:#f5f5f5; border-radius:10px; margin-bottom:20px;">
