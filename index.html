@@ -6791,19 +6791,6 @@ function exportAsPdf(options = {}) {
     
     document.body.appendChild(page1Container);
     
-    // 첫 페이지 캡처
-    const canvas1 = await html2canvas(page1Container, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      windowWidth: page1Container.scrollWidth,
-      windowHeight: page1Container.scrollHeight
-    });
-    
-    document.body.removeChild(page1Container);
-    
     // html2canvas 옵션 정의 (폰트 디코딩 오류 방지)
     const html2canvasOptions = {
       scale: 2,
@@ -6812,6 +6799,15 @@ function exportAsPdf(options = {}) {
       allowTaint: true,
       logging: false
     };
+    
+    // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지)
+    const canvas1 = await html2canvas(page1Container, {
+      ...html2canvasOptions,
+      windowWidth: page1Container.scrollWidth,
+      windowHeight: page1Container.scrollHeight
+    });
+    
+    document.body.removeChild(page1Container);
     
     // ========== 페이지 2: Confidence Heatmap ==========
     const page2Container = document.createElement("div");
