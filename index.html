@@ -6100,9 +6100,11 @@ function exportAsPdf(options = {}) {
         pxPerCm: S.pxPerCm || 50.0
       });
       
-      // 측면 및 정면 이미지 준비
-      const sideImg = S.imgSide ? S.imgSide.src : null;
-      const frontImg = S.imgFront ? S.imgFront.src : null;
+      // 캔버스 이미지 가져오기 (dot와 점선 포함)
+      if (!cv || !cv.toDataURL) {
+        throw new Error("캔버스가 준비되지 않았습니다.");
+      }
+      const cvImg = cv.toDataURL("image/png");
       
       // 로고 HTML (있으면)
       const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
@@ -6128,9 +6130,11 @@ function exportAsPdf(options = {}) {
         <!-- 분석 결과 요약 -->
         ${analysisSummaryHtml}
         
-        ${sideImg ? `<div style="margin-top:20px;"><div style="font-size:12px; font-weight:600; margin-bottom:8px;">측면 이미지</div><img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" /></div>` : ''}
-        
-        ${frontImg ? `<div style="margin-top:20px;"><div style="font-size:12px; font-weight:600; margin-bottom:8px;">정면 이미지</div><img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" /></div>` : ''}
+        <!-- 캔버스 이미지 (dot와 점선 포함) -->
+        <div style="margin-top:20px;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
+          <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
+        </div>
         
         <!-- 운동 추천 -->
         ${exerciseRecommendationHtml}
@@ -6215,6 +6219,31 @@ function exportAsPdf(options = {}) {
         <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.filter(ex => ex != null).map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
       </div>
       ` : ""}
+      
+      ${analysis.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0 ? (() => {
+        let pilatesHTML = '';
+        analysis.pilates.forEach((item, idx) => {
+          if(!item) return;
+          pilatesHTML += `<div style="margin-bottom:15px; padding:12px; background:#f9f9f9; border-radius:8px; border-left:3px solid #9c88ff;">`;
+          const musclesText = (item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0) 
+            ? item.muscles.join(', ') 
+            : '해당 없음';
+          pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue || '분석 항목'} (${musclesText})</div>`;
+          if(item.pilates && typeof item.pilates === 'object') {
+            const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+            tools.forEach(tool => {
+              if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
+                pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
+              }
+            });
+          }
+          pilatesHTML += `</div>`;
+        });
+        return `<div style="margin-bottom:25px; padding:18px; background:#f3e5f5; border-radius:10px; border-left:4px solid #9c88ff; box-sizing:border-box; overflow:hidden;">
+          <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#9c88ff; line-height:1.4; word-wrap:break-word;">🧘 필라테스 세션 추천</div>
+          ${pilatesHTML}
+        </div>`;
+      })() : ""}
       
       ${sessions.Before && sessions.Before.metrics && sessions.After && sessions.After.metrics ? `
       <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
