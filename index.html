@@ -6306,11 +6306,51 @@ function exportAsPdf(options = {}) {
         pxPerCm: S.pxPerCm || 50.0
       });
       
-      // 캔버스 이미지 가져오기 (dot와 점선 포함)
+      // Before/After 캔버스 이미지 가져오기 (dot와 점선 포함)
       if (!cv || !cv.toDataURL) {
         throw new Error("캔버스가 준비되지 않았습니다.");
       }
-      const cvImg = cv.toDataURL("image/png");
+      
+      // 현재 세션 저장
+      const originalCur = cur;
+      
+      // Before 이미지 캡처
+      let beforeImg = null;
+      if(sessions.Before && (sessions.Before.sidePoints.size > 0 || sessions.Before.frontPoints.size > 0)) {
+        const beforeOrientation = sessions.Before.poseData?.orientation || "side";
+        switchSession("Before");
+        if(beforeOrientation !== (sessions.Before.poseData?.orientation || "side")) {
+          setOrientation(beforeOrientation);
+        }
+        // 캔버스 그리기 대기
+        await new Promise(resolve => setTimeout(resolve, 100));
+        draw();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        beforeImg = cv.toDataURL("image/png");
+      }
+      
+      // After 이미지 캡처
+      let afterImg = null;
+      if(sessions.After && (sessions.After.sidePoints.size > 0 || sessions.After.frontPoints.size > 0)) {
+        const afterOrientation = sessions.After.poseData?.orientation || "side";
+        switchSession("After");
+        if(afterOrientation !== (sessions.After.poseData?.orientation || "side")) {
+          setOrientation(afterOrientation);
+        }
+        // 캔버스 그리기 대기
+        await new Promise(resolve => setTimeout(resolve, 100));
+        draw();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        afterImg = cv.toDataURL("image/png");
+      }
+      
+      // 원래 세션으로 복원
+      switchSession(originalCur);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      draw();
+      
+      // 현재 세션 이미지 (하위 호환성)
+      const cvImg = afterImg || beforeImg || cv.toDataURL("image/png");
       
       // 로고 HTML (있으면)
       const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
@@ -6336,11 +6376,27 @@ function exportAsPdf(options = {}) {
         <!-- 분석 결과 요약 -->
         ${analysisSummaryHtml}
         
-        <!-- 캔버스 이미지 (dot와 점선 포함) -->
+        <!-- Before/After 이미지 비교 (dot와 점선 포함) -->
+        ${beforeImg && afterImg ? `
+        <div style="margin-top:20px;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:8px;">Before-After 자세 분석 이미지</div>
+          <div style="display:flex; gap:15px; justify-content:space-between;">
+            <div style="flex:1; text-align:center;">
+              <img src="${beforeImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
+              <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">Before</div>
+            </div>
+            <div style="flex:1; text-align:center;">
+              <img src="${afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
+              <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">After</div>
+            </div>
+          </div>
+        </div>
+        ` : beforeImg || afterImg ? `
         <div style="margin-top:20px;">
           <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
-          <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
+          <img src="${beforeImg || afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
         </div>
+        ` : ''}
         
         <!-- 운동 추천 -->
         ${exerciseRecommendationHtml}
@@ -6427,6 +6483,49 @@ function exportAsPdf(options = {}) {
       ` : ""}
       
       ${analysis.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0 ? (() => {
+        // 테이블 형식으로 필라테스 추천 생성
+        let tableRows = '';
+        analysis.pilates.forEach((item, idx) => {
+          if(!item) return;
+          const musclesText = (item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0) 
+            ? item.muscles.join(', ') 
+            : '해당 없음';
+          
+          if(item.pilates && typeof item.pilates === 'object') {
+            const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+            tools.forEach(tool => {
+              if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
+                const exercises = item.pilates[tool].map(ex => {
+                  if(typeof ex === 'object' && ex.en) {
+                    return `${ex.en} (${ex.ko || ex.en})`;
+                  }
+                  return ex;
+                }).join(', ');
+                tableRows += `<tr style="background:${tableRows.split('</tr>').length % 2 === 0 ? '#fff' : '#fafafa'};">
+                  <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${tool}</td>
+                  <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${exercises}</td>
+                  <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555;">${item.issue || '자세 개선'}</td>
+                </tr>`;
+              }
+            });
+          }
+        });
+        
+        if(tableRows) {
+          return `<div style="margin-bottom:25px; padding:18px; background:#f3e5f5; border-radius:10px; border-left:4px solid #9c88ff; box-sizing:border-box; overflow:hidden;">
+            <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#9c88ff; line-height:1.4; word-wrap:break-word;">🧘 필라테스 세션 추천</div>
+            <table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-top:10px;">
+              <tr style="background:#f0f0f0;">
+                <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">기구</th>
+                <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">운동 이름</th>
+                <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">목적</th>
+              </tr>
+              ${tableRows}
+            </table>
+          </div>`;
+        }
+        
+        // 테이블 형식이 불가능한 경우 기존 형식 사용
         let pilatesHTML = '';
         analysis.pilates.forEach((item, idx) => {
           if(!item) return;
@@ -6478,9 +6577,73 @@ function exportAsPdf(options = {}) {
         });
         comparisonTableHTML += '</table>';
         
+        // 그래프 생성 (SVG 막대 그래프)
+        const graphWidth = 700;
+        const graphHeight = 200;
+        const barWidth = 20;
+        const barSpacing = 35;
+        const maxValue = Math.max(...comparison.results.map(r => Math.max(r.before, r.after)), 100);
+        const scale = (graphHeight - 40) / maxValue;
+        
+        let graphSVG = `<svg width="${graphWidth}" height="${graphHeight}" style="border:1px solid #ddd; background:#fff; margin-top:15px;">
+          <defs>
+            <linearGradient id="beforeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+            </linearGradient>
+            <linearGradient id="afterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <!-- Y축 그리드 -->
+          ${[0, 25, 50, 75, 100].map(y => {
+            const yPos = graphHeight - 20 - (y / maxValue * (graphHeight - 40));
+            return `<line x1="40" y1="${yPos}" x2="${graphWidth - 10}" y2="${yPos}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="2,2"/>
+              <text x="35" y="${yPos + 4}" font-size="9" fill="#666" text-anchor="end">${y}</text>`;
+          }).join('')}
+          <!-- 막대 그래프 -->
+          ${comparison.results.map((item, idx) => {
+            const x = 50 + idx * barSpacing;
+            const beforeHeight = item.before * scale;
+            const afterHeight = item.after * scale;
+            const beforeY = graphHeight - 20 - beforeHeight;
+            const afterY = graphHeight - 20 - afterHeight;
+            const maxBarHeight = Math.max(beforeHeight, afterHeight);
+            const label = item.name.replace(/\([^)]*\)/g, '').substring(0, 6);
+            
+            return `
+              <!-- Before 막대 -->
+              <rect x="${x - barWidth/2}" y="${beforeY}" width="${barWidth}" height="${beforeHeight}" fill="url(#beforeGrad)" opacity="0.8"/>
+              <text x="${x}" y="${beforeY - 5}" font-size="8" fill="#6366f1" text-anchor="middle" font-weight="600">${item.before.toFixed(1)}</text>
+              
+              <!-- After 막대 -->
+              <rect x="${x + barWidth/2}" y="${afterY}" width="${barWidth}" height="${afterHeight}" fill="url(#afterGrad)" opacity="0.8"/>
+              <text x="${x + barWidth}" y="${afterY - 5}" font-size="8" fill="#10b981" text-anchor="middle" font-weight="600">${item.after.toFixed(1)}</text>
+              
+              <!-- 라벨 -->
+              <text x="${x + barWidth/2}" y="${graphHeight - 5}" font-size="8" fill="#333" text-anchor="middle" transform="rotate(-45 ${x + barWidth/2} ${graphHeight - 5})">${label}</text>
+            `;
+          }).join('')}
+          <!-- 범례 -->
+          <g transform="translate(${graphWidth - 120}, 10)">
+            <rect x="0" y="0" width="15" height="15" fill="url(#beforeGrad)"/>
+            <text x="20" y="12" font-size="10" fill="#333">Before</text>
+            <rect x="0" y="20" width="15" height="15" fill="url(#afterGrad)"/>
+            <text x="20" y="32" font-size="10" fill="#333">After</text>
+          </g>
+        </svg>`;
+        
         return `<div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; box-sizing:border-box; overflow:hidden;">
           <div style="font-size:14px; font-weight:700; margin-bottom:12px; line-height:1.4; word-wrap:break-word;">📊 Before-After 비교 분석</div>
           ${comparisonTableHTML}
+          
+          <!-- 막대 그래프 -->
+          <div style="margin-top:20px;">
+            <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#333;">📈 Before-After 그래프</div>
+            ${graphSVG}
+          </div>
+          
           <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
             <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">📈 전체 변화 요약</div>
             <div style="font-size:11px; line-height:1.6; color:#333; word-wrap:break-word; overflow-wrap:break-word;">${comparison.summary.overallComment}</div>
@@ -6729,8 +6892,47 @@ function setupImageButton() {
     fullContainer.style.boxSizing = "border-box";
     fullContainer.style.wordWrap = "break-word";
     
-    // 캔버스 이미지 가져오기
-    const cvImg = cv.toDataURL("image/png");
+    // Before/After 캔버스 이미지 가져오기 (dot와 점선 포함)
+    // 현재 세션 저장
+    const originalCur = cur;
+    
+    // Before 이미지 캡처
+    let beforeImg = null;
+    if(sessions.Before && (sessions.Before.sidePoints.size > 0 || sessions.Before.frontPoints.size > 0)) {
+      const beforeOrientation = sessions.Before.poseData?.orientation || "side";
+      switchSession("Before");
+      if(beforeOrientation !== (sessions.Before.poseData?.orientation || "side")) {
+        setOrientation(beforeOrientation);
+      }
+      // 캔버스 그리기 대기
+      await new Promise(resolve => setTimeout(resolve, 100));
+      draw();
+      await new Promise(resolve => setTimeout(resolve, 50));
+      beforeImg = cv.toDataURL("image/png");
+    }
+    
+    // After 이미지 캡처
+    let afterImg = null;
+    if(sessions.After && (sessions.After.sidePoints.size > 0 || sessions.After.frontPoints.size > 0)) {
+      const afterOrientation = sessions.After.poseData?.orientation || "side";
+      switchSession("After");
+      if(afterOrientation !== (sessions.After.poseData?.orientation || "side")) {
+        setOrientation(afterOrientation);
+      }
+      // 캔버스 그리기 대기
+      await new Promise(resolve => setTimeout(resolve, 100));
+      draw();
+      await new Promise(resolve => setTimeout(resolve, 50));
+      afterImg = cv.toDataURL("image/png");
+    }
+    
+    // 원래 세션으로 복원
+    switchSession(originalCur);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    draw();
+    
+    // 현재 세션 이미지 (하위 호환성)
+    const cvImg = afterImg || beforeImg || cv.toDataURL("image/png");
     
     // 전체 분석 항목 HTML 생성
     const metricsOrder = [
@@ -6805,34 +7007,93 @@ function setupImageButton() {
       }
     });
     
-    // 필라테스 추천 HTML 생성
+    // 필라테스 추천 HTML 생성 (테이블 형식)
     let pilatesHTML = '';
-    if(analysis.pilates && analysis.pilates.length > 0) {
-      analysis.pilates.forEach(item => {
+    if(analysis.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
+      // 테이블 형식으로 필라테스 추천 생성
+      let tableRows = '';
+      analysis.pilates.forEach((item, idx) => {
         if(!item) return;
-        pilatesHTML += `<div style="margin-bottom:15px; padding:12px; background:#f9f9f9; border-radius:8px; border-left:3px solid #9c88ff;">`;
         const musclesText = (item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0) 
           ? item.muscles.join(', ') 
           : '해당 없음';
-        pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue || '분석 항목'} (${musclesText})</div>`;
+        
         if(item.pilates && typeof item.pilates === 'object') {
           const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
           tools.forEach(tool => {
             if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
-              pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
+              const exercises = item.pilates[tool].map(ex => {
+                if(typeof ex === 'object' && ex.en) {
+                  return `${ex.en} (${ex.ko || ex.en})`;
+                }
+                return ex;
+              }).join(', ');
+              tableRows += `<tr style="background:${tableRows.split('</tr>').length % 2 === 0 ? '#fff' : '#fafafa'};">
+                <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${tool}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${exercises}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555;">${item.issue || '자세 개선'}</td>
+              </tr>`;
             }
           });
         }
-        pilatesHTML += `</div>`;
       });
+      
+      if(tableRows) {
+        pilatesHTML = `<table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-top:10px;">
+          <tr style="background:#f0f0f0;">
+            <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">기구</th>
+            <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">운동 이름</th>
+            <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">목적</th>
+          </tr>
+          ${tableRows}
+        </table>`;
+      } else {
+        // 테이블 형식이 불가능한 경우 기존 형식 사용
+        analysis.pilates.forEach(item => {
+          if(!item) return;
+          pilatesHTML += `<div style="margin-bottom:15px; padding:12px; background:#f9f9f9; border-radius:8px; border-left:3px solid #9c88ff;">`;
+          const musclesText = (item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0) 
+            ? item.muscles.join(', ') 
+            : '해당 없음';
+          pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue || '분석 항목'} (${musclesText})</div>`;
+          if(item.pilates && typeof item.pilates === 'object') {
+            const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+            tools.forEach(tool => {
+              if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
+                pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
+              }
+            });
+          }
+          pilatesHTML += `</div>`;
+        });
+      }
     }
     
     fullContainer.innerHTML = `
       <h1 style="margin:0; padding:0; font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:12px; line-height:1.3;">DIT 자세 분석 리포트</h1>
       <div style="font-size:11px; color:#666; margin-bottom:25px;">${new Date().toLocaleString('ko-KR')} | 세션: ${cur}</div>
       
-      <!-- 이미지 -->
-      <img src="${cvImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; margin-bottom:30px; max-height:950px; object-fit:contain;" />
+      <!-- Before/After 이미지 비교 (dot와 점선 포함) -->
+      ${beforeImg && afterImg ? `
+      <div style="margin-bottom:30px;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:8px;">Before-After 자세 분석 이미지</div>
+        <div style="display:flex; gap:15px; justify-content:space-between;">
+          <div style="flex:1; text-align:center;">
+            <img src="${beforeImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:500px; object-fit:contain;" />
+            <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">Before</div>
+          </div>
+          <div style="flex:1; text-align:center;">
+            <img src="${afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:500px; object-fit:contain;" />
+            <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">After</div>
+          </div>
+        </div>
+      </div>
+      ` : beforeImg || afterImg ? `
+      <div style="margin-bottom:30px;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
+        <img src="${beforeImg || afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:950px; object-fit:contain;" />
+      </div>
+      ` : ''}
       
       <!-- 체형 종합 점수 -->
       <div style="margin-bottom:25px; padding:18px; background:#f5f5f5; border-radius:10px;">
