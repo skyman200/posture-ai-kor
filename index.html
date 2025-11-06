@@ -6821,23 +6821,28 @@ function exportAsPdf(options = {}) {
     
     document.body.removeChild(page2Container);
     
+    // 공통 페이지 스타일 설정 함수
+    const setPageContainerStyle = (container) => {
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.style.top = "0";
+      container.style.width = "794px";
+      container.style.padding = "30px 25px";
+      container.style.paddingBottom = "40px";
+      container.style.background = "#ffffff";
+      container.style.color = "#111";
+      container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+      container.style.fontSize = "12px";
+      container.style.lineHeight = "1.6";
+      container.style.boxSizing = "border-box";
+      container.style.overflow = "hidden";
+      container.style.wordWrap = "break-word";
+    };
+    
     // ========== 페이지 3: 수치표 + 변화 그래프 ==========
     const comparison = analyzeBeforeAfterComparison();
     const page3Container = document.createElement("div");
-    page3Container.style.position = "fixed";
-    page3Container.style.left = "-9999px";
-    page3Container.style.top = "0";
-    page3Container.style.width = "794px";
-    page3Container.style.padding = "30px 25px";
-    page3Container.style.paddingBottom = "40px";
-    page3Container.style.background = "#ffffff";
-    page3Container.style.color = "#111";
-    page3Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
-    page3Container.style.fontSize = "12px";
-    page3Container.style.lineHeight = "1.6";
-    page3Container.style.boxSizing = "border-box";
-    page3Container.style.overflow = "hidden";
-    page3Container.style.wordWrap = "break-word";
+    setPageContainerStyle(page3Container);
     
     let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
     
@@ -6932,7 +6937,7 @@ function exportAsPdf(options = {}) {
     
     // ========== 페이지 4: AI 해석 요약 ==========
     const page4Container = document.createElement("div");
-    Object.assign(page4Container.style, page3Container.style);
+    setPageContainerStyle(page4Container);
     page4Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧠 AI 해석 요약</h2>
       ${analysisSummaryHtml}
@@ -6963,7 +6968,7 @@ function exportAsPdf(options = {}) {
     
     // ========== 페이지 5: 필라테스 세션 추천 (측정기반) ==========
     const page5Container = document.createElement("div");
-    Object.assign(page5Container.style, page3Container.style);
+    setPageContainerStyle(page5Container);
     let page5HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 세션 추천 (측정기반)</h2>';
     
     if(metricBasedPilates && metricBasedPilates.length > 0) {
