@@ -579,6 +579,7 @@ canvas {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"></script>
@@ -7082,7 +7083,7 @@ function exportAsPdf(options = {}) {
       container.classList.add('pdf-safe');
     };
     
-    // ========== 페이지 3: 수치표 + 변화 그래프 ==========
+    // ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) ==========
     const comparison = analyzeBeforeAfterComparison();
     const page3Container = document.createElement("div");
     setPageContainerStyle(page3Container);
@@ -7106,57 +7107,127 @@ function exportAsPdf(options = {}) {
       });
       comparisonTableHTML += '</table>';
       
-      // 그래프 생성
-      const graphWidth = 700;
-      const graphHeight = 200;
-      const barWidth = 20;
-      const barSpacing = 35;
-      const maxValue = Math.max(...comparison.results.map(r => Math.max(r.before, r.after)), 100);
-      const scale = (graphHeight - 40) / maxValue;
+      // Chart.js 그래프 생성
+      const chartContainer = document.createElement("div");
+      chartContainer.style.width = "100%";
+      chartContainer.style.height = "400px";
+      chartContainer.style.marginTop = "20px";
+      chartContainer.style.marginBottom = "20px";
       
-      let graphSVG = `<svg width="${graphWidth}" height="${graphHeight}" style="border:1px solid #ddd; background:#fff; margin-top:15px;">
-        <defs>
-          <linearGradient id="beforeGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
-          </linearGradient>
-          <linearGradient id="afterGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
-          </linearGradient>
-        </defs>
-        ${[0, 25, 50, 75, 100].map(y => {
-          const yPos = graphHeight - 20 - (y / maxValue * (graphHeight - 40));
-          return `<line x1="40" y1="${yPos}" x2="${graphWidth - 10}" y2="${yPos}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="2,2"/>
-            <text x="35" y="${yPos + 4}" font-size="9" fill="#666" text-anchor="end">${y}</text>`;
-        }).join('')}
-        ${comparison.results.map((item, idx) => {
-          const x = 50 + idx * barSpacing;
-          const beforeHeight = item.before * scale;
-          const afterHeight = item.after * scale;
-          const beforeY = graphHeight - 20 - beforeHeight;
-          const afterY = graphHeight - 20 - afterHeight;
-          const label = item.name.replace(/\([^)]*\)/g, '').substring(0, 6);
-          return `
-            <rect x="${x - barWidth/2}" y="${beforeY}" width="${barWidth}" height="${beforeHeight}" fill="url(#beforeGrad3)" opacity="0.8"/>
-            <text x="${x}" y="${beforeY - 5}" font-size="8" fill="#6366f1" text-anchor="middle" font-weight="600">${item.before.toFixed(1)}</text>
-            <rect x="${x + barWidth/2}" y="${afterY}" width="${barWidth}" height="${afterHeight}" fill="url(#afterGrad3)" opacity="0.8"/>
-            <text x="${x + barWidth}" y="${afterY - 5}" font-size="8" fill="#10b981" text-anchor="middle" font-weight="600">${item.after.toFixed(1)}</text>
-            <text x="${x + barWidth/2}" y="${graphHeight - 5}" font-size="8" fill="#333" text-anchor="middle" transform="rotate(-45 ${x + barWidth/2} ${graphHeight - 5})">${label}</text>
-          `;
-        }).join('')}
-        <g transform="translate(${graphWidth - 120}, 10)">
-          <rect x="0" y="0" width="15" height="15" fill="url(#beforeGrad3)"/>
-          <text x="20" y="12" font-size="10" fill="#333">Before</text>
-          <rect x="0" y="20" width="15" height="15" fill="url(#afterGrad3)"/>
-          <text x="20" y="32" font-size="10" fill="#333">After</text>
-        </g>
-      </svg>`;
+      const chartCanvas = document.createElement("canvas");
+      chartCanvas.id = "beforeAfterChart";
+      chartCanvas.width = 800;
+      chartCanvas.height = 400;
+      chartContainer.appendChild(chartCanvas);
+      
+      // 정상 범위 정의
+      const normalRange = {
+        'CVA(두개경추각)': [50, 90],
+        'HPD(두부전방이동)': [0, 2],
+        'TIA(체간경사각)': [0, 10],
+        'SAA(어깨전방각)': [0, 10],
+        'PTA(골반경사각)': [0, 15],
+        'KA(무릎각)': [175, 185],
+        'Tibial(경골경사각)': [0, 10],
+        'GSB(중심선)': [0, 2],
+        'HPA(머리-골반각)': [0, 10]
+      };
+      
+      // 정상 범위 벗어남 확인 함수
+      const isOutOfRange = (metricName, val) => {
+        const key = Object.keys(normalRange).find(k => metricName.includes(k.replace(/[()]/g, '')));
+        if(!key) return false;
+        const [min, max] = normalRange[key];
+        return val < min || val > max;
+      };
+      
+      const labels = comparison.results.map(r => r.name);
+      const beforeData = comparison.results.map(r => r.before);
+      const afterData = comparison.results.map(r => r.after);
+      
+      // Chart.js 그래프 생성
+      if(typeof Chart !== 'undefined') {
+        const ctx = chartCanvas.getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Before',
+                data: beforeData,
+                backgroundColor: beforeData.map((v, i) => 
+                  isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
+                borderColor: beforeData.map((v, i) => 
+                  isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
+                borderWidth: 1
+              },
+              {
+                label: 'After',
+                data: afterData,
+                backgroundColor: afterData.map((v, i) => 
+                  isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
+                borderColor: afterData.map((v, i) => 
+                  isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: { 
+                display: true, 
+                text: 'Before–After 자세 비교 그래프', 
+                font: { size: 16, weight: 'bold' },
+                padding: { top: 10, bottom: 20 }
+              },
+              legend: { 
+                position: 'top',
+                labels: {
+                  font: { size: 12 },
+                  padding: 15
+                }
+              },
+              tooltip: { 
+                callbacks: { 
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
+                } 
+              }
+            },
+            scales: {
+              y: { 
+                beginAtZero: true, 
+                title: { 
+                  display: true, 
+                  text: '단위 (° / cm)',
+                  font: { size: 12 }
+                },
+                ticks: {
+                  font: { size: 10 }
+                }
+              },
+              x: { 
+                ticks: { 
+                  autoSkip: false, 
+                  maxRotation: 45, 
+                  minRotation: 45,
+                  font: { size: 9 }
+                }
+              }
+            }
+          }
+        });
+      }
       
       page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
         <div style="margin-top:20px;">
-          <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#333;">📈 Before-After 그래프</div>
-          ${graphSVG}
+          <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#333;">📈 Before-After 그래프 (Chart.js)</div>
+          <div style="background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd;">
+            <div style="font-size:10px; color:#666; margin-bottom:8px;">🔵 Before (교정 전) | 🟢 After (교정 후) | ⚠️ 붉은 값 = 정상범위 벗어남</div>
+            ${chartContainer.outerHTML}
+          </div>
         </div>
         <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
           <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">📈 전체 변화 요약</div>
@@ -7175,7 +7246,16 @@ function exportAsPdf(options = {}) {
     
     page3Container.innerHTML = page3HTML;
     document.body.appendChild(page3Container);
-    const canvas3 = await html2canvas(page3Container, html2canvasOptions);
+    
+    // Chart.js 그래프가 렌더링될 시간을 주기 위해 약간 대기
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const canvas3 = await html2canvas(page3Container, {
+      ...html2canvasOptions,
+      scale: 2,
+      windowWidth: page3Container.scrollWidth,
+      windowHeight: page3Container.scrollHeight
+    });
     document.body.removeChild(page3Container);
     
     // ========== 페이지 4: AI 해석 요약 ==========
