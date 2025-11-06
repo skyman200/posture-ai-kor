@@ -7136,19 +7136,34 @@ function generateAIDeepAnalysis(metrics) {
 // ========== 100종 DB 기반 규칙 엔진 ==========
 
 /**********************
- * 100종 DB 로더
+ * 100종 DB 로더 (캐시 방식)
  **********************/
 let POSTURE_DB = [];
+let postureDBCache = null;
 
 async function loadPostureDB() {
-  if (POSTURE_DB.length) return POSTURE_DB;
+  // 캐시 우선 확인
+  if (postureDBCache) {
+    POSTURE_DB = postureDBCache;
+    return POSTURE_DB;
+  }
+  // 기존 배열 확인
+  if (POSTURE_DB.length) {
+    postureDBCache = POSTURE_DB;
+    return POSTURE_DB;
+  }
+  
   try {
-    const res = await fetch('/db/Posture_Muscle_DB_Full.json', { cache: 'no-store' });
-    POSTURE_DB = await res.json();
+    const response = await fetch('/db/Posture_Muscle_DB_Full.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error('DB 파일 로드 실패');
+    POSTURE_DB = await response.json();
+    postureDBCache = POSTURE_DB;
+    console.log('✅ DB Loaded:', POSTURE_DB.length, 'records');
     return POSTURE_DB;
   } catch (e) {
-    console.error('DB 로드 실패:', e);
+    console.error('❌ DB 로드 실패:', e);
     POSTURE_DB = []; // 빈 배열로도 동작
+    postureDBCache = null;
     return POSTURE_DB;
   }
 }
@@ -7382,6 +7397,295 @@ function renderSessionCardsHTML(list) {
 async function runDBDrivenAI(metrics) {
   const analysis = await analyzeWithDB(metrics);
   return analysis;
+}
+
+/**********************
+ * Before-After 비교 AI 분석 함수
+ * before: {CVA: 63.4, HPD: 0.9, ...}
+ * after: {CVA: 72.3, HPD: 0.9, ...}
+ **********************/
+async function analyzePostureAI(before, after) {
+  const db = await loadPostureDB();
+  if (!db || db.length === 0) {
+    console.warn('DB가 로드되지 않았습니다. 기존 분석을 사용합니다.');
+    return { error: 'DB 로드 실패', results: [] };
+  }
+
+  const results = [];
+  
+  // DB 구조에 맞게 매칭 (지표코드 또는 metric 필드 확인)
+  for (const [metric, beforeVal] of Object.entries(before)) {
+    const afterVal = after[metric];
+    if (afterVal == null) continue;
+    
+    // DB에서 해당 지표 찾기 (지표코드 또는 metric 필드로 매칭)
+    const rule = db.find(item => {
+      const dbCode = String(item['지표코드'] || item.metric || '').toUpperCase();
+      return dbCode === metric.toUpperCase();
+    });
+    
+    if (!rule) continue;
+
+    const delta = afterVal - beforeVal;
+    
+    // 정상 범위 파싱
+    const normalText = rule['정상범위'] || rule.normalRange || NORMAL_TEXT[metric];
+    const norm = parseNormalRange(normalText);
+    
+    let status = '정상';
+    if (norm) {
+      if (norm.type === 'range') {
+        if (afterVal < norm.min) status = '낮음';
+        else if (afterVal > norm.max) status = '높음';
+        else status = '정상';
+      } else if (norm.type === 'min') {
+        if (afterVal < norm.min) status = '낮음';
+        else if (metric === 'CVA' && afterVal >= 70) status = '높음(과신전)';
+        else status = '정상';
+      } else if (norm.type === 'max') {
+        if (afterVal > norm.max) status = '높음';
+        else status = '정상';
+      }
+    }
+
+    results.push({
+      metric: metric,
+      name: rule['지표명'] || rule.name || metric,
+      before: beforeVal,
+      after: afterVal,
+      change: delta.toFixed(1),
+      unit: rule['측정단위'] || rule.unit || '°',
+      status,
+      aiComment: rule['문제설명'] || rule.aiComment || '',
+      musclePattern: {
+        tight: rule['긴장근육(주요)'] || rule.musclePattern?.tight || '',
+        weak: rule['약화근육(주요)'] || rule.musclePattern?.weak || ''
+      },
+      pilatesSession: {
+        mat: rule['필라테스운동(Mat)'] || rule.pilatesSession?.mat || '',
+        reformer: rule['필라테스운동(Reformer)'] || rule.pilatesSession?.reformer || '',
+        cadillac: rule['필라테스운동(Cadillac)'] || rule.pilatesSession?.cadillac || '',
+        chair: rule['필라테스운동(Chair)'] || rule.pilatesSession?.chair || '',
+        barrel: rule['필라테스운동(Barrel)'] || rule.pilatesSession?.barrel || ''
+      },
+      guide: rule['교정운동(도수/자가)'] || rule.guide || rule.exerciseGuide || '',
+      clinical: rule['임상적의미'] || rule.clinical || '',
+      level: rule['추천레벨(초급/중급/고급)'] || rule.level || ''
+    });
+  }
+  
+  console.table(results);
+  return { results, error: null };
+}
+
+/**********************
+ * Before-After 비교 그래프 생성 (Chart.js)
+ **********************/
+function drawComparisonChart(before, after, containerId = null) {
+  const canvas = containerId ? document.getElementById(containerId) : document.createElement('canvas');
+  if (!canvas) {
+    console.error('Canvas element not found');
+    return null;
+  }
+  
+  if (!containerId) {
+    canvas.width = 600;
+    canvas.height = 300;
+  }
+  
+  const ctx = canvas.getContext('2d');
+  
+  // 기존 Chart 인스턴스가 있으면 제거
+  if (canvas.chart) {
+    canvas.chart.destroy();
+  }
+  
+  const labels = Object.keys(before);
+  const beforeData = Object.values(before);
+  const afterData = labels.map(key => after[key] || 0);
+  
+  canvas.chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Before',
+          data: beforeData,
+          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'After',
+          data: afterData,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: !containerId, // containerId가 있으면 false
+      maintainAspectRatio: containerId ? false : true,
+      scales: { 
+        y: { beginAtZero: true },
+        x: {
+          ticks: {
+            maxRotation: 45,
+            minRotation: 45
+          }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        title: { 
+          display: true, 
+          text: 'Before–After 비교 그래프',
+          font: { size: 16, weight: 'bold' }
+        }
+      }
+    }
+  });
+  
+  return canvas;
+}
+
+/**********************
+ * 간단한 PDF 생성 함수 (Before-After 비교 중심)
+ * centerName, memberName: 센터명, 회원명
+ * before, after: {CVA: 63.4, HPD: 0.9, ...} 형태의 metrics 객체
+ **********************/
+async function generatePosturePDF(centerName, memberName, before, after) {
+  try {
+    const analysis = await analyzePostureAI(before, after);
+    if (analysis.error) {
+      console.warn('DB 기반 분석 실패, 기존 방식 사용');
+      // 기존 exportAsPdf 호출로 폴백
+      return await exportAsPdf({
+        centerName: centerName,
+        memberName: memberName
+      });
+    }
+
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+      throw new Error('jsPDF가 로드되지 않았습니다.');
+    }
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    pdf.setFont('helvetica', 'normal');
+
+    // 표지
+    pdf.setFontSize(20);
+    pdf.text('AI 자세 분석 리포트', 105, 20, { align: 'center' });
+    pdf.setFontSize(12);
+    pdf.text(`센터명: ${centerName || '미입력'}`, 20, 35);
+    pdf.text(`회원명: ${memberName || '미입력'}`, 20, 42);
+    pdf.text(`생성일: ${new Date().toLocaleDateString('ko-KR')}`, 20, 49);
+
+    // Before-After 그래프
+    const chartCanvas = drawComparisonChart(before, after);
+    if (chartCanvas) {
+      // Chart.js 렌더링 대기
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const chartImg = chartCanvas.toDataURL('image/png');
+      pdf.addImage(chartImg, 'PNG', 10, 60, 180, 80);
+      pdf.text('Before–After 변화 시각화', 20, 155);
+    }
+
+    // AI 분석 결과
+    let y = 170;
+    for (const item of analysis.results) {
+      if (y > 260) {
+        pdf.addPage();
+        y = 20;
+      }
+
+      pdf.setFontSize(11);
+      pdf.text(`${item.name} (${item.metric})`, 20, y);
+      pdf.setFontSize(10);
+      pdf.text(`Before: ${item.before}${item.unit} | After: ${item.after}${item.unit}`, 20, y + 6);
+      pdf.text(`변화: ${item.change >= 0 ? '+' : ''}${item.change}${item.unit} → 상태: ${item.status}`, 20, y + 12);
+      
+      if (item.aiComment) {
+        const commentLines = pdf.splitTextToSize(`💬 ${item.aiComment}`, 170);
+        pdf.text(commentLines, 20, y + 18);
+        y += commentLines.length * 5;
+      }
+      
+      if (item.musclePattern && (item.musclePattern.tight || item.musclePattern.weak)) {
+        const muscleText = `🦴 근육패턴: 긴장(${item.musclePattern.tight || '—'}) / 약화(${item.musclePattern.weak || '—'})`;
+        const muscleLines = pdf.splitTextToSize(muscleText, 170);
+        pdf.text(muscleLines, 20, y + 6);
+        y += muscleLines.length * 5;
+      }
+      
+      if (item.pilatesSession) {
+        const pilatesParts = [];
+        if (item.pilatesSession.mat) pilatesParts.push(`Mat: ${item.pilatesSession.mat}`);
+        if (item.pilatesSession.reformer) pilatesParts.push(`Reformer: ${item.pilatesSession.reformer}`);
+        if (item.pilatesSession.cadillac) pilatesParts.push(`Cadillac: ${item.pilatesSession.cadillac}`);
+        if (item.pilatesSession.chair) pilatesParts.push(`Chair: ${item.pilatesSession.chair}`);
+        if (item.pilatesSession.barrel) pilatesParts.push(`Barrel: ${item.pilatesSession.barrel}`);
+        
+        if (pilatesParts.length > 0) {
+          const pilatesText = `🧘 필라테스 세션: ${pilatesParts.join(' | ')}`;
+          const pilatesLines = pdf.splitTextToSize(pilatesText, 170);
+          pdf.text(pilatesLines, 20, y + 6);
+          y += pilatesLines.length * 5;
+        }
+      }
+      
+      if (item.guide) {
+        const guideLines = pdf.splitTextToSize(`🏋 운동가이드: ${item.guide}`, 170);
+        pdf.text(guideLines, 20, y + 6);
+        y += guideLines.length * 5;
+      }
+
+      y += 10; // 항목 간 간격
+    }
+
+    // 파일명 생성
+    const fileName = `${memberName || '회원'}_AI_Report_v2.pdf`;
+    
+    // PDF 저장 (다중 방식 시도)
+    try {
+      pdf.save(fileName);
+      console.log('✅ PDF 생성 완료:', fileName);
+    } catch (saveErr) {
+      console.warn('직접 save 실패, Blob 방식 시도:', saveErr);
+      try {
+        const pdfBlob = pdf.output('blob');
+        if (pdfBlob) {
+          const url = URL.createObjectURL(pdfBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+            URL.revokeObjectURL(url);
+          }, 1000);
+          console.log('✅ PDF 생성 완료 (Blob 방식):', fileName);
+        }
+      } catch (blobErr) {
+        console.error('PDF 저장 실패:', blobErr);
+        throw blobErr;
+      }
+    }
+  } catch (err) {
+    console.error('PDF 생성 오류:', err);
+    // 폴백: 기존 exportAsPdf 사용
+    return await exportAsPdf({
+      centerName: centerName,
+      memberName: memberName
+    });
+  }
 }
 
 // 측정 결과 기반 필라테스 추천 (올바른 metrics 구조 사용)
