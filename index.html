@@ -7410,26 +7410,6 @@ function setupPDFButton() {
         return;
       }
       
-      // 센터명과 회원명 입력 받기
-      let centerName = localStorage.getItem('centerName');
-      let memberName = localStorage.getItem('memberName');
-      
-      // 센터명 입력
-      if(!centerName) {
-        centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", "") || null;
-        if(centerName) {
-          localStorage.setItem('centerName', centerName);
-        }
-      }
-      
-      // 회원명 입력
-      if(!memberName) {
-        memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", "") || null;
-        if(memberName) {
-          localStorage.setItem('memberName', memberName);
-        }
-      }
-      
       // 기존 사용자명 (하위 호환성)
       let userName = localStorage.getItem('userName');
       if(!userName && !memberName) {
