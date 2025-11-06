@@ -6228,45 +6228,6 @@ cv.addEventListener('click', (e) => {
   }
 }, true); // capture phase에서 먼저 처리
 
-document.getElementById("btnCalibrateConfirm").onclick = () => {
-  const S = sessions[cur];
-  if(!S.calibrationPoint1 || !S.calibrationPoint2) {
-    alert("두 점을 모두 선택해주세요.");
-    return;
-  }
-  
-  const realLengthCm = parseFloat(document.getElementById("calibrationLength").value);
-  if(!realLengthCm || realLengthCm <= 0) {
-    alert("실제 길이(cm)를 올바르게 입력해주세요.");
-    return;
-  }
-  
-  try {
-    const pxPerCm = calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
-    S.pxPerCm = pxPerCm;
-    document.getElementById("calibrationResult").textContent = 
-      `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
-    document.getElementById("calibrationResult").style.color = "#2ec4b6";
-    
-    // 메트릭 재계산
-    computeMetricsOnly();
-    
-    console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
-  } catch(err) {
-    alert("캘리브레이션 오류: " + err.message);
-  }
-};
-
-document.getElementById("btnCalibrateCancel").onclick = () => {
-  calibrationMode = false;
-  document.getElementById("calibrationPanel").style.display = "none";
-  const S = sessions[cur];
-  S.calibrationPoint1 = null;
-  S.calibrationPoint2 = null;
-  cv.style.cursor = "default";
-  draw();
-};
-
 // 캘리브레이션 관련 버튼들 초기화
 function setupCalibrationButtons() {
   const btnConfirm = document.getElementById("btnCalibrateConfirm");
