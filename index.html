@@ -7019,37 +7019,92 @@ function exportAsPdf(options = {}) {
     addPageToPdf(canvas5, 5);
     addPageToPdf(canvas6, 6);
     
-    // PDF를 Blob으로 변환하여 다운로드 (브라우저 호환성 개선)
+    // PDF 다운로드 (다중 방식 시도로 브라우저 호환성 개선)
     try {
-      const pdfBlob = pdf.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.style.position = 'fixed';
-      link.style.top = '-9999px';
-      link.style.left = '-9999px';
-      document.body.appendChild(link);
-      
-      // 강제로 다운로드 트리거
-      const clickEvent = new MouseEvent('click', {
-        view: window,
-        bubbles: true,
-        cancelable: true
-      });
-      link.dispatchEvent(clickEvent);
-      
-      // 약간의 지연 후 정리
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
+      // 방법 1: 직접 save 메서드 시도 (가장 안정적)
+      try {
+        pdf.save(fileName);
+        console.log('PDF 저장 성공 (직접 save)');
+      } catch (saveErr) {
+        console.warn('직접 save 실패, Blob 방식 시도:', saveErr);
+        
+        // 방법 2: Blob 방식
+        try {
+          const pdfBlob = pdf.output('blob');
+          if (pdfBlob) {
+            const url = URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            
+            // 여러 방식으로 클릭 시도
+            if (link.click) {
+              link.click();
+            } else {
+              // click() 메서드가 없는 경우 MouseEvent 사용
+              const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                buttons: 1
+              });
+              link.dispatchEvent(clickEvent);
+            }
+            
+            // 정리
+            setTimeout(() => {
+              URL.revokeObjectURL(url);
+              if (document.body.contains(link)) {
+                document.body.removeChild(link);
+              }
+            }, 1000);
+            console.log('PDF 저장 성공 (Blob 방식)');
+          } else {
+            throw new Error('Blob 생성 실패');
+          }
+        } catch (blobErr) {
+          console.warn('Blob 방식 실패, data URI 방식 시도:', blobErr);
+          
+          // 방법 3: Data URI 방식
+          try {
+            const pdfDataUri = pdf.output('datauristring');
+            const link = document.createElement('a');
+            link.href = pdfDataUri;
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            
+            if (link.click) {
+              link.click();
+            } else {
+              const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                buttons: 1
+              });
+              link.dispatchEvent(clickEvent);
+            }
+            
+            setTimeout(() => {
+              if (document.body.contains(link)) {
+                document.body.removeChild(link);
+              }
+            }, 1000);
+            console.log('PDF 저장 성공 (Data URI 방식)');
+          } catch (dataUriErr) {
+            console.error('모든 PDF 저장 방식 실패:', dataUriErr);
+            throw new Error('PDF 저장에 실패했습니다. 브라우저를 확인해주세요.');
+          }
         }
-      }, 500);
+      }
     } catch (err) {
-      // 폴백: 직접 save 메서드 사용
-      console.warn('Blob 다운로드 실패, 폴백 사용:', err);
-      pdf.save(fileName);
+      console.error('PDF 다운로드 오류:', err);
+      // 최종 폴백: 사용자에게 알림
+      alert('PDF 저장에 실패했습니다. 브라우저 콘솔을 확인해주세요.');
+      throw err;
     }
     
     resolve();
