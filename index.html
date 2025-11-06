@@ -6781,6 +6781,358 @@ async function createConfidenceHeatmap(imgData, sessionName, orientation = 'side
   });
 }
 
+// ========== 필라테스 추천 및 AI 심층 분석 함수 ==========
+
+// 안전 유틸
+const getMetricValue = (m, k, d = null) => {
+  if(!m) return d;
+  const metric = m[k];
+  if(!metric) return d;
+  // {before, after} 형태 또는 단일 값
+  if(metric.after != null) return metric.after;
+  if(metric.before != null) return metric.before;
+  if(typeof metric === 'number') return metric;
+  if(metric.value != null) return metric.value;
+  return d;
+};
+
+// 정상범위 기준
+const NORMAL_RANGE = {
+  CVA: v => v >= 50,          // 두개경추각
+  HPD: v => v <= 2,           // 두부 전방이동 (cm)
+  TIA: v => v >= 0 && v <= 10, // 체간경사
+  SAA: v => v >= 0 && v <= 10, // 어깨 전방각
+  PTA: v => v >= 0 && v <= 15, // 골반 전후경사
+  KA:  v => v >= 175 && v <= 185, // 무릎각
+  Tibial_Angle: v => v >= 0 && v <= 10, // 경골경사
+  GSB: v => v <= 2,           // 중력중심선(cm)
+  HPA: v => v >= 0 && v <= 10,  // Head–Pelvis Angle
+};
+
+// 패턴 판정 (After 우선, 없으면 단일 값)
+function detectPatterns(metrics) {
+  const v = k => getMetricValue(metrics, k);
+  const pat = [];
+
+  // 거북목(FHP): CVA 낮음(정상 미만)
+  if (v('CVA') != null && !NORMAL_RANGE.CVA(v('CVA'))) pat.push('FHP');
+
+  // 라운드 숄더: SAA↑
+  if (v('SAA') != null && !NORMAL_RANGE.SAA(v('SAA'))) pat.push('RSP');
+
+  // 골반 과전경사/후경사: PTA 기준
+  if (v('PTA') != null) {
+    if (v('PTA') > 15) pat.push('ANT_TILT');
+    else if (v('PTA') < 5) pat.push('POST_TILT');
+  }
+
+  // 하지 정렬: KA
+  if (v('KA') != null) {
+    if (v('KA') < 175) pat.push('VALGUS');
+    if (v('KA') > 185) pat.push('VARUS');
+  }
+
+  // 체중 전/후방 이동: GSB
+  if (v('GSB') != null) {
+    if (v('GSB') > 2) pat.push('FORWARD_COG');
+  }
+
+  return [...new Set(pat)];
+}
+
+// 필라테스 데이터베이스
+const PILATES_DB = {
+  FHP: {
+    title: '거북목(Forward Head Posture)',
+    tight: ['SCM(흉쇄유돌근)', '상부승모', '견갑거근', '소흉근'],
+    weak:  ['심부경부굴근', '하부승모', '전거근'],
+    moves: {
+      Mat: [
+        { name: 'Chin Tuck & Axial Elongation (턱당기기+축신장)', goal: '경추 정렬·안정화',
+          easy: '벽에 뒤통수 살짝 대고, 턱을 가볍게 당겨 목을 길게. 5초 유지×8~10회.' },
+        { name: 'Swan Prep', goal: '흉추 신전, 견갑 안정',
+          easy: '엎드려 가슴만 살짝 들어 올리며 긴 호흡. 허리 꺾지 말고 6~8회.' },
+      ],
+      Reformer: [
+        { name: 'Pulling Straps', goal: '견갑 후방 안정화',
+          easy: '엎드려 스트랩 당기며 어깨를 아래뒤로. 목은 길게 8~10회.' },
+      ],
+      Cadillac: [
+        { name: 'Tower Swan', goal: '흉추 신전+견갑 후방',
+          easy: '푸시스루바 잡고 복부 당긴 채 가슴을 길게 열기 6~8회.' },
+      ],
+      Chair: [
+        { name: 'Press Down Front', goal: '전거근/하부승모 활성',
+          easy: '스프링 페달 앞에서 팔로 살짝 눌러 어깨를 아래로 고정 8~10회.' },
+      ],
+      Barrel: [
+        { name: 'Swan on Ladder Barrel', goal: '흉추 가동성',
+          easy: '가슴을 배럴 위에 두고 천천히 신전·복귀 6~8회.' },
+      ],
+    }
+  },
+  RSP: {
+    title: '라운드 숄더(Rounded Shoulder)',
+    tight: ['대흉근', '소흉근', '상부승모'],
+    weak:  ['하부승모', '능형근', '전거근'],
+    moves: {
+      Mat: [
+        { name: 'Prone Scapular Retraction', goal: '견갑 후인',
+          easy: '엎드려 날개뼈를 뒤로 모으고 아래로 8~12회.' },
+      ],
+      Reformer: [
+        { name: 'Rowing Back / Pulling Straps', goal: '견갑 안정',
+          easy: '가슴 활짝 열며 스트랩 뒤로 당기기 8~10회.' },
+      ],
+      Cadillac: [
+        { name: 'Arm Springs - Extension', goal: '어깨 후방 근육 강화',
+          easy: '팔 뒤로 뻗으며 어깨는 아래 고정 8~12회.' },
+      ],
+      Chair: [
+        { name: 'Spine Stretch (Chair ver.)', goal: '흉추 신전·견갑 안정',
+          easy: '등을 길게 만들며 페달 살짝 누르기 6~8회.' },
+      ],
+      Barrel: [
+        { name: 'Shoulder Extension on Barrel', goal: '어깨 후인·흉추 가동성',
+          easy: '배럴에서 팔을 뒤로 뻗고 가슴 열기 6~8회.' },
+      ],
+    }
+  },
+  ANT_TILT: {
+    title: '골반 과전경사(Anterior Tilt)',
+    tight: ['장요근', '대퇴직근', '척추기립근'],
+    weak:  ['복직근/복횡근', '둔근'],
+    moves: {
+      Mat: [
+        { name: 'Pelvic Curl', goal: '후방경사 유도',
+          easy: '무릎 굽혀 누워 골반을 말아 올려 8~10회.' },
+        { name: 'Dead Bug / Toe Tap', goal: '복횡근 활성',
+          easy: '허리 뜨지 않게, 다리 번갈아 낮추기 8~10회.' },
+      ],
+      Reformer: [
+        { name: 'Bridge on Reformer', goal: '후방 사슬 강화',
+          easy: '발바닥 고정, 엉덩이 올려 척추 말아 올리기 8회.' },
+      ],
+      Cadillac: [
+        { name: 'Roll Down (Push Through Bar)', goal: '코어 조절',
+          easy: '갈비를 안쪽으로, 등 말아 내렸다 올라오기 6~8회.' },
+      ],
+      Chair: [
+        { name: 'Standing Hip Extension', goal: '둔근 강화',
+          easy: '몸통 고정, 다리 뒤로 뻗기 8~12회.' },
+      ],
+      Barrel: [
+        { name: 'Short Box - Round Back', goal: '코어·후방사슬',
+          easy: '복부 당기고 등 둥글게 낮췄다 복귀 6~8회.' },
+      ],
+    }
+  },
+  POST_TILT: {
+    title: '골반 후경사(Posterior Tilt)',
+    tight: ['햄스트링', '복직근'],
+    weak:  ['장요근', '대퇴직근', '척추기립근'],
+    moves: {
+      Mat: [
+        { name: 'Leg Pull Front', goal: '전방 사슬 강화',
+          easy: '플랭크 자세에서 몸통 길게 20~30초×3.' },
+      ],
+      Reformer: [
+        { name: 'Footwork - Parallel Heels', goal: '고관절 신전',
+          easy: '무릎-발끝 정렬 유지해 밀기 10~12회.' },
+      ],
+      Cadillac: [
+        { name: 'Leg Springs - Supine', goal: '장요근 기능적 수축',
+          easy: '골반 고정, 다리 들어 올렸다 내리기 8~10회.' },
+      ],
+      Chair: [
+        { name: 'Swan Press', goal: '요추 신전 강화',
+          easy: '가슴을 길게, 허리 꺾지 않기 6~8회.' },
+      ],
+      Barrel: [
+        { name: 'Swan on Barrel', goal: '요추/흉추 가동성',
+          easy: '편안한 범위만큼 신전 6~8회.' },
+      ],
+    }
+  },
+  VALGUS: {
+    title: 'X자 다리(Genu Valgum)',
+    tight: ['내전근', '내측광근'],
+    weak:  ['중둔근', '외회전근', '외측광근'],
+    moves: {
+      Mat: [
+        { name: 'Side-Lying Leg Lift', goal: '중둔근 강화',
+          easy: '옆으로 누워 위쪽 다리 들어 올리기 10~12회.' },
+      ],
+      Reformer: [
+        { name: 'Side Splits', goal: '하지 외측 안정',
+          easy: '골반 수평 유지하며 벌리고 모으기 8~10회.' },
+      ],
+      Cadillac: [
+        { name: 'Standing Hip Abduction', goal: '고관절 외전',
+          easy: '몸통 고정, 옆으로 차 올리기 8~10회.' },
+      ],
+      Chair: [
+        { name: 'Step Up Lateral', goal: '외측 안정',
+          easy: '의자 옆으로 올라갔다 내려오기 8회.' },
+      ],
+      Barrel: [
+        { name: 'Side Bend Stretch', goal: '측면 가동성',
+          easy: '몸통 길게 늘이며 옆굽힘 6회.' },
+      ],
+    }
+  },
+  VARUS: {
+    title: 'O자 다리(Genu Varum)',
+    tight: ['외측광근', '비복근', '대퇴이두'],
+    weak:  ['내전근', '내측광근'],
+    moves: {
+      Mat: [
+        { name: 'Ball Squeeze Bridge', goal: '내전근 활성',
+          easy: '무릎 사이 볼 끼고 브릿지 8~10회.' },
+      ],
+      Reformer: [
+        { name: 'Footwork - Small V', goal: '내측광근 강화',
+          easy: '작은 V, 무릎 모아 밀기 10~12회.' },
+      ],
+      Cadillac: [
+        { name: 'Standing Leg Press - Adduction', goal: '내전근 강화',
+          easy: '스트랩으로 다리 안쪽으로 당기기 8~10회.' },
+      ],
+      Chair: [
+        { name: 'Seated Adduction', goal: '내측 조절',
+          easy: '밴드/스프링으로 무릎 모으기 8~12회.' },
+      ],
+      Barrel: [
+        { name: 'Adductor Stretch on Barrel', goal: '내전근 신장',
+          easy: '편안한 범위로 20초 유지×3.' },
+      ],
+    }
+  },
+  FORWARD_COG: {
+    title: '체중 중심 전방(Forward Center)',
+    tight: ['대퇴직근', '요추기립근', '종아리'],
+    weak:  ['둔근', '햄스트링', '복부'],
+    moves: {
+      Mat: [
+        { name: 'Pelvic Curl', goal: '둔근/햄스트링 활성',
+          easy: '천천히 말아 올려 8~10회.' },
+      ],
+      Reformer: [
+        { name: 'Scooter', goal: '둔근 신전 조절',
+          easy: '몸통 고정, 뒷다리 페달 살짝 밀기 8~12회.' },
+      ],
+      Cadillac: [
+        { name: 'Tower Roll Up', goal: '코어 활성',
+          easy: '발바닥 바에 두고 말아 올라가기 6~8회.' },
+      ],
+      Chair: [
+        { name: 'Standing Leg Press', goal: '후방 체중 이동',
+          easy: '발로 페달 눌러 엉덩이 뒤로, 무릎 과신전 금지 8~10회.' },
+      ],
+      Barrel: [
+        { name: 'Swan', goal: '흉추 안정',
+          easy: '가슴을 길게, 목 길게 6~8회.' },
+      ],
+    }
+  },
+};
+
+// 필라테스 추천 텍스트 생성
+function generatePilatesSessionText(metrics) {
+  const pats = detectPatterns(metrics);
+  if (!pats.length) return '현재 측정값은 대체로 정상 범위입니다. 기본 코어 안정과 전신 가동성 루틴을 권장합니다.';
+
+  const blocks = [];
+  pats.forEach(code => {
+    const d = PILATES_DB[code];
+    if (!d) return;
+    
+    let blockText = `■ ${d.title}\n`;
+    blockText += `- 긴장된 근육: ${d.tight.join(', ')}\n`;
+    blockText += `- 약화된 근육: ${d.weak.join(', ')}\n\n`;
+    blockText += `◎ 운동(쉬운 따라하기)\n\n`;
+    
+    const tools = ['Mat', 'Reformer', 'Cadillac', 'Chair', 'Barrel'];
+    tools.forEach(tool => {
+      if(d.moves[tool] && d.moves[tool].length > 0) {
+        blockText += `[${tool}]\n`;
+        d.moves[tool].forEach(m => {
+          blockText += `• ${m.name} — ${m.goal}\n`;
+          blockText += `  방법: ${m.easy}\n`;
+        });
+        blockText += '\n';
+      }
+    });
+    
+    blockText += `— 권장: 통증 0~2/10 범위 유지, 8~12회×2~3세트, 호흡은 "길게 들이쉬고 길게 내쉬기".`;
+    blocks.push(blockText);
+  });
+
+  return blocks.join('\n\n');
+}
+
+// AI 심층 분석 생성
+function generateAIDeepAnalysis(metrics) {
+  const g = k => {
+    const m = metrics?.[k];
+    return {
+      before: (m && m.before != null) ? m.before : null,
+      after:  (m && m.after != null) ? m.after : (typeof m === 'number' ? m : null)
+    };
+  };
+
+  const lines = [];
+  lines.push('▶ 전신 정렬 종합 소견');
+  lines.push('- 본 분석은 머리-어깨-골반-하지의 선형 정렬과 분절 각도를 종합 평가하며, 지표는 임상 정상범위를 기준으로 해석됩니다.');
+  lines.push('- 운동 처방은 과사용/저사용 근육의 균형 회복과 신경근 재교육을 목표로 구성되었습니다.\n');
+
+  const seq = [
+    { k:'CVA',  name:'CVA(두개경추각)', unit:'°',     fn:NORMAL_RANGE.CVA },
+    { k:'HPD',  name:'HPD(두부 전방이동)', unit:'cm',  fn:NORMAL_RANGE.HPD },
+    { k:'TIA',  name:'TIA(체간경사각)', unit:'°',      fn:NORMAL_RANGE.TIA },
+    { k:'SAA',  name:'SAA(어깨 전방각)', unit:'°',     fn:NORMAL_RANGE.SAA },
+    { k:'PTA',  name:'PTA(골반 전후경사)', unit:'°',   fn:NORMAL_RANGE.PTA },
+    { k:'KA',   name:'KA(무릎각)', unit:'°',           fn:NORMAL_RANGE.KA },
+    { k:'Tibial_Angle', name:'Tibial(경골 경사각)', unit:'°', fn:NORMAL_RANGE.Tibial_Angle },
+    { k:'GSB',  name:'GSB(중력중심선 편차)', unit:'cm', fn:NORMAL_RANGE.GSB },
+    { k:'HPA',  name:'HPA(머리-골반 각)', unit:'°',    fn:NORMAL_RANGE.HPA },
+  ];
+
+  seq.forEach(s => {
+    const {before, after} = g(s.k);
+    const vStr = x => (x == null ? '-' : `${x}${s.unit}`);
+    const parts = [];
+    parts.push(`- ${s.name}: ${vStr(before)} → ${vStr(after)}`);
+    
+    if (after != null && typeof s.fn === 'function') {
+      const ok = s.fn(after);
+      parts.push(`  · 해석: ${ok ? '정상 범위' : '정상 범위 이탈'}`);
+    }
+    
+    if (before != null && after != null) {
+      const d = +(after - before).toFixed(1);
+      if (Math.abs(d) >= 0.1) {
+        const sign = d > 0 ? '증가' : '감소';
+        parts.push(`  · 변화: ${Math.abs(d)}${s.unit} ${sign}`);
+      } else {
+        parts.push(`  · 변화: 유의미한 변화 없음`);
+      }
+    }
+    lines.push(parts.join('\n'));
+  });
+
+  const pats = detectPatterns(metrics);
+  lines.push('\n▶ 패턴 요약');
+  lines.push(pats.length ? `- 관찰된 주요 패턴: ${pats.map(p => PILATES_DB[p]?.title || p).join(', ')}` : '- 특이 패턴 없음(기본 안정화 권장)');
+
+  lines.push('\n▶ 임상적 권고');
+  lines.push('- 2~4주 간 주 2~3회, 각 세션 30~45분. 통증 0~2/10 범위 유지.');
+  lines.push('- "정렬→가동성→근지구력→기능 통합" 순서로 진행.');
+  lines.push('- 일상 자세 팁: 스크린 눈높이 조절, 30~40분마다 30초 리셋 스트레칭, 장시간 서기/앉기 시 골반 중립 체크.');
+
+  return lines.join('\n');
+}
+
 // 측정 결과 기반 필라테스 추천 (올바른 metrics 구조 사용)
 function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
   const recommendations = [];
@@ -7482,7 +7834,7 @@ function exportAsPdf(options = {}) {
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
           <span>Generated by ${appName}</span>
-          <span>Page 4/6</span>
+          <span>Page 4/7</span>
         </div>
       </div>
     `;
@@ -7490,101 +7842,128 @@ function exportAsPdf(options = {}) {
     const canvas4 = await html2canvas(page4Container, html2canvasOptions);
     document.body.removeChild(page4Container);
     
-    // ========== 페이지 5: 필라테스 세션 추천 (측정기반) ==========
+    // ========== 페이지 5: 필라테스 추천 루틴 (쉬운 따라하기) ==========
     const page5Container = document.createElement("div");
     setPageContainerStyle(page5Container);
-    let page5HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 세션 추천 (측정기반)</h2>';
     
-    // metricBasedPilates가 정의되어 있는지 확인
-    console.log('페이지 5 - metricBasedPilates:', metricBasedPilates);
+    // metrics 데이터 준비 (Before-After 비교용)
+    const combinedMetrics = {};
+    const bMetrics = sessions.Before?.metrics?.fullMetrics || {};
+    const aMetrics = sessions.After?.metrics?.fullMetrics || {};
     
-    if(metricBasedPilates && Array.isArray(metricBasedPilates) && metricBasedPilates.length > 0) {
-      let tableRows = '';
-      metricBasedPilates.forEach(item => {
-        if(!item) return;
-        if(item.pilates && typeof item.pilates === 'object') {
-          const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
-          tools.forEach(tool => {
-            if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
-              tableRows += `<tr>
-                <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${tool}</td>
-                <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${item.pilates[tool].join(', ')}</td>
-                <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555;">${item.issue || '자세 개선'}</td>
-              </tr>`;
-            }
-          });
-        }
-      });
-      
-      if(tableRows) {
-        page5HTML += `<table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-top:10px;">
-          <tr style="background:#f0f0f0;">
-            <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600;">기구</th>
-            <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600;">운동 이름</th>
-            <th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600;">목적</th>
-          </tr>
-          ${tableRows}
-        </table>`;
-      } else {
-        // 추천은 있지만 pilates 데이터가 없는 경우
-        page5HTML += '<div style="padding:20px; background:#f9f9f9; border-radius:8px; margin-top:10px;">';
-        metricBasedPilates.forEach(item => {
-          if(item && item.issue) {
-            page5HTML += `<div style="margin-bottom:15px; padding:12px; background:#fff; border-radius:6px; border-left:3px solid #9c88ff;">
-              <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue}</div>
-              ${item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0 ? 
-                `<div style="font-size:11px; color:#666; margin-bottom:6px;">관련 근육: ${item.muscles.join(', ')}</div>` : ''}
-              ${item.exercises && Array.isArray(item.exercises) && item.exercises.length > 0 ? 
-                `<div style="font-size:11px; color:#555;">추천 운동: ${item.exercises.join(', ')}</div>` : ''}
-            </div>`;
-          }
-        });
-        page5HTML += '</div>';
+    // 각 지표를 {before, after} 형태로 변환
+    ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA'].forEach(key => {
+      const bVal = bMetrics[key]?.value != null ? bMetrics[key].value : 
+                   (bMetrics[key]?.value_deg != null ? bMetrics[key].value_deg : 
+                   (bMetrics[key]?.value_cm != null ? bMetrics[key].value_cm : null));
+      const aVal = aMetrics[key]?.value != null ? aMetrics[key].value : 
+                   (aMetrics[key]?.value_deg != null ? aMetrics[key].value_deg : 
+                   (aMetrics[key]?.value_cm != null ? aMetrics[key].value_cm : null));
+      if(bVal != null || aVal != null) {
+        combinedMetrics[key] = { before: bVal, after: aVal };
       }
-    } else {
-      // 추천이 없는 경우 - 분석 결과에서 필라테스 추천 가져오기
-      const analysisPilates = analysis?.pilates;
-      if(analysisPilates && Array.isArray(analysisPilates) && analysisPilates.length > 0) {
-        page5HTML += '<div style="padding:20px; background:#f9f9f9; border-radius:8px; margin-top:10px;">';
-        analysisPilates.forEach(item => {
-          if(item && item.issue) {
-            page5HTML += `<div style="margin-bottom:15px; padding:12px; background:#fff; border-radius:6px; border-left:3px solid #9c88ff;">`;
-            if(item.pilates && typeof item.pilates === 'object') {
-              const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
-              tools.forEach(tool => {
-                if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
-                  page5HTML += `<div style="margin-bottom:8px;">
-                    <strong style="font-size:12px; color:#9c88ff;">${tool}:</strong>
-                    <span style="font-size:11px; color:#555;"> ${item.pilates[tool].join(', ')}</span>
-                  </div>`;
-                }
-              });
-            }
-            page5HTML += `</div>`;
-          }
-        });
-        page5HTML += '</div>';
-      } else {
-        page5HTML += '<div style="padding:40px; text-align:center; color:#999;">측정 결과 기반 필라테스 추천이 없습니다.</div>';
-      }
-    }
+    });
     
-    page5HTML += `<div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName}</span>
-        <span>Page 5/6</span>
+    // 필라테스 추천 텍스트 생성
+    const pilatesText = generatePilatesSessionText(combinedMetrics);
+    
+    // 텍스트를 HTML로 변환 (줄바꿈 처리)
+    const pilatesHtml = pilatesText.split('\n').map(line => {
+      if(line.trim() === '') return '<br>';
+      if(line.startsWith('■')) {
+        return `<div style="font-size:16px; font-weight:700; color:#9c88ff; margin-top:20px; margin-bottom:10px;">${line}</div>`;
+      }
+      if(line.startsWith('- ')) {
+        return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px;">${line}</div>`;
+      }
+      if(line.startsWith('◎')) {
+        return `<div style="font-size:14px; font-weight:600; color:#2ec4b6; margin-top:15px; margin-bottom:10px;">${line}</div>`;
+      }
+      if(line.startsWith('[') && line.endsWith(']')) {
+        return `<div style="font-size:13px; font-weight:600; color:#666; margin-top:12px; margin-bottom:8px;">${line}</div>`;
+      }
+      if(line.startsWith('•')) {
+        return `<div style="font-size:12px; color:#555; margin-left:15px; margin-bottom:3px;">${line}</div>`;
+      }
+      if(line.startsWith('  방법:')) {
+        return `<div style="font-size:11px; color:#777; margin-left:25px; margin-bottom:8px; line-height:1.5;">${line}</div>`;
+      }
+      if(line.startsWith('— 권장:')) {
+        return `<div style="font-size:11px; color:#2ec4b6; margin-top:15px; padding:10px; background:#e8f5e9; border-radius:6px; border-left:3px solid #2ec4b6;">${line}</div>`;
+      }
+      return `<div style="font-size:12px; color:#333; margin-bottom:5px;">${line}</div>`;
+    }).join('');
+    
+    page5Container.innerHTML = `
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 추천 루틴 (쉬운 따라하기)</h2>
+      <div style="margin-top:20px; line-height:1.6;">
+        ${pilatesHtml}
       </div>
-    </div>`;
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName}</span>
+          <span>Page 5/7</span>
+        </div>
+      </div>
+    `;
     
-    page5Container.innerHTML = page5HTML;
     document.body.appendChild(page5Container);
-    const canvas5 = await html2canvas(page5Container, html2canvasOptions);
+    const canvas5 = await html2canvas(page5Container, {
+      ...html2canvasOptions,
+      scale: 2,
+      windowWidth: page5Container.scrollWidth,
+      windowHeight: page5Container.scrollHeight
+    });
     document.body.removeChild(page5Container);
     
-    // ========== 페이지 6: 결론 ==========
+    // ========== 페이지 6: AI 심층 분석 ==========
     const page6Container = document.createElement("div");
     setPageContainerStyle(page6Container);
+    
+    // AI 심층 분석 텍스트 생성
+    const deepAnalysisText = generateAIDeepAnalysis(combinedMetrics);
+    
+    // 텍스트를 HTML로 변환
+    const deepAnalysisHtml = deepAnalysisText.split('\n').map(line => {
+      if(line.trim() === '') return '<br>';
+      if(line.startsWith('▶')) {
+        return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px;">${line}</div>`;
+      }
+      if(line.startsWith('- ')) {
+        return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6;">${line}</div>`;
+      }
+      if(line.startsWith('  ·')) {
+        return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px;">${line}</div>`;
+      }
+      return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6;">${line}</div>`;
+    }).join('');
+    
     page6Container.innerHTML = `
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 심층 분석</h2>
+      <div style="margin-top:20px; line-height:1.6;">
+        ${deepAnalysisHtml}
+      </div>
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName}</span>
+          <span>Page 6/7</span>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(page6Container);
+    const canvas6 = await html2canvas(page6Container, {
+      ...html2canvasOptions,
+      scale: 2,
+      windowWidth: page6Container.scrollWidth,
+      windowHeight: page6Container.scrollHeight
+    });
+    document.body.removeChild(page6Container);
+    
+    // ========== 페이지 7: 결론 (기존 페이지 6) ==========
+    const page7Container = document.createElement("div");
+    setPageContainerStyle(page7Container);
+    page7Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">⚖️ 결론 및 향후 권장사항</h2>
       <div style="padding:20px; background:#f5f5f5; border-radius:10px; margin-bottom:20px;">
         <div style="font-size:12px; line-height:1.8; color:#333;">
@@ -7606,13 +7985,15 @@ function exportAsPdf(options = {}) {
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
           <span>Generated by ${appName}</span>
-          <span>Page 6/6</span>
+          <span>Page 7/7</span>
         </div>
       </div>
     `;
-    document.body.appendChild(page6Container);
-    const canvas6 = await html2canvas(page6Container, html2canvasOptions);
-    document.body.removeChild(page6Container);
+    document.body.appendChild(page7Container);
+    const canvas7 = await html2canvas(page7Container, html2canvasOptions);
+    document.body.removeChild(page7Container);
+    
+    // 기존 페이지 5, 6 코드는 위에서 새로운 페이지 5, 6, 7로 대체됨
     
     // PDF 생성 (마진 24px = 약 0.6cm, 폰트 안전화)
     const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
