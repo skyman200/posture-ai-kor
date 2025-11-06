@@ -7608,21 +7608,24 @@ function setupPDFButton() {
       btn.textContent = "⏳ PDF 생성 중...";
       btn.disabled = true;
       
-      // 센터명/회원명 입력 (localStorage에 없으면)
-      let centerName = localStorage.getItem('centerName');
-      let memberName = localStorage.getItem('memberName');
-      
-      if(!centerName) {
-        centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", "") || null;
-        if(centerName) {
-          localStorage.setItem('centerName', centerName);
-        }
+      // 센터명/회원명 입력 (항상 입력받기)
+      let centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", localStorage.getItem('centerName') || "") || null;
+      if(centerName) {
+        localStorage.setItem('centerName', centerName);
       }
       
-      if(!memberName) {
-        memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", "") || null;
-        if(memberName) {
-          localStorage.setItem('memberName', memberName);
+      let memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", localStorage.getItem('memberName') || "") || null;
+      if(memberName) {
+        localStorage.setItem('memberName', memberName);
+      }
+      
+      // 둘 다 입력되지 않으면 경고
+      if(!centerName || !memberName) {
+        const confirmContinue = confirm("센터 이름 또는 회원 이름이 입력되지 않았습니다. 계속하시겠습니까?");
+        if(!confirmContinue) {
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
         }
       }
       
