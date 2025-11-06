@@ -6354,9 +6354,9 @@ function setupCalibrationButtons() {
   if(btnLoadJSON) {
     btnLoadJSON.onclick = () => {
       const inp = document.createElement('input');
-  inp.type = 'file';
-  inp.accept = 'application/json';
-  inp.onchange = e => {
+      inp.type = 'file';
+      inp.accept = 'application/json';
+      inp.onchange = e => {
     const f = e.target.files[0];
     if(!f) return;
     const r = new FileReader();
