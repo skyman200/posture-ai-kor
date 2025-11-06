@@ -3334,7 +3334,18 @@ function getKeypoints() {
 }
 
 function draw() {
+  // 캔버스와 컨텍스트 확인
+  if(!cv || !ctx) {
+    console.error("draw() 호출 시 캔버스 또는 컨텍스트가 없습니다.");
+    return;
+  }
+  
   const S = sessions[cur];
+  if(!S) {
+    console.error("draw() 호출 시 세션이 없습니다.");
+    return;
+  }
+  
   const W = cv.width / DPR, H = cv.height / DPR;
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.fillStyle = "#0a0e13";
@@ -8112,6 +8123,16 @@ let detectors = { front: null, side: null };
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 document.addEventListener("DOMContentLoaded", () => {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
+  
+  // 파일 업로드 설정 (가장 먼저)
+  setupFileUploads();
+  
+  // Reset 버튼 설정
+  setupResetButton();
+  
+  // 캘리브레이션 버튼들 설정
+  setupCalibrateButton();
+  setupCalibrationButtons();
   
   // PDF 및 이미지 저장 버튼 초기화
   setupPDFButton();
