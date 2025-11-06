@@ -6419,6 +6419,155 @@ if(document.readyState === 'loading') {
 }
 
 // Before-After 오버레이 이미지 생성 (Canvas API 사용)
+// 스켈레톤 그리기 함수 (Before-After 오버레이용)
+function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = isDashed ? 0.9 : 0.8;
+  ctx.setLineDash(isDashed ? [6, 4] : []);
+  
+  // 키포인트 순서 정의 (측면)
+  const keyOrder = ['tragus', 'c7', 'acromion', 'hip', 'knee', 'ankle'];
+  
+  // 키포인트 간 선 그리기
+  for(let i = 0; i < keyOrder.length - 1; i++) {
+    const key1 = keyOrder[i];
+    const key2 = keyOrder[i + 1];
+    const p1 = points[key1];
+    const p2 = points[key2];
+    
+    if(p1 && p2 && p1.x != null && p1.y != null && p2.x != null && p2.y != null) {
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+  }
+  
+  // ASIS-PSIS 연결 (골반)
+  if(points.asis && points.psis) {
+    ctx.beginPath();
+    ctx.moveTo(points.asis.x, points.asis.y);
+    ctx.lineTo(points.psis.x, points.psis.y);
+    ctx.stroke();
+  }
+  
+  ctx.setLineDash([]);
+  
+  // 각 키포인트에 점과 라벨 그리기
+  Object.keys(points).forEach(key => {
+    const p = points[key];
+    if(!p || p.x == null || p.y == null) return;
+    
+    // 점 그리기
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 라벨 그리기
+    ctx.font = '13px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeText(`${labelPrefix}:${key}`, p.x + 12, p.y);
+    ctx.fillText(`${labelPrefix}:${key}`, p.x + 12, p.y);
+  });
+  
+  ctx.globalAlpha = 1.0;
+}
+
+// Before-After 오버레이 이미지 생성 (스켈레톤 포함)
+async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, beforePoints, afterPoints, alpha = 0.5) {
+  return new Promise((resolve, reject) => {
+    try {
+      const beforeImg = new Image();
+      const afterImg = new Image();
+      
+      beforeImg.onload = () => {
+        afterImg.onload = () => {
+          // 캔버스 생성
+          const overlayCanvas = document.createElement('canvas');
+          const overlayCtx = overlayCanvas.getContext('2d');
+          
+          // 크기 설정 (더 큰 이미지 기준)
+          const width = Math.max(beforeImg.width, afterImg.width);
+          const height = Math.max(beforeImg.height, afterImg.height);
+          overlayCanvas.width = width;
+          overlayCanvas.height = height;
+          
+          // 배경 이미지 그리기 (Before 이미지 사용)
+          overlayCtx.drawImage(beforeImg, 0, 0, width, height);
+          
+          // Before 스켈레톤 그리기 (파란색, 점선)
+          if(beforePoints) {
+            // 이미지 크기에 맞게 좌표 스케일링
+            const scaleX = width / beforeImg.width;
+            const scaleY = height / beforeImg.height;
+            const scaledBeforePoints = {};
+            Object.keys(beforePoints).forEach(key => {
+              if(beforePoints[key] && beforePoints[key].x != null && beforePoints[key].y != null) {
+                scaledBeforePoints[key] = {
+                  x: beforePoints[key].x * scaleX,
+                  y: beforePoints[key].y * scaleY
+                };
+              }
+            });
+            drawSkeleton(overlayCtx, scaledBeforePoints, '#2E86C1', 'B', true);
+          }
+          
+          // After 이미지 오버레이 (주황색 톤, 투명도 적용)
+          overlayCtx.globalCompositeOperation = 'source-over';
+          overlayCtx.globalAlpha = alpha;
+          
+          // After 이미지를 주황색 톤으로 변환
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = width;
+          tempCanvas.height = height;
+          tempCtx.drawImage(afterImg, 0, 0, width, height);
+          
+          const afterImageData = tempCtx.getImageData(0, 0, width, height);
+          for(let i = 0; i < afterImageData.data.length; i += 4) {
+            afterImageData.data[i] = Math.min(255, afterImageData.data[i] * 1.3); // R 증가 (주황색 톤)
+            afterImageData.data[i + 1] = Math.min(255, afterImageData.data[i + 1] * 1.1); // G 증가
+            afterImageData.data[i + 2] = Math.min(255, afterImageData.data[i + 2] * 0.7); // B 감소
+          }
+          tempCtx.putImageData(afterImageData, 0, 0);
+          
+          overlayCtx.drawImage(tempCanvas, 0, 0);
+          overlayCtx.globalAlpha = 1.0;
+          
+          // After 스켈레톤 그리기 (주황색, 실선)
+          if(afterPoints) {
+            const scaleX = width / afterImg.width;
+            const scaleY = height / afterImg.height;
+            const scaledAfterPoints = {};
+            Object.keys(afterPoints).forEach(key => {
+              if(afterPoints[key] && afterPoints[key].x != null && afterPoints[key].y != null) {
+                scaledAfterPoints[key] = {
+                  x: afterPoints[key].x * scaleX,
+                  y: afterPoints[key].y * scaleY
+                };
+              }
+            });
+            drawSkeleton(overlayCtx, scaledAfterPoints, '#E67E22', 'A', false);
+          }
+          
+          resolve(overlayCanvas.toDataURL('image/png'));
+        };
+        afterImg.onerror = reject;
+        afterImg.src = afterImgData;
+      };
+      beforeImg.onerror = reject;
+      beforeImg.src = beforeImgData;
+    } catch(err) {
+      reject(err);
+    }
+  });
+}
+
+// 기존 함수 유지 (하위 호환성)
 async function createOverlayImage(beforeImgData, afterImgData, alpha = 0.5) {
   return new Promise((resolve, reject) => {
     try {
@@ -6850,13 +6999,52 @@ function exportAsPdf(options = {}) {
       await new Promise(resolve => setTimeout(resolve, 50));
       draw();
       
-      // Before-After 오버레이 이미지 생성
+      // Before-After 오버레이 이미지 생성 (스켈레톤 포함)
       let overlayImg = null;
       if(beforeImg && afterImg) {
         try {
-          overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+          // Before와 After 세션의 키포인트 가져오기
+          const beforeOrientation = sessions.Before?.poseData?.orientation || "side";
+          const afterOrientation = sessions.After?.poseData?.orientation || "side";
+          const beforePointsMap = beforeOrientation === "front" ? sessions.Before?.frontPoints : sessions.Before?.sidePoints;
+          const afterPointsMap = afterOrientation === "front" ? sessions.After?.frontPoints : sessions.After?.sidePoints;
+          
+          // Map을 일반 객체로 변환 (소문자 키로 통일)
+          const getPointsObject = (pointsMap) => {
+            if(!pointsMap) return null;
+            const obj = {};
+            if(pointsMap instanceof Map) {
+              pointsMap.forEach((value, key) => {
+                // 키를 소문자로 변환 (tragus, c7, acromion 등)
+                const lowerKey = key.toLowerCase();
+                obj[lowerKey] = value;
+              });
+            } else if(typeof pointsMap === 'object') {
+              Object.keys(pointsMap).forEach(key => {
+                const lowerKey = key.toLowerCase();
+                obj[lowerKey] = pointsMap[key];
+              });
+            }
+            return obj;
+          };
+          
+          const beforePoints = getPointsObject(beforePointsMap);
+          const afterPoints = getPointsObject(afterPointsMap);
+          
+          // 스켈레톤이 있는 경우 스켈레톤 포함 오버레이 생성, 없으면 기본 오버레이
+          if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
+            overlayImg = await createOverlayImageWithSkeleton(beforeImg, afterImg, beforePoints, afterPoints, 0.5);
+          } else {
+            overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+          }
         } catch(err) {
           console.warn("오버레이 이미지 생성 실패:", err);
+          // 폴백: 기본 오버레이 시도
+          try {
+            overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+          } catch(err2) {
+            console.warn("기본 오버레이 이미지 생성도 실패:", err2);
+          }
         }
       }
       
