@@ -6631,14 +6631,25 @@ async function createConfidenceHeatmap(imgData, sessionName, orientation = 'side
   });
 }
 
-// 측정 결과 기반 필라테스 추천
+// 측정 결과 기반 필라테스 추천 (올바른 metrics 구조 사용)
 function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
   const recommendations = [];
   
-  // CVA (거북목) 개선
-  if(beforeMetrics && afterMetrics && 
-     beforeMetrics.cva != null && afterMetrics.cva != null &&
-     afterMetrics.cva - beforeMetrics.cva < 0) {
+  // 헬퍼 함수: 메트릭 값 가져오기
+  const getMetricValue = (metrics, key) => {
+    if(!metrics) return null;
+    const fullMetrics = metrics.fullMetrics || {};
+    const metric = fullMetrics[key];
+    if(!metric) return null;
+    return metric.value !== undefined ? metric.value : 
+           (metric.value_deg !== undefined ? metric.value_deg : 
+           (metric.value_cm !== undefined ? metric.value_cm : null));
+  };
+  
+  // CVA (거북목) 개선 - CVA가 증가하면 개선
+  const cvaBefore = getMetricValue(beforeMetrics, 'CVA');
+  const cvaAfter = getMetricValue(afterMetrics, 'CVA');
+  if(cvaBefore != null && cvaAfter != null && cvaAfter > cvaBefore && cvaAfter < 50) {
     recommendations.push({
       issue: '거북목 개선',
       muscles: ['심부경부굴근', '상부승모근'],
@@ -6651,10 +6662,24 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
     });
   }
   
-  // PTA (골반 전방경사) 교정
-  if(beforeMetrics && afterMetrics && 
-     beforeMetrics.pelvic != null && afterMetrics.pelvic != null &&
-     afterMetrics.pelvic > 15) {
+  // CVA가 50도 미만이면 거북목 문제
+  if(cvaAfter != null && cvaAfter < 50) {
+    recommendations.push({
+      issue: '거북목 개선',
+      muscles: ['심부경부굴근', '상부승모근'],
+      exercises: ['Chin Tuck', 'Swan', 'Pulling Straps'],
+      pilates: {
+        '매트': ['Chin Tuck', 'Swan'],
+        '리포머': ['Pulling Straps', 'Neck Pull'],
+        '캐딜락': ['Tower Prep']
+      }
+    });
+  }
+  
+  // PTA (골반 전방경사) 교정 - PTA가 15도 초과면 과전경사
+  const ptaBefore = getMetricValue(beforeMetrics, 'PTA');
+  const ptaAfter = getMetricValue(afterMetrics, 'PTA');
+  if(ptaAfter != null && ptaAfter > 15) {
     recommendations.push({
       issue: '과전경사 골반',
       muscles: ['복부 코어', '둔근'],
@@ -6667,10 +6692,10 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
     });
   }
   
-  // KA (무릎각) - X자 다리
-  if(beforeMetrics && afterMetrics && 
-     beforeMetrics.knee != null && afterMetrics.knee != null &&
-     afterMetrics.knee < 175) {
+  // KA (무릎각) - X자 다리 (KA < 175도)
+  const kaBefore = getMetricValue(beforeMetrics, 'KA');
+  const kaAfter = getMetricValue(afterMetrics, 'KA');
+  if(kaAfter != null && kaAfter < 175) {
     recommendations.push({
       issue: 'X자 다리 교정',
       muscles: ['중둔근', '대둔근'],
@@ -6683,12 +6708,9 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
     });
   }
   
-  // SAA (어깨 전방각) - 라운드 숄더
-  const fullMetricsBefore = beforeMetrics?.fullMetrics || {};
-  const fullMetricsAfter = afterMetrics?.fullMetrics || {};
-  const saaBefore = fullMetricsBefore.SAA?.value || fullMetricsBefore.saa?.value;
-  const saaAfter = fullMetricsAfter.SAA?.value || fullMetricsAfter.saa?.value;
-  
+  // SAA (어깨 전방각) - 라운드 숄더 (SAA > 10도)
+  const saaBefore = getMetricValue(beforeMetrics, 'SAA');
+  const saaAfter = getMetricValue(afterMetrics, 'SAA');
   if(saaAfter != null && saaAfter > 10) {
     recommendations.push({
       issue: '라운드 숄더 안정화',
@@ -6702,7 +6724,18 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
     });
   }
   
-  return recommendations;
+  // 중복 제거 (같은 issue가 있으면 하나만 유지)
+  const uniqueRecommendations = [];
+  const seenIssues = new Set();
+  recommendations.forEach(rec => {
+    if(!seenIssues.has(rec.issue)) {
+      seenIssues.add(rec.issue);
+      uniqueRecommendations.push(rec);
+    }
+  });
+  
+  console.log('필라테스 추천 생성:', uniqueRecommendations.length, '개');
+  return uniqueRecommendations;
 }
 
 // ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
