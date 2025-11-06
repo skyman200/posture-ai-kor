@@ -7227,9 +7227,13 @@ function exportAsPdf(options = {}) {
     setPageContainerStyle(page5Container);
     let page5HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 세션 추천 (측정기반)</h2>';
     
-    if(metricBasedPilates && metricBasedPilates.length > 0) {
+    // metricBasedPilates가 정의되어 있는지 확인
+    console.log('페이지 5 - metricBasedPilates:', metricBasedPilates);
+    
+    if(metricBasedPilates && Array.isArray(metricBasedPilates) && metricBasedPilates.length > 0) {
       let tableRows = '';
       metricBasedPilates.forEach(item => {
+        if(!item) return;
         if(item.pilates && typeof item.pilates === 'object') {
           const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
           tools.forEach(tool => {
@@ -7253,9 +7257,48 @@ function exportAsPdf(options = {}) {
           </tr>
           ${tableRows}
         </table>`;
+      } else {
+        // 추천은 있지만 pilates 데이터가 없는 경우
+        page5HTML += '<div style="padding:20px; background:#f9f9f9; border-radius:8px; margin-top:10px;">';
+        metricBasedPilates.forEach(item => {
+          if(item && item.issue) {
+            page5HTML += `<div style="margin-bottom:15px; padding:12px; background:#fff; border-radius:6px; border-left:3px solid #9c88ff;">
+              <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue}</div>
+              ${item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0 ? 
+                `<div style="font-size:11px; color:#666; margin-bottom:6px;">관련 근육: ${item.muscles.join(', ')}</div>` : ''}
+              ${item.exercises && Array.isArray(item.exercises) && item.exercises.length > 0 ? 
+                `<div style="font-size:11px; color:#555;">추천 운동: ${item.exercises.join(', ')}</div>` : ''}
+            </div>`;
+          }
+        });
+        page5HTML += '</div>';
       }
     } else {
-      page5HTML += '<div style="padding:40px; text-align:center; color:#999;">측정 결과 기반 필라테스 추천이 없습니다.</div>';
+      // 추천이 없는 경우 - 분석 결과에서 필라테스 추천 가져오기
+      const analysisPilates = analysis?.pilates;
+      if(analysisPilates && Array.isArray(analysisPilates) && analysisPilates.length > 0) {
+        page5HTML += '<div style="padding:20px; background:#f9f9f9; border-radius:8px; margin-top:10px;">';
+        analysisPilates.forEach(item => {
+          if(item && item.issue) {
+            page5HTML += `<div style="margin-bottom:15px; padding:12px; background:#fff; border-radius:6px; border-left:3px solid #9c88ff;">`;
+            if(item.pilates && typeof item.pilates === 'object') {
+              const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+              tools.forEach(tool => {
+                if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
+                  page5HTML += `<div style="margin-bottom:8px;">
+                    <strong style="font-size:12px; color:#9c88ff;">${tool}:</strong>
+                    <span style="font-size:11px; color:#555;"> ${item.pilates[tool].join(', ')}</span>
+                  </div>`;
+                }
+              });
+            }
+            page5HTML += `</div>`;
+          }
+        });
+        page5HTML += '</div>';
+      } else {
+        page5HTML += '<div style="padding:40px; text-align:center; color:#999;">측정 결과 기반 필라테스 추천이 없습니다.</div>';
+      }
     }
     
     page5HTML += `<div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
