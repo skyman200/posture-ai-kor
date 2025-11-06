@@ -6319,69 +6319,116 @@ async function createOverlayImage(beforeImgData, afterImgData, alpha = 0.5) {
   });
 }
 
-// Confidence Heatmap 생성
+// Confidence Heatmap 생성 (안전 버전)
 async function createConfidenceHeatmap(imgData, sessionName, orientation = 'side') {
   return new Promise((resolve, reject) => {
     try {
       const img = new Image();
       img.onload = () => {
-        const session = sessions[sessionName];
-        if(!session) {
-          reject(new Error(`세션 ${sessionName}을 찾을 수 없습니다.`));
-          return;
-        }
-        
-        const heatmapCanvas = document.createElement('canvas');
-        const heatmapCtx = heatmapCanvas.getContext('2d');
-        heatmapCanvas.width = img.width;
-        heatmapCanvas.height = img.height;
-        
-        // 원본 이미지 그리기
-        heatmapCtx.drawImage(img, 0, 0);
-        
-        // 키포인트 가져오기
-        const points = orientation === 'front' ? session.frontPoints : session.sidePoints;
-        const landmarks = session.poseData?.landmarks || [];
-        
-        // 각 키포인트에 confidence 기반 색상 적용
-        points.forEach((point, key) => {
-          if(!point || !point.x || !point.y) return;
-          
-          // landmarks에서 confidence 찾기
-          let confidence = 0.8; // 기본값
-          if(landmarks && landmarks.length > 0) {
-            // 키포인트 매핑을 통해 confidence 찾기
-            const keypointMap = mapPoseToKeypoints({keypoints: landmarks}, orientation);
-            if(keypointMap && keypointMap[key] && keypointMap[key].score) {
-              confidence = keypointMap[key].score;
-            }
+        try {
+          const session = sessions?.[sessionName];
+          if(!session) {
+            console.warn(`세션 ${sessionName}을 찾을 수 없음`);
+            // 원본 이미지 반환
+            resolve({ heatmapImage: imgData, avgConfidence: 0.8 });
+            return;
           }
           
-          // Confidence 기반 색상 계산
-          // 높음(1.0): 빨강, 중간(0.5): 노랑, 낮음(0.0): 파랑
-          const r = Math.floor(255 * (1 - confidence)); // R: 높을수록 낮음
-          const g = Math.floor(255 * confidence); // G: 높을수록 높음
-          const b = 0;
-          const alpha = Math.floor(180 * confidence);
+          const heatmapCanvas = document.createElement('canvas');
+          const heatmapCtx = heatmapCanvas.getContext('2d');
+          if(!heatmapCtx) {
+            throw new Error('Canvas context를 가져올 수 없습니다.');
+          }
           
-          // 원 그리기
-          heatmapCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
-          heatmapCtx.beginPath();
-          heatmapCtx.arc(point.x, point.y, 15, 0, Math.PI * 2);
-          heatmapCtx.fill();
+          heatmapCanvas.width = img.width;
+          heatmapCanvas.height = img.height;
           
-          // 라벨
-          heatmapCtx.fillStyle = '#fff';
-          heatmapCtx.font = '10px Arial';
-          heatmapCtx.fillText(key, point.x + 18, point.y - 5);
-          heatmapCtx.fillText(`${(confidence * 100).toFixed(0)}%`, point.x + 18, point.y + 10);
-        });
-        
-        resolve(heatmapCanvas.toDataURL('image/png'));
+          // 원본 이미지 그리기
+          heatmapCtx.drawImage(img, 0, 0);
+          
+          // 키포인트 가져오기
+          const points = orientation === 'front' ? session.frontPoints : session.sidePoints;
+          const landmarks = session.poseData?.landmarks || [];
+          
+          // 빈 landmarks 배열 처리
+          if(!landmarks || !Array.isArray(landmarks) || landmarks.length === 0) {
+            console.warn('⚠️ landmarks 데이터 없음');
+            resolve({ heatmapImage: heatmapCanvas.toDataURL('image/png'), avgConfidence: 0.8 });
+            return;
+          }
+          
+          // 평균 confidence 계산
+          let totalConfidence = 0;
+          let validLandmarks = 0;
+          landmarks.forEach(landmark => {
+            if(landmark && (landmark.score != null || landmark.visibility != null)) {
+              totalConfidence += (landmark.score || landmark.visibility || 0);
+              validLandmarks++;
+            }
+          });
+          const avgConfidence = validLandmarks > 0 ? totalConfidence / validLandmarks : 0.8;
+          
+          // 각 키포인트에 confidence 기반 색상 적용
+          points.forEach((point, key) => {
+            if(!point || point.x == null || point.y == null) return;
+            
+            // landmarks에서 confidence 찾기
+            let confidence = 0.8; // 기본값
+            try {
+              if(landmarks && landmarks.length > 0) {
+                // 키포인트 매핑을 통해 confidence 찾기
+                const keypointMap = mapPoseToKeypoints({keypoints: landmarks}, orientation);
+                if(keypointMap && keypointMap[key] && keypointMap[key].score != null) {
+                  confidence = keypointMap[key].score;
+                }
+              }
+            } catch(err) {
+              console.warn(`키포인트 ${key} confidence 계산 실패:`, err);
+              confidence = 0.8;
+            }
+            
+            // Confidence 기반 색상 계산 (안전한 방식)
+            // 높음(1.0): 빨강, 중간(0.5): 노랑, 낮음(0.0): 파랑
+            const r = Math.floor(255 * confidence);
+            const g = Math.floor(150 * confidence);
+            const b = Math.floor(255 * (1 - confidence));
+            const alpha = 0.4 + 0.3 * confidence;
+            
+            // 원 그리기
+            heatmapCtx.beginPath();
+            heatmapCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            heatmapCtx.arc(point.x, point.y, 13, 0, Math.PI * 2);
+            heatmapCtx.fill();
+            
+            // 라벨 (안전한 폰트 사용)
+            heatmapCtx.font = '10px helvetica';
+            heatmapCtx.fillStyle = '#fff';
+            heatmapCtx.fillText(key, point.x + 15, point.y - 6);
+            heatmapCtx.fillText(`${(confidence * 100).toFixed(0)}%`, point.x + 15, point.y + 9);
+          });
+          
+          // 평균 신뢰도 표시
+          heatmapCtx.fillStyle = '#ffffffcc';
+          heatmapCtx.font = '14px helvetica';
+          heatmapCtx.fillText(`AI 평균 신뢰도: ${(avgConfidence * 100).toFixed(1)}%`, 20, 25);
+          
+          resolve({ 
+            heatmapImage: heatmapCanvas.toDataURL('image/png'), 
+            avgConfidence: avgConfidence 
+          });
+        } catch(err) {
+          console.error('Heatmap 생성 중 오류:', err);
+          // 오류 발생 시 원본 이미지 반환
+          resolve({ heatmapImage: imgData, avgConfidence: 0.8 });
+        }
       };
-      img.onerror = reject;
+      img.onerror = (err) => {
+        console.error('이미지 로드 실패:', err);
+        reject(new Error('이미지를 로드할 수 없습니다.'));
+      };
       img.src = imgData;
     } catch(err) {
+      console.error('Heatmap 생성 초기화 실패:', err);
       reject(err);
     }
   });
@@ -6697,6 +6744,7 @@ function exportAsPdf(options = {}) {
         ${beforeHeatmap ? `
         <div style="margin-bottom:25px;">
           <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#6366f1;">Before Confidence Heatmap</div>
+          <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(beforeAvgConfidence * 100).toFixed(1)}%</div>
           <img src="${beforeHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
         </div>
         ` : ''}
@@ -6704,6 +6752,7 @@ function exportAsPdf(options = {}) {
         ${afterHeatmap ? `
         <div style="margin-bottom:25px;">
           <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#10b981;">After Confidence Heatmap</div>
+          <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(afterAvgConfidence * 100).toFixed(1)}%</div>
           <img src="${afterHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
         </div>
         ` : ''}
@@ -6959,8 +7008,14 @@ function exportAsPdf(options = {}) {
     const canvas6 = await html2canvas(page6Container, {scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, logging: false});
     document.body.removeChild(page6Container);
     
-    // PDF 생성 (마진 24px = 약 0.6cm)
+    // PDF 생성 (마진 24px = 약 0.6cm, 폰트 안전화)
     const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
+    // 폰트 안전화: helvetica만 사용 (폰트 오류 방지)
+    try {
+      pdf.setFont('helvetica', 'normal');
+    } catch(err) {
+      console.warn('폰트 설정 실패, 기본 폰트 사용:', err);
+    }
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
