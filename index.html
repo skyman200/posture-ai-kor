@@ -6254,7 +6254,15 @@ function setupCalibrateButton() {
     S.calibrationPoint2 = null;
     draw();
   }
-};
+  };
+}
+
+// DOM 준비 후 캘리브레이션 버튼 설정
+if(document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupCalibrateButton);
+} else {
+  setupCalibrateButton();
+}
 
 // 캘리브레이션 클릭 핸들러 (다른 이벤트와 충돌 방지)
 cv.addEventListener('click', (e) => {
