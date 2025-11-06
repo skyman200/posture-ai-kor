@@ -7133,6 +7133,257 @@ function generateAIDeepAnalysis(metrics) {
   return lines.join('\n');
 }
 
+// ========== 100종 DB 기반 규칙 엔진 ==========
+
+/**********************
+ * 100종 DB 로더
+ **********************/
+let POSTURE_DB = [];
+
+async function loadPostureDB() {
+  if (POSTURE_DB.length) return POSTURE_DB;
+  try {
+    const res = await fetch('/db/Posture_Muscle_DB_Full.json', { cache: 'no-store' });
+    POSTURE_DB = await res.json();
+    return POSTURE_DB;
+  } catch (e) {
+    console.error('DB 로드 실패:', e);
+    POSTURE_DB = []; // 빈 배열로도 동작
+    return POSTURE_DB;
+  }
+}
+
+/**********************
+ * 정상 범위 파서
+ * '≥50°', '0–10°', '≤2cm' 등 텍스트를 수치 범위로 변환
+ **********************/
+function parseNormalRange(str) {
+  if (!str) return null;
+  const s = String(str).replace(/\s/g,'');
+  // 구간 'a–b' 또는 'a-b'
+  let m = s.match(/^(-?\d+(?:\.\d+)?)\s*[–-]\s*(-?\d+(?:\.\d+)?)$/);
+  if (m) return { type:'range', min: parseFloat(m[1]), max: parseFloat(m[2]) };
+  // '≥a'
+  m = s.match(/^≥\s*(-?\d+(?:\.\d+)?)/);
+  if (m) return { type:'min', min: parseFloat(m[1]) };
+  // '≤a'
+  m = s.match(/^≤\s*(-?\d+(?:\.\d+)?)/);
+  if (m) return { type:'max', max: parseFloat(m[1]) };
+  return null;
+}
+
+/**********************
+ * 이상유형 분류기 (측정값 → DB의 이상유형 label)
+ * 각 지표별 텍스트 기준에 매핑
+ **********************/
+function classifyAbnormalType(metricCode, value, normalText) {
+  const norm = parseNormalRange(normalText);
+  if (value == null || !norm) return '정상';
+  switch (norm.type) {
+    case 'range': {
+      if (value < norm.min) return '낮음';
+      if (value > norm.max) return '높음';
+      return '정상';
+    }
+    case 'min': {
+      if (value < norm.min) return '낮음';
+      // 상한 없는 최소 기준 → 과도/과신전 등 코드별 특수 처리
+      if (metricCode === 'CVA' && value >= 70) return '높음(과신전)';
+      return '정상';
+    }
+    case 'max': {
+      if (value > norm.max) return '높음';
+      return '정상';
+    }
+    default:
+      return '정상';
+  }
+}
+
+/**********************
+ * 지표별 정상 텍스트 (리포트에 이미 쓰던 표기 그대로)
+ **********************/
+const NORMAL_TEXT = {
+  CVA: '≥50°',
+  HPD: '≤2cm',
+  TIA: '0–10°',
+  SAA: '0–10°',
+  PTA: '0–15°',
+  KA:  '175–185°',
+  Tibial: '0–10°',
+  Tibial_Angle: '0–10°',
+  GSB: '≤2cm',
+  HPA: '0–10°',
+  // 정면 지표
+  STA: '≤3°',
+  STA_F: '≤3°',
+  POA: '≤3°',
+  POA_F: '≤3°',
+  TD: '0–3°',
+  HTA: '≤3°',
+  SPP: '0–3°',
+  LLD: '≤1cm',
+  LLD_F: '≤1cm'
+};
+
+/**********************
+ * DB 매칭 핵심 함수
+ * metrics: {CVA:72.3, PTA:5.2, ...} (After 기준 권장)
+ **********************/
+async function analyzeWithDB(metrics) {
+  await loadPostureDB();
+  const findings = [];     // 지표별 판정(정상/낮음/높음/비대칭)
+  const matches = [];      // DB 매칭 결과(운동 추천 등)
+  const tight = new Set();
+  const weak = new Set();
+
+  // 우선순위 가중치 (중요 지표 가중)
+  const weights = { 
+    CVA:3, SAA:2, PTA:2, KA:1.5, GSB:1.5, HPA:1.2, TIA:1.2,
+    STA:1.2, STA_F:1.2, POA:1.2, POA_F:1.2, TD:1.2, HTA:1.2, 
+    LLD:1.5, LLD_F:1.5, Tibial:1.0, Tibial_Angle:1.0, SPP:1.2
+  };
+
+  Object.keys(metrics).forEach(code => {
+    const v = metrics[code];
+    if (v == null || NORMAL_TEXT[code] == null) return;
+
+    // 1) 이상유형 라벨
+    let abnormal = classifyAbnormalType(code, v, NORMAL_TEXT[code]);
+
+    // 일부 지표는 의미 있는 세분 라벨 부여
+    if (code === 'PTA') {
+      if (v < 5) abnormal = '낮음(후경사)';
+      else if (v > 15) abnormal = '높음(전방경사)';
+      else abnormal = '정상';
+    }
+    if (code === 'SAA') {
+      if (v > 10) abnormal = '높음(라운드숄더)';
+      else abnormal = '정상';
+    }
+    if (code === 'CVA') {
+      if (v >= 70) abnormal = '높음(과신전)';
+      else if (v < 50) abnormal = '낮음(거북목)';
+      else abnormal = '정상';
+    }
+
+    findings.push({ code, value:v, normal: NORMAL_TEXT[code], abnormal });
+
+    // 2) DB에서 해당 (지표코드 & 이상유형) 레코드 추출
+    const rows = POSTURE_DB.filter(r => {
+      const dbCode = String(r['지표코드'] || '').toUpperCase();
+      const dbAbnormal = String(r['이상유형'] || '');
+      return dbCode === code.toUpperCase() && dbAbnormal.includes(abnormal);
+    });
+
+    // 3) 누적(근육/운동) + 점수
+    rows.forEach(r => {
+      const w = weights[code] ?? 1;
+
+      // 근육 누적
+      const tightStr = String(r['긴장근육(주요)'] || '');
+      const weakStr = String(r['약화근육(주요)'] || '');
+      tightStr.split(/[,\s]+/).filter(Boolean).forEach(m => tight.add(m));
+      weakStr.split(/[,\s]+/).filter(Boolean).forEach(m => weak.add(m));
+
+      // 추천 객체
+      matches.push({
+        code,
+        name: r['지표명'] || code,
+        abnormal,
+        weight: w,
+        tight: r['긴장근육(주요)'] || '',
+        weak: r['약화근육(주요)'] || '',
+        manual: r['교정운동(도수/자가)'] || '',
+        mat: r['필라테스운동(Mat)'] || '',
+        reformer: r['필라테스운동(Reformer)'] || '',
+        cadillac: r['필라테스운동(Cadillac)'] || '',
+        chair: r['필라테스운동(Chair)'] || '',
+        barrel: r['필라테스운동(Barrel)'] || '',
+        note: r['임상적의미'] || '',
+        level: r['추천레벨(초급/중급/고급)'] || ''
+      });
+    });
+  });
+
+  // 4) 우선순위 정렬(가중치↓, 과거 악화 항목 가점 가능)
+  matches.sort((a,b) => (b.weight) - (a.weight));
+
+  return {
+    findings,                                  // 지표별 판정표
+    topRecommendations: matches.slice(0,12),   // 상위 12개 세션 카드
+    muscles: {
+      tight: Array.from(tight),
+      weak: Array.from(weak)
+    }
+  };
+}
+
+/**********************
+ * 내러티브 생성 (PDF에 바로 출력)
+ **********************/
+function buildAINarrative(analysis) {
+  const bad = analysis.findings.filter(f => f.abnormal !== '정상');
+  const good = analysis.findings.filter(f => f.abnormal === '정상');
+  const lines = [];
+
+  if (bad.length) {
+    const key = bad.map(b => `${b.code} ${b.value}${/cm$/.test(b.normal) ? 'cm' : '°'} (${b.abnormal})`).join(', ');
+    lines.push(`⚠ 핵심 이슈: ${key}`);
+  } else {
+    lines.push('✅ 모든 핵심 지표가 정상 범위입니다.');
+  }
+
+  if (good.length) {
+    const ok = good.map(g => g.code).join(', ');
+    lines.push(`✓ 안정 항목: ${ok}`);
+  }
+
+  if (analysis.muscles.tight.length || analysis.muscles.weak.length) {
+    lines.push(`긴장 근육: ${analysis.muscles.tight.join(', ') || '—'}`);
+    lines.push(`약화 근육: ${analysis.muscles.weak.join(', ') || '—'}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**********************
+ * PDF에 들어갈 "세션 카드" HTML 생성 (간단 카드)
+ **********************/
+function renderSessionCardsHTML(list) {
+  if (!list || list.length === 0) return '<div style="padding:20px; text-align:center; color:#999;">추천 세션이 없습니다.</div>';
+  
+  return list.map((r, i) => {
+    return `
+      <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff;">
+        <div style="font-weight:700; margin-bottom:6px; font-size:13px;">
+          ${i+1}. ${r.name} — <span style="color:#ef4444">${r.abnormal}</span> 
+          ${r.level ? `<span style="color:#64748b">(${r.level})</span>` : ''}
+        </div>
+        <div style="font-size:12px; line-height:1.5; color:#333;">
+          <b>긴장</b>: ${r.tight || '—'}<br>
+          <b>약화</b>: ${r.weak || '—'}<br>
+          <b>도수/자가</b>: ${r.manual || '—'}<br>
+          <b>Mat</b>: ${r.mat || '—'}<br>
+          <b>Reformer</b>: ${r.reformer || '—'}<br>
+          <b>Cadillac</b>: ${r.cadillac || '—'}<br>
+          <b>Chair</b>: ${r.chair || '—'}<br>
+          <b>Barrel</b>: ${r.barrel || '—'}<br>
+          ${r.note ? `<i style="color:#6b7280; font-size:11px;">${r.note}</i>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/**********************
+ * 통합 실행 함수
+ * (측정값 metrics는 After 기준 혹은 종합값)
+ **********************/
+async function runDBDrivenAI(metrics) {
+  const analysis = await analyzeWithDB(metrics);
+  return analysis;
+}
+
 // 측정 결과 기반 필라테스 추천 (올바른 metrics 구조 사용)
 function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
   const recommendations = [];
@@ -7784,9 +8035,37 @@ function exportAsPdf(options = {}) {
     });
     document.body.removeChild(page3Container);
     
-    // ========== 페이지 4: AI 해석 요약 ==========
+    // ========== 페이지 4: AI 해석 요약 (DB 기반 분석 포함) ==========
     const page4Container = document.createElement("div");
     setPageContainerStyle(page4Container);
+    
+    // After metrics 추출 (DB 기반 분석용)
+    const afterMetricsForDB = {};
+    const aMetrics = sessions.After?.metrics?.fullMetrics || {};
+    const metricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA', 
+                        'STA', 'STA_F', 'POA', 'POA_F', 'TD', 'HTA', 'SPP', 'LLD', 'LLD_F'];
+    metricKeys.forEach(key => {
+      const val = aMetrics[key]?.value != null ? aMetrics[key].value : 
+                  (aMetrics[key]?.value_deg != null ? aMetrics[key].value_deg : 
+                  (aMetrics[key]?.value_cm != null ? aMetrics[key].value_cm : null));
+      if(val != null) {
+        afterMetricsForDB[key] = val;
+      }
+    });
+    
+    // DB 기반 AI 분석 수행
+    let dbAnalysis = null;
+    let dbNarrative = '';
+    let dbSessionCards = '';
+    try {
+      if(Object.keys(afterMetricsForDB).length > 0) {
+        dbAnalysis = await runDBDrivenAI(afterMetricsForDB);
+        dbNarrative = buildAINarrative(dbAnalysis);
+        dbSessionCards = renderSessionCardsHTML(dbAnalysis.topRecommendations);
+      }
+    } catch(err) {
+      console.warn('DB 기반 분석 실패:', err);
+    }
     
     // analysisSummaryHtml이 정의되어 있는지 확인 (이미 위에서 선언되었으므로 재선언하지 않음)
     if(typeof analysisSummaryHtml === 'undefined') {
@@ -7801,8 +8080,29 @@ function exportAsPdf(options = {}) {
     }
     
     page4Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧠 AI 해석 요약</h2>
-      ${analysisSummaryHtml || ''}
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 분석 (DB 100종 기반)</h2>
+      
+      ${dbNarrative ? `
+      <div style="margin-top:15px; padding:15px; background:#f8fafc; border-radius:8px; border-left:4px solid #6366f1;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#6366f1;">📊 DB 기반 AI 분석 요약</div>
+        <pre style="white-space:pre-wrap; font-family:inherit; font-size:12px; line-height:1.6; color:#333; margin:0; padding:0;">${dbNarrative}</pre>
+      </div>
+      ` : ''}
+      
+      ${dbSessionCards ? `
+      <div style="margin-top:20px;">
+        <h3 style="margin:0; padding:0; font-size:16px; font-weight:600; color:#0b0f14; margin-bottom:12px;">🧘 필라테스 세션 추천 (자동 매칭)</h3>
+        ${dbSessionCards}
+      </div>
+      ` : ''}
+      
+      ${analysisSummaryHtml ? `
+      <div style="margin-top:20px; padding-top:15px; border-top:1px solid #e0e0e0;">
+        <h3 style="margin:0; padding:0; font-size:16px; font-weight:600; color:#0b0f14; margin-bottom:12px;">📋 기존 분석 결과</h3>
+        ${analysisSummaryHtml}
+      </div>
+      ` : ''}
+      
       ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
       <div style="margin-top:20px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6;">
         <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
@@ -7810,6 +8110,7 @@ function exportAsPdf(options = {}) {
         ${analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555;">${analysis.details.join("<br>")}</div>` : ""}
       </div>
       ` : ""}
+      
       ${(analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0) || (analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0) ? `
       <div style="margin-top:20px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c;">
         <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
@@ -7817,6 +8118,7 @@ function exportAsPdf(options = {}) {
         ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
       </div>
       ` : ""}
+      
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
           <span>Generated by ${appName}</span>
