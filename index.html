@@ -6321,18 +6321,7 @@ function setupCalibrationButtons() {
     btnSaveJSON.onclick = () => {
       // 저장 전에 AI 분석 실행
       computeAll();
-  
-  const orientation = sessions[cur].poseData?.orientation || "side";
-  const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
-  const obj = Object.fromEntries(map);
-  const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${cur}_${orientation}_keypoints.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-};
-
+      
       const orientation = sessions[cur].poseData?.orientation || "side";
       const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
       const obj = Object.fromEntries(map);
@@ -6357,24 +6346,24 @@ function setupCalibrationButtons() {
       inp.type = 'file';
       inp.accept = 'application/json';
       inp.onchange = e => {
-    const f = e.target.files[0];
-    if(!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const obj = JSON.parse(r.result);
-        const orientation = sessions[cur].poseData?.orientation || "side";
-        const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
-        map.clear();
-        for(const k of Object.keys(obj)) map.set(k, obj[k]);
-        draw();
-        computeAll();
-      } catch(err) {
-        alert('JSON 파싱 실패: ' + err.message);
-      }
-    };
-    r.readAsText(f);
-  };
+        const f = e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+          try {
+            const obj = JSON.parse(r.result);
+            const orientation = sessions[cur].poseData?.orientation || "side";
+            const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+            map.clear();
+            for(const k of Object.keys(obj)) map.set(k, obj[k]);
+            draw();
+            computeAll();
+          } catch(err) {
+            alert('JSON 파싱 실패: ' + err.message);
+          }
+        };
+        r.readAsText(f);
+      };
       inp.click();
     };
   }
