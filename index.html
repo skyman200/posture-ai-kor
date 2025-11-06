@@ -8173,14 +8173,14 @@ function initializeApp() {
     console.error("setupImageButton 함수를 찾을 수 없습니다.");
   }
 
-// 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
-// sessions 객체에 orientation과 landmarks 정보 추가
-if(!sessions.Before.poseData) {
-  sessions.Before.poseData = { orientation: "side", landmarks: null };
-}
-if(!sessions.After.poseData) {
-  sessions.After.poseData = { orientation: "side", landmarks: null };
-}
+  // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
+  // sessions 객체에 orientation과 landmarks 정보 추가
+  if(!sessions.Before.poseData) {
+    sessions.Before.poseData = { orientation: "side", landmarks: null };
+  }
+  if(!sessions.After.poseData) {
+    sessions.After.poseData = { orientation: "side", landmarks: null };
+  }
 
   // 버튼 이벤트 핸들러 초기화
   initSessionButtons();
