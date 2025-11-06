@@ -1666,6 +1666,212 @@ function buildExerciseRecommendationHtml(analysisResult) {
   return html;
 }
 
+// ✅ Before-After 비교 분석 함수
+function analyzeBeforeAfterComparison() {
+  const B = sessions.Before;
+  const A = sessions.After;
+  
+  if(!B || !A || !B.metrics || !A.metrics) {
+    return null;
+  }
+  
+  const bMetrics = B.metrics?.fullMetrics || {};
+  const aMetrics = A.metrics?.fullMetrics || {};
+  
+  // 헬퍼 함수: 메트릭 값 가져오기
+  const getMetricValue = (metrics, key) => {
+    const metric = metrics[key];
+    if(!metric) return null;
+    return metric.value !== undefined ? metric.value : 
+           (metric.value_deg !== undefined ? metric.value_deg : 
+           (metric.value_cm !== undefined ? metric.value_cm : null));
+  };
+  
+  // 지표별 분석 규칙
+  const metricRules = {
+    'CVA': {
+      name: 'CVA(두개경추각)',
+      unit: '°',
+      normal: '≥50°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        if(delta > 5) return { status: 'improved', comment: `CVA가 ${delta.toFixed(1)}° 증가하여 거북목 자세가 정상 범위로 개선되었습니다.` };
+        if(delta < -5) return { status: 'worsened', comment: `CVA가 ${Math.abs(delta).toFixed(1)}° 감소하여 거북목 자세가 악화되었습니다.` };
+        return { status: 'stable', comment: `CVA는 ${after.toFixed(1)}°로 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'HPD': {
+      name: 'HPD(두부전방이동)',
+      unit: 'cm',
+      normal: '≤2cm',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        if(delta < -0.5) return { status: 'improved', comment: `두부 전방이동이 ${Math.abs(delta).toFixed(1)}cm 감소하여 두부 정렬이 개선되었습니다.` };
+        if(delta > 0.5) return { status: 'worsened', comment: `두부 전방이동이 ${delta.toFixed(1)}cm 증가하여 거북목 패턴이 악화되었습니다.` };
+        return { status: 'stable', comment: `두부 전방이동은 변화가 미미하여 안정된 두부 정렬을 유지하고 있습니다.` };
+      }
+    },
+    'TIA': {
+      name: 'TIA(체간경사각)',
+      unit: '°',
+      normal: '0-10°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = after >= 0 && after <= 10;
+        if(inRange && Math.abs(delta) < 2) return { status: 'stable', comment: `체간 전방기울기가 약간 변화했으나 여전히 정상범위 내에 있습니다.` };
+        if(delta > 2) return { status: 'worsened', comment: `체간 전방기울기가 ${delta.toFixed(1)}° 증가하여 전방 기울기가 악화되었습니다.` };
+        if(delta < -2) return { status: 'improved', comment: `체간 전방기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 체간 정렬이 개선되었습니다.` };
+        return { status: 'stable', comment: `체간 경사각은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'SAA': {
+      name: 'SAA(어깨전방각)',
+      unit: '°',
+      normal: '0-10°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        if(delta < -2) return { status: 'improved', comment: `어깨 전방각이 ${Math.abs(delta).toFixed(1)}° 감소하여 둥근어깨 패턴이 완화되었습니다.` };
+        if(delta > 2) return { status: 'worsened', comment: `어깨 전방각이 ${delta.toFixed(1)}° 증가하여 둥근어깨 패턴이 악화되었습니다.` };
+        return { status: 'stable', comment: `어깨 전방각은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'PTA': {
+      name: 'PTA(골반 전후경사각)',
+      unit: '°',
+      normal: '0-15°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = after >= 0 && after <= 15;
+        if(inRange && Math.abs(delta) < 2) return { status: 'stable', comment: `골반 전방경사가 약간 변화했으나 정상범위로 유지됩니다.` };
+        if(delta > 2) return { status: 'worsened', comment: `골반 전방경사가 ${delta.toFixed(1)}° 증가하여 골반 기울기가 악화되었습니다.` };
+        if(delta < -2) return { status: 'improved', comment: `골반 전방경사가 ${Math.abs(delta).toFixed(1)}° 감소하여 골반 정렬이 개선되었습니다.` };
+        return { status: 'stable', comment: `골반 전후경사각은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'KA': {
+      name: 'KA(무릎각)',
+      unit: '°',
+      normal: '175-185°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = after >= 175 && after <= 185;
+        const closerTo180 = Math.abs(after - 180) < Math.abs(before - 180);
+        if(inRange && closerTo180) return { status: 'improved', comment: `하지 정렬이 보다 직선화되어 균형적인 정렬을 보입니다.` };
+        if(inRange && Math.abs(delta) < 3) return { status: 'stable', comment: `무릎각은 정상범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(!inRange && delta > 0 && after < 180) return { status: 'worsened', comment: `무릎각이 ${delta.toFixed(1)}° 증가하여 과신전 패턴이 악화되었습니다.` };
+        if(!inRange && delta < 0 && after > 185) return { status: 'worsened', comment: `무릎각이 ${Math.abs(delta).toFixed(1)}° 감소하여 굴곡 패턴이 악화되었습니다.` };
+        return { status: 'stable', comment: `무릎각은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'Tibial_Angle': {
+      name: 'Tibial(경골경사각)',
+      unit: '°',
+      normal: '0-10°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = after >= 0 && after <= 10;
+        if(inRange && Math.abs(delta) < 2) return { status: 'stable', comment: `하퇴의 전방기울기가 변화했으나 기능적으로 안정적인 범위입니다.` };
+        if(delta > 2) return { status: 'worsened', comment: `경골경사각이 ${delta.toFixed(1)}° 증가하여 하퇴 정렬이 악화되었습니다.` };
+        if(delta < -2) return { status: 'improved', comment: `경골경사각이 ${Math.abs(delta).toFixed(1)}° 감소하여 하퇴 정렬이 개선되었습니다.` };
+        return { status: 'stable', comment: `경골경사각은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'GSB': {
+      name: 'GSB(중력중심선)',
+      unit: 'cm',
+      normal: '≤2cm',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        if(delta < -0.5) return { status: 'improved', comment: `체중 중심선 편차가 ${Math.abs(delta).toFixed(1)}cm 줄어들어 자세 안정성이 향상되었습니다.` };
+        if(delta > 0.5) return { status: 'worsened', comment: `체중 중심선 편차가 ${delta.toFixed(1)}cm 증가하여 자세 불안정성이 증가했습니다.` };
+        return { status: 'stable', comment: `체중 중심선은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'HPA': {
+      name: 'HPA(고관절각)',
+      unit: '°',
+      normal: '0-10°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        if(delta < -2) return { status: 'improved', comment: `머리-골반 정렬이 개선되어 체간 협응이 향상되었습니다.` };
+        if(delta > 2) return { status: 'worsened', comment: `머리-골반 정렬이 악화되어 체간 협응이 저하되었습니다.` };
+        return { status: 'stable', comment: `머리-골반 정렬은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'PDS': {
+      name: 'PDS(자세점수)',
+      unit: '점',
+      normal: '정상',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        // PDS는 낮을수록 좋음
+        if(delta < -2) return { status: 'improved', comment: `전반적인 자세 점수가 ${Math.abs(delta).toFixed(1)}점 개선되어 자세 품질이 향상되었습니다.` };
+        if(delta > 2) return { status: 'worsened', comment: `전반적인 자세 점수가 ${delta.toFixed(1)}점 악화되었습니다.` };
+        return { status: 'stable', comment: `전반적인 자세 점수는 일정하며, 안정적인 자세 패턴을 유지하고 있습니다.` };
+      }
+    }
+  };
+  
+  const results = [];
+  let improvedCount = 0;
+  let worsenedCount = 0;
+  let stableCount = 0;
+  let highlightItem = null;
+  let maxImprovement = 0;
+  
+  // 각 지표 분석
+  Object.keys(metricRules).forEach(key => {
+    const rule = metricRules[key];
+    const before = getMetricValue(bMetrics, key);
+    const after = getMetricValue(aMetrics, key);
+    
+    if(before == null || after == null) return;
+    
+    const delta = after - before;
+    const analysis = rule.analyze(before, after, delta);
+    
+    if(analysis) {
+      results.push({
+        key,
+        name: rule.name,
+        unit: rule.unit,
+        normal: rule.normal,
+        before,
+        after,
+        delta,
+        ...analysis
+      });
+      
+      if(analysis.status === 'improved') {
+        improvedCount++;
+        if(Math.abs(delta) > maxImprovement) {
+          maxImprovement = Math.abs(delta);
+          highlightItem = rule.name;
+        }
+      } else if(analysis.status === 'worsened') {
+        worsenedCount++;
+      } else {
+        stableCount++;
+      }
+    }
+  });
+  
+  // 전체 요약 코멘트 생성
+  const focusRegion = improvedCount > worsenedCount ? '상부 체간' : worsenedCount > 0 ? '전신 정렬' : '안정화';
+  const overallComment = `📊 전반적인 분석 결과, ${improvedCount}개 항목에서 자세가 개선되었으며 ${stableCount}개 항목은 안정적으로 유지되었습니다.${worsenedCount > 0 ? ` ${worsenedCount}개 항목에서 악화가 관찰되었습니다.` : ''}${highlightItem ? ` 특히 ${highlightItem} 지표에서 두드러진 향상이 관찰되며,` : ''} 전신의 수직정렬과 체간-골반 협응이 ${improvedCount > worsenedCount ? '향상' : improvedCount === worsenedCount ? '유지' : '개선 필요'}되었습니다. 필라테스 프로그램에서는 ${focusRegion} 부위의 근긴장 조절 및 안정화 운동을 중심으로 진행하는 것이 효과적입니다.`;
+  
+  return {
+    results,
+    summary: {
+      improvedCount,
+      worsenedCount,
+      stableCount,
+      highlightItem,
+      overallComment
+    }
+  };
+}
+
 // ✅ 운동 추천 엔진 - 분석 결과를 받아서 패턴별 근육과 운동 추천 생성
 function generatePostureRecommendations(analysis) {
   const patterns = [];
@@ -6245,12 +6451,42 @@ function exportAsPdf(options = {}) {
         </div>`;
       })() : ""}
       
-      ${sessions.Before && sessions.Before.metrics && sessions.After && sessions.After.metrics ? `
-      <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
-        <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
-        <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
-      </div>
-      ` : ''}
+      ${(() => {
+        const comparison = analyzeBeforeAfterComparison();
+        if(!comparison || comparison.results.length === 0) {
+          return sessions.Before && sessions.Before.metrics && sessions.After && sessions.After.metrics ? `
+          <div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; font-size:11px; color:#666; box-sizing:border-box; overflow:hidden;">
+            <div style="margin-bottom:8px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>Before 측정값:</strong> CVA ${fmtDeg(sessions.Before.metrics.cva)}, TRUNK ${fmtDeg(sessions.Before.metrics.pelvic)}, KNEE ${fmtDeg(sessions.Before.metrics.knee)}</div>
+            <div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><strong>After 측정값:</strong> CVA ${fmtDeg(sessions.After.metrics.cva)}, TRUNK ${fmtDeg(sessions.After.metrics.pelvic)}, KNEE ${fmtDeg(sessions.After.metrics.knee)}</div>
+          </div>
+          ` : '';
+        }
+        
+        let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
+        
+        comparison.results.forEach((item, idx) => {
+          const statusColor = item.status === 'improved' ? '#2ec4b6' : item.status === 'worsened' ? '#ff6b6b' : '#666';
+          const statusIcon = item.status === 'improved' ? '↑' : item.status === 'worsened' ? '↓' : '→';
+          const deltaStr = item.delta >= 0 ? '+' + item.delta.toFixed(1) : item.delta.toFixed(1);
+          comparisonTableHTML += `<tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
+            <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${item.name}</td>
+            <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+            <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+            <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px; color:${statusColor}; font-weight:600;">${deltaStr}${item.unit} ${statusIcon}</td>
+            <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555; line-height:1.4;">${item.comment}</td>
+          </tr>`;
+        });
+        comparisonTableHTML += '</table>';
+        
+        return `<div style="margin-top:25px; padding:18px; background:#f5f5f5; border-radius:10px; box-sizing:border-box; overflow:hidden;">
+          <div style="font-size:14px; font-weight:700; margin-bottom:12px; line-height:1.4; word-wrap:break-word;">📊 Before-After 비교 분석</div>
+          ${comparisonTableHTML}
+          <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+            <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">📈 전체 변화 요약</div>
+            <div style="font-size:11px; line-height:1.6; color:#333; word-wrap:break-word; overflow-wrap:break-word;">${comparison.summary.overallComment}</div>
+          </div>
+        </div>`;
+      })()}
       
       <div style="margin-top:20px; font-size:10px; color:#999; text-align:center; line-height:1.5;">※ 본 리포트는 교육용으로 제공됩니다. 의료 진단을 대체하지 않습니다.</div>
     `;
@@ -6287,28 +6523,38 @@ function exportAsPdf(options = {}) {
       pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, maxImg1H);
     }
     
-    // 두 번째 페이지: 체형 종합 점수부터
-    pdf.addPage();
+    // 두 번째 페이지: 체형 종합 점수부터 (자동 페이지 분할)
     const img2H = canvas2.height * (imgW / canvas2.width);
     const maxImg2H = pageH - (margin * 2);
+    
     if(img2H <= maxImg2H) {
+      // 한 페이지에 들어가는 경우
+      pdf.addPage();
       pdf.addImage(canvas2.toDataURL("image/png"), "PNG", margin, margin, imgW, img2H);
     } else {
-      // 긴 내용은 여러 페이지로 분할
-      let remaining = img2H, sY = 0;
+      // 여러 페이지로 분할
+      let remaining = img2H;
+      let sY = 0;
       const onePageH = maxImg2H;
       const sliceH = canvas2.height * (onePageH / img2H);
+      
       while(remaining > 0) {
+        pdf.addPage();
+        const currentSliceH = Math.min(sliceH, canvas2.height - sY);
+        const currentPageH = Math.min(onePageH, remaining);
+        
+        // 현재 페이지에 들어갈 부분만 캔버스로 추출
         const pageCanvas = document.createElement("canvas");
         pageCanvas.width = canvas2.width;
-        pageCanvas.height = Math.min(sliceH, canvas2.height - sY);
+        pageCanvas.height = currentSliceH;
         const pctx = pageCanvas.getContext("2d");
-        pctx.drawImage(canvas2, 0, sY, canvas2.width, pageCanvas.height, 0, 0, canvas2.width, pageCanvas.height);
+        pctx.drawImage(canvas2, 0, sY, canvas2.width, currentSliceH, 0, 0, canvas2.width, currentSliceH);
+        
         const pageImg = pageCanvas.toDataURL("image/png");
-        pdf.addImage(pageImg, "PNG", margin, margin, imgW, onePageH * (pageCanvas.height / sliceH));
+        pdf.addImage(pageImg, "PNG", margin, margin, imgW, currentPageH);
+        
         remaining -= onePageH;
         sY += sliceH;
-        if(remaining > 0) pdf.addPage();
       }
     }
     
