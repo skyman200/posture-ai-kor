@@ -6617,27 +6617,47 @@ function exportAsPdf(options = {}) {
         }
       }
       
-      // Confidence Heatmap 생성 (Before, After)
+      // Confidence Heatmap 생성 (Before, After) - 안전 버전
       let beforeHeatmap = null;
+      let beforeAvgConfidence = 0.8;
       let afterHeatmap = null;
+      let afterAvgConfidence = 0.8;
+      
       if(beforeImg && sessions.Before) {
         try {
           const beforeOriginalImg = sessions.Before[beforeOrientation === "front" ? "imgFront" : "imgSide"];
           if(beforeOriginalImg && beforeOriginalImg.src) {
-            beforeHeatmap = await createConfidenceHeatmap(beforeOriginalImg.src, "Before", beforeOrientation);
+            const heatmapResult = await createConfidenceHeatmap(beforeOriginalImg.src, "Before", beforeOrientation);
+            if(heatmapResult && typeof heatmapResult === 'object') {
+              beforeHeatmap = heatmapResult.heatmapImage || heatmapResult;
+              beforeAvgConfidence = heatmapResult.avgConfidence || 0.8;
+            } else {
+              beforeHeatmap = heatmapResult;
+            }
           }
         } catch(err) {
           console.warn("Before 히트맵 생성 실패:", err);
+          // 폴백: 원본 이미지 사용
+          beforeHeatmap = beforeImg;
         }
       }
+      
       if(afterImg && sessions.After) {
         try {
           const afterOriginalImg = sessions.After[afterOrientation === "front" ? "imgFront" : "imgSide"];
           if(afterOriginalImg && afterOriginalImg.src) {
-            afterHeatmap = await createConfidenceHeatmap(afterOriginalImg.src, "After", afterOrientation);
+            const heatmapResult = await createConfidenceHeatmap(afterOriginalImg.src, "After", afterOrientation);
+            if(heatmapResult && typeof heatmapResult === 'object') {
+              afterHeatmap = heatmapResult.heatmapImage || heatmapResult;
+              afterAvgConfidence = heatmapResult.avgConfidence || 0.8;
+            } else {
+              afterHeatmap = heatmapResult;
+            }
           }
         } catch(err) {
           console.warn("After 히트맵 생성 실패:", err);
+          // 폴백: 원본 이미지 사용
+          afterHeatmap = afterImg;
         }
       }
       
