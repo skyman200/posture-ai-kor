@@ -15,6 +15,17 @@
   --muted: #9bb0c7;
   --radius: 18px;
 }
+
+/* PDF용 안전 폰트 (구글 폰트 제외) */
+.pdf-safe {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif !important;
+  letter-spacing: 0.2px;
+  line-height: 1.45;
+}
+
+.pdf-safe * {
+  font-family: inherit !important;
+}
 * { box-sizing: border-box; }
 html, body {
   margin: 0; 
@@ -6319,17 +6330,49 @@ async function createOverlayImage(beforeImgData, afterImgData, alpha = 0.5) {
   });
 }
 
-// Confidence Heatmap 생성 (안전 버전)
+// 안전한 랜드마크 매핑 함수 (재시도 로직 포함)
+async function getMappedKeypoints(session, orientation = 'side', maxRetries = 10) {
+  // 1) 포즈 데이터 소스 유연하게 탐색
+  const pose = session?.poseData || session?.sidePose || session?.frontPose || {};
+  let raw = Array.isArray(pose.landmarks) ? pose.landmarks : [];
+  
+  // 2) 추론이 아직이면 짧게 재시도
+  if (!raw || !raw.length) {
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      const retry = session?.poseData?.landmarks || session?.sidePose?.landmarks || session?.frontPose?.landmarks || [];
+      if (retry && retry.length > 0) {
+        raw = retry;
+        break;
+      }
+    }
+  }
+  
+  // 3) 여전히 비어있으면 null 반환
+  if (!raw || !raw.length) {
+    console.warn('⚠️ landmarks empty. fallback to manual points only.');
+    return null;
+  }
+  
+  // 4) 정상 매핑
+  try {
+    return mapPoseToKeypoints({ keypoints: raw }, orientation);
+  } catch(err) {
+    console.warn('랜드마크 매핑 실패:', err);
+    return null;
+  }
+}
+
+// Confidence Heatmap 생성 (안전 버전 - 개선)
 async function createConfidenceHeatmap(imgData, sessionName, orientation = 'side') {
   return new Promise((resolve, reject) => {
     try {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         try {
           const session = sessions?.[sessionName];
           if(!session) {
             console.warn(`세션 ${sessionName}을 찾을 수 없음`);
-            // 원본 이미지 반환
             resolve({ heatmapImage: imgData, avgConfidence: 0.8 });
             return;
           }
@@ -6348,25 +6391,25 @@ async function createConfidenceHeatmap(imgData, sessionName, orientation = 'side
           
           // 키포인트 가져오기
           const points = orientation === 'front' ? session.frontPoints : session.sidePoints;
-          const landmarks = session.poseData?.landmarks || [];
           
-          // 빈 landmarks 배열 처리
-          if(!landmarks || !Array.isArray(landmarks) || landmarks.length === 0) {
-            console.warn('⚠️ landmarks 데이터 없음');
-            resolve({ heatmapImage: heatmapCanvas.toDataURL('image/png'), avgConfidence: 0.8 });
-            return;
-          }
+          // 안전한 랜드마크 매핑 (재시도 포함)
+          const MIN_CONF = 0.6;
+          const mapped = await getMappedKeypoints(session, orientation);
           
           // 평균 confidence 계산
           let totalConfidence = 0;
-          let validLandmarks = 0;
-          landmarks.forEach(landmark => {
-            if(landmark && (landmark.score != null || landmark.visibility != null)) {
-              totalConfidence += (landmark.score || landmark.visibility || 0);
-              validLandmarks++;
-            }
-          });
-          const avgConfidence = validLandmarks > 0 ? totalConfidence / validLandmarks : 0.8;
+          let validCount = 0;
+          
+          if(mapped) {
+            Object.values(mapped).forEach(point => {
+              if(point && point.score != null && point.score >= MIN_CONF) {
+                totalConfidence += point.score;
+                validCount++;
+              }
+            });
+          }
+          
+          const avgConfidence = validCount > 0 ? totalConfidence / validCount : 0.8;
           
           // 각 키포인트에 confidence 기반 색상 적용
           points.forEach((point, key) => {
@@ -6375,11 +6418,11 @@ async function createConfidenceHeatmap(imgData, sessionName, orientation = 'side
             // landmarks에서 confidence 찾기
             let confidence = 0.8; // 기본값
             try {
-              if(landmarks && landmarks.length > 0) {
-                // 키포인트 매핑을 통해 confidence 찾기
-                const keypointMap = mapPoseToKeypoints({keypoints: landmarks}, orientation);
-                if(keypointMap && keypointMap[key] && keypointMap[key].score != null) {
-                  confidence = keypointMap[key].score;
+              if(mapped && mapped[key] && mapped[key].score != null) {
+                const score = mapped[key].score;
+                // 최소 신뢰도 미만은 제외
+                if(score >= MIN_CONF) {
+                  confidence = score;
                 }
               }
             } catch(err) {
@@ -6560,7 +6603,7 @@ function exportAsPdf(options = {}) {
       page1Container.style.paddingBottom = "40px";
       page1Container.style.background = "#ffffff";
       page1Container.style.color = "#111";
-      page1Container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+      page1Container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
       page1Container.style.fontSize = "12px";
       page1Container.style.lineHeight = "1.6";
       page1Container.style.boxSizing = "border-box";
@@ -6680,6 +6723,14 @@ function exportAsPdf(options = {}) {
       
       // 로고 HTML (있으면)
       const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
+      
+      // 분석 결과 요약 HTML 생성 (undefined 에러 방지)
+      const analysisSummaryHtml = buildAnalysisSummaryHtml(analysisResult);
+      // 운동 추천 HTML 생성
+      const exerciseRecommendationHtml = buildExerciseRecommendationHtml(analysisResult);
+      
+      // PDF용 안전 폰트 적용
+      page1Container.classList.add('pdf-safe');
       
       // ========== 페이지 1: Before/After + 오버레이 이미지 ==========
       page1Container.innerHTML = `
@@ -6808,20 +6859,17 @@ function exportAsPdf(options = {}) {
     
     document.body.appendChild(page2Container);
     
-    // 두 번째 페이지 캡처
+    // 두 번째 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지)
     const canvas2 = await html2canvas(page2Container, {
+      ...html2canvasOptions,
       scale: 3, // 고해상도
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
       windowWidth: page2Container.scrollWidth,
       windowHeight: page2Container.scrollHeight
     });
     
     document.body.removeChild(page2Container);
     
-    // 공통 페이지 스타일 설정 함수
+    // 공통 페이지 스타일 설정 함수 (안전 폰트 사용)
     const setPageContainerStyle = (container) => {
       container.style.position = "fixed";
       container.style.left = "-9999px";
@@ -6831,12 +6879,15 @@ function exportAsPdf(options = {}) {
       container.style.paddingBottom = "40px";
       container.style.background = "#ffffff";
       container.style.color = "#111";
-      container.style.fontFamily = '"Noto Sans KR", Arial, sans-serif';
+      container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
       container.style.fontSize = "12px";
-      container.style.lineHeight = "1.6";
+      container.style.lineHeight = "1.45";
+      container.style.letterSpacing = "0.2px";
       container.style.boxSizing = "border-box";
       container.style.overflow = "hidden";
       container.style.wordWrap = "break-word";
+      // PDF 안전 폰트 클래스 추가
+      container.classList.add('pdf-safe');
     };
     
     // ========== 페이지 3: 수치표 + 변화 그래프 ==========
@@ -6932,15 +6983,27 @@ function exportAsPdf(options = {}) {
     
     page3Container.innerHTML = page3HTML;
     document.body.appendChild(page3Container);
-    const canvas3 = await html2canvas(page3Container, {scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, logging: false});
+    const canvas3 = await html2canvas(page3Container, html2canvasOptions);
     document.body.removeChild(page3Container);
     
     // ========== 페이지 4: AI 해석 요약 ==========
     const page4Container = document.createElement("div");
     setPageContainerStyle(page4Container);
+    
+    // analysisSummaryHtml이 정의되어 있는지 확인
+    if(typeof analysisSummaryHtml === 'undefined') {
+      console.warn('analysisSummaryHtml이 정의되지 않음, 재생성');
+      const analysisResult = S.analysisResult || analyzePostureAutoWithRecommendation({
+        sidePts: S.sidePoints.size > 0 ? Object.fromEntries(S.sidePoints) : null,
+        frontPts: S.frontPoints.size > 0 ? Object.fromEntries(S.frontPoints) : null,
+        pxPerCm: S.pxPerCm || 50.0
+      });
+      var analysisSummaryHtml = buildAnalysisSummaryHtml(analysisResult);
+    }
+    
     page4Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧠 AI 해석 요약</h2>
-      ${analysisSummaryHtml}
+      ${analysisSummaryHtml || ''}
       ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
       <div style="margin-top:20px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6;">
         <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
@@ -6963,7 +7026,7 @@ function exportAsPdf(options = {}) {
       </div>
     `;
     document.body.appendChild(page4Container);
-    const canvas4 = await html2canvas(page4Container, {scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, logging: false});
+    const canvas4 = await html2canvas(page4Container, html2canvasOptions);
     document.body.removeChild(page4Container);
     
     // ========== 페이지 5: 필라테스 세션 추천 (측정기반) ==========
@@ -7011,7 +7074,7 @@ function exportAsPdf(options = {}) {
     
     page5Container.innerHTML = page5HTML;
     document.body.appendChild(page5Container);
-    const canvas5 = await html2canvas(page5Container, {scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, logging: false});
+    const canvas5 = await html2canvas(page5Container, html2canvasOptions);
     document.body.removeChild(page5Container);
     
     // ========== 페이지 6: 결론 ==========
@@ -7044,7 +7107,7 @@ function exportAsPdf(options = {}) {
       </div>
     `;
     document.body.appendChild(page6Container);
-    const canvas6 = await html2canvas(page6Container, {scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true, logging: false});
+    const canvas6 = await html2canvas(page6Container, html2canvasOptions);
     document.body.removeChild(page6Container);
     
     // PDF 생성 (마진 24px = 약 0.6cm, 폰트 안전화)
