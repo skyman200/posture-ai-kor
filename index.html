@@ -1615,6 +1615,57 @@ function buildAnalysisSummaryHtml(analysisResult) {
   return html;
 }
 
+// ✅ 운동 추천 HTML 생성 함수
+function buildExerciseRecommendationHtml(analysisResult) {
+  const analysis = analysisResult.analysis || {};
+  let html = '';
+  
+  // 필라테스 추천 HTML 생성
+  let pilatesHTML = '';
+  if(analysis.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
+    analysis.pilates.forEach((item, idx) => {
+      if(!item) return;
+      pilatesHTML += `<div style="margin-bottom:15px; padding:12px; background:#f9f9f9; border-radius:8px; border-left:3px solid #9c88ff;">`;
+      const musclesText = (item.muscles && Array.isArray(item.muscles) && item.muscles.length > 0) 
+        ? item.muscles.join(', ') 
+        : '해당 없음';
+      pilatesHTML += `<div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#9c88ff;">${item.issue || '분석 항목'} (${musclesText})</div>`;
+      if(item.pilates && typeof item.pilates === 'object') {
+        const tools = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+        tools.forEach(tool => {
+          if(item.pilates[tool] && Array.isArray(item.pilates[tool]) && item.pilates[tool].length > 0) {
+            pilatesHTML += `<div style="margin-top:6px; font-size:11px;"><strong>${tool}:</strong> ${item.pilates[tool].join(', ')}</div>`;
+          }
+        });
+      }
+      pilatesHTML += `</div>`;
+    });
+  }
+  
+  // 운동 추천 HTML 생성
+  let exercisesHTML = '';
+  if(analysis.exercises && Array.isArray(analysis.exercises) && analysis.exercises.length > 0) {
+    exercisesHTML = analysis.exercises.filter(ex => ex != null).map(ex => `<div style="margin-bottom:8px; font-size:12px;">${ex}</div>`).join("");
+  }
+  
+  // 전체 HTML 조합
+  if(pilatesHTML) {
+    html += `<div style="margin-top:20px; padding:18px; background:#f3e5f5; border-radius:10px; border-left:4px solid #9c88ff; box-sizing:border-box; overflow:hidden;">
+      <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#9c88ff; line-height:1.4; word-wrap:break-word;">🧘 필라테스 세션 추천</div>
+      ${pilatesHTML}
+    </div>`;
+  }
+  
+  if(exercisesHTML) {
+    html += `<div style="margin-top:20px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+      <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#2ec4b6; line-height:1.4; word-wrap:break-word;">🏋️ 추천 운동</div>
+      <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${exercisesHTML}</div>
+    </div>`;
+  }
+  
+  return html;
+}
+
 // ✅ 운동 추천 엔진 - 분석 결과를 받아서 패턴별 근육과 운동 추천 생성
 function generatePostureRecommendations(analysis) {
   const patterns = [];
