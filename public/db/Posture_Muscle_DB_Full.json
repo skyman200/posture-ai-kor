@@ -85,9 +85,11 @@
       "Lower Crossed Syndrome 핵심, 요추 부담 증가"
     ],
     "ai_detection_metrics": {
-      "PTA_threshold": "> +10°",
-      "CVA_correlation": "<55°(동반 시)"
-    }
+      "PTA": "> +10°",
+      "CVA": "<55°(동반 시)",
+      "POA": "> 3°"
+    },
+    "exercise_key": "Anterior_Pelvic_Tilt"
   },
   {
     "key": "Posterior Pelvic Tilt",
@@ -168,8 +170,10 @@
       "Flat-back 연관, 분절운동성 저하"
     ],
     "ai_detection_metrics": {
-      "PTA_threshold": "< -5°"
-    }
+      "PTA": "< -5°",
+      "POA": "> 3°"
+    },
+    "exercise_key": "Posterior_Pelvic_Tilt"
   },
   {
     "key": "Forward Head Posture",
@@ -251,7 +255,8 @@
     "ai_detection_metrics": {
       "CVA": "< 55°",
       "HPD": "> 2 cm"
-    }
+    },
+    "exercise_key": "Forward_Head_Posture"
   },
   {
     "key": "Rounded Shoulders",
@@ -331,7 +336,8 @@
     ],
     "ai_detection_metrics": {
       "SAA": "> 10°"
-    }
+    },
+    "exercise_key": "Rounded_Shoulders"
   },
   {
     "key": "Thoracic Hyperkyphosis",
@@ -408,7 +414,8 @@
     "ai_detection_metrics": {
       "TIA": "> 10°",
       "SAA": "> 10°"
-    }
+    },
+    "exercise_key": "Thoracic_Hyperkyphosis"
   },
   {
     "key": "Lumbar Hyperlordosis",
@@ -484,7 +491,8 @@
     "ai_detection_metrics": {
       "PTA": "> +10°",
       "HPA": "> 10°"
-    }
+    },
+    "exercise_key": "Lumbar_Hyperlordosis"
   },
   {
     "key": "Flat Back",
@@ -562,7 +570,8 @@
     "ai_detection_metrics": {
       "PTA": "< -5°",
       "HPA": "< 5°"
-    }
+    },
+    "exercise_key": "Flat_Back"
   },
   {
     "key": "Sway Back",
@@ -636,7 +645,8 @@
     ],
     "ai_detection_metrics": {
       "GSB": "> 2 cm"
-    }
+    },
+    "exercise_key": "Sway_Back"
   },
   {
     "key": "Pelvic Obliquity",
@@ -709,8 +719,10 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "POA": "> 3°"
-    }
+      "POA": "> 3°",
+      "PTA": "> +10°"
+    },
+    "exercise_key": "Pelvic_Obliquity"
   },
   {
     "key": "Pelvic Rotation",
@@ -783,8 +795,11 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "PRA": "> 5°"
-    }
+      "PRA": "> 5°",
+      "PTA": "> +10°",
+      "POA": "> 3°"
+    },
+    "exercise_key": "Pelvic_Rotation"
   },
   {
     "key": "Genu Valgum",
@@ -859,7 +874,8 @@
     "ai_detection_metrics": {
       "KA": "< 175°",
       "QAngle": "> 20°"
-    }
+    },
+    "exercise_key": "Genu_Valgum"
   },
   {
     "key": "Genu Varum",
@@ -934,7 +950,8 @@
     "ai_detection_metrics": {
       "KA": "> 185°",
       "QAngle": "< 10°"
-    }
+    },
+    "exercise_key": "Genu_Varum"
   },
   {
     "key": "Genu Recurvatum",
@@ -1007,8 +1024,11 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "KneeExt": "> 5°"
-    }
+      "KneeExt": "> 5°",
+      "KA": "< 175°",
+      "QAngle": "> 20°"
+    },
+    "exercise_key": "Genu_Recurvatum"
   },
   {
     "key": "Knee Flexion Contracture",
@@ -1081,8 +1101,11 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "KneeFlexionROM": "< 120°"
-    }
+      "KneeFlexionROM": "< 120°",
+      "KA": "< 175°",
+      "QAngle": "> 20°"
+    },
+    "exercise_key": "Knee_Flexion_Contracture"
   },
   {
     "key": "Increased Q-Angle",
@@ -1155,8 +1178,10 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "QAngle": "> 20°"
-    }
+      "QAngle": "> 20°",
+      "KA": "< 175°"
+    },
+    "exercise_key": "Increased_Q-Angle"
   },
   {
     "key": "Decreased Q-Angle",
@@ -1229,8 +1254,10 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "QAngle": "< 10°"
-    }
+      "QAngle": "< 10°",
+      "KA": "< 175°"
+    },
+    "exercise_key": "Decreased_Q-Angle"
   },
   {
     "key": "Excessive Tibial Inclination",
@@ -1304,7 +1331,8 @@
     ],
     "ai_detection_metrics": {
       "Tibial": "> 10°"
-    }
+    },
+    "exercise_key": "Excessive_Tibial_Inclination"
   },
   {
     "key": "Internal Tibial Torsion",
@@ -1377,8 +1405,10 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "TibialRotation": "> 10° IR"
-    }
+      "TibialRotation": "> 10° IR",
+      "Tibial": "> 10°"
+    },
+    "exercise_key": "Internal_Tibial_Torsion"
   },
   {
     "key": "External Tibial Torsion",
@@ -1451,8 +1481,10 @@
       "기능적 부하 증가"
     ],
     "ai_detection_metrics": {
-      "TibialRotation": "> 10° ER"
-    }
+      "TibialRotation": "> 10° ER",
+      "Tibial": "> 10°"
+    },
+    "exercise_key": "External_Tibial_Torsion"
   },
   {
     "key": "Trendelenburg Sign",
@@ -1524,7 +1556,8 @@
     ],
     "ai_detection_metrics": {
       "HipAbdWeak": "+ (MRC ≤ 4)"
-    }
+    },
+    "exercise_key": "Trendelenburg_Sign"
   },
   {
     "key": "Femoral Anteversion",
@@ -1598,7 +1631,8 @@
     ],
     "ai_detection_metrics": {
       "FAngle": "> 20°"
-    }
+    },
+    "exercise_key": "Femoral_Anteversion"
   },
   {
     "key": "Femoral Retroversion",
@@ -1672,7 +1706,8 @@
     ],
     "ai_detection_metrics": {
       "FAngle": "< 10°"
-    }
+    },
+    "exercise_key": "Femoral_Retroversion"
   },
   {
     "key": "Pes Planus",
@@ -1746,7 +1781,8 @@
     ],
     "ai_detection_metrics": {
       "FBA": "Excess Pronation"
-    }
+    },
+    "exercise_key": "Pes_Planus"
   },
   {
     "key": "Pes Cavus",
@@ -1820,7 +1856,8 @@
     ],
     "ai_detection_metrics": {
       "FBA": "Excess Supination"
-    }
+    },
+    "exercise_key": "Pes_Cavus"
   },
   {
     "key": "Hallux Valgus",
@@ -1890,7 +1927,8 @@
     ],
     "ai_detection_metrics": {
       "HalluxValgus": "> 15°"
-    }
+    },
+    "exercise_key": "Hallux_Valgus"
   },
   {
     "key": "Toe-Out Gait",
@@ -1964,7 +2002,8 @@
     ],
     "ai_detection_metrics": {
       "FootProgression": "> +10°"
-    }
+    },
+    "exercise_key": "Toe-Out_Gait"
   },
   {
     "key": "Toe-In Gait",
@@ -2038,7 +2077,8 @@
     ],
     "ai_detection_metrics": {
       "FootProgression": "< -5°"
-    }
+    },
+    "exercise_key": "Toe-In_Gait"
   },
   {
     "key": "Head Tilt Left",
@@ -2108,7 +2148,8 @@
     ],
     "ai_detection_metrics": {
       "HTA": "> 3° Left"
-    }
+    },
+    "exercise_key": "Head_Tilt_Left"
   },
   {
     "key": "Head Tilt Right",
@@ -2178,7 +2219,8 @@
     ],
     "ai_detection_metrics": {
       "HTA": "> 3° Right"
-    }
+    },
+    "exercise_key": "Head_Tilt_Right"
   },
   {
     "key": "Cervical Rotation Preference",
@@ -2248,7 +2290,8 @@
     ],
     "ai_detection_metrics": {
       "CervRotPref": "Present"
-    }
+    },
+    "exercise_key": "Cervical_Rotation_Preference"
   },
   {
     "key": "Elevated Shoulder Left",
@@ -2318,7 +2361,8 @@
     ],
     "ai_detection_metrics": {
       "STA": "> 3° Left"
-    }
+    },
+    "exercise_key": "Elevated_Shoulder_Left"
   },
   {
     "key": "Elevated Shoulder Right",
@@ -2388,7 +2432,8 @@
     ],
     "ai_detection_metrics": {
       "STA": "> 3° Right"
-    }
+    },
+    "exercise_key": "Elevated_Shoulder_Right"
   },
   {
     "key": "Scapular Winging",
@@ -2459,7 +2504,8 @@
     "ai_detection_metrics": {
       "SAA": "> 10°",
       "WingSign": "+"
-    }
+    },
+    "exercise_key": "Scapular_Winging"
   },
   {
     "key": "Protracted Scapula",
@@ -2529,7 +2575,8 @@
     ],
     "ai_detection_metrics": {
       "SAA": "> 10°"
-    }
+    },
+    "exercise_key": "Protracted_Scapula"
   },
   {
     "key": "Retracted Scapula",
@@ -2599,7 +2646,8 @@
     ],
     "ai_detection_metrics": {
       "SAA": "< 0°"
-    }
+    },
+    "exercise_key": "Retracted_Scapula"
   },
   {
     "key": "Thoracic Hypokyphosis",
@@ -2669,7 +2717,8 @@
     ],
     "ai_detection_metrics": {
       "TIA": "≈0°"
-    }
+    },
+    "exercise_key": "Thoracic_Hypokyphosis"
   },
   {
     "key": "Rib Flare",
@@ -2739,7 +2788,8 @@
     ],
     "ai_detection_metrics": {
       "RibFlare": "Present"
-    }
+    },
+    "exercise_key": "Rib_Flare"
   },
   {
     "key": "Anterior Rib Tilt",
@@ -2809,7 +2859,8 @@
     ],
     "ai_detection_metrics": {
       "TIA": "> 5°"
-    }
+    },
+    "exercise_key": "Anterior_Rib_Tilt"
   },
   {
     "key": "Posterior Rib Tilt",
@@ -2879,7 +2930,8 @@
     ],
     "ai_detection_metrics": {
       "TIA": "< -5°"
-    }
+    },
+    "exercise_key": "Posterior_Rib_Tilt"
   },
   {
     "key": "Lumbar Lateral Shift Left",
@@ -2949,7 +3001,8 @@
     ],
     "ai_detection_metrics": {
       "TD": "> 3° Left"
-    }
+    },
+    "exercise_key": "Lumbar_Lateral_Shift_Left"
   },
   {
     "key": "Lumbar Lateral Shift Right",
@@ -3019,7 +3072,8 @@
     ],
     "ai_detection_metrics": {
       "TD": "> 3° Right"
-    }
+    },
+    "exercise_key": "Lumbar_Lateral_Shift_Right"
   },
   {
     "key": "Pelvic Drop Left",
@@ -3089,7 +3143,8 @@
     ],
     "ai_detection_metrics": {
       "POA": "> 3° Left"
-    }
+    },
+    "exercise_key": "Pelvic_Drop_Left"
   },
   {
     "key": "Pelvic Drop Right",
@@ -3159,7 +3214,8 @@
     ],
     "ai_detection_metrics": {
       "POA": "> 3° Right"
-    }
+    },
+    "exercise_key": "Pelvic_Drop_Right"
   },
   {
     "key": "Hip Internal Rotation Bias",
@@ -3229,7 +3285,8 @@
     ],
     "ai_detection_metrics": {
       "HipIR": "> 45°"
-    }
+    },
+    "exercise_key": "Hip_Internal_Rotation_Bias"
   },
   {
     "key": "Hip External Rotation Bias",
@@ -3299,7 +3356,8 @@
     ],
     "ai_detection_metrics": {
       "HipER": "> 60°"
-    }
+    },
+    "exercise_key": "Hip_External_Rotation_Bias"
   },
   {
     "key": "Hip Flexion Tightness",
@@ -3369,7 +3427,8 @@
     ],
     "ai_detection_metrics": {
       "HipFlexion": "< 110°"
-    }
+    },
+    "exercise_key": "Hip_Flexion_Tightness"
   },
   {
     "key": "Hip Extension Limitation",
@@ -3439,7 +3498,8 @@
     ],
     "ai_detection_metrics": {
       "HipExtension": "< 10°"
-    }
+    },
+    "exercise_key": "Hip_Extension_Limitation"
   },
   {
     "key": "Ankle Dorsiflexion Limitation",
@@ -3509,7 +3569,8 @@
     ],
     "ai_detection_metrics": {
       "AnkleDF": "< 10°"
-    }
+    },
+    "exercise_key": "Ankle_Dorsiflexion_Limitation"
   },
   {
     "key": "Ankle Plantarflexion Limitation",
@@ -3579,7 +3640,8 @@
     ],
     "ai_detection_metrics": {
       "AnklePF": "< 40°"
-    }
+    },
+    "exercise_key": "Ankle_Plantarflexion_Limitation"
   },
   {
     "key": "Calcaneal Valgus",
@@ -3649,7 +3711,8 @@
     ],
     "ai_detection_metrics": {
       "Rearfoot": "Valgus"
-    }
+    },
+    "exercise_key": "Calcaneal_Valgus"
   },
   {
     "key": "Calcaneal Varus",
@@ -3719,7 +3782,8 @@
     ],
     "ai_detection_metrics": {
       "Rearfoot": "Varus"
-    }
+    },
+    "exercise_key": "Calcaneal_Varus"
   },
   {
     "key": "Forefoot Varus",
@@ -3789,7 +3853,8 @@
     ],
     "ai_detection_metrics": {
       "Forefoot": "Varus"
-    }
+    },
+    "exercise_key": "Forefoot_Varus"
   },
   {
     "key": "Forefoot Valgus",
@@ -3859,7 +3924,8 @@
     ],
     "ai_detection_metrics": {
       "Forefoot": "Valgus"
-    }
+    },
+    "exercise_key": "Forefoot_Valgus"
   },
   {
     "key": "Leg Length Discrepancy Structural",
@@ -3929,7 +3995,8 @@
     ],
     "ai_detection_metrics": {
       "LLD": "> 1 cm"
-    }
+    },
+    "exercise_key": "Leg_Length_Discrepancy_Structural"
   },
   {
     "key": "Leg Length Discrepancy Functional",
@@ -3999,7 +4066,8 @@
     ],
     "ai_detection_metrics": {
       "LLD": "> 1 cm (functional)"
-    }
+    },
+    "exercise_key": "Leg_Length_Discrepancy_Functional"
   },
   {
     "key": "Patellofemoral Maltracking Lateral",
@@ -4069,7 +4137,8 @@
     ],
     "ai_detection_metrics": {
       "Patellar": "Lateral"
-    }
+    },
+    "exercise_key": "Patellofemoral_Maltracking_Lateral"
   },
   {
     "key": "Patellofemoral Maltracking Medial",
@@ -4139,7 +4208,8 @@
     ],
     "ai_detection_metrics": {
       "Patellar": "Medial"
-    }
+    },
+    "exercise_key": "Patellofemoral_Maltracking_Medial"
   },
   {
     "key": "Pronation Syndrome",
@@ -4209,7 +4279,8 @@
     ],
     "ai_detection_metrics": {
       "FBA": "Pronation"
-    }
+    },
+    "exercise_key": "Pronation_Syndrome"
   },
   {
     "key": "Supination Syndrome",
@@ -4279,7 +4350,8 @@
     ],
     "ai_detection_metrics": {
       "FBA": "Supination"
-    }
+    },
+    "exercise_key": "Supination_Syndrome"
   },
   {
     "key": "Cervical Hypolordosis",
@@ -4349,7 +4421,8 @@
     ],
     "ai_detection_metrics": {
       "CervLordosis": "Low"
-    }
+    },
+    "exercise_key": "Cervical_Hypolordosis"
   },
   {
     "key": "Cervical Hyperlordosis",
@@ -4419,7 +4492,8 @@
     ],
     "ai_detection_metrics": {
       "CervLordosis": "High"
-    }
+    },
+    "exercise_key": "Cervical_Hyperlordosis"
   },
   {
     "key": "Thoracolumbar Junction Stiffness",
@@ -4489,7 +4563,8 @@
     ],
     "ai_detection_metrics": {
       "TLJ": "Stiff"
-    }
+    },
+    "exercise_key": "Thoracolumbar_Junction_Stiffness"
   },
   {
     "key": "Anterior Weight Shift",
@@ -4559,7 +4634,8 @@
     ],
     "ai_detection_metrics": {
       "GSB": "> 2 cm"
-    }
+    },
+    "exercise_key": "Anterior_Weight_Shift"
   },
   {
     "key": "Posterior Weight Shift",
@@ -4629,7 +4705,8 @@
     ],
     "ai_detection_metrics": {
       "GSB": "< -2 cm"
-    }
+    },
+    "exercise_key": "Posterior_Weight_Shift"
   },
   {
     "key": "Scapular Downward Rotation",
@@ -4699,7 +4776,8 @@
     ],
     "ai_detection_metrics": {
       "SAA": "< 0°"
-    }
+    },
+    "exercise_key": "Scapular_Downward_Rotation"
   },
   {
     "key": "Scapular Upward Rotation Insufficiency",
@@ -4769,7 +4847,8 @@
     ],
     "ai_detection_metrics": {
       "SAA": "> 10° with dyskinesis"
-    }
+    },
+    "exercise_key": "Scapular_Upward_Rotation_Insufficiency"
   },
   {
     "key": "Humeral Anterior Glide",
@@ -4839,7 +4918,8 @@
     ],
     "ai_detection_metrics": {
       "SAA": "> 10° + anterior glide"
-    }
+    },
+    "exercise_key": "Humeral_Anterior_Glide"
   },
   {
     "key": "Glenohumeral IR Deficit",
@@ -4909,7 +4989,8 @@
     ],
     "ai_detection_metrics": {
       "GH_IR": "< 60°"
-    }
+    },
+    "exercise_key": "Glenohumeral_IR_Deficit"
   },
   {
     "key": "Glenohumeral ER Deficit",
@@ -4979,7 +5060,8 @@
     ],
     "ai_detection_metrics": {
       "GH_ER": "< 80°"
-    }
+    },
+    "exercise_key": "Glenohumeral_ER_Deficit"
   },
   {
     "key": "Functional Asymmetry 70",
@@ -5053,7 +5135,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_70"
   },
   {
     "key": "Functional Asymmetry 71",
@@ -5127,7 +5210,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_71"
   },
   {
     "key": "Functional Asymmetry 72",
@@ -5201,7 +5285,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_72"
   },
   {
     "key": "Functional Asymmetry 73",
@@ -5275,7 +5360,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_73"
   },
   {
     "key": "Functional Asymmetry 74",
@@ -5349,7 +5435,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_74"
   },
   {
     "key": "Functional Asymmetry 75",
@@ -5423,7 +5510,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_75"
   },
   {
     "key": "Functional Asymmetry 76",
@@ -5497,7 +5585,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_76"
   },
   {
     "key": "Functional Asymmetry 77",
@@ -5571,7 +5660,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_77"
   },
   {
     "key": "Functional Asymmetry 78",
@@ -5645,7 +5735,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_78"
   },
   {
     "key": "Functional Asymmetry 79",
@@ -5719,7 +5810,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_79"
   },
   {
     "key": "Functional Asymmetry 80",
@@ -5793,7 +5885,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_80"
   },
   {
     "key": "Functional Asymmetry 81",
@@ -5867,7 +5960,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_81"
   },
   {
     "key": "Functional Asymmetry 82",
@@ -5941,7 +6035,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_82"
   },
   {
     "key": "Functional Asymmetry 83",
@@ -6015,7 +6110,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_83"
   },
   {
     "key": "Functional Asymmetry 84",
@@ -6089,7 +6185,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_84"
   },
   {
     "key": "Functional Asymmetry 85",
@@ -6163,7 +6260,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_85"
   },
   {
     "key": "Functional Asymmetry 86",
@@ -6237,7 +6335,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_86"
   },
   {
     "key": "Functional Asymmetry 87",
@@ -6311,7 +6410,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_87"
   },
   {
     "key": "Functional Asymmetry 88",
@@ -6385,7 +6485,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_88"
   },
   {
     "key": "Functional Asymmetry 89",
@@ -6459,7 +6560,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_89"
   },
   {
     "key": "Functional Asymmetry 90",
@@ -6533,7 +6635,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_90"
   },
   {
     "key": "Functional Asymmetry 91",
@@ -6607,7 +6710,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_91"
   },
   {
     "key": "Functional Asymmetry 92",
@@ -6681,7 +6785,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_92"
   },
   {
     "key": "Functional Asymmetry 93",
@@ -6755,7 +6860,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_93"
   },
   {
     "key": "Functional Asymmetry 94",
@@ -6829,7 +6935,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_94"
   },
   {
     "key": "Functional Asymmetry 95",
@@ -6903,7 +7010,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_95"
   },
   {
     "key": "Functional Asymmetry 96",
@@ -6977,7 +7085,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_96"
   },
   {
     "key": "Functional Asymmetry 97",
@@ -7051,7 +7160,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_97"
   },
   {
     "key": "Functional Asymmetry 98",
@@ -7125,7 +7235,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_98"
   },
   {
     "key": "Functional Asymmetry 99",
@@ -7199,7 +7310,8 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_99"
   },
   {
     "key": "Functional Asymmetry 100",
@@ -7273,6 +7385,7 @@
     ],
     "ai_detection_metrics": {
       "Asymmetry": "Present"
-    }
+    },
+    "exercise_key": "Functional_Asymmetry_100"
   }
 ]
