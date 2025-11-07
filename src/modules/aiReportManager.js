@@ -1,8 +1,46 @@
 // src/modules/aiReportManager.js
 
-import { UserDataManager } from '../utils/userDataManager.js';
-import { analyzeWithDB } from '../ai/analyzerWithDB.js';
-import { exportDetailedPDF } from '../ai/reportPdf.js';
+// ✅ GitHub Pages 경로 자동 감지 및 절대 경로 생성
+const REPO_ROOT = typeof location !== 'undefined' 
+  ? (location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : ''))
+  : '';
+
+// ✅ 절대 경로 기반 import (동적 import로 변경)
+let UserDataManager, analyzeWithDB, exportDetailedPDF;
+
+// 모듈 로드 함수
+async function loadDependencies() {
+  if (UserDataManager && analyzeWithDB && exportDetailedPDF) {
+    return; // 이미 로드됨
+  }
+
+  try {
+    const [userDataModule, analyzerModule, reportModule] = await Promise.all([
+      import(`${REPO_ROOT}/src/utils/userDataManager.js`),
+      import(`${REPO_ROOT}/src/ai/analyzerWithDB.js`),
+      import(`${REPO_ROOT}/src/ai/reportPdf.js`)
+    ]);
+    
+    UserDataManager = userDataModule.UserDataManager;
+    analyzeWithDB = analyzerModule.analyzeWithDB;
+    exportDetailedPDF = reportModule.exportDetailedPDF;
+  } catch (err) {
+    console.warn('⚠️ aiReportManager 의존성 로드 실패:', err);
+    // 폴백: 상대 경로 시도
+    try {
+      const [userDataModule, analyzerModule, reportModule] = await Promise.all([
+        import('../utils/userDataManager.js'),
+        import('../ai/analyzerWithDB.js'),
+        import('../ai/reportPdf.js')
+      ]);
+      UserDataManager = userDataModule.UserDataManager;
+      analyzeWithDB = analyzerModule.analyzeWithDB;
+      exportDetailedPDF = reportModule.exportDetailedPDF;
+    } catch (fallbackErr) {
+      console.error('❌ aiReportManager 의존성 로드 완전 실패:', fallbackErr);
+    }
+  }
+}
 
 /**
  * ✅ AI 분석 + 리포트 + PDF 통합 관리 모듈
@@ -11,12 +49,29 @@ import { exportDetailedPDF } from '../ai/reportPdf.js';
  *  - Before–After 히스토리 누적 가능
  */
 export const AIReportManager = (() => {
+  // ✅ 의존성 로드 확인 (비동기)
+  let dependenciesLoaded = false;
+  
+  /**
+   * 의존성 로드 확인 및 초기화
+   */
+  const ensureDependencies = async () => {
+    if (!dependenciesLoaded) {
+      await loadDependencies();
+      dependenciesLoaded = true;
+    }
+  };
+
   /**
    * 리포트 저장
    * @param {string} sessionName - 세션 이름 (예: 'Before', 'After', '2025-01-15_After')
    * @param {object} data - 저장할 리포트 데이터
    */
-  const saveReport = (sessionName, data) => {
+  const saveReport = async (sessionName, data) => {
+    await ensureDependencies();
+    if (!UserDataManager) {
+      throw new Error('UserDataManager가 로드되지 않았습니다.');
+    }
     const reports = UserDataManager.load('reports', {});
     reports[sessionName] = {
       timestamp: new Date().toISOString(),
@@ -32,7 +87,12 @@ export const AIReportManager = (() => {
    * @param {string} sessionName - 세션 이름
    * @returns {object|null} 저장된 리포트 데이터
    */
-  const loadReport = (sessionName) => {
+  const loadReport = async (sessionName) => {
+    await ensureDependencies();
+    if (!UserDataManager) {
+      console.warn('⚠️ UserDataManager가 로드되지 않았습니다.');
+      return null;
+    }
     const reports = UserDataManager.load('reports', {});
     return reports[sessionName] || null;
   };
@@ -41,7 +101,12 @@ export const AIReportManager = (() => {
    * 전체 리포트 히스토리 가져오기
    * @returns {object} 모든 리포트 객체
    */
-  const getAllReports = () => {
+  const getAllReports = async () => {
+    await ensureDependencies();
+    if (!UserDataManager) {
+      console.warn('⚠️ UserDataManager가 로드되지 않았습니다.');
+      return {};
+    }
     return UserDataManager.load('reports', {});
   };
 
@@ -49,7 +114,12 @@ export const AIReportManager = (() => {
    * 리포트 삭제
    * @param {string} sessionName - 삭제할 세션 이름
    */
-  const deleteReport = (sessionName) => {
+  const deleteReport = async (sessionName) => {
+    await ensureDependencies();
+    if (!UserDataManager) {
+      console.warn('⚠️ UserDataManager가 로드되지 않았습니다.');
+      return false;
+    }
     const reports = UserDataManager.load('reports', {});
     if (reports[sessionName]) {
       delete reports[sessionName];
@@ -66,9 +136,9 @@ export const AIReportManager = (() => {
    * @param {string} afterSession - After 세션 이름
    * @returns {object|null} {before, after} 객체 또는 null
    */
-  const getBeforeAfterComparison = (beforeSession, afterSession) => {
-    const before = loadReport(beforeSession);
-    const after = loadReport(afterSession);
+  const getBeforeAfterComparison = async (beforeSession, afterSession) => {
+    const before = await loadReport(beforeSession);
+    const after = await loadReport(afterSession);
     
     if (!before || !after) {
       return null;
