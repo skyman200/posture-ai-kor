@@ -10365,6 +10365,9 @@ if (typeof window !== 'undefined') {
  **********************/
 (async function loadAIModules() {
   try {
+    // ✅ GitHub Pages 경로 자동 감지 및 절대 경로 생성
+    const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
+    
     // 자세 분석 유틸리티 모듈 로드
     // ✅ 2. MIME type 오류 해결: .ts 파일 대신 빌드된 .js 파일 사용 또는 제거
     // TypeScript 파일은 빌드 후 사용해야 하므로, 여기서는 기존 인라인 함수 사용
@@ -10401,26 +10404,46 @@ if (typeof window !== 'undefined') {
     //   { sessionName: 'After', additionalNotes: '추가 메모...' }
     // );
 
+    // ✅ 절대 경로 기반 모듈 경로 정의
+    const MODULES = {
+      analyzerWithDB: `${REPO_ROOT}/src/ai/analyzerWithDB.js`,
+      reportPdf: `${REPO_ROOT}/src/ai/reportPdf.js`,
+      userDataManager: `${REPO_ROOT}/src/utils/userDataManager.js`,
+      aiReportManager: `${REPO_ROOT}/src/modules/aiReportManager.js`
+    };
+
     // DB 기반 분석기 모듈 로드
-    const analyzerModule = await import('./src/ai/analyzerWithDB.js');
-    if (analyzerModule && analyzerModule.analyzeWithDB) {
-      window.analyzeWithDB = analyzerModule.analyzeWithDB;
-      window.loadPostureDBModule = analyzerModule.loadPostureDB;
-      console.log('✅ DB 기반 분석기 모듈 로드 완료');
+    try {
+      const analyzerModule = await import(MODULES.analyzerWithDB);
+      if (analyzerModule && analyzerModule.analyzeWithDB) {
+        window.analyzeWithDB = analyzerModule.analyzeWithDB;
+        window.loadPostureDBModule = analyzerModule.loadPostureDB;
+        console.log('✅ DB 기반 분석기 모듈 로드 완료');
+      }
+    } catch (err) {
+      console.warn('⚠️ analyzerWithDB 모듈 로드 실패:', err);
     }
 
     // 상세 PDF 리포트 모듈 로드
-    const reportModule = await import('./src/ai/reportPdf.js');
-    if (reportModule && reportModule.exportDetailedPDF) {
-      window.exportDetailedPDF = reportModule.exportDetailedPDF;
-      console.log('✅ 상세 PDF 리포트 모듈 로드 완료');
+    try {
+      const reportModule = await import(MODULES.reportPdf);
+      if (reportModule && reportModule.exportDetailedPDF) {
+        window.exportDetailedPDF = reportModule.exportDetailedPDF;
+        console.log('✅ 상세 PDF 리포트 모듈 로드 완료');
+      }
+    } catch (err) {
+      console.warn('⚠️ reportPdf 모듈 로드 실패:', err);
     }
 
     // AIReportManager 모듈 로드
-    const managerModule = await import('./src/modules/aiReportManager.js');
-    if (managerModule && managerModule.AIReportManager) {
-      window.AIReportManager = managerModule.AIReportManager;
-      console.log('✅ AIReportManager 모듈 로드 완료');
+    try {
+      const managerModule = await import(MODULES.aiReportManager);
+      if (managerModule && managerModule.AIReportManager) {
+        window.AIReportManager = managerModule.AIReportManager;
+        console.log('✅ AIReportManager 모듈 로드 완료');
+      }
+    } catch (err) {
+      console.warn('⚠️ aiReportManager 모듈 로드 실패:', err);
     }
 
     // 사용 예시: DB 기반 분석 + 상세 PDF 생성
