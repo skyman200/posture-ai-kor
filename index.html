@@ -604,6 +604,7 @@ const cv = document.getElementById("cv");
 const ctx = cv ? cv.getContext("2d") : null;
 let DPR = window.devicePixelRatio || 1;
 let dragKey = null;
+let autoFollowKey = null; // 자동 추적 모드 (클릭 시 따라오는 dot)
 let editMode = false;
 let selectedPoint = null;
 let originalCanvasSize = { width: 0, height: 0, styleWidth: 0, styleHeight: 0 };
@@ -5975,10 +5976,57 @@ function endDrag(e) {
 let isMouseDown = false;
 cv.addEventListener('mousedown', (e) => {
   isMouseDown = true;
+  
+  // 자동 추적 모드 토글 체크 (dot를 클릭하면 토글) - startDrag 전에 체크
+  const pos = getEventPos(e);
+  const P = getPts(cur);
+  const currentKeypoints = getKeypoints();
+  let clickedPoint = null;
+  let minDistance = 1e9;
+  const threshold = 50; // 클릭 감지 범위
+  
+  for(const k of currentKeypoints) {
+    const p = P[k.key];
+    if(!p) continue;
+    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+    if(d < threshold && d < minDistance) {
+      clickedPoint = k.key;
+      minDistance = d;
+    }
+  }
+  
+  // dot를 클릭했을 때 자동 추적 모드 토글
+  if(clickedPoint) {
+    if(autoFollowKey === clickedPoint) {
+      // 이미 자동 추적 중이면 해제
+      autoFollowKey = null;
+      dragKey = null;
+      console.log('🛑 자동 추적 모드 해제:', clickedPoint);
+      isMouseDown = false;
+      e.preventDefault();
+      return;
+    } else {
+      // 자동 추적 모드 활성화
+      autoFollowKey = clickedPoint;
+      dragKey = null; // 드래그 모드는 해제
+      console.log('▶️ 자동 추적 모드 활성화:', clickedPoint);
+      isMouseDown = false;
+      e.preventDefault();
+      return;
+    }
+  }
+  
+  // 자동 추적 모드가 아니면 일반 드래그 처리
   const dragStarted = startDrag(e);
+  
   // 점을 찾지 못했으면 isMouseDown을 false로 설정 (드래그가 시작되지 않았으므로)
   if(!dragStarted) {
     isMouseDown = false;
+  } else {
+    // 드래그가 시작되면 자동 추적 모드 해제
+    if(autoFollowKey) {
+      autoFollowKey = null;
+    }
   }
 });
 
@@ -5993,6 +6041,39 @@ window.addEventListener('mouseleave', () => {
 });
 
 window.addEventListener('mousemove', (e) => {
+  // 자동 추적 모드: dragKey 없이도 마우스를 따라옴
+  if(autoFollowKey) {
+    const pos = getEventPos(e);
+    const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
+    const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+    const x = clamp(pos.x, 0, originalW);
+    const y = clamp(pos.y, 0, originalH);
+    const orientation = sessions[cur].poseData?.orientation || "side";
+    const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+    const p = map.get(autoFollowKey);
+    
+    if(p) {
+      p.x = x;
+      p.y = y;
+      
+      // 입력 필드도 실시간 업데이트
+      if(coordX && coordY && selectedPoint === autoFollowKey) {
+        coordX.value = x.toFixed(1);
+        coordY.value = y.toFixed(1);
+      }
+      
+      draw();
+      
+      // 실시간 분석 업데이트 (throttle 적용)
+      if(!dragUpdateTimer) {
+        dragUpdateTimer = requestAnimationFrame(() => {
+          computeMetricsOnly();
+          dragUpdateTimer = null;
+        });
+      }
+    }
+  }
+  
   // dragKey가 설정되어 있을 때만 드래그 처리 (점을 클릭했을 때만)
   if(dragKey) {
     doDrag(e);
