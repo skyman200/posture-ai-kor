@@ -10347,17 +10347,13 @@ if (typeof window !== 'undefined') {
 (async function loadAIModules() {
   try {
     // 자세 분석 유틸리티 모듈 로드
-    const analyzeModule = await import('./src/utils/analyzePosture.ts');
-    if (analyzeModule) {
-      window.calcPelvicTilt = analyzeModule.calcPelvicTilt;
-      window.analyzeAndRecommend = analyzeModule.analyzeAndRecommend;
-      window.analyzeAndRecommendFromPoints = analyzeModule.analyzeAndRecommendFromPoints;
-      window.formatAnalysisResults = analyzeModule.formatAnalysisResults;
-      window.buildReportText = analyzeModule.buildReportText;
-      window.generateFullPDFReport = analyzeModule.generateFullPDFReport;
-      window.saveReportHistory = analyzeModule.saveReportHistory;
-      window.getReportHistory = analyzeModule.getReportHistory;
-      console.log('✅ 자세 분석 유틸리티 모듈 로드 완료');
+    // ✅ 2. MIME type 오류 해결: .ts 파일 대신 빌드된 .js 파일 사용 또는 제거
+    // TypeScript 파일은 빌드 후 사용해야 하므로, 여기서는 기존 인라인 함수 사용
+    // const analyzeModule = await import('./src/utils/analyzePosture.ts');
+    
+    // 기존 인라인 함수들이 이미 정의되어 있으므로 모듈 로드 생략
+    // 필요시 빌드된 .js 파일을 사용하거나 인라인 함수 사용
+    console.log('✅ 자세 분석 유틸리티는 인라인 함수로 사용 중');
       
       // 사용 예시: 좌표로부터 분석
       // const points = { asis: {x: 500, y: 600}, psis: {x: 480, y: 580} };
