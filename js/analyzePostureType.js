@@ -1,12 +1,17 @@
 // js/analyzePostureType.js
 
-export function analyzePostureType(fullMetrics) {
-  if (!fullMetrics || typeof fullMetrics !== "object") {
+// 안전 가드: 매개변수/전역 둘 다 없는 경우 보호
+const useFullMetrics = (m) => (m && Object.keys(m).length) ? m : (window.fullMetrics || {});
+
+export function analyzePostureType(maybeMetrics) {
+  const fm = useFullMetrics(maybeMetrics);
+  
+  if (!fm || typeof fm !== "object" || Object.keys(fm).length === 0) {
     console.warn("⚠️ fullMetrics 없음 - 체형 유형 분석 생략");
     return;
   }
 
-  const { PTA, CVA, SAA, HPD } = fullMetrics;
+  const { PTA, CVA, SAA, HPD } = fm;
 
   console.log("📊 자세 분석 시작...");
 

@@ -1,55 +1,43 @@
-// main_pro_compatible.js
+// === js/main_pro_compatible.js (2025-11-07) ===
+import { analyzePosture } from "../assets/analyzePosture.js";      // 기존
+import { analyzePostureType } from "./analyzePostureType.js";      // 기존
+import { loadPostureDB, analyzeWithDB } from "../src/ai/analyzerWithDB.js"; // 방금 교체한 파일
 
-// 기존 main.js + ai_posture_pipeline_pro.js 통합형
+// 전역 안전 가드
+window.fullMetrics = window.fullMetrics || {};
+window.currentPostureMetrics = window.currentPostureMetrics || {};
 
-import { analyzePosture } from "../assets/analyzePosture.js";
-import { analyzePostureType } from "./analyzePostureType.js";
-import { loadPostureDB } from "./loadPostureDB.js";
-import { runPipeline, buildFullMetrics } from "./ai_posture_pipeline_pro.js";
+function registerFullMetrics(m) {
+  window.fullMetrics = m || {};
+  window.currentPostureMetrics = window.fullMetrics;
+  document.dispatchEvent(new CustomEvent("fullMetrics:ready", { detail: window.fullMetrics }));
+}
 
-// ✅ 전역 변수
-window.fullMetrics = {};
-window.currentPostureMetrics = {};
-
-// ✅ DOM 로드 시 실행
 window.addEventListener("DOMContentLoaded", async () => {
-  console.log("=== 🚀 AI 자세 분석 초기화 시작 ===");
-
+  console.log("=== DOMContentLoaded ===");
   try {
-    // 1️⃣ DB 로드 (기존)
+    // 1) DB 먼저 로드 (분석기에서 필요)
     await loadPostureDB();
-    console.log("✅ DB 로드 완료 (CSV)");
 
-    // 2️⃣ 기본 AI 분석 (Pose Detection)
-    const fullMetrics = await analyzePosture("side_view_image");
-    window.fullMetrics = fullMetrics;
-    window.currentPostureMetrics = fullMetrics;
-    console.log(`[AI-Posture] PTA=${fullMetrics.PTA.toFixed(2)}° → 자동 분석 완료`);
+    // 2) 포즈 감지 → fullMetrics 산출
+    const fm = await analyzePosture("side_view_image"); // 기존 함수
+    registerFullMetrics(fm);
+    console.log(`[AI-Posture] PTA=${(fm?.PTA ?? 0).toFixed(2)}° → 자동 분석 완료`);
 
-    // 3️⃣ 기존 체형유형 분석 (단순 패턴)
-    analyzePostureType(fullMetrics);
-
-    // 4️⃣ PRO 파이프라인 실행 (DB + 운동 매칭)
-    console.log("🧠 [AI Pro] 고급 파이프라인 실행 중...");
-    const mergedMetrics = buildFullMetrics(fullMetrics);
-    const report = await runPipeline(mergedMetrics);
-
-    // 5️⃣ 콘솔 및 HTML 출력
-    console.log("📊 [AI PRO 자세 리포트]");
-    console.log(report);
-
-    const reportBox = document.getElementById("report-box");
-    if (reportBox) {
-      // report가 객체인 경우 문자열로 변환
-      const reportText = typeof report === 'string' ? report : JSON.stringify(report, null, 2);
-      reportBox.innerText = reportText;
-      reportBox.style.whiteSpace = "pre-wrap";
-      reportBox.style.display = "block";
+    // 3) DB 기반 근육/패턴 분석 (선택)
+    try {
+      const { matches } = await analyzeWithDB(fm);
+      console.log(`🧠 DB 기반 매칭 ${matches?.length ?? 0}건`);
+    } catch (e) {
+      console.warn("DB 기반 분석 스킵:", e?.message);
     }
 
-    console.log("✅ 모든 AI 분석 완료!");
+    // 4) 유형 분석 (기존 로직)
+    analyzePostureType(window.fullMetrics);
+
   } catch (err) {
-    console.error("❌ AI 분석 전체 실패:", err);
+    console.error("AI 자동 분석 실패:", err);
+    // 최소한의 안전값 등록 (아래 로직들이 window.fullMetrics 가정함)
+    registerFullMetrics({});
   }
 });
-
