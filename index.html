@@ -4133,6 +4133,7 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     if (fullMetrics.TIA) flatMetrics.TIA = fullMetrics.TIA.value_deg || fullMetrics.TIA.value;
     
     // DB 기반 분석 실행
+    // ✅ index.html 내부의 analyzeWithDB 함수 사용 (muscles, topRecommendations 반환)
     const dbAnalysis = await analyzeWithDB(flatMetrics);
     
     // 기존 analyzeMuscles 형식으로 변환
@@ -4146,7 +4147,9 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     const patterns = [];
     
     // DB 분석 결과를 패턴으로 변환
-    dbAnalysis.topRecommendations.forEach((rec, idx) => {
+    // ✅ 안전 가드: topRecommendations가 없을 경우 빈 배열 처리
+    const recommendations = dbAnalysis?.topRecommendations || dbAnalysis?.matches || [];
+    recommendations.forEach((rec, idx) => {
       patterns.push({
         name: rec.name || rec.code,
         description: `${rec.code} ${rec.abnormal}`,
