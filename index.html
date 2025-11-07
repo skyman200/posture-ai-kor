@@ -7851,8 +7851,51 @@ async function analyzeWithDB(metrics) {
 
     findings.push({ code, value:v, normal: NORMAL_TEXT[code], abnormal });
 
-    // 2) DB에서 해당 (지표코드 & 이상유형) 레코드 추출
+    // 2) DB에서 해당 레코드 추출
+    // ✅ Posture_Muscle_DB_Full.json 구조 지원 (key, ai_detection_metrics 기반)
+    // ✅ CSV 구조도 지원 (지표코드, 이상유형 기반)
     const rows = POSTURE_DB.filter(r => {
+      // JSON 구조 (Posture_Muscle_DB_Full.json)
+      if (r.key || r.posture_key) {
+        // ai_detection_metrics를 사용하여 지표별 임계값 확인
+        const metrics = r.ai_detection_metrics || r.thresholds || {};
+        const metricValue = metrics[code] || metrics[code.toUpperCase()] || metrics[code.toLowerCase()];
+        
+        if (metricValue != null) {
+          // 임계값 문자열 파싱 (예: "> 15", "<= 10")
+          const cond = String(metricValue).trim();
+          const num = parseFloat(cond.replace(/[^\d.-]/g, ""));
+          
+          let match = false;
+          if (cond.includes(">") && !cond.includes("=")) {
+            match = v > num;
+          } else if (cond.includes(">=")) {
+            match = v >= num;
+          } else if (cond.includes("<") && !cond.includes("=")) {
+            match = v < num;
+          } else if (cond.includes("<=")) {
+            match = v <= num;
+          } else if (cond.includes("==")) {
+            match = Math.abs(v - num) < 0.1;
+          }
+          
+          // abnormal 타입과도 매칭 확인
+          if (match) {
+            const postureKey = (r.key || r.posture_key || '').toLowerCase();
+            const postureKo = (r.posture_ko || '').toLowerCase();
+            const searchKey = postureKeyMap[abnormal]?.toLowerCase() || abnormal.toLowerCase();
+            
+            // posture_key 매칭 확인
+            return postureKey.includes(searchKey) || 
+                   searchKey.includes(postureKey) ||
+                   postureKo.includes(abnormal.toLowerCase()) ||
+                   abnormal.toLowerCase().includes(postureKo);
+          }
+        }
+        return false;
+      }
+      
+      // CSV 구조 (기존 호환성)
       const dbCode = String(r['지표코드'] || '').toUpperCase();
       const dbAbnormal = String(r['이상유형'] || '');
       return dbCode === code.toUpperCase() && dbAbnormal.includes(abnormal);
@@ -7864,10 +7907,38 @@ async function analyzeWithDB(metrics) {
       const w = weights[code] ?? 1;
 
       // 근육 누적
-      const tightStr = String(r['긴장근육(주요)'] || '');
-      const weakStr = String(r['약화근육(주요)'] || '');
-      tightStr.split(/[,\s]+/).filter(Boolean).forEach(m => tight.add(m));
-      weakStr.split(/[,\s]+/).filter(Boolean).forEach(m => weak.add(m));
+      // ✅ Posture_Muscle_DB_Full.json 구조 지원 (muscle_pattern.tight.primary)
+      // ✅ CSV 구조도 지원 (긴장근육(주요))
+      let tightArray = [];
+      let weakArray = [];
+      
+      if (r.muscle_pattern) {
+        // JSON 구조
+        tightArray = [
+          ...(r.muscle_pattern.tight?.primary || []),
+          ...(r.muscle_pattern.tight?.secondary || [])
+        ];
+        weakArray = [
+          ...(r.muscle_pattern.weak?.primary || []),
+          ...(r.muscle_pattern.weak?.secondary || [])
+        ];
+      } else {
+        // CSV 구조
+        const tightStr = String(r['긴장근육(주요)'] || '');
+        const weakStr = String(r['약화근육(주요)'] || '');
+        tightArray = tightStr.split(/[,\s]+/).filter(Boolean);
+        weakArray = weakStr.split(/[,\s]+/).filter(Boolean);
+      }
+      
+      tightArray.forEach(m => {
+        // 근육명에서 괄호 제거 (예: "장요근 (Iliopsoas)" → "장요근")
+        const cleanName = String(m).replace(/\s*\([^)]*\)\s*/g, '').trim();
+        if (cleanName) tight.add(cleanName);
+      });
+      weakArray.forEach(m => {
+        const cleanName = String(m).replace(/\s*\([^)]*\)\s*/g, '').trim();
+        if (cleanName) weak.add(cleanName);
+      });
 
       // ✅ 필라테스 운동 매칭 (linkPilatesDB 함수 사용)
       const pilatesExercises = {
@@ -7879,15 +7950,24 @@ async function analyzeWithDB(metrics) {
       };
       
       // postureResult 객체 생성
+      // ✅ Posture_Muscle_DB_Full.json 구조 지원
+      const name = r.posture_ko || r['지표명'] || r.key || r.posture_key || code;
+      const tightStr = r.muscle_pattern 
+        ? [...(r.muscle_pattern.tight?.primary || []), ...(r.muscle_pattern.tight?.secondary || [])].join(', ')
+        : (r['긴장근육(주요)'] || '');
+      const weakStr = r.muscle_pattern
+        ? [...(r.muscle_pattern.weak?.primary || []), ...(r.muscle_pattern.weak?.secondary || [])].join(', ')
+        : (r['약화근육(주요)'] || '');
+      
       const postureResult = {
         code: code,
-        name: r['지표명'] || code,
+        name: name,
         abnormal: abnormal,
-        posture_key: postureKeyMap[abnormal] || r['지표명'] || code,
-        posture_ko: r['지표명'] || code,
-        tight: r['긴장근육(주요)'] || '',
-        weak: r['약화근육(주요)'] || '',
-        region: r['부위'] || ''
+        posture_key: r.key || r.posture_key || postureKeyMap[abnormal] || name,
+        posture_ko: r.posture_ko || name,
+        tight: tightStr,
+        weak: weakStr,
+        region: r.region || r['부위'] || ''
       };
       
       // linkPilatesDB 함수로 필라테스 운동 매칭
@@ -7953,22 +8033,31 @@ async function analyzeWithDB(metrics) {
       }
       
       // 추천 객체 반환
+      // ✅ Posture_Muscle_DB_Full.json 구조 지원
+      const recName = r.posture_ko || r['지표명'] || r.key || r.posture_key || code;
+      const recTight = r.muscle_pattern
+        ? [...(r.muscle_pattern.tight?.primary || []), ...(r.muscle_pattern.tight?.secondary || [])].join(', ')
+        : (r['긴장근육(주요)'] || '');
+      const recWeak = r.muscle_pattern
+        ? [...(r.muscle_pattern.weak?.primary || []), ...(r.muscle_pattern.weak?.secondary || [])].join(', ')
+        : (r['약화근육(주요)'] || '');
+      
       return {
         code,
-        name: r['지표명'] || code,
+        name: recName,
         abnormal,
         weight: w,
-        tight: r['긴장근육(주요)'] || '',
-        weak: r['약화근육(주요)'] || '',
-        manual: r['교정운동(도수/자가)'] || '',
+        tight: recTight,
+        weak: recWeak,
+        manual: r.recommended_focus?.strengthen?.join(', ') || r['교정운동(도수/자가)'] || '',
         mat: pilatesExercises['매트'].map(e => e.name || e.ko).join(', ') || matStr,
         reformer: pilatesExercises['리포머'].map(e => e.name || e.ko).join(', ') || reformerStr,
         cadillac: pilatesExercises['캐딜락'].map(e => e.name || e.ko).join(', ') || cadillacStr,
         chair: pilatesExercises['체어'].map(e => e.name || e.ko).join(', ') || chairStr,
         barrel: pilatesExercises['바렐'].map(e => e.name || e.ko).join(', ') || barrelStr,
         pilatesExercises: pilatesExercises, // ✅ 상세 필라테스 운동 정보 추가
-        note: r['임상적의미'] || '',
-        level: r['추천레벨(초급/중급/고급)'] || ''
+        note: (r.clinical_significance && Array.isArray(r.clinical_significance) ? r.clinical_significance.join(', ') : r.clinical_significance) || r['임상적의미'] || '',
+        level: r.level || r['추천레벨(초급/중급/고급)'] || ''
       };
     });
     
