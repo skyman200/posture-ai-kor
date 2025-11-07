@@ -4136,8 +4136,10 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     const dbAnalysis = await analyzeWithDB(flatMetrics);
     
     // 기존 analyzeMuscles 형식으로 변환
-    const tight = Array.from(dbAnalysis.muscles.tight);
-    const weak = Array.from(dbAnalysis.muscles.weak);
+    // ✅ 안전 가드: muscles 객체가 없을 경우 빈 배열 사용
+    const muscles = dbAnalysis?.muscles || {};
+    const tight = Array.from(muscles.tight || []);
+    const weak = Array.from(muscles.weak || []);
     const comments = [];
     const details = [];
     const exercises = [];
@@ -4642,7 +4644,7 @@ function analyzePostureType(metrics) {
   }
   
   // === 2. 골반 경사 문제 ===
-  const ptaSigned = fullMetrics.PTA?.value_signed;
+  const ptaSigned = metrics.PTA?.value_signed;
   if(pta != null && ptaSigned != null && (ptaSigned > 15 || ptaSigned < 0)) {
     issueCount++;
     if(ptaSigned > 15) {
