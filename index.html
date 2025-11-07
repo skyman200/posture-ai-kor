@@ -202,6 +202,9 @@ canvas {
     <button class="btn" id="btnShare">📤 공유하기</button>
   </div>
 
+  <!-- 골반 결과 표시 영역 -->
+  <div id="pelvicDesc" style="white-space: pre-line; line-height:1.6; font-size:15px; margin-top:10px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;"></div>
+
   <div id="coordEditPanel" style="margin-top:12px; padding:10px; background:rgba(124,156,255,0.1); border-radius:10px; display:none;">
     <div class="muted" style="margin-bottom:8px; font-weight:600;">좌표 수정</div>
     <div style="margin-bottom:8px;">
@@ -324,8 +327,9 @@ canvas {
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
           <strong>측정 방법:</strong> 후상장골극(PSIS)과 전상장골극(ASIS)을 연결한 선과 수평선 사이의 각도<br>
           <strong>의미:</strong> 골반의 전방 또는 후방 기울기를 평가하는 핵심 지표입니다.<br>
+          <strong>해석 기준:</strong> PSIS 기준으로 ASIS와 같은 높이 = 0도, ASIS가 PSIS보다 위쪽에 있으면 = 골반 후방경사(음수, -1도부터), ASIS가 PSIS보다 밑쪽에 있으면 = 골반 전방경사(양수, 1도부터)<br>
           <strong>정상 범위:</strong> 0-15° (약간의 전방 경사는 정상)<br>
-          <strong>임상적 의미:</strong> &gt;15°는 골반 전방 경사(요추 과전만), &lt;0°는 골반 후방 경사(요추 평평)를 의미합니다.
+          <strong>임상적 의미:</strong> &gt;15° (양수)는 골반 전방 경사(요추 과전만), &lt;0° (음수)는 골반 후방 경사(요추 평평)를 의미합니다.
         </div>
       </details>
       <details style="margin-bottom:8px;">
@@ -921,11 +925,26 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
   }
   
   // 6️⃣ PTA (Pelvic Tilt Angle): 임상부호 (+전방/-후방)
-  // PTA = 임상부호 (+전방경사 when ASIS.y > PSIS.y, -후방경사 when ASIS.y < PSIS.y)
+  // PSIS 기준: ASIS와 같은 높이 = 0도
+  // ASIS가 PSIS보다 위쪽에 있으면 = 골반 후방경사 (Posterior Tilt) = 음수 (-1도부터)
+  // ASIS가 PSIS보다 밑쪽에 있으면 = 골반 전방경사 (Anterior Tilt) = 양수 (1도부터)
   if (ASIS && PSIS) {
     const pta_theta = angleFromHorizontalDeg(PSIS, ASIS);
     const pta_abs = Math.abs(normalizeToAcuteDeg(pta_theta));
-    const pta = (ASIS.y > PSIS.y) ? +pta_abs : -pta_abs; // +전방/-후방
+    // 이미지 좌표계: y축 아래로 증가
+    // ASIS.y < PSIS.y → ASIS가 위쪽(높음) → 후방경사(음수, 최소 -1도)
+    // ASIS.y > PSIS.y → ASIS가 밑쪽(낮음) → 전방경사(양수, 최소 1도)
+    let pta;
+    if (ASIS.y < PSIS.y) {
+      // 후방경사: ASIS가 PSIS보다 위쪽 → 음수, 최소 -1도
+      pta = -Math.max(1, pta_abs || 1);
+    } else if (ASIS.y > PSIS.y) {
+      // 전방경사: ASIS가 PSIS보다 밑쪽 → 양수, 최소 1도
+      pta = Math.max(1, pta_abs || 1);
+    } else {
+      // 같은 높이: 0도
+      pta = 0;
+    }
     result.PTA = {
       value: Math.abs(pta),
       value_signed: pta, // 부호 포함 값
@@ -2002,11 +2021,11 @@ function generatePostureRecommendations(analysis) {
     });
   }
   
-  // 과전경사 골반 (Anterior Tilt)
+  // 과전경사 골반 (Anterior Tilt) - ASIS가 PSIS보다 낮음 (양수 값)
   if (pta != null && pta > 15) {
     addPattern({
       pattern: "과전경사 골반 (Anterior Tilt)",
-      condition: "PTA↑, ASIS 하강, PSIS 상승",
+      condition: "PTA↑ (양수), ASIS가 PSIS보다 낮음",
       tight: ["장요근", "대퇴직근", "척추기립근"],
       weak: ["복직근", "복횡근", "둔근"],
       exercises: {
@@ -2019,11 +2038,11 @@ function generatePostureRecommendations(analysis) {
     });
   }
   
-  // 후경사 골반 (Posterior Tilt)
-  if (pta != null && pta < 5) {
+  // 후경사 골반 (Posterior Tilt) - ASIS가 PSIS보다 높음 (음수 값)
+  if (pta != null && (pta < 0 || pta < 5)) {
     addPattern({
       pattern: "후경사 골반 (Posterior Tilt)",
-      condition: "PTA↓, PSIS 하강",
+      condition: "PTA↓ (음수 또는 작은 값), ASIS가 PSIS보다 높음",
       tight: ["햄스트링", "복직근"],
       weak: ["장요근", "대퇴직근", "척추기립근"],
       exercises: {
@@ -2369,10 +2388,10 @@ const pilatesPatterns = {
     }
   },
   
-  // 3️⃣ 과전경사 골반: PTA↑
+  // 3️⃣ 과전경사 골반: PTA↑ (양수 값, ASIS가 PSIS보다 낮음)
   'AnteriorTilt': {
     name: '과전경사 골반 (Anterior Pelvic Tilt)',
-    condition: 'PTA↑, ASIS 하강, PSIS 상승',
+    condition: 'PTA↑ (양수), ASIS가 PSIS보다 낮음',
     tight: ['장요근', '대퇴직근', '척추기립근'],
     weak: ['복직근', '복횡근', '둔근'],
     interpretation: '골반 전방경사 / 요추 전만 증가',
@@ -2396,10 +2415,10 @@ const pilatesPatterns = {
     }
   },
   
-  // 4️⃣ 후경사 골반: PTA↓
+  // 4️⃣ 후경사 골반: PTA↓ (음수 값, ASIS가 PSIS보다 높음)
   'PosteriorTilt': {
     name: '후경사 골반 (Posterior Pelvic Tilt)',
-    condition: 'PTA↓, PSIS 하강',
+    condition: 'PTA↓ (음수 또는 작은 값), ASIS가 PSIS보다 높음',
     tight: ['햄스트링', '복직근'],
     weak: ['장요근', '대퇴직근', '척추기립근'],
     interpretation: '골반 후방경사 / 요추 편평',
@@ -3685,6 +3704,9 @@ function computeAll() {
     updateCompare();
     updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
     
+    // 골반 분석 자동 실행
+    analyzePelvicTiltAuto();
+    
   } else if(frontMetrics.status !== "not_available") {
     // 정면 분석만 있는 경우
     S.metrics = { 
@@ -3705,6 +3727,9 @@ function computeAll() {
     displayFrontAnalysis(frontMetrics);
     // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
     updateScoreAndAnalysis(null, null, null, null, S.analysis);
+    
+    // 골반 분석 자동 실행 (정면 분석만 있는 경우에도 시도)
+    analyzePelvicTiltAuto();
   } else {
     // 분석 결과가 없는 경우
     S.metrics = {};
@@ -3714,6 +3739,12 @@ function computeAll() {
     updateCompare();
     // 빈 데이터로 UI 초기화
     updateScoreAndAnalysis(null, null, null, null, null);
+    
+    // 골반 분석 영역 숨기기
+    const pelvicDescEl = document.getElementById("pelvicDesc");
+    if (pelvicDescEl) {
+      pelvicDescEl.style.display = "none";
+    }
   }
 }
 
@@ -4090,12 +4121,13 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
       weak.push('하부승모', '전거근', '중부승모');
     }
     
-    // 패턴 3: 과전경사 골반: PTA↑ (>15°), ASIS↓(하강)
+    // 패턴 3: 과전경사 골반: PTA↑ (>15°, 양수 값), ASIS가 PSIS보다 낮음
     const ptaVal = fullMetrics.PTA?.value_deg;
-    if(ptaVal != null && ptaVal > 15) {
+    const ptaSigned = fullMetrics.PTA?.value_signed;
+    if(ptaVal != null && ptaSigned != null && ptaSigned > 15) {
       patterns.push({
         name: "과전경사 골반(Anterior Tilt)",
-        description: `PTA↑(${ptaVal.toFixed(1)}°)`,
+        description: `PTA↑(${ptaSigned.toFixed(1)}°, 양수) - ASIS가 PSIS보다 낮음`,
         meaning: "요추 전만 증가, hip flexor 단축",
         priority: "high"
       });
@@ -4103,11 +4135,11 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
       weak.push('복횡근', '둔근', '대둔근', '중둔근', '하둔근');
     }
     
-    // 패턴 4: 후경사 골반: PTA↓ (<5°), PSIS↓(하강)
-    if(ptaVal != null && ptaVal < 5) {
+    // 패턴 4: 후경사 골반: PTA↓ (음수 또는 <5°), ASIS가 PSIS보다 높음
+    if(ptaVal != null && ptaSigned != null && (ptaSigned < 0 || ptaSigned < 5)) {
       patterns.push({
         name: "후경사 골반(Posterior Tilt)",
-        description: `PTA↓(${ptaVal.toFixed(1)}°)`,
+        description: `PTA↓(${ptaSigned.toFixed(1)}°, 음수 또는 작은 값) - ASIS가 PSIS보다 높음`,
         meaning: "햄스트링/복근 단축",
         priority: "medium"
       });
@@ -4499,15 +4531,16 @@ function analyzePostureType(metrics) {
   }
   
   // === 2. 골반 경사 문제 ===
-  if(pta != null && (pta > 15 || pta < 0)) {
+  const ptaSigned = fullMetrics.PTA?.value_signed;
+  if(pta != null && ptaSigned != null && (ptaSigned > 15 || ptaSigned < 0)) {
     issueCount++;
-    if(pta > 15) {
-      const severity = pta > 25 ? '심각' : pta > 20 ? '중등도' : '경미';
+    if(ptaSigned > 15) {
+      const severity = ptaSigned > 25 ? '심각' : ptaSigned > 20 ? '중등도' : '경미';
       detailSections.push(`
         <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
           <strong style="color:#ffb86c; font-size:13px;">📍 골반 전방 경사 (Anterior Pelvic Tilt) - ${severity}</strong>
           <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
-            <strong>현재 상태:</strong> PTA ${pta.toFixed(1)}° (정상: 0-15°)<br>
+            <strong>현재 상태:</strong> PTA ${ptaSigned.toFixed(1)}° (정상: 0-15°) - ASIS가 PSIS보다 낮음<br>
             <strong>주요 원인:</strong> 장시간 앉아있는 생활, 하이힐 착용, 복부 근력 약화, 임신 후 회복 부족<br>
             <strong>발생 증상:</strong>
             • 요추 과전만(Hyperlordosis)으로 인한 만성 요통
@@ -4526,12 +4559,12 @@ function analyzePostureType(metrics) {
           </div>
         </div>
       `);
-    } else if(pta < 0) {
+    } else if(ptaSigned < 0) {
       detailSections.push(`
         <div style="border-left:3px solid #ffb86c; padding-left:12px; margin-bottom:16px;">
           <strong style="color:#ffb86c; font-size:13px;">📍 골반 후방 경사 (Posterior Pelvic Tilt)</strong>
           <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
-            <strong>현재 상태:</strong> PTA ${pta.toFixed(1)}° (정상: 0-15°)<br>
+            <strong>현재 상태:</strong> PTA ${ptaSigned.toFixed(1)}° (정상: 0-15°) - ASIS가 PSIS보다 높음<br>
             <strong>주요 원인:</strong> 과도한 코어 운동, 장시간 구부정한 앉은 자세, 햄스트링 과긴장<br>
             <strong>발생 증상:</strong>
             • 평평한 허리(Flat back)로 인한 충격 흡수 감소
@@ -7481,7 +7514,7 @@ async function analyzePostureAI(before, after) {
 /**********************
  * Before-After 비교 그래프 생성 (Chart.js)
  **********************/
-function drawComparisonChart(before, after, containerId = null) {
+function drawComparisonChart(before, after, containerId = null, options = {}) {
   const canvas = containerId ? document.getElementById(containerId) : document.createElement('canvas');
   if (!canvas) {
     console.error('Canvas element not found');
@@ -7503,6 +7536,9 @@ function drawComparisonChart(before, after, containerId = null) {
   const labels = Object.keys(before);
   const beforeData = Object.values(before);
   const afterData = labels.map(key => after[key] || 0);
+  
+  // PDF용으로 사용할 때는 애니메이션 비활성화
+  const disableAnimation = options.disableAnimation !== false; // 기본값 true
   
   canvas.chart = new Chart(ctx, {
     type: 'bar',
@@ -7528,6 +7564,16 @@ function drawComparisonChart(before, after, containerId = null) {
     options: {
       responsive: !containerId, // containerId가 있으면 false
       maintainAspectRatio: containerId ? false : true,
+      animation: disableAnimation ? false : {
+        duration: 0 // 애니메이션 비활성화
+      },
+      transitions: {
+        active: {
+          animation: {
+            duration: 0
+          }
+        }
+      },
       scales: { 
         y: { beginAtZero: true },
         x: {
@@ -7549,6 +7595,96 @@ function drawComparisonChart(before, after, containerId = null) {
   });
   
   return canvas;
+}
+
+/**********************
+ * 모바일 호환 PDF 저장 기능
+ **********************/
+async function savePDFMobileCompatible(fileName, pdfInstance) {
+  try {
+    const blob = pdfInstance.output('blob');
+    const fileURL = URL.createObjectURL(blob);
+
+    // 모바일 Safari나 Chrome에서 다운로드 강제 트리거
+    const link = document.createElement('a');
+    link.href = fileURL;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(fileURL);
+
+    alert('📄 PDF가 다운로드 폴더 또는 파일 앱에 저장되었습니다.');
+  } catch (err) {
+    console.error('❌ PDF 저장 실패:', err);
+    alert('⚠️ PDF 저장 중 오류가 발생했습니다.');
+  }
+}
+
+/**********************
+ * 이미지 저장 함수 (캔버스나 그래프 등)
+ **********************/
+async function saveImageMobile(canvas, fileName = 'report_image.png') {
+  try {
+    const image = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    alert('🖼️ 이미지가 다운로드 폴더에 저장되었습니다.');
+  } catch (err) {
+    console.error('❌ 이미지 저장 오류:', err);
+    alert('⚠️ 이미지 저장 중 문제가 발생했습니다.');
+  }
+}
+
+/**********************
+ * Chart.js 렌더링 완료 대기 함수
+ **********************/
+function waitForChartRender(chart, timeout = 2000) {
+  return new Promise((resolve, reject) => {
+    if (!chart || !chart.canvas) {
+      reject(new Error('Chart 인스턴스가 유효하지 않습니다.'));
+      return;
+    }
+    
+    try {
+      // Chart.js의 update 메서드를 호출하여 강제로 렌더링
+      if (typeof chart.update === 'function') {
+        chart.update('none'); // 애니메이션 없이 즉시 업데이트
+      }
+      
+      // 렌더링 완료를 보장하기 위해 여러 프레임 대기
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // 최종 확인: Canvas에 실제로 그려졌는지 확인
+            const ctx = chart.canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, Math.min(chart.canvas.width, 10), Math.min(chart.canvas.height, 10));
+            const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // 알파 채널 제외하고 픽셀 데이터 확인
+            
+            if (hasContent || chart.canvas.width > 0) {
+              resolve(chart);
+            } else {
+              // 내용이 없어도 타임아웃 후 진행
+              setTimeout(() => resolve(chart), 100);
+            }
+          });
+        });
+      });
+      
+      // 타임아웃 설정 (안전장치)
+      setTimeout(() => {
+        resolve(chart);
+      }, timeout);
+    } catch (err) {
+      console.warn('Chart 렌더링 대기 중 오류:', err);
+      // 오류가 발생해도 진행 (최소한의 렌더링은 되었을 것)
+      setTimeout(() => resolve(chart), 100);
+    }
+  });
 }
 
 /**********************
@@ -7585,13 +7721,23 @@ async function generatePosturePDF(centerName, memberName, before, after) {
     pdf.text(`생성일: ${new Date().toLocaleDateString('ko-KR')}`, 20, 49);
 
     // Before-After 그래프
-    const chartCanvas = drawComparisonChart(before, after);
-    if (chartCanvas) {
-      // Chart.js 렌더링 대기
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const chartImg = chartCanvas.toDataURL('image/png');
-      pdf.addImage(chartImg, 'PNG', 10, 60, 180, 80);
-      pdf.text('Before–After 변화 시각화', 20, 155);
+    const chartCanvas = drawComparisonChart(before, after, null, { disableAnimation: true });
+    if (chartCanvas && chartCanvas.chart) {
+      // Chart.js 렌더링 완료 대기
+      await waitForChartRender(chartCanvas.chart);
+      
+      // 그래프 이미지 추출
+      const chartImg = chartCanvas.toDataURL('image/png', 1.0);
+      
+      // 이미지가 제대로 생성되었는지 확인
+      if (chartImg && chartImg !== 'data:,') {
+        pdf.addImage(chartImg, 'PNG', 10, 60, 180, 80);
+        pdf.text('Before–After 변화 시각화', 20, 155);
+        console.log('✅ 그래프가 PDF에 추가되었습니다.');
+      } else {
+        console.warn('⚠️ 그래프 이미지 생성 실패, 텍스트로 대체');
+        pdf.text('⚠️ 그래프 생성 실패', 20, 60);
+      }
     }
 
     // AI 분석 결과
@@ -7649,35 +7795,8 @@ async function generatePosturePDF(centerName, memberName, before, after) {
     // 파일명 생성
     const fileName = `${memberName || '회원'}_AI_Report_v2.pdf`;
     
-    // PDF 저장 (다중 방식 시도)
-    try {
-      pdf.save(fileName);
-      console.log('✅ PDF 생성 완료:', fileName);
-    } catch (saveErr) {
-      console.warn('직접 save 실패, Blob 방식 시도:', saveErr);
-      try {
-        const pdfBlob = pdf.output('blob');
-        if (pdfBlob) {
-          const url = URL.createObjectURL(pdfBlob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = fileName;
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            if (document.body.contains(link)) {
-              document.body.removeChild(link);
-            }
-            URL.revokeObjectURL(url);
-          }, 1000);
-          console.log('✅ PDF 생성 완료 (Blob 방식):', fileName);
-        }
-      } catch (blobErr) {
-        console.error('PDF 저장 실패:', blobErr);
-        throw blobErr;
-      }
-    }
+    // 모바일 호환 PDF 저장
+    await savePDFMobileCompatible(fileName, pdf);
   } catch (err) {
     console.error('PDF 생성 오류:', err);
     // 폴백: 기존 exportAsPdf 사용
@@ -9875,6 +9994,236 @@ async function applyPoseDetection(img, sessionName) {
 
 // ✅ 포즈 감지는 위의 업로드 핸들러에서 자동으로 호출됨
 // applyPoseDetection 함수가 이미 위에서 정의되어 있음
+
+/**********************
+ * 전역 함수 노출 (AIReportManager 모듈에서 사용)
+ **********************/
+if (typeof window !== 'undefined') {
+  window.analyzePostureAI = analyzePostureAI;
+  window.generatePosturePDF = generatePosturePDF;
+  window.drawComparisonChart = drawComparisonChart;
+  window.savePDFMobileCompatible = savePDFMobileCompatible;
+  window.saveImageMobile = saveImageMobile;
+  window.waitForChartRender = waitForChartRender;
+  window.loadPostureDB = loadPostureDB; // DB 로더도 노출
+}
+
+/**********************
+ * AI 모듈 로드 및 통합 (DB 기반 분석기 + 리포트)
+ **********************/
+(async function loadAIModules() {
+  try {
+    // 자세 분석 유틸리티 모듈 로드
+    const analyzeModule = await import('./src/utils/analyzePosture.ts');
+    if (analyzeModule) {
+      window.calcPelvicTilt = analyzeModule.calcPelvicTilt;
+      window.analyzeAndRecommend = analyzeModule.analyzeAndRecommend;
+      window.analyzeAndRecommendFromPoints = analyzeModule.analyzeAndRecommendFromPoints;
+      window.formatAnalysisResults = analyzeModule.formatAnalysisResults;
+      window.buildReportText = analyzeModule.buildReportText;
+      window.generateFullPDFReport = analyzeModule.generateFullPDFReport;
+      window.saveReportHistory = analyzeModule.saveReportHistory;
+      window.getReportHistory = analyzeModule.getReportHistory;
+      console.log('✅ 자세 분석 유틸리티 모듈 로드 완료');
+      
+      // 사용 예시: 좌표로부터 분석
+      // const points = { asis: {x: 500, y: 600}, psis: {x: 480, y: 580} };
+      // const analysis = await window.analyzeAndRecommendFromPoints(points);
+      // const text = window.buildReportText({
+      //   memberName: '홍길동',
+      //   centerName: '레드코어 트레이닝센터',
+      //   results: analysis.results,
+      //   activePatterns: analysis.activePatterns,
+      //   recommendedExercises: analysis.recommendedExercises
+      // });
+      // console.log(text);
+      
+      // 사용 예시: Before/After 비교 PDF 생성
+      // const beforeData = { CVA: 65.0, PTA: 15.0, SAA: 12.0, TIA: 8.0, KA: 180.0, GSB: 1.5 };
+      // const afterData = { CVA: 72.3, PTA: 13.1, SAA: 10.5, TIA: 6.4, KA: 177.2, GSB: 1.2 };
+      // const analysis = await window.analyzeAndRecommend({ ...afterData });
+      // await window.generateFullPDFReport(
+      //   beforeData,
+      //   afterData,
+      //   analysis,
+      //   '홍길동',
+      //   '레드코어 트레이닝센터',
+      //   document.getElementById('beforeImage'),
+      //   document.getElementById('afterImage'),
+      //   { sessionName: 'After', additionalNotes: '추가 메모...' }
+      // );
+    }
+
+    // DB 기반 분석기 모듈 로드
+    const analyzerModule = await import('./src/ai/analyzerWithDB.js');
+    if (analyzerModule && analyzerModule.analyzeWithDB) {
+      window.analyzeWithDB = analyzerModule.analyzeWithDB;
+      window.loadPostureDBModule = analyzerModule.loadPostureDB;
+      console.log('✅ DB 기반 분석기 모듈 로드 완료');
+    }
+
+    // 상세 PDF 리포트 모듈 로드
+    const reportModule = await import('./src/ai/reportPdf.js');
+    if (reportModule && reportModule.exportDetailedPDF) {
+      window.exportDetailedPDF = reportModule.exportDetailedPDF;
+      console.log('✅ 상세 PDF 리포트 모듈 로드 완료');
+    }
+
+    // AIReportManager 모듈 로드
+    const managerModule = await import('./src/modules/aiReportManager.js');
+    if (managerModule && managerModule.AIReportManager) {
+      window.AIReportManager = managerModule.AIReportManager;
+      console.log('✅ AIReportManager 모듈 로드 완료');
+    }
+
+    // 사용 예시: DB 기반 분석 + 상세 PDF 생성
+    // const side = { CVA: 53.1, HPD: 0.8, TIA: 6.4, PTA: 28.1, KA: 177.2 };
+    // const front = { STA: 2.1, POA: 4.3, TD: 1.0, HTA: 0.5 };
+    // const analysis = await window.analyzeWithDB({ side, front });
+    // await window.exportDetailedPDF({
+    //   centerName: '레드코어 트레이닝센터',
+    //   memberName: '홍길동',
+    //   sessionName: 'After',
+    //   analysis,
+    //   before: { side: {...}, front: {...} },
+    //   after: { side, front },
+    //   charts: { overviewCanvas: document.getElementById('chart-overview') }
+    // });
+  } catch (err) {
+    console.warn('⚠️ AI 모듈 로드 실패 (선택적 기능):', err);
+    // 모듈 로드 실패해도 기본 기능은 동작
+  }
+})();
+
+// -------------------- 골반 분석 자동 연동 --------------------
+
+// 1️⃣ PTA 계산
+function calcPTA(asis, psis) {
+  // asis, psis: {x, y}
+  // 이미지 좌표계: y축 아래로 증가
+  // ASIS.y < PSIS.y → ASIS가 위쪽(높음) → 후방경사(음수)
+  // ASIS.y > PSIS.y → ASIS가 밑쪽(낮음) → 전방경사(양수)
+  
+  // 수평선 기준 각도 계산 (PSIS에서 ASIS로의 각도)
+  const pta_theta = angleFromHorizontalDeg(psis, asis);
+  const pta_abs = Math.abs(normalizeToAcuteDeg(pta_theta));
+  
+  let pta;
+  if (asis.y < psis.y) {
+    // 후방경사: ASIS가 PSIS보다 위쪽 → 음수, 최소 -1도
+    pta = -Math.max(1, pta_abs || 1);
+  } else if (asis.y > psis.y) {
+    // 전방경사: ASIS가 PSIS보다 밑쪽 → 양수, 최소 1도
+    pta = Math.max(1, pta_abs || 1);
+  } else {
+    // 같은 높이: 0도
+    pta = 0;
+  }
+  
+  return pta; // 부호 포함 값 (양수=전방경사, 음수=후방경사)
+}
+
+// 2️⃣ 설명 생성
+function getPelvicTiltDescription(PTA) {
+  let description = "";
+
+  if (PTA > 15) {
+    description = `
+📍 골반 전방 경사 (Anterior Pelvic Tilt) - 심각
+현재 상태: PTA ${PTA.toFixed(1)}° (정상: 0–15°)
+
+주요 원인: 장시간 앉아있는 생활, 하이힐 착용, 복부 근력 약화, 임신 후 회복 부족
+
+발생 증상:
+• 요추 과전만(Hyperlordosis)으로 인한 만성 요통  
+• 하복부 돌출 (pseudo-pregnancy appearance)  
+• 엉덩이가 뒤로 튀어나온 자세  
+• 고관절 굴곡근 단축으로 인한 보행 장애
+
+근육 불균형:
+• 긴장·단축된 근육: 장요근(Iliopsoas), 대퇴직근(Rectus femoris), 척추기립근(Erector spinae)  
+• 약화·신장된 근육: 복직근(Rectus abdominis), 대둔근(Gluteus maximus), 햄스트링(Hamstrings)
+
+교정 방향:
+① 고관절 굴곡근 스트레칭 (런지 자세)  
+② 코어 강화 (플랭크, 데드버그)  
+③ 대둔근 활성화 (브릿지, 힙 쓰러스트, 클램쉘)  
+④ 골반 후방경사 연습 (벽에 등대고 중립자세)
+
+복합 증후군: Lower Cross Syndrome(하부 교차 증후군)의 핵심 특징입니다.
+`;
+  } else if (PTA < 0) {
+    description = `
+📍 골반 후방 경사 (Posterior Pelvic Tilt)
+현재 상태: PTA ${PTA.toFixed(1)}° (정상: 0–15°, ASIS가 PSIS보다 위쪽)
+
+주요 원인: 장시간 앉은 자세, 햄스트링 단축, 복부 근육 과활성, 둔근 과긴장
+
+발생 증상:
+• 요추 평평(Flat Back)으로 인한 허리 움직임 제한  
+• 엉덩이가 납작해 보이는 자세  
+• 디스크 압박 및 허리 통증  
+• 둔근 긴장으로 인한 고관절 가동성 저하
+
+근육 불균형:
+• 긴장·단축된 근육: 복직근(Rectus abdominis), 햄스트링(Hamstrings), 대둔근(Gluteus maximus)  
+• 약화·신장된 근육: 장요근(Iliopsoas), 척추기립근(Erector spinae)
+
+교정 방향:
+① 햄스트링 스트레칭 (벽 짚고 서서 다리 펴기)  
+② 척추기립근 강화 (백 익스텐션, 버드독)  
+③ 장요근 활성화 (Standing Hip Flexor Activation)  
+④ 골반 전방경사 유도 (Pelvic Tilt Drill)
+
+복합 증후군: Flat Back Syndrome, Upper Cross Syndrome과 연관 가능성 있음.
+`;
+  } else {
+    description = `
+📍 골반 중립 (Neutral Pelvic Alignment)
+현재 상태: PTA ${PTA.toFixed(1)}° (정상: 0–15°)
+
+골반이 안정된 중립 정렬 상태로, 허리 부담이 최소화되어 있습니다.  
+현재 상태를 유지하기 위해 복부 코어 강화와 정기적인 스트레칭을 권장합니다.
+`;
+  }
+
+  const pelvicDescEl = document.getElementById("pelvicDesc");
+  if (pelvicDescEl) {
+    pelvicDescEl.innerText = description.trim();
+    pelvicDescEl.style.display = "block";
+  }
+}
+
+// 3️⃣ AI 분석 자동 연결 (computeAll 함수에서 호출)
+function analyzePelvicTiltAuto() {
+  try {
+    const S = sessions[cur];
+    if (!S || !S.sidePoints) return;
+
+    // ASIS와 PSIS 좌표 가져오기
+    const asis = S.sidePoints.get('asis');
+    const psis = S.sidePoints.get('psis');
+
+    if (!asis || !psis || asis.x == null || asis.y == null || psis.x == null || psis.y == null) {
+      // 좌표가 없으면 표시 영역 숨기기
+      const pelvicDescEl = document.getElementById("pelvicDesc");
+      if (pelvicDescEl) {
+        pelvicDescEl.style.display = "none";
+      }
+      return;
+    }
+
+    // PTA 계산
+    const PTA = calcPTA(asis, psis);
+    
+    // 설명 생성 및 표시
+    getPelvicTiltDescription(PTA);
+
+    console.log(`[AI-Posture] PTA=${PTA.toFixed(2)}° → 자동 분석 완료`);
+  } catch (err) {
+    console.warn('⚠️ 골반 분석 실패:', err);
+  }
+}
 </script>
   </body>
 </html>
