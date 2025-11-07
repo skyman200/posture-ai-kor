@@ -7825,9 +7825,10 @@ async function analyzeWithDB(metrics) {
     LLD:1.5, LLD_F:1.5, Tibial:1.0, Tibial_Angle:1.0, SPP:1.2
   };
 
-  Object.keys(metrics).forEach(code => {
+  // ✅ for...of 루프로 변경 (async/await 지원)
+  for (const code of Object.keys(metrics)) {
     const v = metrics[code];
-    if (v == null || NORMAL_TEXT[code] == null) return;
+    if (v == null || NORMAL_TEXT[code] == null) continue;
 
     // 1) 이상유형 라벨
     let abnormal = classifyAbnormalType(code, v, NORMAL_TEXT[code]);
@@ -7858,7 +7859,8 @@ async function analyzeWithDB(metrics) {
     });
 
     // 3) 누적(근육/운동) + 점수
-    rows.forEach(r => {
+    // ✅ Promise.all을 사용하여 모든 행의 필라테스 매칭을 병렬 처리
+    const rowPromises = rows.map(async (r) => {
       const w = weights[code] ?? 1;
 
       // 근육 누적
@@ -7888,14 +7890,12 @@ async function analyzeWithDB(metrics) {
         region: r['부위'] || ''
       };
       
-      // linkPilatesDB 함수로 필라테스 운동 매칭 (비동기 처리)
-      // ⚠️ forEach 내부에서 await 사용 불가 → Promise.all 사용
-      (async () => {
-        try {
-          const matchedPilates = await linkPilatesDB(postureResult);
-          
-          // 장비별로 그룹화
-          matchedPilates.forEach(p => {
+      // linkPilatesDB 함수로 필라테스 운동 매칭
+      try {
+        const matchedPilates = await linkPilatesDB(postureResult);
+        
+        // 장비별로 그룹화
+        matchedPilates.forEach(p => {
           const equipment = (p.equipment_ko || p.equipment_en || '').toLowerCase();
           const exercise = {
             name: p.exercise_ko || p.exercise_en || '',
@@ -7952,8 +7952,8 @@ async function analyzeWithDB(metrics) {
         pilatesExercises['바렐'].push({ name: barrelStr, ko: barrelStr });
       }
       
-      // 추천 객체
-      matches.push({
+      // 추천 객체 반환
+      return {
         code,
         name: r['지표명'] || code,
         abnormal,
@@ -7969,9 +7969,13 @@ async function analyzeWithDB(metrics) {
         pilatesExercises: pilatesExercises, // ✅ 상세 필라테스 운동 정보 추가
         note: r['임상적의미'] || '',
         level: r['추천레벨(초급/중급/고급)'] || ''
-      });
+      };
     });
-  });
+    
+    // ✅ 모든 행의 필라테스 매칭 완료 대기
+    const rowResults = await Promise.all(rowPromises);
+    matches.push(...rowResults);
+  }
 
   // 4) 우선순위 정렬(가중치↓, 과거 악화 항목 가점 가능)
   matches.sort((a,b) => (b.weight) - (a.weight));
