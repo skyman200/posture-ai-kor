@@ -9065,22 +9065,25 @@ function exportAsPdf(options = {}) {
     const page6Container = document.createElement("div");
     setPageContainerStyle(page6Container);
     
-    // AI 심층 분석 텍스트 생성
+    // ✅ AI 심층 분석 텍스트 생성 (DB 기반)
     const deepAnalysisText = generateAIDeepAnalysis(combinedMetrics);
     
-    // 텍스트를 HTML로 변환
+    // ✅ 텍스트를 HTML로 변환 (글자 잘림 방지 - word-wrap, white-space:pre-wrap 추가)
     const deepAnalysisHtml = deepAnalysisText.split('\n').map(line => {
       if(line.trim() === '') return '<br>';
       if(line.startsWith('▶')) {
-        return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px;">${line}</div>`;
+        return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
+      }
+      if(line.startsWith('📍')) {
+        return `<div style="font-size:14px; font-weight:600; color:#6366f1; margin-top:15px; margin-bottom:8px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
       }
       if(line.startsWith('- ')) {
-        return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6;">${line}</div>`;
+        return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
       }
       if(line.startsWith('  ·')) {
-        return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px;">${line}</div>`;
+        return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
       }
-      return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6;">${line}</div>`;
+      return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
     }).join('');
     
     page6Container.innerHTML = `
