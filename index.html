@@ -4097,6 +4097,91 @@ function computeScore(cva, pelvic, knee) {
   return { score, reasons, penalties };
 }
 
+// 데이터베이스 기반 근육 분석 함수
+async function analyzeMusclesWithDB(fullMetrics = null) {
+  if (!fullMetrics) {
+    return analyzeMuscles(null, null, null, null);
+  }
+  
+  try {
+    // 데이터베이스 로드
+    await loadPostureDB();
+    
+    // fullMetrics를 평탄화하여 analyzeWithDB에 전달
+    const flatMetrics = {};
+    if (fullMetrics.CVA) flatMetrics.CVA = fullMetrics.CVA.value_deg || fullMetrics.CVA.value;
+    if (fullMetrics.HPD) flatMetrics.HPD = fullMetrics.HPD.value_cm || fullMetrics.HPD.value;
+    if (fullMetrics.SAA) flatMetrics.SAA = fullMetrics.SAA.value_deg || fullMetrics.SAA.value;
+    if (fullMetrics.PTA) {
+      // PTA는 부호 포함 값 사용
+      const ptaSigned = fullMetrics.PTA.value_signed;
+      flatMetrics.PTA = ptaSigned != null ? Math.abs(ptaSigned) : (fullMetrics.PTA.value_deg || fullMetrics.PTA.value);
+    }
+    if (fullMetrics.KA) flatMetrics.KA = fullMetrics.KA.value_deg || fullMetrics.KA.value;
+    if (fullMetrics.GSB) flatMetrics.GSB = fullMetrics.GSB.value_cm || fullMetrics.GSB.value;
+    if (fullMetrics.HPA) flatMetrics.HPA = fullMetrics.HPA.value_deg || fullMetrics.HPA.value;
+    if (fullMetrics.TIA) flatMetrics.TIA = fullMetrics.TIA.value_deg || fullMetrics.TIA.value;
+    
+    // DB 기반 분석 실행
+    const dbAnalysis = await analyzeWithDB(flatMetrics);
+    
+    // 기존 analyzeMuscles 형식으로 변환
+    const tight = Array.from(dbAnalysis.muscles.tight);
+    const weak = Array.from(dbAnalysis.muscles.weak);
+    const comments = [];
+    const details = [];
+    const exercises = [];
+    const patterns = [];
+    
+    // DB 분석 결과를 패턴으로 변환
+    dbAnalysis.topRecommendations.forEach((rec, idx) => {
+      patterns.push({
+        name: rec.name || rec.code,
+        description: `${rec.code} ${rec.abnormal}`,
+        meaning: rec.note || '',
+        priority: idx < 3 ? 'high' : idx < 6 ? 'medium' : 'low'
+      });
+      
+      // 코멘트 추가
+      if (rec.tight || rec.weak) {
+        comments.push(`${rec.name}: ${rec.abnormal}`);
+        details.push(`• 긴장 근육: ${rec.tight || '—'}`);
+        details.push(`• 약화 근육: ${rec.weak || '—'}`);
+      }
+      
+      // 필라테스 운동 추가
+      const pilatesExercises = [];
+      if (rec.mat) pilatesExercises.push({ equipment: '매트', name: rec.mat });
+      if (rec.reformer) pilatesExercises.push({ equipment: '리포머', name: rec.reformer });
+      if (rec.cadillac) pilatesExercises.push({ equipment: '캐딜락', name: rec.cadillac });
+      if (rec.chair) pilatesExercises.push({ equipment: '체어', name: rec.chair });
+      if (rec.barrel) pilatesExercises.push({ equipment: '바렐', name: rec.barrel });
+      
+      if (pilatesExercises.length > 0) {
+        exercises.push({
+          pattern: rec.name,
+          equipment: pilatesExercises
+        });
+      }
+    });
+    
+    return {
+      tight: [...new Set(tight)],
+      weak: [...new Set(weak)],
+      comments: comments.length > 0 ? comments : ['데이터베이스 기반 분석 완료'],
+      details: details.length > 0 ? details : [],
+      exercises: exercises,
+      patterns: patterns,
+      fullMetrics: fullMetrics
+    };
+  } catch (err) {
+    console.error('DB 기반 분석 실패:', err);
+    // 폴백: 기존 방식 사용
+    return analyzeMuscles(null, null, null, fullMetrics);
+  }
+}
+
+// 기존 함수 (하위 호환성 유지)
 function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
   const tight = [];
   const weak = [];
