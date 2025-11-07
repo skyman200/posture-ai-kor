@@ -9108,11 +9108,28 @@ function exportAsPdf(options = {}) {
     // ========== 페이지 7: 결론 (기존 페이지 6) ==========
     const page7Container = document.createElement("div");
     setPageContainerStyle(page7Container);
+    
+    // ✅ Before-After 비교 요약 생성
+    let comparisonSummary = '';
+    if(comparison && comparison.results && comparison.results.length > 0) {
+      const improved = comparison.results.filter(r => r.status === 'improved').length;
+      const worsened = comparison.results.filter(r => r.status === 'worsened').length;
+      const maintained = comparison.results.filter(r => r.status === 'maintained').length;
+      
+      comparisonSummary = `전반적인 분석 결과, ${improved}개 항목에서 자세가 개선되었으며 ${maintained}개 항목은 안정적으로 유지되었습니다.`;
+      if(worsened > 0) {
+        comparisonSummary += ` ${worsened}개 항목은 추가 주의가 필요합니다.`;
+      }
+      comparisonSummary += ` 전신의 수직정렬과 체간-골반 협응이 ${improved > 0 ? '개선되었습니다' : '유지되었습니다'}. 필라테스 프로그램에서는 안정화 부위의 근긴장 조절 및 안정화 운동을 중심으로 진행하는 것이 효과적입니다.`;
+    } else {
+      comparisonSummary = comparison && comparison.summary ? comparison.summary.overallComment : '분석 결과를 바탕으로 지속적인 자세 개선을 권장합니다.';
+    }
+    
     page7Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">⚖️ 결론 및 향후 권장사항</h2>
       <div style="padding:20px; background:#f5f5f5; border-radius:10px; margin-bottom:20px;">
-        <div style="font-size:12px; line-height:1.8; color:#333;">
-          ${comparison && comparison.summary ? comparison.summary.overallComment : '분석 결과를 바탕으로 지속적인 자세 개선을 권장합니다.'}
+        <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; white-space:pre-wrap;">
+          ${comparisonSummary}
         </div>
       </div>
       <div style="margin-top:20px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
@@ -10547,12 +10564,12 @@ if (typeof window !== 'undefined') {
     //   { sessionName: 'After', additionalNotes: '추가 메모...' }
     // );
 
-    // ✅ 절대 경로 기반 모듈 경로 정의
+    // ✅ 절대 경로 기반 모듈 경로 정의 (GitHub Pages 배포용: src → assets)
     const MODULES = {
-      analyzerWithDB: `${REPO_ROOT}/src/ai/analyzerWithDB.js`,
-      reportPdf: `${REPO_ROOT}/src/ai/reportPdf.js`,
-      userDataManager: `${REPO_ROOT}/src/utils/userDataManager.js`,
-      aiReportManager: `${REPO_ROOT}/src/modules/aiReportManager.js`
+      analyzerWithDB: `${REPO_ROOT}/assets/ai/analyzerWithDB.js`,
+      reportPdf: `${REPO_ROOT}/assets/ai/reportPdf.js`,
+      userDataManager: `${REPO_ROOT}/assets/utils/userDataManager.js`,
+      aiReportManager: `${REPO_ROOT}/assets/modules/aiReportManager.js`
     };
 
     // DB 기반 분석기 모듈 로드
