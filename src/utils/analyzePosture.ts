@@ -2,10 +2,37 @@
 // ─────────────────────────────────────────────────────────────
 // 완전 동작 버전: DB 로드 + 좌표 검증 + PTA 계산(교수님 기준) + 패턴 매칭 + 추천 + PDF 텍스트
 
+import { loadPostureDB } from "./loadDB";
+
 // ─────────────────────────────────────────────────────────────
 // 0) 타입 (any로 둬도 되지만 최소한의 안전망)
 
 export type Pt = { x: number; y: number } | null;
+
+// 측정값 인터페이스
+export interface Metrics {
+  CVA?: number;
+  HPD?: number;
+  TIA?: number;
+  SAA?: number;
+  PTA?: number;
+  KA?: number;
+  Tibial?: number;
+  QAngle?: number;
+  KneeDev?: number;
+  LLD?: number;
+  GSB?: number;
+  HPA?: number;
+  PDS?: number;
+  STA?: number;
+  POA?: number;
+  TD?: number;
+  HTA?: number;
+  SPP?: number;
+  KAS?: number;
+  LLAS?: number;
+  FBA?: number;
+}
 
 export type PosePoints = {
   asis?: Pt; psis?: Pt; // PTA용
@@ -1019,4 +1046,90 @@ export function getReportHistory(
     console.error('❌ 리포트 히스토리 로드 실패:', err);
     return [];
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DB 기반 분석 함수 (새 버전)
+// ─────────────────────────────────────────────────────────────
+
+export async function analyzePostureWithDB(measured: Metrics) {
+  const { muscle, pilates } = await loadPostureDB();
+
+  const normalRange: Record<string, [number, number] | null> = {
+    CVA: [50, 999],
+    HPD: [0, 2],
+    TIA: [0, 10],
+    SAA: [0, 10],
+    PTA: [0, 15],
+    KA: [175, 185],
+    Tibial: [0, 10],
+    QAngle: [10, 20],
+    KneeDev: [0, 3],
+    LLD: [0, 1],
+    GSB: [0, 2],
+    HPA: [0, 10],
+    PDS: [0, 10],
+    STA: [0, 3],
+    POA: [0, 3],
+    TD: [0, 3],
+    HTA: [0, 3],
+    SPP: [0, 3],
+    KAS: [0, 3],
+    LLAS: [0, 3],
+  };
+
+  const results = Object.entries(measured).map(([key, val]) => {
+    if (val == null) return { key, value: val, status: "—", muscles: [], exercises: [] };
+
+    const range = normalRange[key];
+    const [min, max] = range || [null, null];
+
+    let status = "정상";
+    if (min !== null && val < min) status = "↓ 낮음";
+    else if (max !== null && val > max) status = "↑ 높음";
+
+    // DB에서 관련 근육 찾기 (Measure 필드로 매칭)
+    const relatedMuscles = muscle.filter((m: any) => {
+      const measureField = m.Measure || m.지표코드 || m.metric || m.key;
+      return measureField && measureField.toUpperCase() === key.toUpperCase();
+    });
+
+    // 관련 운동 찾기 (근육명으로 매칭)
+    const relatedExercises = pilates.filter((ex: any) => {
+      const targetMuscle = ex.TargetMuscle || ex.target_muscle || ex.muscle;
+      if (!targetMuscle) return false;
+      
+      const muscleNames = relatedMuscles.map((m: any) => 
+        m.MuscleName || m.muscle_name || m.근육명 || m.name
+      ).filter(Boolean);
+      
+      if (typeof targetMuscle === 'string') {
+        return muscleNames.some((name: string) => 
+          targetMuscle.includes(name) || name.includes(targetMuscle)
+        );
+      }
+      if (Array.isArray(targetMuscle)) {
+        return targetMuscle.some((tm: string) =>
+          muscleNames.some((name: string) => 
+            tm.includes(name) || name.includes(tm)
+          )
+        );
+      }
+      return false;
+    });
+
+    return {
+      key,
+      value: val,
+      status,
+      muscles: relatedMuscles.map((m: any) => 
+        m.MuscleName || m.muscle_name || m.근육명 || m.name || ""
+      ).filter(Boolean).slice(0, 5),
+      exercises: relatedExercises.map((e: any) => 
+        e.ExerciseName || e.exercise_name || e.운동명 || e.name_ko || e.name || ""
+      ).filter(Boolean).slice(0, 5),
+    };
+  });
+
+  return results;
 }
