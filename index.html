@@ -7686,10 +7686,22 @@ const NORMAL_TEXT = {
  **********************/
 async function analyzeWithDB(metrics) {
   await loadPostureDB();
+  await loadPilatesDB(); // ✅ 필라테스 DB 로드
   const findings = [];     // 지표별 판정(정상/낮음/높음/비대칭)
   const matches = [];      // DB 매칭 결과(운동 추천 등)
   const tight = new Set();
   const weak = new Set();
+  
+  // ✅ 자세 패턴 → 필라테스 운동 매칭 맵 생성
+  const postureKeyMap = {
+    '낮음(거북목)': 'Forward Head Posture',
+    '높음(라운드숄더)': 'Rounded Shoulder',
+    '높음(전방경사)': 'Anterior Pelvic Tilt',
+    '낮음(후경사)': 'Posterior Pelvic Tilt',
+    '높음(과신전)': 'Hyperlordosis',
+    '낮음': 'Hyperkyphosis',
+    '높음': 'Hyperkyphosis'
+  };
 
   // 우선순위 가중치 (중요 지표 가중)
   const weights = { 
@@ -7740,6 +7752,89 @@ async function analyzeWithDB(metrics) {
       tightStr.split(/[,\s]+/).filter(Boolean).forEach(m => tight.add(m));
       weakStr.split(/[,\s]+/).filter(Boolean).forEach(m => weak.add(m));
 
+      // ✅ 필라테스 운동 매칭 (Pilates_Exercise_DB_1000_v2.json에서)
+      const pilatesExercises = {
+        매트: [],
+        리포머: [],
+        캐딜락: [],
+        체어: [],
+        바렐: []
+      };
+      
+      // 자세 패턴 키 찾기
+      const postureKey = postureKeyMap[abnormal] || r['지표명'] || code;
+      
+      // 필라테스 DB에서 매칭 (posture_key로 검색)
+      if (PILATES_DB && PILATES_DB.length > 0) {
+        const matchedPilates = PILATES_DB.filter(p => {
+          const pKey = (p.posture_key || '').toLowerCase();
+          const pKo = (p.posture_ko || '').toLowerCase();
+          const searchKey = postureKey.toLowerCase();
+          const searchKo = (r['지표명'] || '').toLowerCase();
+          
+          return pKey.includes(searchKey) || 
+                 searchKey.includes(pKey) ||
+                 pKo.includes(searchKo) ||
+                 searchKo.includes(pKo) ||
+                 pKey.includes(code.toLowerCase());
+        });
+        
+        // 장비별로 그룹화
+        matchedPilates.forEach(p => {
+          const equipment = p.equipment_ko || '';
+          const exercise = {
+            name: p.exercise_ko || p.exercise_en || '',
+            en: p.exercise_en || '',
+            ko: p.exercise_ko || '',
+            purpose: p.purpose || '',
+            how_to_do: p.how_to_do || '',
+            sets_reps: p.sets_reps || '',
+            key_cues: p.key_cues || '',
+            precaution: p.precaution || ''
+          };
+          
+          if (equipment.includes('매트') || equipment.includes('Mat')) {
+            pilatesExercises['매트'].push(exercise);
+          }
+          if (equipment.includes('리포머') || equipment.includes('Reformer')) {
+            pilatesExercises['리포머'].push(exercise);
+          }
+          if (equipment.includes('캐딜락') || equipment.includes('Cadillac')) {
+            pilatesExercises['캐딜락'].push(exercise);
+          }
+          if (equipment.includes('체어') || equipment.includes('Chair')) {
+            pilatesExercises['체어'].push(exercise);
+          }
+          if (equipment.includes('바렐') || equipment.includes('Barrel') || equipment.includes('스파인 코렉터')) {
+            pilatesExercises['바렐'].push(exercise);
+          }
+        });
+      }
+      
+      // 기존 필드도 유지 (하위 호환성)
+      const matStr = r['필라테스운동(Mat)'] || '';
+      const reformerStr = r['필라테스운동(Reformer)'] || '';
+      const cadillacStr = r['필라테스운동(Cadillac)'] || '';
+      const chairStr = r['필라테스운동(Chair)'] || '';
+      const barrelStr = r['필라테스운동(Barrel)'] || '';
+      
+      // 기존 문자열 필드가 있으면 추가
+      if (matStr && pilatesExercises['매트'].length === 0) {
+        pilatesExercises['매트'].push({ name: matStr, ko: matStr });
+      }
+      if (reformerStr && pilatesExercises['리포머'].length === 0) {
+        pilatesExercises['리포머'].push({ name: reformerStr, ko: reformerStr });
+      }
+      if (cadillacStr && pilatesExercises['캐딜락'].length === 0) {
+        pilatesExercises['캐딜락'].push({ name: cadillacStr, ko: cadillacStr });
+      }
+      if (chairStr && pilatesExercises['체어'].length === 0) {
+        pilatesExercises['체어'].push({ name: chairStr, ko: chairStr });
+      }
+      if (barrelStr && pilatesExercises['바렐'].length === 0) {
+        pilatesExercises['바렐'].push({ name: barrelStr, ko: barrelStr });
+      }
+      
       // 추천 객체
       matches.push({
         code,
@@ -7749,11 +7844,12 @@ async function analyzeWithDB(metrics) {
         tight: r['긴장근육(주요)'] || '',
         weak: r['약화근육(주요)'] || '',
         manual: r['교정운동(도수/자가)'] || '',
-        mat: r['필라테스운동(Mat)'] || '',
-        reformer: r['필라테스운동(Reformer)'] || '',
-        cadillac: r['필라테스운동(Cadillac)'] || '',
-        chair: r['필라테스운동(Chair)'] || '',
-        barrel: r['필라테스운동(Barrel)'] || '',
+        mat: pilatesExercises['매트'].map(e => e.name || e.ko).join(', ') || matStr,
+        reformer: pilatesExercises['리포머'].map(e => e.name || e.ko).join(', ') || reformerStr,
+        cadillac: pilatesExercises['캐딜락'].map(e => e.name || e.ko).join(', ') || cadillacStr,
+        chair: pilatesExercises['체어'].map(e => e.name || e.ko).join(', ') || chairStr,
+        barrel: pilatesExercises['바렐'].map(e => e.name || e.ko).join(', ') || barrelStr,
+        pilatesExercises: pilatesExercises, // ✅ 상세 필라테스 운동 정보 추가
         note: r['임상적의미'] || '',
         level: r['추천레벨(초급/중급/고급)'] || ''
       });
