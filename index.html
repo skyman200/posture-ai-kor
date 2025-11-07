@@ -4213,26 +4213,55 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     
     // ✅ 필라테스 운동 배열 생성 (updateScoreAndAnalysis에서 사용)
     const pilatesArray = recommendations.map((rec, idx) => {
-      const itemExercises = {};
-      if (rec?.mat) {
-        if (!itemExercises['매트']) itemExercises['매트'] = [];
-        itemExercises['매트'].push(rec.mat);
+      // ✅ pilatesExercises 객체가 있으면 우선 사용 (Pilates_Exercise_DB_1000_v2.json에서 로드된 상세 정보)
+      const itemExercises = rec?.pilatesExercises || {};
+      
+      // 기존 문자열 필드도 확인 (하위 호환성)
+      if (!itemExercises['매트'] || itemExercises['매트'].length === 0) {
+        if (rec?.mat) {
+          if (!itemExercises['매트']) itemExercises['매트'] = [];
+          // 문자열인 경우 객체로 변환
+          const matStr = typeof rec.mat === 'string' ? rec.mat : '';
+          if (matStr) {
+            itemExercises['매트'].push({ name: matStr, ko: matStr });
+          }
+        }
       }
-      if (rec?.reformer) {
-        if (!itemExercises['리포머']) itemExercises['리포머'] = [];
-        itemExercises['리포머'].push(rec.reformer);
+      if (!itemExercises['리포머'] || itemExercises['리포머'].length === 0) {
+        if (rec?.reformer) {
+          if (!itemExercises['리포머']) itemExercises['리포머'] = [];
+          const reformerStr = typeof rec.reformer === 'string' ? rec.reformer : '';
+          if (reformerStr) {
+            itemExercises['리포머'].push({ name: reformerStr, ko: reformerStr });
+          }
+        }
       }
-      if (rec?.cadillac) {
-        if (!itemExercises['캐딜락']) itemExercises['캐딜락'] = [];
-        itemExercises['캐딜락'].push(rec.cadillac);
+      if (!itemExercises['캐딜락'] || itemExercises['캐딜락'].length === 0) {
+        if (rec?.cadillac) {
+          if (!itemExercises['캐딜락']) itemExercises['캐딜락'] = [];
+          const cadillacStr = typeof rec.cadillac === 'string' ? rec.cadillac : '';
+          if (cadillacStr) {
+            itemExercises['캐딜락'].push({ name: cadillacStr, ko: cadillacStr });
+          }
+        }
       }
-      if (rec?.chair) {
-        if (!itemExercises['체어']) itemExercises['체어'] = [];
-        itemExercises['체어'].push(rec.chair);
+      if (!itemExercises['체어'] || itemExercises['체어'].length === 0) {
+        if (rec?.chair) {
+          if (!itemExercises['체어']) itemExercises['체어'] = [];
+          const chairStr = typeof rec.chair === 'string' ? rec.chair : '';
+          if (chairStr) {
+            itemExercises['체어'].push({ name: chairStr, ko: chairStr });
+          }
+        }
       }
-      if (rec?.barrel) {
-        if (!itemExercises['바렐']) itemExercises['바렐'] = [];
-        itemExercises['바렐'].push(rec.barrel);
+      if (!itemExercises['바렐'] || itemExercises['바렐'].length === 0) {
+        if (rec?.barrel) {
+          if (!itemExercises['바렐']) itemExercises['바렐'] = [];
+          const barrelStr = typeof rec.barrel === 'string' ? rec.barrel : '';
+          if (barrelStr) {
+            itemExercises['바렐'].push({ name: barrelStr, ko: barrelStr });
+          }
+        }
       }
       
       return {
@@ -7512,7 +7541,9 @@ function generateAIDeepAnalysis(metrics) {
  * 100종 DB 로더 (캐시 방식)
  **********************/
 let POSTURE_DB = [];
+let PILATES_DB = []; // ✅ 필라테스 운동 DB 추가
 let postureDBCache = null;
+let pilatesDBCache = null;
 
 // CSV 파싱 함수
 function parseCSV(csvText) {
@@ -7605,6 +7636,88 @@ async function loadPostureDB() {
       return POSTURE_DB;
     }
   }
+}
+
+// ✅ 필라테스 운동 DB 로드 함수 (참고 코드 기반 개선)
+async function loadPilatesDB() {
+  // 캐시 확인
+  if (pilatesDBCache) {
+    PILATES_DB = pilatesDBCache;
+    return PILATES_DB;
+  }
+  
+  if (PILATES_DB.length) {
+    pilatesDBCache = PILATES_DB;
+    return PILATES_DB;
+  }
+  
+  // ✅ GitHub Pages 경로 자동 감지
+  const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
+  const urls = [
+    `${REPO_ROOT}/db/Pilates_Exercise_DB_1000_v2.json`,
+    `https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Pilates_Exercise_DB_1000_v2.json`,
+    `/public/db/Pilates_Exercise_DB_1000_v2.json`,
+    `/db/Pilates_Exercise_DB_1000_v2.json`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : (data.data || []);
+      if (!arr.length) throw new Error(`DB empty @ ${url}`);
+      
+      PILATES_DB = arr;
+      pilatesDBCache = arr;
+      window.PilatesDB = arr; // 전역 변수로도 저장 (참고 코드 호환)
+      console.log(`✅ Pilates DB Loaded: ${arr.length} exercises`);
+      return arr;
+    } catch (e) {
+      console.warn(`⚠️ Pilates DB 로드 실패 @ ${url}:`, e.message);
+    }
+  }
+  
+  console.warn('⚠️ Pilates DB를 불러올 수 없습니다.');
+  PILATES_DB = [];
+  return [];
+}
+
+// ✅ 필라테스 운동 매칭 함수 (참고 코드 기반)
+async function linkPilatesDB(postureResult) {
+  const pilatesDB = window.PilatesDB || PILATES_DB || (await loadPilatesDB());
+  if (!pilatesDB || pilatesDB.length === 0) {
+    console.warn('⚠️ 필라테스 DB가 로드되지 않았습니다.');
+    return [];
+  }
+
+  // posture_key, posture_ko, 지표명 등을 기반으로 매칭
+  const matchedExercises = pilatesDB.filter(ex => {
+    const exKey = (ex.posture_key || '').toLowerCase();
+    const exKo = (ex.posture_ko || '').toLowerCase();
+    
+    // postureResult에서 매칭할 키워드 추출
+    const searchKeys = [];
+    if (postureResult.posture_key) searchKeys.push(postureResult.posture_key.toLowerCase());
+    if (postureResult.posture_ko) searchKeys.push(postureResult.posture_ko.toLowerCase());
+    if (postureResult.name) searchKeys.push(postureResult.name.toLowerCase());
+    if (postureResult.code) searchKeys.push(postureResult.code.toLowerCase());
+    if (postureResult.abnormal) searchKeys.push(postureResult.abnormal.toLowerCase());
+    
+    // 매칭 조건: posture_key 또는 posture_ko가 검색 키워드와 일치
+    return searchKeys.some(key => 
+      exKey.includes(key) || 
+      key.includes(exKey) ||
+      exKo.includes(key) ||
+      key.includes(exKo)
+    );
+  });
+
+  // 상위 10개만 추출 (장비별로 다양하게)
+  const recommended = matchedExercises.slice(0, 10);
+  console.log("✅ 필라테스 운동 추천:", recommended.map(e => e.exercise_ko || e.exercise_en || e.name));
+  window.PilatesRecommendations = recommended;
+  return recommended;
 }
 
 /**********************
@@ -7752,7 +7865,7 @@ async function analyzeWithDB(metrics) {
       tightStr.split(/[,\s]+/).filter(Boolean).forEach(m => tight.add(m));
       weakStr.split(/[,\s]+/).filter(Boolean).forEach(m => weak.add(m));
 
-      // ✅ 필라테스 운동 매칭 (Pilates_Exercise_DB_1000_v2.json에서)
+      // ✅ 필라테스 운동 매칭 (linkPilatesDB 함수 사용)
       const pilatesExercises = {
         매트: [],
         리포머: [],
@@ -7761,27 +7874,25 @@ async function analyzeWithDB(metrics) {
         바렐: []
       };
       
-      // 자세 패턴 키 찾기
-      const postureKey = postureKeyMap[abnormal] || r['지표명'] || code;
+      // postureResult 객체 생성
+      const postureResult = {
+        code: code,
+        name: r['지표명'] || code,
+        abnormal: abnormal,
+        posture_key: postureKeyMap[abnormal] || r['지표명'] || code,
+        posture_ko: r['지표명'] || code,
+        tight: r['긴장근육(주요)'] || '',
+        weak: r['약화근육(주요)'] || '',
+        region: r['부위'] || ''
+      };
       
-      // 필라테스 DB에서 매칭 (posture_key로 검색)
-      if (PILATES_DB && PILATES_DB.length > 0) {
-        const matchedPilates = PILATES_DB.filter(p => {
-          const pKey = (p.posture_key || '').toLowerCase();
-          const pKo = (p.posture_ko || '').toLowerCase();
-          const searchKey = postureKey.toLowerCase();
-          const searchKo = (r['지표명'] || '').toLowerCase();
-          
-          return pKey.includes(searchKey) || 
-                 searchKey.includes(pKey) ||
-                 pKo.includes(searchKo) ||
-                 searchKo.includes(pKo) ||
-                 pKey.includes(code.toLowerCase());
-        });
+      // linkPilatesDB 함수로 필라테스 운동 매칭
+      try {
+        const matchedPilates = await linkPilatesDB(postureResult);
         
         // 장비별로 그룹화
         matchedPilates.forEach(p => {
-          const equipment = p.equipment_ko || '';
+          const equipment = (p.equipment_ko || p.equipment_en || '').toLowerCase();
           const exercise = {
             name: p.exercise_ko || p.exercise_en || '',
             en: p.exercise_en || '',
@@ -7793,22 +7904,24 @@ async function analyzeWithDB(metrics) {
             precaution: p.precaution || ''
           };
           
-          if (equipment.includes('매트') || equipment.includes('Mat')) {
+          if (equipment.includes('매트') || equipment.includes('mat')) {
             pilatesExercises['매트'].push(exercise);
           }
-          if (equipment.includes('리포머') || equipment.includes('Reformer')) {
+          if (equipment.includes('리포머') || equipment.includes('reformer')) {
             pilatesExercises['리포머'].push(exercise);
           }
-          if (equipment.includes('캐딜락') || equipment.includes('Cadillac')) {
+          if (equipment.includes('캐딜락') || equipment.includes('cadillac')) {
             pilatesExercises['캐딜락'].push(exercise);
           }
-          if (equipment.includes('체어') || equipment.includes('Chair')) {
+          if (equipment.includes('체어') || equipment.includes('chair')) {
             pilatesExercises['체어'].push(exercise);
           }
-          if (equipment.includes('바렐') || equipment.includes('Barrel') || equipment.includes('스파인 코렉터')) {
+          if (equipment.includes('바렐') || equipment.includes('barrel') || equipment.includes('스파인 코렉터') || equipment.includes('spine corrector')) {
             pilatesExercises['바렐'].push(exercise);
           }
         });
+      } catch (err) {
+        console.warn('⚠️ 필라테스 운동 매칭 실패:', err);
       }
       
       // 기존 필드도 유지 (하위 호환성)
