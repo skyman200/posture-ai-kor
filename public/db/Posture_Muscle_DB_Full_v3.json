@@ -1,0 +1,7278 @@
+[
+  {
+    "key": "Anterior Pelvic Tilt",
+    "posture_ko": "골반 전방경사",
+    "posture_en": "Anterior Pelvic Tilt",
+    "definition": "골반 전방경사 / Anterior Pelvic Tilt",
+    "region": "골반 (Pelvis)",
+    "biomechanics": {
+      "joint_mechanics": "요추 전만 증가, 고관절 굴곡, 슬관절 과신전 경향",
+      "functional_line": "SFL 과활성, DFL 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "장요근 (Iliopsoas)",
+          "대퇴직근 (Rectus Femoris)",
+          "요추기립근 (Erector Spinae)"
+        ],
+        "secondary": [
+          "TFL (Tensor Fasciae Latae)",
+          "내전근 (Adductors)",
+          "요방형근 (Quadratus Lumborum)"
+        ],
+        "description": "고관절 굴곡/요추 신전계 단축"
+      },
+      "weak": {
+        "primary": [
+          "복직근 (Rectus Abdominis)",
+          "복횡근 (Transversus Abdominis)",
+          "대둔근 (Gluteus Maximus)"
+        ],
+        "secondary": [
+          "햄스트링 (Hamstrings)",
+          "다열근 (Multifidus)"
+        ],
+        "description": "코어/둔근 약화로 전방경사 조절 실패"
+      }
+    },
+    "causes": [
+      "장시간 좌식",
+      "힙 플렉서 과활성",
+      "복부 약화",
+      "산후 이완"
+    ],
+    "symptoms": [
+      "요통",
+      "허리 피로",
+      "복부/엉덩이 돌출"
+    ],
+    "compensation_patterns": [
+      "흉추 과후만",
+      "라운드숄더",
+      "전방머리"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "장요근",
+        "대퇴직근",
+        "요추기립근"
+      ],
+      "strengthen": [
+        "복횡근",
+        "대둔근",
+        "햄스트링"
+      ],
+      "mobility": [
+        "고관절 신전",
+        "요추 안정화"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "ASIS 하방/PSIS 상방",
+        "요추 전만 증가"
+      ],
+      "tests": [
+        "Thomas(+), Ely(+), Active SLR 제한"
+      ],
+      "palpation": [
+        "장요근 긴장",
+        "요추기립근 단축"
+      ]
+    },
+    "clinical_significance": [
+      "Lower Crossed Syndrome 핵심, 요추 부담 증가"
+    ],
+    "ai_detection_metrics": {
+      "PTA_threshold": "> +10°",
+      "CVA_correlation": "<55°(동반 시)"
+    }
+  },
+  {
+    "key": "Posterior Pelvic Tilt",
+    "posture_ko": "골반 후방경사",
+    "posture_en": "Posterior Pelvic Tilt",
+    "definition": "골반 후방경사 / Posterior Pelvic Tilt",
+    "region": "골반 (Pelvis)",
+    "biomechanics": {
+      "joint_mechanics": "요추 전만 감소/평배, 고관절 상대적 신전",
+      "functional_line": "SBL 과활성, DFL 억제"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "햄스트링 (Hamstrings)",
+          "복직근 (Rectus Abdominis)"
+        ],
+        "secondary": [
+          "대둔근 (Gluteus Maximus)",
+          "복사근 (Obliques)"
+        ],
+        "description": "후방 사슬 과활성/햄스트링 의존"
+      },
+      "weak": {
+        "primary": [
+          "장요근 (Iliopsoas)",
+          "요추기립근 (Erector Spinae)",
+          "대퇴직근 (Rectus Femoris)"
+        ],
+        "secondary": [
+          "둔근군 (Gluteals)",
+          "다열근 (Multifidus)"
+        ],
+        "description": "고관절 신전전략 과다, 요추 신전 약화"
+      }
+    },
+    "causes": [
+      "구부정 좌식",
+      "복부 과활성",
+      "둔근 약화"
+    ],
+    "symptoms": [
+      "요추 경직감",
+      "둔부 무력감"
+    ],
+    "compensation_patterns": [
+      "평배/흉추 과후만",
+      "전방머리"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "햄스트링",
+        "복직근"
+      ],
+      "strengthen": [
+        "장요근",
+        "요추기립근",
+        "둔근"
+      ],
+      "mobility": [
+        "요추 신전",
+        "고관절 굴곡 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "ASIS 상방/PSIS 하방",
+        "전만 감소"
+      ],
+      "tests": [
+        "SLR 타이트, Prone press-up 제한"
+      ],
+      "palpation": [
+        "햄스트링 긴장"
+      ]
+    },
+    "clinical_significance": [
+      "Flat-back 연관, 분절운동성 저하"
+    ],
+    "ai_detection_metrics": {
+      "PTA_threshold": "< -5°"
+    }
+  },
+  {
+    "key": "Forward Head Posture",
+    "posture_ko": "전방머리자세",
+    "posture_en": "Forward Head Posture",
+    "definition": "전방머리자세 / Forward Head Posture",
+    "region": "경추 (Cervical)",
+    "biomechanics": {
+      "joint_mechanics": "상부경추 신전/하부경추 굴곡, 흉추 후만 증가",
+      "functional_line": "DFL 불균형, SFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "흉쇄유돌근 (SCM)",
+          "상부승모 (Upper Trapezius)",
+          "견갑거근 (Levator Scapulae)"
+        ],
+        "secondary": [
+          "소흉근 (Pectoralis Minor)",
+          "사각근 (Scalenes)"
+        ],
+        "description": "경추 신전군 과활성/전인"
+      },
+      "weak": {
+        "primary": [
+          "심부경부굴근 (Deep Neck Flexors)"
+        ],
+        "secondary": [
+          "하부승모 (Lower Trapezius)",
+          "전거근 (Serratus Anterior)"
+        ],
+        "description": "심부굴근 억제"
+      }
+    },
+    "causes": [
+      "스마트폰/PC 고개 숙임",
+      "시선 낮은 작업"
+    ],
+    "symptoms": [
+      "목/두통",
+      "어깨 결림",
+      "상부승모 긴장"
+    ],
+    "compensation_patterns": [
+      "라운드숄더",
+      "구강호흡"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "소흉근",
+        "SCM",
+        "상부승모"
+      ],
+      "strengthen": [
+        "심부경부굴근",
+        "하부승모",
+        "전거근"
+      ],
+      "mobility": [
+        "경추/흉추 신전",
+        "흉곽 확장"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "CVA 감소, 턱전돌"
+      ],
+      "tests": [
+        "Craniocervical Flexion Test 저하"
+      ],
+      "palpation": [
+        "후두하근 압통"
+      ]
+    },
+    "clinical_significance": [
+      "TMD/편두통/TOS 연관"
+    ],
+    "ai_detection_metrics": {
+      "CVA": "< 55°",
+      "HPD": "> 2 cm"
+    }
+  },
+  {
+    "key": "Rounded Shoulders",
+    "posture_ko": "라운드숄더",
+    "posture_en": "Rounded Shoulders",
+    "definition": "라운드숄더 / Rounded Shoulders",
+    "region": "견갑/어깨 (Scapula/Shoulder)",
+    "biomechanics": {
+      "joint_mechanics": "견갑 전인, 상방회전 증가, 흉추 후만 동반",
+      "functional_line": "Anterior Functional Line 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "대흉근 (Pectoralis Major)",
+          "소흉근 (Pectoralis Minor)",
+          "상부승모 (Upper Trapezius)"
+        ],
+        "secondary": [
+          "전면삼각근 (Anterior Deltoid)"
+        ],
+        "description": "흉근 단축/견갑 상방회전 우세"
+      },
+      "weak": {
+        "primary": [
+          "하부승모 (Lower Trapezius)",
+          "능형근 (Rhomboids)",
+          "전거근 (Serratus Anterior)"
+        ],
+        "secondary": [
+          "중부승모 (Middle Trapezius)"
+        ],
+        "description": "견갑 후인/하강 약화"
+      }
+    },
+    "causes": [
+      "컴퓨터 작업",
+      "푸시 동작 과다"
+    ],
+    "symptoms": [
+      "어깨 전방 통증",
+      "견갑 불안정"
+    ],
+    "compensation_patterns": [
+      "FHP 동반",
+      "흉추 후만"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "소흉근",
+        "대흉근"
+      ],
+      "strengthen": [
+        "하부승모",
+        "능형근",
+        "전거근"
+      ],
+      "mobility": [
+        "흉추 신전",
+        "견갑 후인/하강"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "충돌증후군/회전근개 간섭"
+      ],
+      "tests": [
+        "Scapular assistance test(+)",
+        "Pec minor tightness"
+      ],
+      "palpation": [
+        "소흉근 압통"
+      ]
+    },
+    "clinical_significance": [
+      "충돌/불안정 위험 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "> 10°"
+    }
+  },
+  {
+    "key": "Thoracic Hyperkyphosis",
+    "posture_ko": "흉추 과후만",
+    "posture_en": "Thoracic Hyperkyphosis",
+    "definition": "흉추 과후만 / Thoracic Hyperkyphosis",
+    "region": "흉추 (Thoracic)",
+    "biomechanics": {
+      "joint_mechanics": "흉추 굴곡 증가, 견갑 전인, 경추 보상 신전",
+      "functional_line": "SFL 과활성/흉곽 경직"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "복직근 (Rectus Abdominis)",
+          "소흉근 (Pectoralis Minor)"
+        ],
+        "secondary": [
+          "복사근 (Obliques)"
+        ],
+        "description": "흉곽 전벽 단축"
+      },
+      "weak": {
+        "primary": [
+          "흉추기립근 (Thoracic Erectors)",
+          "하부승모 (Lower Trapezius)"
+        ],
+        "secondary": [
+          "다열근 (Multifidus)",
+          "능형근 (Rhomboids)"
+        ],
+        "description": "흉추 신전 약화"
+      }
+    },
+    "causes": [
+      "구부정 작업",
+      "호흡 패턴 저하"
+    ],
+    "symptoms": [
+      "등 결림",
+      "호흡 얕음"
+    ],
+    "compensation_patterns": [
+      "FHP/라운드숄더"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "소흉근",
+        "복직근"
+      ],
+      "strengthen": [
+        "흉추기립근",
+        "하부승모"
+      ],
+      "mobility": [
+        "흉추 신전",
+        "흉곽 확장"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "후만 증가 관찰"
+      ],
+      "tests": [
+        "Wall-to-occiput distance↑"
+      ],
+      "palpation": [
+        "극돌기 압통"
+      ]
+    },
+    "clinical_significance": [
+      "폐활량 저하/압박골절 감별"
+    ],
+    "ai_detection_metrics": {
+      "TIA": "> 10°",
+      "SAA": "> 10°"
+    }
+  },
+  {
+    "key": "Lumbar Hyperlordosis",
+    "posture_ko": "요추 과전만",
+    "posture_en": "Lumbar Hyperlordosis",
+    "definition": "요추 과전만 / Lumbar Hyperlordosis",
+    "region": "요추 (Lumbar)",
+    "biomechanics": {
+      "joint_mechanics": "요추 전만 과다, 골반 전방경사 동반",
+      "functional_line": "SFL 단축"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "장요근 (Iliopsoas)",
+          "요추기립근 (Erector Spinae)"
+        ],
+        "secondary": [
+          "대퇴직근 (Rectus Femoris)"
+        ],
+        "description": "요추 신전 과활성"
+      },
+      "weak": {
+        "primary": [
+          "복횡근 (Transversus Abdominis)",
+          "대둔근 (Gluteus Maximus)"
+        ],
+        "secondary": [
+          "햄스트링 (Hamstrings)",
+          "다열근 (Multifidus)"
+        ],
+        "description": "코어/둔근 억제"
+      }
+    },
+    "causes": [
+      "하이힐",
+      "코어 약화"
+    ],
+    "symptoms": [
+      "요통",
+      "기립 불편"
+    ],
+    "compensation_patterns": [
+      "A.P.T 동반"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "장요근",
+        "요추기립근"
+      ],
+      "strengthen": [
+        "복부 코어",
+        "둔근"
+      ],
+      "mobility": [
+        "요추-골반 리듬"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "후관절 스트레스/분리증"
+      ],
+      "tests": [
+        "Passive lumbar extension pain"
+      ],
+      "palpation": [
+        "기립근 긴장"
+      ]
+    },
+    "clinical_significance": [
+      "전방전위증 감별"
+    ],
+    "ai_detection_metrics": {
+      "PTA": "> +10°",
+      "HPA": "> 10°"
+    }
+  },
+  {
+    "key": "Flat Back",
+    "posture_ko": "평배",
+    "posture_en": "Flat Back",
+    "definition": "평배 / Flat Back",
+    "region": "척추 (Spine)",
+    "biomechanics": {
+      "joint_mechanics": "요추 전만 및 흉추 후만 감소, 편평 정렬",
+      "functional_line": "SBL 과활성/분절운동성 저하"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "햄스트링 (Hamstrings)",
+          "복직근 (Rectus Abdominis)"
+        ],
+        "secondary": [
+          "요방형근 (Quadratus Lumborum)"
+        ],
+        "description": "후방 사슬 의존"
+      },
+      "weak": {
+        "primary": [
+          "장요근 (Iliopsoas)",
+          "요추기립근 (Erector Spinae)",
+          "둔근 (Gluteals)"
+        ],
+        "secondary": [
+          "다열근 (Multifidus)"
+        ],
+        "description": "요추 신전 약화"
+      }
+    },
+    "causes": [
+      "복부 과브레이싱",
+      "좌식"
+    ],
+    "symptoms": [
+      "허리 뻣뻣",
+      "기립 피로"
+    ],
+    "compensation_patterns": [
+      "FHP 보상"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "햄스트링",
+        "복직근"
+      ],
+      "strengthen": [
+        "요추기립근",
+        "둔근",
+        "장요근"
+      ],
+      "mobility": [
+        "요추 신전",
+        "고관절 굴/신전"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "디스크성 통증 감별"
+      ],
+      "tests": [
+        "Prone press-up 제한"
+      ],
+      "palpation": [
+        "요부 근막 긴장"
+      ]
+    },
+    "clinical_significance": [
+      "분절움직임 제한"
+    ],
+    "ai_detection_metrics": {
+      "PTA": "< -5°",
+      "HPA": "< 5°"
+    }
+  },
+  {
+    "key": "Sway Back",
+    "posture_ko": "스웨이 백",
+    "posture_en": "Sway Back",
+    "definition": "스웨이 백 / Sway Back",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "골반 전방이동+상체 후방",
+      "functional_line": "Back Functional Line 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "햄스트링 (Hamstrings)",
+          "복직근 (Rectus Abdominis)"
+        ],
+        "secondary": [
+          "TFL (Tensor Fasciae Latae)"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "둔근 (Gluteals)",
+          "복횡근 (Transversus Abdominis)"
+        ],
+        "secondary": [
+          "흉추기립근 (Thoracic Erectors)"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "햄스트링 (Hamstrings)",
+        "복직근 (Rectus Abdominis)"
+      ],
+      "strengthen": [
+        "둔근 (Gluteals)",
+        "복횡근 (Transversus Abdominis)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "GSB": "> 2 cm"
+    }
+  },
+  {
+    "key": "Pelvic Obliquity",
+    "posture_ko": "골반 기울기",
+    "posture_en": "Pelvic Obliquity",
+    "definition": "골반 기울기 / Pelvic Obliquity",
+    "region": "골반 (Pelvis)",
+    "biomechanics": {
+      "joint_mechanics": "좌우 ASIS 높이 차",
+      "functional_line": "Lateral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL (Tensor Fasciae Latae)",
+          "요방형근 (Quadratus Lumborum)"
+        ],
+        "secondary": [
+          "척추기립근 (Erectors)"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근 (Gluteus Medius)",
+          "둔근 (Gluteals)"
+        ],
+        "secondary": [
+          "복횡근 (Transversus Abdominis)"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL (Tensor Fasciae Latae)",
+        "요방형근 (Quadratus Lumborum)"
+      ],
+      "strengthen": [
+        "중둔근 (Gluteus Medius)",
+        "둔근 (Gluteals)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "POA": "> 3°"
+    }
+  },
+  {
+    "key": "Pelvic Rotation",
+    "posture_ko": "골반 회전",
+    "posture_en": "Pelvic Rotation",
+    "definition": "골반 회전 / Pelvic Rotation",
+    "region": "골반 (Pelvis)",
+    "biomechanics": {
+      "joint_mechanics": "수평면 회전 편향",
+      "functional_line": "Spiral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "외복사근 (External Oblique)",
+          "내복사근 (Internal Oblique)"
+        ],
+        "secondary": [
+          "TFL"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "다열근 (Multifidus)",
+          "횡격막 (Diaphragm)"
+        ],
+        "secondary": [
+          "복횡근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "외복사근 (External Oblique)",
+        "내복사근 (Internal Oblique)"
+      ],
+      "strengthen": [
+        "다열근 (Multifidus)",
+        "횡격막 (Diaphragm)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "PRA": "> 5°"
+    }
+  },
+  {
+    "key": "Genu Valgum",
+    "posture_ko": "X자 다리",
+    "posture_en": "Genu Valgum",
+    "definition": "X자 다리 / Genu Valgum",
+    "region": "무릎 (Knee)",
+    "biomechanics": {
+      "joint_mechanics": "무릎 내측 수렴, Q-angle 증가",
+      "functional_line": "Spiral/Lateral 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "내전근 (Adductors)",
+          "내측광근 (VM)"
+        ],
+        "secondary": [
+          "비복근 (Gastrocnemius)"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근 (Gluteus Medius)",
+          "외회전근 (External Rotators)"
+        ],
+        "secondary": [
+          "외측광근 (VL)"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "내전근 (Adductors)",
+        "내측광근 (VM)"
+      ],
+      "strengthen": [
+        "중둔근 (Gluteus Medius)",
+        "외회전근 (External Rotators)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "KA": "< 175°",
+      "QAngle": "> 20°"
+    }
+  },
+  {
+    "key": "Genu Varum",
+    "posture_ko": "O자 다리",
+    "posture_en": "Genu Varum",
+    "definition": "O자 다리 / Genu Varum",
+    "region": "무릎 (Knee)",
+    "biomechanics": {
+      "joint_mechanics": "무릎 외측 벌어짐, Q-angle 감소",
+      "functional_line": "Lateral Line 우세"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "외측광근 (VL)",
+          "비복근 (Gastrocnemius)"
+        ],
+        "secondary": [
+          "대퇴이두 (Biceps Femoris)"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "내전근 (Adductors)",
+          "내측광근 (VMO)"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "외측광근 (VL)",
+        "비복근 (Gastrocnemius)"
+      ],
+      "strengthen": [
+        "내전근 (Adductors)",
+        "내측광근 (VMO)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "KA": "> 185°",
+      "QAngle": "< 10°"
+    }
+  },
+  {
+    "key": "Genu Recurvatum",
+    "posture_ko": "무릎 과신전",
+    "posture_en": "Genu Recurvatum",
+    "definition": "무릎 과신전 / Genu Recurvatum",
+    "region": "무릎 (Knee)",
+    "biomechanics": {
+      "joint_mechanics": "슬관절 과신전 정렬",
+      "functional_line": "SBL 우세"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비복근",
+          "슬와근 (Popliteus)"
+        ],
+        "secondary": [
+          "대퇴사두 (Quadriceps)"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "햄스트링",
+          "둔근"
+        ],
+        "secondary": [
+          "전경골근 (Tibialis Anterior)"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비복근",
+        "슬와근 (Popliteus)"
+      ],
+      "strengthen": [
+        "햄스트링",
+        "둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "KneeExt": "> 5°"
+    }
+  },
+  {
+    "key": "Knee Flexion Contracture",
+    "posture_ko": "무릎 굴곡 구축",
+    "posture_en": "Knee Flexion Contracture",
+    "definition": "무릎 굴곡 구축 / Knee Flexion Contracture",
+    "region": "무릎 (Knee)",
+    "biomechanics": {
+      "joint_mechanics": "슬관절 굴곡 부족",
+      "functional_line": "SBL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "햄스트링",
+          "비복근"
+        ],
+        "secondary": [
+          "대퇴사두"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "대퇴사두",
+          "둔근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "햄스트링",
+        "비복근"
+      ],
+      "strengthen": [
+        "대퇴사두",
+        "둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "KneeFlexionROM": "< 120°"
+    }
+  },
+  {
+    "key": "Increased Q-Angle",
+    "posture_ko": "Q각 증가",
+    "posture_en": "Increased Q-Angle",
+    "definition": "Q각 증가 / Increased Q-Angle",
+    "region": "무릎 (Knee)",
+    "biomechanics": {
+      "joint_mechanics": "슬개 외측 압박 경향",
+      "functional_line": "Spiral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "외측광근 (VL)"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "내측광근 (VMO)",
+          "중둔근"
+        ],
+        "secondary": [
+          "외회전근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "외측광근 (VL)"
+      ],
+      "strengthen": [
+        "내측광근 (VMO)",
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "QAngle": "> 20°"
+    }
+  },
+  {
+    "key": "Decreased Q-Angle",
+    "posture_ko": "Q각 감소",
+    "posture_en": "Decreased Q-Angle",
+    "definition": "Q각 감소 / Decreased Q-Angle",
+    "region": "무릎 (Knee)",
+    "biomechanics": {
+      "joint_mechanics": "슬개 정렬 내측화 경향",
+      "functional_line": "Lateral Line 우세"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "내전근",
+          "내측광근"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "외측광근",
+          "중둔근"
+        ],
+        "secondary": [
+          "외회전근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "내전근",
+        "내측광근"
+      ],
+      "strengthen": [
+        "외측광근",
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "QAngle": "< 10°"
+    }
+  },
+  {
+    "key": "Excessive Tibial Inclination",
+    "posture_ko": "과도한 경골 경사",
+    "posture_en": "Excessive Tibial Inclination",
+    "definition": "과도한 경골 경사 / Excessive Tibial Inclination",
+    "region": "하퇴 (Lower Leg)",
+    "biomechanics": {
+      "joint_mechanics": "경골 전방경사 증가",
+      "functional_line": "SBL/SFL 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비복근",
+          "가자미근 (Soleus)"
+        ],
+        "secondary": [
+          "비골근 (Peroneals)"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "전경골근",
+          "햄스트링"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비복근",
+        "가자미근 (Soleus)"
+      ],
+      "strengthen": [
+        "전경골근",
+        "햄스트링"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Tibial": "> 10°"
+    }
+  },
+  {
+    "key": "Internal Tibial Torsion",
+    "posture_ko": "경골 내회전 변형",
+    "posture_en": "Internal Tibial Torsion",
+    "definition": "경골 내회전 변형 / Internal Tibial Torsion",
+    "region": "하퇴 (Lower Leg)",
+    "biomechanics": {
+      "joint_mechanics": "경골 내회전 편향",
+      "functional_line": "Spiral Line 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "경골근막",
+          "내측 햄스트링"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "외회전근",
+          "중둔근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "경골근막",
+        "내측 햄스트링"
+      ],
+      "strengthen": [
+        "외회전근",
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TibialRotation": "> 10° IR"
+    }
+  },
+  {
+    "key": "External Tibial Torsion",
+    "posture_ko": "경골 외회전 변형",
+    "posture_en": "External Tibial Torsion",
+    "definition": "경골 외회전 변형 / External Tibial Torsion",
+    "region": "하퇴 (Lower Leg)",
+    "biomechanics": {
+      "joint_mechanics": "경골 외회전 편향",
+      "functional_line": "Spiral Line 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비복근",
+          "외측 햄스트링"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "VMO"
+        ],
+        "secondary": [
+          "내전근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비복근",
+        "외측 햄스트링"
+      ],
+      "strengthen": [
+        "중둔근",
+        "VMO"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TibialRotation": "> 10° ER"
+    }
+  },
+  {
+    "key": "Trendelenburg Sign",
+    "posture_ko": "트렌델렌버그 징후",
+    "posture_en": "Trendelenburg Sign",
+    "definition": "트렌델렌버그 징후 / Trendelenburg Sign",
+    "region": "고관절 (Hip)",
+    "biomechanics": {
+      "joint_mechanics": "단하지 지지 시 골반 하강",
+      "functional_line": "Lateral Line 약화"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "QF(Quadratus Femoris)"
+        ],
+        "secondary": [
+          "내전근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근 (Gluteus Medius)"
+        ],
+        "secondary": [
+          "대둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "QF(Quadratus Femoris)"
+      ],
+      "strengthen": [
+        "중둔근 (Gluteus Medius)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HipAbdWeak": "+ (MRC ≤ 4)"
+    }
+  },
+  {
+    "key": "Femoral Anteversion",
+    "posture_ko": "대퇴 전염",
+    "posture_en": "Femoral Anteversion",
+    "definition": "대퇴 전염 / Femoral Anteversion",
+    "region": "고관절 (Hip)",
+    "biomechanics": {
+      "joint_mechanics": "대퇴 경부 전염 증가",
+      "functional_line": "Spiral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "내전근"
+        ],
+        "secondary": [
+          "외회전근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "외회전근",
+          "중둔근"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "내전근"
+      ],
+      "strengthen": [
+        "외회전근",
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FAngle": "> 20°"
+    }
+  },
+  {
+    "key": "Femoral Retroversion",
+    "posture_ko": "대퇴 후염",
+    "posture_en": "Femoral Retroversion",
+    "definition": "대퇴 후염 / Femoral Retroversion",
+    "region": "고관절 (Hip)",
+    "biomechanics": {
+      "joint_mechanics": "대퇴 경부 후염 증가",
+      "functional_line": "Spiral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "외회전근",
+          "중둔근"
+        ],
+        "secondary": [
+          "TFL"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "TFL",
+          "내전근"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "외회전근",
+        "중둔근"
+      ],
+      "strengthen": [
+        "TFL",
+        "내전근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FAngle": "< 10°"
+    }
+  },
+  {
+    "key": "Pes Planus",
+    "posture_ko": "평발",
+    "posture_en": "Pes Planus",
+    "definition": "평발 / Pes Planus",
+    "region": "발 (Foot)",
+    "biomechanics": {
+      "joint_mechanics": "내측 종아치 저하/과내전",
+      "functional_line": "SFL/Lat Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비골근",
+          "후경골건 과부하"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "후경골근 (Tibialis Posterior)",
+          "전경골근"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비골근",
+        "후경골건 과부하"
+      ],
+      "strengthen": [
+        "후경골근 (Tibialis Posterior)",
+        "전경골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FBA": "Excess Pronation"
+    }
+  },
+  {
+    "key": "Pes Cavus",
+    "posture_ko": "요족",
+    "posture_en": "Pes Cavus",
+    "definition": "요족 / Pes Cavus",
+    "region": "발 (Foot)",
+    "biomechanics": {
+      "joint_mechanics": "과외번/아치 과상승",
+      "functional_line": "Lateral Line 우세"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비복근",
+          "전경골근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "비골근",
+          "후경골근"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비복근",
+        "전경골근"
+      ],
+      "strengthen": [
+        "비골근",
+        "후경골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FBA": "Excess Supination"
+    }
+  },
+  {
+    "key": "Hallux Valgus",
+    "posture_ko": "무지외반증",
+    "posture_en": "Hallux Valgus",
+    "definition": "무지외반증 / Hallux Valgus",
+    "region": "발 (Foot)",
+    "biomechanics": {
+      "joint_mechanics": "제1중족지 관절 외반 변형",
+      "functional_line": "전족부 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "종자골 주변 근막"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "발 intrinsic (발바닥 내재근)"
+        ],
+        "secondary": [
+          "후경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "종자골 주변 근막"
+      ],
+      "strengthen": [
+        "발 intrinsic (발바닥 내재근)"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HalluxValgus": "> 15°"
+    }
+  },
+  {
+    "key": "Toe-Out Gait",
+    "posture_ko": "토우 아웃 보행",
+    "posture_en": "Toe-Out Gait",
+    "definition": "토우 아웃 보행 / Toe-Out Gait",
+    "region": "발/하지",
+    "biomechanics": {
+      "joint_mechanics": "발끝 바깥 방향",
+      "functional_line": "Spiral Line 편향"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "외회전근",
+          "비골근"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "전경골근",
+          "중둔근"
+        ],
+        "secondary": [
+          "후경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "외회전근",
+        "비골근"
+      ],
+      "strengthen": [
+        "전경골근",
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FootProgression": "> +10°"
+    }
+  },
+  {
+    "key": "Toe-In Gait",
+    "posture_ko": "토우 인 보행",
+    "posture_en": "Toe-In Gait",
+    "definition": "토우 인 보행 / Toe-In Gait",
+    "region": "발/하지",
+    "biomechanics": {
+      "joint_mechanics": "발끝 안쪽 방향",
+      "functional_line": "Spiral Line 편향"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "내전근",
+          "TFL"
+        ],
+        "secondary": [
+          "외회전근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "외회전근",
+          "중둔근"
+        ],
+        "secondary": [
+          "후경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "내전근",
+        "TFL"
+      ],
+      "strengthen": [
+        "외회전근",
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FootProgression": "< -5°"
+    }
+  },
+  {
+    "key": "Head Tilt Left",
+    "posture_ko": "머리 좌측 기울기",
+    "posture_en": "Head Tilt Left",
+    "definition": "머리 좌측 기울기 / Head Tilt Left",
+    "region": "경추",
+    "biomechanics": {
+      "joint_mechanics": "측굴 편향",
+      "functional_line": "Lateral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "흉쇄유돌근/사각근"
+        ],
+        "secondary": [
+          "상부승모"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "심부경부굴근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "흉쇄유돌근/사각근"
+      ],
+      "strengthen": [
+        "심부경부굴근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HTA": "> 3° Left"
+    }
+  },
+  {
+    "key": "Head Tilt Right",
+    "posture_ko": "머리 우측 기울기",
+    "posture_en": "Head Tilt Right",
+    "definition": "머리 우측 기울기 / Head Tilt Right",
+    "region": "경추",
+    "biomechanics": {
+      "joint_mechanics": "측굴 편향",
+      "functional_line": "Lateral Line 불균형"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "흉쇄유돌근/사각근"
+        ],
+        "secondary": [
+          "상부승모"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "심부경부굴근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "흉쇄유돌근/사각근"
+      ],
+      "strengthen": [
+        "심부경부굴근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HTA": "> 3° Right"
+    }
+  },
+  {
+    "key": "Cervical Rotation Preference",
+    "posture_ko": "경추 회전 편향",
+    "posture_en": "Cervical Rotation Preference",
+    "definition": "경추 회전 편향 / Cervical Rotation Preference",
+    "region": "경추",
+    "biomechanics": {
+      "joint_mechanics": "회전 편향",
+      "functional_line": "Spiral Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "SCM/상부승모"
+        ],
+        "secondary": [
+          "사각근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "심부경부굴근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "SCM/상부승모"
+      ],
+      "strengthen": [
+        "심부경부굴근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "CervRotPref": "Present"
+    }
+  },
+  {
+    "key": "Elevated Shoulder Left",
+    "posture_ko": "좌측 어깨 상승",
+    "posture_en": "Elevated Shoulder Left",
+    "definition": "좌측 어깨 상승 / Elevated Shoulder Left",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "견갑 상승",
+      "functional_line": "SFL/Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "상부승모/견갑거근"
+        ],
+        "secondary": [
+          "소흉근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "하부승모/능형근"
+        ],
+        "secondary": [
+          "전거근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "상부승모/견갑거근"
+      ],
+      "strengthen": [
+        "하부승모/능형근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "STA": "> 3° Left"
+    }
+  },
+  {
+    "key": "Elevated Shoulder Right",
+    "posture_ko": "우측 어깨 상승",
+    "posture_en": "Elevated Shoulder Right",
+    "definition": "우측 어깨 상승 / Elevated Shoulder Right",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "견갑 상승",
+      "functional_line": "SFL/Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "상부승모/견갑거근"
+        ],
+        "secondary": [
+          "소흉근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "하부승모/능형근"
+        ],
+        "secondary": [
+          "전거근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "상부승모/견갑거근"
+      ],
+      "strengthen": [
+        "하부승모/능형근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "STA": "> 3° Right"
+    }
+  },
+  {
+    "key": "Scapular Winging",
+    "posture_ko": "견갑 이개",
+    "posture_en": "Scapular Winging",
+    "definition": "견갑 이개 / Scapular Winging",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "견갑 내측연 들림",
+      "functional_line": "Serratus Dysfunction"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "전거근 약화 보상으로 승모/능형 과활성"
+        ],
+        "secondary": [
+          "소흉근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "전거근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "전거근 약화 보상으로 승모/능형 과활성"
+      ],
+      "strengthen": [
+        "전거근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "> 10°",
+      "WingSign": "+"
+    }
+  },
+  {
+    "key": "Protracted Scapula",
+    "posture_ko": "견갑 전인",
+    "posture_en": "Protracted Scapula",
+    "definition": "견갑 전인 / Protracted Scapula",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "견갑 전인",
+      "functional_line": "AFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "소흉근/대흉근"
+        ],
+        "secondary": [
+          "상부승모"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "전거근/하부승모"
+        ],
+        "secondary": [
+          "능형근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "소흉근/대흉근"
+      ],
+      "strengthen": [
+        "전거근/하부승모"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "> 10°"
+    }
+  },
+  {
+    "key": "Retracted Scapula",
+    "posture_ko": "견갑 후인 경직",
+    "posture_en": "Retracted Scapula",
+    "definition": "견갑 후인 경직 / Retracted Scapula",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "견갑 후인 고정",
+      "functional_line": "Back Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "능형근/중부승모"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "소흉근"
+        ],
+        "secondary": [
+          "전거근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "능형근/중부승모"
+      ],
+      "strengthen": [
+        "소흉근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "< 0°"
+    }
+  },
+  {
+    "key": "Thoracic Hypokyphosis",
+    "posture_ko": "흉추 저후만",
+    "posture_en": "Thoracic Hypokyphosis",
+    "definition": "흉추 저후만 / Thoracic Hypokyphosis",
+    "region": "흉추",
+    "biomechanics": {
+      "joint_mechanics": "흉추 편평",
+      "functional_line": "SBL 우세"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "기립근 과활성"
+        ],
+        "secondary": [
+          "소흉근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "흉추 굴곡근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "기립근 과활성"
+      ],
+      "strengthen": [
+        "흉추 굴곡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TIA": "≈0°"
+    }
+  },
+  {
+    "key": "Rib Flare",
+    "posture_ko": "갈비뼈 플레어",
+    "posture_en": "Rib Flare",
+    "definition": "갈비뼈 플레어 / Rib Flare",
+    "region": "흉곽",
+    "biomechanics": {
+      "joint_mechanics": "전벽 상승",
+      "functional_line": "Anterior Rib Tilt"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "복직근 단축/횡격막 기능저하"
+        ],
+        "secondary": [
+          "요방형근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "복횡근/횡격막"
+        ],
+        "secondary": [
+          "내/외복사근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "복직근 단축/횡격막 기능저하"
+      ],
+      "strengthen": [
+        "복횡근/횡격막"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "RibFlare": "Present"
+    }
+  },
+  {
+    "key": "Anterior Rib Tilt",
+    "posture_ko": "전방 흉곽 경사",
+    "posture_en": "Anterior Rib Tilt",
+    "definition": "전방 흉곽 경사 / Anterior Rib Tilt",
+    "region": "흉곽",
+    "biomechanics": {
+      "joint_mechanics": "흉곽 전경사",
+      "functional_line": "SFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "복직근/소흉근"
+        ],
+        "secondary": [
+          "기립근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "횡격막/복횡근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "복직근/소흉근"
+      ],
+      "strengthen": [
+        "횡격막/복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TIA": "> 5°"
+    }
+  },
+  {
+    "key": "Posterior Rib Tilt",
+    "posture_ko": "후방 흉곽 경사",
+    "posture_en": "Posterior Rib Tilt",
+    "definition": "후방 흉곽 경사 / Posterior Rib Tilt",
+    "region": "흉곽",
+    "biomechanics": {
+      "joint_mechanics": "흉곽 후경사",
+      "functional_line": "SBL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "기립근"
+        ],
+        "secondary": [
+          "복직근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "복부 코어"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "기립근"
+      ],
+      "strengthen": [
+        "복부 코어"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TIA": "< -5°"
+    }
+  },
+  {
+    "key": "Lumbar Lateral Shift Left",
+    "posture_ko": "요추 좌편위",
+    "posture_en": "Lumbar Lateral Shift Left",
+    "definition": "요추 좌편위 / Lumbar Lateral Shift Left",
+    "region": "요추",
+    "biomechanics": {
+      "joint_mechanics": "체간 좌편위",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "요방형근 좌측"
+        ],
+        "secondary": [
+          "기립근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "복횡근/둔근 우측"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "요방형근 좌측"
+      ],
+      "strengthen": [
+        "복횡근/둔근 우측"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TD": "> 3° Left"
+    }
+  },
+  {
+    "key": "Lumbar Lateral Shift Right",
+    "posture_ko": "요추 우편위",
+    "posture_en": "Lumbar Lateral Shift Right",
+    "definition": "요추 우편위 / Lumbar Lateral Shift Right",
+    "region": "요추",
+    "biomechanics": {
+      "joint_mechanics": "체간 우편위",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "요방형근 우측"
+        ],
+        "secondary": [
+          "기립근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "복횡근/둔근 좌측"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "요방형근 우측"
+      ],
+      "strengthen": [
+        "복횡근/둔근 좌측"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TD": "> 3° Right"
+    }
+  },
+  {
+    "key": "Pelvic Drop Left",
+    "posture_ko": "좌측 골반 하강",
+    "posture_en": "Pelvic Drop Left",
+    "definition": "좌측 골반 하강 / Pelvic Drop Left",
+    "region": "골반",
+    "biomechanics": {
+      "joint_mechanics": "좌측 골반 하강",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL 좌측"
+        ],
+        "secondary": [
+          "요방형근 우측"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근 우측"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL 좌측"
+      ],
+      "strengthen": [
+        "중둔근 우측"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "POA": "> 3° Left"
+    }
+  },
+  {
+    "key": "Pelvic Drop Right",
+    "posture_ko": "우측 골반 하강",
+    "posture_en": "Pelvic Drop Right",
+    "definition": "우측 골반 하강 / Pelvic Drop Right",
+    "region": "골반",
+    "biomechanics": {
+      "joint_mechanics": "우측 골반 하강",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL 우측"
+        ],
+        "secondary": [
+          "요방형근 좌측"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근 좌측"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL 우측"
+      ],
+      "strengthen": [
+        "중둔근 좌측"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "POA": "> 3° Right"
+    }
+  },
+  {
+    "key": "Hip Internal Rotation Bias",
+    "posture_ko": "고관절 내회전 편향",
+    "posture_en": "Hip Internal Rotation Bias",
+    "definition": "고관절 내회전 편향 / Hip Internal Rotation Bias",
+    "region": "고관절",
+    "biomechanics": {
+      "joint_mechanics": "내회전 과다",
+      "functional_line": "Spiral Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL/내전근"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "외회전근"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL/내전근"
+      ],
+      "strengthen": [
+        "외회전근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HipIR": "> 45°"
+    }
+  },
+  {
+    "key": "Hip External Rotation Bias",
+    "posture_ko": "고관절 외회전 편향",
+    "posture_en": "Hip External Rotation Bias",
+    "definition": "고관절 외회전 편향 / Hip External Rotation Bias",
+    "region": "고관절",
+    "biomechanics": {
+      "joint_mechanics": "외회전 과다",
+      "functional_line": "Spiral Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "외회전근"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "TFL"
+        ],
+        "secondary": [
+          "내전근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "외회전근"
+      ],
+      "strengthen": [
+        "TFL"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HipER": "> 60°"
+    }
+  },
+  {
+    "key": "Hip Flexion Tightness",
+    "posture_ko": "고관절 굴곡 구축",
+    "posture_en": "Hip Flexion Tightness",
+    "definition": "고관절 굴곡 구축 / Hip Flexion Tightness",
+    "region": "고관절",
+    "biomechanics": {
+      "joint_mechanics": "굴곡 구축",
+      "functional_line": "SFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "장요근/대퇴직근"
+        ],
+        "secondary": [
+          "TFL"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "둔근"
+        ],
+        "secondary": [
+          "복부 코어"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "장요근/대퇴직근"
+      ],
+      "strengthen": [
+        "둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HipFlexion": "< 110°"
+    }
+  },
+  {
+    "key": "Hip Extension Limitation",
+    "posture_ko": "고관절 신전 제한",
+    "posture_en": "Hip Extension Limitation",
+    "definition": "고관절 신전 제한 / Hip Extension Limitation",
+    "region": "고관절",
+    "biomechanics": {
+      "joint_mechanics": "신전 제한",
+      "functional_line": "DFL 억제"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "장요근/대퇴직근"
+        ],
+        "secondary": [
+          "TFL"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "대둔근/햄스트링"
+        ],
+        "secondary": [
+          "다열근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "장요근/대퇴직근"
+      ],
+      "strengthen": [
+        "대둔근/햄스트링"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "HipExtension": "< 10°"
+    }
+  },
+  {
+    "key": "Ankle Dorsiflexion Limitation",
+    "posture_ko": "발목 배측굴곡 제한",
+    "posture_en": "Ankle Dorsiflexion Limitation",
+    "definition": "발목 배측굴곡 제한 / Ankle Dorsiflexion Limitation",
+    "region": "발목",
+    "biomechanics": {
+      "joint_mechanics": "배측굴곡 제한",
+      "functional_line": "SBL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비복근/가자미근"
+        ],
+        "secondary": [
+          "TFL"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "전경골근"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비복근/가자미근"
+      ],
+      "strengthen": [
+        "전경골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "AnkleDF": "< 10°"
+    }
+  },
+  {
+    "key": "Ankle Plantarflexion Limitation",
+    "posture_ko": "발목 저측굴곡 제한",
+    "posture_en": "Ankle Plantarflexion Limitation",
+    "definition": "발목 저측굴곡 제한 / Ankle Plantarflexion Limitation",
+    "region": "발목",
+    "biomechanics": {
+      "joint_mechanics": "저측굴곡 제한",
+      "functional_line": "SFL 억제"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "전경골근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "비복/가자미"
+        ],
+        "secondary": [
+          "햄스트링"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "전경골근"
+      ],
+      "strengthen": [
+        "비복/가자미"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "AnklePF": "< 40°"
+    }
+  },
+  {
+    "key": "Calcaneal Valgus",
+    "posture_ko": "종골 외반",
+    "posture_en": "Calcaneal Valgus",
+    "definition": "종골 외반 / Calcaneal Valgus",
+    "region": "발",
+    "biomechanics": {
+      "joint_mechanics": "종골 외반",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비골근"
+        ],
+        "secondary": [
+          "후경골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "후경골근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비골근"
+      ],
+      "strengthen": [
+        "후경골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Rearfoot": "Valgus"
+    }
+  },
+  {
+    "key": "Calcaneal Varus",
+    "posture_ko": "종골 내반",
+    "posture_en": "Calcaneal Varus",
+    "definition": "종골 내반 / Calcaneal Varus",
+    "region": "발",
+    "biomechanics": {
+      "joint_mechanics": "종골 내반",
+      "functional_line": "Medial Bias"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "후경골근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "비골근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "후경골근"
+      ],
+      "strengthen": [
+        "비골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Rearfoot": "Varus"
+    }
+  },
+  {
+    "key": "Forefoot Varus",
+    "posture_ko": "전족 내반",
+    "posture_en": "Forefoot Varus",
+    "definition": "전족 내반 / Forefoot Varus",
+    "region": "발",
+    "biomechanics": {
+      "joint_mechanics": "전족 내반",
+      "functional_line": "Medial Bias"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비골근"
+        ],
+        "secondary": [
+          "후경골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "후경골근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비골근"
+      ],
+      "strengthen": [
+        "후경골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Forefoot": "Varus"
+    }
+  },
+  {
+    "key": "Forefoot Valgus",
+    "posture_ko": "전족 외반",
+    "posture_en": "Forefoot Valgus",
+    "definition": "전족 외반 / Forefoot Valgus",
+    "region": "발",
+    "biomechanics": {
+      "joint_mechanics": "전족 외반",
+      "functional_line": "Lateral Bias"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "후경골근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "비골근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "후경골근"
+      ],
+      "strengthen": [
+        "비골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Forefoot": "Valgus"
+    }
+  },
+  {
+    "key": "Leg Length Discrepancy Structural",
+    "posture_ko": "하지 길이차(구조적)",
+    "posture_en": "Leg Length Discrepancy Structural",
+    "definition": "하지 길이차(구조적) / Leg Length Discrepancy Structural",
+    "region": "하지",
+    "biomechanics": {
+      "joint_mechanics": "골반 기울기/측만 보상",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL/요방형근 상승측"
+        ],
+        "secondary": [
+          "기립근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근 하강측"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL/요방형근 상승측"
+      ],
+      "strengthen": [
+        "중둔근 하강측"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "LLD": "> 1 cm"
+    }
+  },
+  {
+    "key": "Leg Length Discrepancy Functional",
+    "posture_ko": "하지 길이차(기능적)",
+    "posture_en": "Leg Length Discrepancy Functional",
+    "definition": "하지 길이차(기능적) / Leg Length Discrepancy Functional",
+    "region": "하지",
+    "biomechanics": {
+      "joint_mechanics": "기능적 골반 회전/경사",
+      "functional_line": "Lat/Spiral"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL/요방형근"
+        ],
+        "secondary": [
+          "기립근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근"
+        ],
+        "secondary": [
+          "둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL/요방형근"
+      ],
+      "strengthen": [
+        "중둔근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "LLD": "> 1 cm (functional)"
+    }
+  },
+  {
+    "key": "Patellofemoral Maltracking Lateral",
+    "posture_ko": "슬개 대퇴 외측 미정렬",
+    "posture_en": "Patellofemoral Maltracking Lateral",
+    "definition": "슬개 대퇴 외측 미정렬 / Patellofemoral Maltracking Lateral",
+    "region": "무릎",
+    "biomechanics": {
+      "joint_mechanics": "슬개 외측 편위",
+      "functional_line": "Lateral Bias"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL/VL"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "VMO"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL/VL"
+      ],
+      "strengthen": [
+        "VMO"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Patellar": "Lateral"
+    }
+  },
+  {
+    "key": "Patellofemoral Maltracking Medial",
+    "posture_ko": "슬개 대퇴 내측 미정렬",
+    "posture_en": "Patellofemoral Maltracking Medial",
+    "definition": "슬개 대퇴 내측 미정렬 / Patellofemoral Maltracking Medial",
+    "region": "무릎",
+    "biomechanics": {
+      "joint_mechanics": "슬개 내측 편위",
+      "functional_line": "Medial Bias"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "VMO"
+        ],
+        "secondary": [
+          "중둔근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "TFL/VL"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "VMO"
+      ],
+      "strengthen": [
+        "TFL/VL"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Patellar": "Medial"
+    }
+  },
+  {
+    "key": "Pronation Syndrome",
+    "posture_ko": "과내전 증후군",
+    "posture_en": "Pronation Syndrome",
+    "definition": "과내전 증후군 / Pronation Syndrome",
+    "region": "발",
+    "biomechanics": {
+      "joint_mechanics": "과내전",
+      "functional_line": "Lat Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "비골근"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "후경골근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "비골근"
+      ],
+      "strengthen": [
+        "후경골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FBA": "Pronation"
+    }
+  },
+  {
+    "key": "Supination Syndrome",
+    "posture_ko": "과외번 증후군",
+    "posture_en": "Supination Syndrome",
+    "definition": "과외번 증후군 / Supination Syndrome",
+    "region": "발",
+    "biomechanics": {
+      "joint_mechanics": "과외번",
+      "functional_line": "Lateral Bias"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "후경골근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "비골근"
+        ],
+        "secondary": [
+          "비복근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "후경골근"
+      ],
+      "strengthen": [
+        "비골근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "FBA": "Supination"
+    }
+  },
+  {
+    "key": "Cervical Hypolordosis",
+    "posture_ko": "경추 저전만",
+    "posture_en": "Cervical Hypolordosis",
+    "definition": "경추 저전만 / Cervical Hypolordosis",
+    "region": "경추",
+    "biomechanics": {
+      "joint_mechanics": "경추 전만 감소",
+      "functional_line": "DFL 억제"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "SCM/사각근"
+        ],
+        "secondary": [
+          "상부승모"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "심부경부굴근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "SCM/사각근"
+      ],
+      "strengthen": [
+        "심부경부굴근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "CervLordosis": "Low"
+    }
+  },
+  {
+    "key": "Cervical Hyperlordosis",
+    "posture_ko": "경추 과전만",
+    "posture_en": "Cervical Hyperlordosis",
+    "definition": "경추 과전만 / Cervical Hyperlordosis",
+    "region": "경추",
+    "biomechanics": {
+      "joint_mechanics": "경추 전만 증가",
+      "functional_line": "SFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "기립근"
+        ],
+        "secondary": [
+          "상부승모"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "심부굴근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "기립근"
+      ],
+      "strengthen": [
+        "심부굴근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "CervLordosis": "High"
+    }
+  },
+  {
+    "key": "Thoracolumbar Junction Stiffness",
+    "posture_ko": "흉요추 이행부 경직",
+    "posture_en": "Thoracolumbar Junction Stiffness",
+    "definition": "흉요추 이행부 경직 / Thoracolumbar Junction Stiffness",
+    "region": "흉요추",
+    "biomechanics": {
+      "joint_mechanics": "이행부 경직",
+      "functional_line": "Back Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "기립근"
+        ],
+        "secondary": [
+          "요방형근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "다열근"
+        ],
+        "secondary": [
+          "횡격막"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "기립근"
+      ],
+      "strengthen": [
+        "다열근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "TLJ": "Stiff"
+    }
+  },
+  {
+    "key": "Anterior Weight Shift",
+    "posture_ko": "전방 체중 이동",
+    "posture_en": "Anterior Weight Shift",
+    "definition": "전방 체중 이동 / Anterior Weight Shift",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "전방 중심 이동",
+      "functional_line": "SFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "대퇴직근/비복근"
+        ],
+        "secondary": [
+          "요추기립근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "둔근/햄스트링"
+        ],
+        "secondary": [
+          "복횡근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "대퇴직근/비복근"
+      ],
+      "strengthen": [
+        "둔근/햄스트링"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "GSB": "> 2 cm"
+    }
+  },
+  {
+    "key": "Posterior Weight Shift",
+    "posture_ko": "후방 체중 이동",
+    "posture_en": "Posterior Weight Shift",
+    "definition": "후방 체중 이동 / Posterior Weight Shift",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "후방 중심 이동",
+      "functional_line": "SBL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "햄스트링/둔근"
+        ],
+        "secondary": [
+          "다열근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "대퇴직근/장요근"
+        ],
+        "secondary": [
+          "복직근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "햄스트링/둔근"
+      ],
+      "strengthen": [
+        "대퇴직근/장요근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "GSB": "< -2 cm"
+    }
+  },
+  {
+    "key": "Scapular Downward Rotation",
+    "posture_ko": "견갑 하방회전 편향",
+    "posture_en": "Scapular Downward Rotation",
+    "definition": "견갑 하방회전 편향 / Scapular Downward Rotation",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "하방회전 편향",
+      "functional_line": "Back Line"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "능형근/거근"
+        ],
+        "secondary": [
+          "상부승모 약화"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "상부승모/전거근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "능형근/거근"
+      ],
+      "strengthen": [
+        "상부승모/전거근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "< 0°"
+    }
+  },
+  {
+    "key": "Scapular Upward Rotation Insufficiency",
+    "posture_ko": "견갑 상방회전 부족",
+    "posture_en": "Scapular Upward Rotation Insufficiency",
+    "definition": "견갑 상방회전 부족 / Scapular Upward Rotation Insufficiency",
+    "region": "견갑",
+    "biomechanics": {
+      "joint_mechanics": "상방회전 부족",
+      "functional_line": "AFL 억제"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "소흉근/능형근"
+        ],
+        "secondary": [
+          "상부승모 약화"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "상부승모/전거근"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "소흉근/능형근"
+      ],
+      "strengthen": [
+        "상부승모/전거근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "> 10° with dyskinesis"
+    }
+  },
+  {
+    "key": "Humeral Anterior Glide",
+    "posture_ko": "상완골 전방 미끄러짐",
+    "posture_en": "Humeral Anterior Glide",
+    "definition": "상완골 전방 미끄러짐 / Humeral Anterior Glide",
+    "region": "어깨",
+    "biomechanics": {
+      "joint_mechanics": "상완두 전방 활주",
+      "functional_line": "AFL 과활성"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "대흉근/소흉근"
+        ],
+        "secondary": [
+          "전면삼각근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "후하부 회전근개"
+        ],
+        "secondary": [
+          "하부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "대흉근/소흉근"
+      ],
+      "strengthen": [
+        "후하부 회전근개"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "SAA": "> 10° + anterior glide"
+    }
+  },
+  {
+    "key": "Glenohumeral IR Deficit",
+    "posture_ko": "어깨 내회전 결손(GIRD)",
+    "posture_en": "Glenohumeral IR Deficit",
+    "definition": "어깨 내회전 결손(GIRD) / Glenohumeral IR Deficit",
+    "region": "어깨",
+    "biomechanics": {
+      "joint_mechanics": "내회전 제한",
+      "functional_line": "Posterior Capsule Tight"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "후하부 관절낭/극하근"
+        ],
+        "secondary": [
+          "소원추근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "전거근/하부승모"
+        ],
+        "secondary": [
+          "흉추기립근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "후하부 관절낭/극하근"
+      ],
+      "strengthen": [
+        "전거근/하부승모"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "GH_IR": "< 60°"
+    }
+  },
+  {
+    "key": "Glenohumeral ER Deficit",
+    "posture_ko": "어깨 외회전 결손",
+    "posture_en": "Glenohumeral ER Deficit",
+    "definition": "어깨 외회전 결손 / Glenohumeral ER Deficit",
+    "region": "어깨",
+    "biomechanics": {
+      "joint_mechanics": "외회전 제한",
+      "functional_line": "Anterior Capsule Tight"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "대흉근/전면삼각근"
+        ],
+        "secondary": [
+          "소흉근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "극하근/소원추근"
+        ],
+        "secondary": [
+          "중부승모"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "대흉근/전면삼각근"
+      ],
+      "strengthen": [
+        "극하근/소원추근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "GH_ER": "< 80°"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 70",
+    "posture_ko": "기능적 비대칭 70",
+    "posture_en": "Functional Asymmetry 70",
+    "definition": "기능적 비대칭 70 / Functional Asymmetry 70",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 71",
+    "posture_ko": "기능적 비대칭 71",
+    "posture_en": "Functional Asymmetry 71",
+    "definition": "기능적 비대칭 71 / Functional Asymmetry 71",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 72",
+    "posture_ko": "기능적 비대칭 72",
+    "posture_en": "Functional Asymmetry 72",
+    "definition": "기능적 비대칭 72 / Functional Asymmetry 72",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 73",
+    "posture_ko": "기능적 비대칭 73",
+    "posture_en": "Functional Asymmetry 73",
+    "definition": "기능적 비대칭 73 / Functional Asymmetry 73",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 74",
+    "posture_ko": "기능적 비대칭 74",
+    "posture_en": "Functional Asymmetry 74",
+    "definition": "기능적 비대칭 74 / Functional Asymmetry 74",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 75",
+    "posture_ko": "기능적 비대칭 75",
+    "posture_en": "Functional Asymmetry 75",
+    "definition": "기능적 비대칭 75 / Functional Asymmetry 75",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 76",
+    "posture_ko": "기능적 비대칭 76",
+    "posture_en": "Functional Asymmetry 76",
+    "definition": "기능적 비대칭 76 / Functional Asymmetry 76",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 77",
+    "posture_ko": "기능적 비대칭 77",
+    "posture_en": "Functional Asymmetry 77",
+    "definition": "기능적 비대칭 77 / Functional Asymmetry 77",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 78",
+    "posture_ko": "기능적 비대칭 78",
+    "posture_en": "Functional Asymmetry 78",
+    "definition": "기능적 비대칭 78 / Functional Asymmetry 78",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 79",
+    "posture_ko": "기능적 비대칭 79",
+    "posture_en": "Functional Asymmetry 79",
+    "definition": "기능적 비대칭 79 / Functional Asymmetry 79",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 80",
+    "posture_ko": "기능적 비대칭 80",
+    "posture_en": "Functional Asymmetry 80",
+    "definition": "기능적 비대칭 80 / Functional Asymmetry 80",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 81",
+    "posture_ko": "기능적 비대칭 81",
+    "posture_en": "Functional Asymmetry 81",
+    "definition": "기능적 비대칭 81 / Functional Asymmetry 81",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 82",
+    "posture_ko": "기능적 비대칭 82",
+    "posture_en": "Functional Asymmetry 82",
+    "definition": "기능적 비대칭 82 / Functional Asymmetry 82",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 83",
+    "posture_ko": "기능적 비대칭 83",
+    "posture_en": "Functional Asymmetry 83",
+    "definition": "기능적 비대칭 83 / Functional Asymmetry 83",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 84",
+    "posture_ko": "기능적 비대칭 84",
+    "posture_en": "Functional Asymmetry 84",
+    "definition": "기능적 비대칭 84 / Functional Asymmetry 84",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 85",
+    "posture_ko": "기능적 비대칭 85",
+    "posture_en": "Functional Asymmetry 85",
+    "definition": "기능적 비대칭 85 / Functional Asymmetry 85",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 86",
+    "posture_ko": "기능적 비대칭 86",
+    "posture_en": "Functional Asymmetry 86",
+    "definition": "기능적 비대칭 86 / Functional Asymmetry 86",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 87",
+    "posture_ko": "기능적 비대칭 87",
+    "posture_en": "Functional Asymmetry 87",
+    "definition": "기능적 비대칭 87 / Functional Asymmetry 87",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 88",
+    "posture_ko": "기능적 비대칭 88",
+    "posture_en": "Functional Asymmetry 88",
+    "definition": "기능적 비대칭 88 / Functional Asymmetry 88",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 89",
+    "posture_ko": "기능적 비대칭 89",
+    "posture_en": "Functional Asymmetry 89",
+    "definition": "기능적 비대칭 89 / Functional Asymmetry 89",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 90",
+    "posture_ko": "기능적 비대칭 90",
+    "posture_en": "Functional Asymmetry 90",
+    "definition": "기능적 비대칭 90 / Functional Asymmetry 90",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 91",
+    "posture_ko": "기능적 비대칭 91",
+    "posture_en": "Functional Asymmetry 91",
+    "definition": "기능적 비대칭 91 / Functional Asymmetry 91",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 92",
+    "posture_ko": "기능적 비대칭 92",
+    "posture_en": "Functional Asymmetry 92",
+    "definition": "기능적 비대칭 92 / Functional Asymmetry 92",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 93",
+    "posture_ko": "기능적 비대칭 93",
+    "posture_en": "Functional Asymmetry 93",
+    "definition": "기능적 비대칭 93 / Functional Asymmetry 93",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 94",
+    "posture_ko": "기능적 비대칭 94",
+    "posture_en": "Functional Asymmetry 94",
+    "definition": "기능적 비대칭 94 / Functional Asymmetry 94",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 95",
+    "posture_ko": "기능적 비대칭 95",
+    "posture_en": "Functional Asymmetry 95",
+    "definition": "기능적 비대칭 95 / Functional Asymmetry 95",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 96",
+    "posture_ko": "기능적 비대칭 96",
+    "posture_en": "Functional Asymmetry 96",
+    "definition": "기능적 비대칭 96 / Functional Asymmetry 96",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 97",
+    "posture_ko": "기능적 비대칭 97",
+    "posture_en": "Functional Asymmetry 97",
+    "definition": "기능적 비대칭 97 / Functional Asymmetry 97",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 98",
+    "posture_ko": "기능적 비대칭 98",
+    "posture_en": "Functional Asymmetry 98",
+    "definition": "기능적 비대칭 98 / Functional Asymmetry 98",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 99",
+    "posture_ko": "기능적 비대칭 99",
+    "posture_en": "Functional Asymmetry 99",
+    "definition": "기능적 비대칭 99 / Functional Asymmetry 99",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  },
+  {
+    "key": "Functional Asymmetry 100",
+    "posture_ko": "기능적 비대칭 100",
+    "posture_en": "Functional Asymmetry 100",
+    "definition": "기능적 비대칭 100 / Functional Asymmetry 100",
+    "region": "전신",
+    "biomechanics": {
+      "joint_mechanics": "측면 라인 불균형",
+      "functional_line": "Lat/Spiral 혼합"
+    },
+    "muscle_pattern": {
+      "tight": {
+        "primary": [
+          "TFL",
+          "요방형근"
+        ],
+        "secondary": [
+          "비골근"
+        ],
+        "description": "단축/과활성 패턴"
+      },
+      "weak": {
+        "primary": [
+          "중둔근",
+          "복횡근"
+        ],
+        "secondary": [
+          "전경골근"
+        ],
+        "description": "약화/억제 패턴"
+      }
+    },
+    "causes": [
+      "습관 자세",
+      "근력 불균형"
+    ],
+    "symptoms": [
+      "피로감",
+      "불편감"
+    ],
+    "compensation_patterns": [
+      "보상 전략 발생"
+    ],
+    "recommended_focus": {
+      "stretch": [
+        "TFL",
+        "요방형근"
+      ],
+      "strengthen": [
+        "중둔근",
+        "복횡근"
+      ],
+      "mobility": [
+        "관절 가동성"
+      ]
+    },
+    "exam": {
+      "observation": [
+        "시진 이상"
+      ],
+      "tests": [
+        "기능검사 편차"
+      ],
+      "palpation": [
+        "관련 근육 압통"
+      ]
+    },
+    "clinical_significance": [
+      "기능적 부하 증가"
+    ],
+    "ai_detection_metrics": {
+      "Asymmetry": "Present"
+    }
+  }
+]
