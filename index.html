@@ -200,6 +200,7 @@ canvas {
     <button class="btn" id="btnPDF">📄 PDF 저장</button>
     <button class="btn" id="btnImage">🖼️ 그림으로 저장</button>
     <button class="btn" id="btnShare">📤 공유하기</button>
+    <button class="btn" id="btnAIAnalysis" style="background: rgba(46,196,182,0.3); border: 1px solid rgba(46,196,182,0.5);">🤖 AI 분석</button>
   </div>
 
   <!-- 골반 결과 표시 영역 -->
@@ -3844,19 +3845,25 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 6. PTA (Pelvic Tilt Angle) - 정상 0-15°
-  const pta = fullMetrics.PTA?.value;
-  if(pta != null) {
-    if(pta > 15) {
-      const delta = pta - 15;
+  // 6. PTA (Pelvic Tilt Angle) - 정상 0-15° (부호 포함: +전방/-후방)
+  const ptaSigned = fullMetrics.PTA?.value_signed; // 부호 포함 값 사용
+  const pta = fullMetrics.PTA?.value; // 절댓값
+  if(ptaSigned != null && pta != null) {
+    // 목표는 0° (중립)
+    const absPta = Math.abs(ptaSigned);
+    if(absPta > 15) {
+      const delta = absPta - 15;
       const penalty = Math.min(30, delta * 2);
       penalties += penalty;
-      reasons.push(`PTA ${pta.toFixed(1)}° (정상 0-15°) - ${penalty.toFixed(0)}점 감점`);
-    } else if(pta < 0) {
-      const delta = Math.abs(pta);
-      const penalty = Math.min(20, delta * 2);
+      // 부호 포함 값으로 표시: 양수=전방경사, 음수=후방경사
+      const sign = ptaSigned > 0 ? '+' : '';
+      reasons.push(`골반 기울기 ${sign}${ptaSigned.toFixed(1)}° (목표 0°) - ${penalty.toFixed(0)}점 감점`);
+    } else if(absPta > 0) {
+      // 0-15도 범위 내에서도 목표 0도에서 벗어나면 감점
+      const penalty = Math.min(30, absPta * 2.0);
       penalties += penalty;
-      reasons.push(`PTA ${pta.toFixed(1)}° (정상 0-15°, 후방 경사) - ${penalty.toFixed(0)}점 감점`);
+      const sign = ptaSigned > 0 ? '+' : '';
+      reasons.push(`골반 기울기 ${sign}${ptaSigned.toFixed(1)}° (목표 0°) - ${penalty.toFixed(0)}점 감점`);
     }
   }
   
@@ -8275,11 +8282,22 @@ function exportAsPdf(options = {}) {
     };
     
     // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지)
-    const canvas1 = await html2canvas(page1Container, {
-      ...html2canvasOptions,
-      windowWidth: page1Container.scrollWidth,
-      windowHeight: page1Container.scrollHeight
-    });
+    let canvas1;
+    try {
+      canvas1 = await html2canvas(page1Container, {
+        ...html2canvasOptions,
+        windowWidth: page1Container.scrollWidth,
+        windowHeight: page1Container.scrollHeight
+      });
+      
+      if (!canvas1 || !canvas1.toDataURL) {
+        throw new Error('첫 페이지 캔버스 생성 실패');
+      }
+    } catch (canvasErr) {
+      document.body.removeChild(page1Container);
+      console.error('❌ 첫 페이지 캔버스 생성 실패:', canvasErr);
+      throw new Error('PDF 생성 실패: 첫 페이지를 생성할 수 없습니다. ' + (canvasErr.message || ''));
+    }
     
     document.body.removeChild(page1Container);
     
@@ -8860,18 +8878,20 @@ function exportAsPdf(options = {}) {
     addPageToPdf(canvas7, 7);
     
     // PDF 다운로드 (다중 방식 시도로 브라우저 호환성 개선)
+    let pdfSaved = false;
     try {
       // 방법 1: 직접 save 메서드 시도 (가장 안정적)
       try {
         pdf.save(finalFileName);
-        console.log('PDF 저장 성공 (직접 save)');
+        console.log('✅ PDF 저장 성공 (직접 save)');
+        pdfSaved = true;
       } catch (saveErr) {
-        console.warn('직접 save 실패, Blob 방식 시도:', saveErr);
+        console.warn('⚠️ 직접 save 실패, Blob 방식 시도:', saveErr);
         
         // 방법 2: Blob 방식
         try {
           const pdfBlob = pdf.output('blob');
-          if (pdfBlob) {
+          if (pdfBlob && pdfBlob.size > 0) {
             const url = URL.createObjectURL(pdfBlob);
             const link = document.createElement('a');
             link.href = url;
@@ -8900,51 +8920,66 @@ function exportAsPdf(options = {}) {
                 document.body.removeChild(link);
               }
             }, 1000);
-            console.log('PDF 저장 성공 (Blob 방식)');
+            console.log('✅ PDF 저장 성공 (Blob 방식)');
+            pdfSaved = true;
           } else {
-            throw new Error('Blob 생성 실패');
+            throw new Error('Blob 생성 실패 또는 빈 파일');
           }
         } catch (blobErr) {
-          console.warn('Blob 방식 실패, data URI 방식 시도:', blobErr);
+          console.warn('⚠️ Blob 방식 실패, data URI 방식 시도:', blobErr);
           
           // 방법 3: Data URI 방식
           try {
             const pdfDataUri = pdf.output('datauristring');
-            const link = document.createElement('a');
-            link.href = pdfDataUri;
-            link.download = finalFileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            
-            if (link.click) {
-              link.click();
-            } else {
-              const clickEvent = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                buttons: 1
-              });
-              link.dispatchEvent(clickEvent);
-            }
-            
-            setTimeout(() => {
-              if (document.body.contains(link)) {
-                document.body.removeChild(link);
+            if (pdfDataUri && pdfDataUri.length > 100) {
+              const link = document.createElement('a');
+              link.href = pdfDataUri;
+              link.download = finalFileName;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              
+              if (link.click) {
+                link.click();
+              } else {
+                const clickEvent = new MouseEvent('click', {
+                  view: window,
+                  bubbles: true,
+                  cancelable: true,
+                  buttons: 1
+                });
+                link.dispatchEvent(clickEvent);
               }
-            }, 1000);
-            console.log('PDF 저장 성공 (Data URI 방식)');
+              
+              setTimeout(() => {
+                if (document.body.contains(link)) {
+                  document.body.removeChild(link);
+                }
+              }, 1000);
+              console.log('✅ PDF 저장 성공 (Data URI 방식)');
+              pdfSaved = true;
+            } else {
+              throw new Error('Data URI 생성 실패 또는 빈 데이터');
+            }
           } catch (dataUriErr) {
-            console.error('모든 PDF 저장 방식 실패:', dataUriErr);
-            throw new Error('PDF 저장에 실패했습니다. 브라우저를 확인해주세요.');
+            console.error('❌ 모든 PDF 저장 방식 실패:', dataUriErr);
+            throw new Error('PDF 저장에 실패했습니다: ' + (dataUriErr.message || '알 수 없는 오류'));
           }
         }
       }
     } catch (err) {
-      console.error('PDF 다운로드 오류:', err);
+      console.error('❌ PDF 다운로드 오류:', err);
       // 최종 폴백: 사용자에게 알림
-      alert('PDF 저장에 실패했습니다. 브라우저 콘솔을 확인해주세요.');
-      throw err;
+      alert('PDF 저장에 실패했습니다: ' + (err.message || '알 수 없는 오류') + '\n브라우저 콘솔을 확인해주세요.');
+      reject(err);
+      return;
+    }
+    
+    if (!pdfSaved) {
+      const errorMsg = 'PDF 저장이 완료되지 않았습니다.';
+      console.error('❌', errorMsg);
+      alert(errorMsg);
+      reject(new Error(errorMsg));
+      return;
     }
     
     resolve();
