@@ -4575,6 +4575,7 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
 // 체형 유형 분석 함수
 function analyzePostureType(metrics) {
   if(!metrics || Object.keys(metrics).length === 0) {
+    console.warn("⚠️ fullMetrics 없음 - 분석 생략");
     return "분석 데이터가 충분하지 않습니다.";
   }
   
@@ -5015,9 +5016,16 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     
     // 체형 유형 분석 추가
     const postureTypeContent = document.getElementById("postureTypeContent");
-    if(postureTypeContent && fullMetrics) {
-      let postureType = analyzePostureType(fullMetrics);
-      postureTypeContent.innerHTML = postureType;
+    if(postureTypeContent) {
+      // fullMetrics가 없으면 세션에서 가져오기
+      const metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || {};
+      if(metricsForAnalysis && Object.keys(metricsForAnalysis).length > 0) {
+        let postureType = analyzePostureType(metricsForAnalysis);
+        postureTypeContent.innerHTML = postureType;
+      } else {
+        console.warn("⚠️ fullMetrics 없음 - 체형 유형 분석 생략");
+        postureTypeContent.innerHTML = "분석 데이터가 충분하지 않습니다.";
+      }
     }
   } else {
     commentPanel.style.display = "none";
@@ -7410,8 +7418,16 @@ async function loadPostureDB() {
   }
   
   try {
+    // GitHub Pages 경로 또는 GitHub raw URL 사용
+    const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? '/db'  // 로컬 개발 환경
+      : 'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db';  // 프로덕션 환경
+    
     // CSV 파일 로드 시도
-    const response = await fetch('/db/Posture_Muscle_DB_Full.csv', { cache: 'no-store' });
+    const csvUrl = base.startsWith('http') 
+      ? `${base}/Posture_Muscle_DB_Full_v3.csv`
+      : `${base}/Posture_Muscle_DB_Full_v3.csv`;
+    const response = await fetch(csvUrl, { cache: 'no-store' });
     if (!response.ok) throw new Error('DB 파일 로드 실패');
     const csvText = await response.text();
     POSTURE_DB = parseCSV(csvText);
@@ -7422,7 +7438,14 @@ async function loadPostureDB() {
     console.warn('⚠️ CSV 로드 실패, JSON 시도:', e);
     try {
       // JSON 파일 폴백 시도
-      const response = await fetch('/db/Posture_Muscle_DB_Full.json', { cache: 'no-store' });
+      const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? '/db'  // 로컬 개발 환경
+        : 'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db';  // 프로덕션 환경
+      
+      const jsonUrl = base.startsWith('http')
+        ? `${base}/Posture_Muscle_DB_Full_v3.json`
+        : `${base}/Posture_Muscle_DB_Full_v3.json`;
+      const response = await fetch(jsonUrl, { cache: 'no-store' });
       if (!response.ok) throw new Error('JSON 파일도 로드 실패');
       POSTURE_DB = await response.json();
       postureDBCache = POSTURE_DB;
