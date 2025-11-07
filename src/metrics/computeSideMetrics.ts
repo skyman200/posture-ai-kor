@@ -53,9 +53,25 @@ export function computeSideMetrics(raw: Pts, imageWidth: number): SideOutput {
   const SAA = angleFromVerticalSignedDeg(acromion, psis); // 수직선 기준 각도
 
   // 5) PTA = 임상부호 (+전방/-후방)
+  // PSIS 기준: ASIS와 같은 높이 = 0도
+  // ASIS가 PSIS보다 위쪽에 있으면 = 골반 후방경사 (Posterior Tilt) = 음수 (-1도부터)
+  // ASIS가 PSIS보다 밑쪽에 있으면 = 골반 전방경사 (Anterior Tilt) = 양수 (1도부터)
   const pta_theta = angleFromHorizontalDeg(psis, asis);
   const pta_abs   = Math.abs(normalizeToAcuteDeg(pta_theta));
-  const PTA       = (asis.y > psis.y) ? +pta_abs : -pta_abs;
+  // 이미지 좌표계: y축 아래로 증가
+  // asis.y < psis.y → ASIS가 위쪽(높음) → 후방경사(음수, 최소 -1도)
+  // asis.y > psis.y → ASIS가 밑쪽(낮음) → 전방경사(양수, 최소 1도)
+  let PTA: number;
+  if (asis.y < psis.y) {
+    // 후방경사: ASIS가 PSIS보다 위쪽 → 음수, 최소 -1도
+    PTA = -Math.max(1, pta_abs || 1);
+  } else if (asis.y > psis.y) {
+    // 전방경사: ASIS가 PSIS보다 밑쪽 → 양수, 최소 1도
+    PTA = Math.max(1, pta_abs || 1);
+  } else {
+    // 같은 높이: 0도
+    PTA = 0;
+  }
 
   // 6) KA = ∠(Hip, Knee, Ankle)
   const KA        = jointAngleDeg(hip, knee, ankle);
