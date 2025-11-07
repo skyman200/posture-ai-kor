@@ -4897,7 +4897,8 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   
   // 전체 분석 항목 표시
   const S = sessions[cur];
-  const fullMetrics = S.metrics?.fullMetrics || {};
+  // ✅ 안전 가드: fullMetrics를 여러 소스에서 가져오기
+  const fullMetrics = S.metrics?.fullMetrics || window.fullMetrics || {};
   if(allMetricsList && fullMetrics) {
     // 측면 항목 (파란색 #7c9cff)
     const sideMetricsOrder = [
