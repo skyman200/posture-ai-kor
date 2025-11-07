@@ -7318,7 +7318,7 @@ function generatePilatesSessionText(metrics) {
   return blocks.join('\n\n');
 }
 
-// AI 심층 분석 생성
+// ✅ AI 심층 분석 생성 (DB 기반 상세 분석)
 function generateAIDeepAnalysis(metrics) {
   const g = k => {
     const m = metrics?.[k];
@@ -7345,22 +7345,60 @@ function generateAIDeepAnalysis(metrics) {
     { k:'HPA',  name:'HPA(머리-골반 각)', unit:'°',    fn:NORMAL_RANGE.HPA },
   ];
 
+  // ✅ DB에서 각 지표별 상세 정보 가져오기
   seq.forEach(s => {
     const {before, after} = g(s.k);
-    const vStr = x => (x == null ? '-' : `${x}${s.unit}`);
+    const currentValue = after != null ? after : before;
+    const vStr = x => (x == null ? '-' : `${x.toFixed(2)}${s.unit}`);
     const parts = [];
     parts.push(`- ${s.name}: ${vStr(before)} → ${vStr(after)}`);
     
-    if (after != null && typeof s.fn === 'function') {
-      const ok = s.fn(after);
-      parts.push(`  · 해석: ${ok ? '정상 범위' : '정상 범위 이탈'}`);
+    // ✅ DB 기반 상세 해석 추가
+    if (currentValue != null) {
+      // 정상 범위 확인
+      if (typeof s.fn === 'function') {
+        const ok = s.fn(currentValue);
+        parts.push(`  · 해석: ${ok ? '정상 범위' : '정상 범위 이탈'}`);
+      }
+      
+      // DB에서 해당 지표의 상세 정보 가져오기
+      const abnormal = classifyAbnormalType(s.k, currentValue, NORMAL_TEXT[s.k] || '');
+      const dbItems = POSTURE_DB.filter(r => {
+        const dbCode = String(r['지표코드'] || '').toUpperCase();
+        const dbAbnormal = String(r['이상유형'] || '');
+        return dbCode === s.k.toUpperCase() && dbAbnormal.includes(abnormal);
+      });
+      
+      if(dbItems.length > 0) {
+        const dbItem = dbItems[0]; // 첫 번째 매칭 항목 사용
+        if(dbItem['원인']) {
+          parts.push(`  · 원인: ${dbItem['원인']}`);
+        }
+        if(dbItem['증상']) {
+          parts.push(`  · 증상: ${dbItem['증상']}`);
+        }
+        if(dbItem['임상적의미']) {
+          parts.push(`  · 임상적 의미: ${dbItem['임상적의미']}`);
+        }
+        if(dbItem['긴장근육(주요)']) {
+          parts.push(`  · 긴장된 근육: ${dbItem['긴장근육(주요)']}`);
+        }
+        if(dbItem['약화근육(주요)']) {
+          parts.push(`  · 약화된 근육: ${dbItem['약화근육(주요)']}`);
+        }
+        if(dbItem['교정운동(도수/자가)']) {
+          parts.push(`  · 교정 운동: ${dbItem['교정운동(도수/자가)']}`);
+        }
+      }
     }
     
     if (before != null && after != null) {
       const d = +(after - before).toFixed(1);
       if (Math.abs(d) >= 0.1) {
         const sign = d > 0 ? '증가' : '감소';
-        parts.push(`  · 변화: ${Math.abs(d)}${s.unit} ${sign}`);
+        const improvement = (d < 0 && s.k === 'CVA') || (d > 0 && s.k === 'PTA' && after > 15) ? '악화' : 
+                           (d > 0 && s.k === 'CVA') || (d < 0 && s.k === 'PTA' && after > 15) ? '개선' : '변화';
+        parts.push(`  · 변화: ${Math.abs(d)}${s.unit} ${sign} (${improvement})`);
       } else {
         parts.push(`  · 변화: 유의미한 변화 없음`);
       }
@@ -7368,14 +7406,35 @@ function generateAIDeepAnalysis(metrics) {
     lines.push(parts.join('\n'));
   });
 
+  // ✅ 패턴 요약 (DB 기반)
   const pats = detectPatterns(metrics);
   lines.push('\n▶ 패턴 요약');
-  lines.push(pats.length ? `- 관찰된 주요 패턴: ${pats.map(p => PILATES_DB[p]?.title || p).join(', ')}` : '- 특이 패턴 없음(기본 안정화 권장)');
+  if(pats.length) {
+    lines.push(`- 관찰된 주요 패턴: ${pats.map(p => PILATES_DB[p]?.title || p).join(', ')}`);
+    // 각 패턴별 상세 설명 추가
+    pats.forEach(p => {
+      const dbItem = POSTURE_DB.find(r => {
+        const dbTitle = String(r['지표명'] || '').toLowerCase();
+        const patternTitle = (PILATES_DB[p]?.title || p).toLowerCase();
+        return dbTitle.includes(patternTitle) || patternTitle.includes(dbTitle);
+      });
+      if(dbItem) {
+        if(dbItem['원인']) lines.push(`  · ${PILATES_DB[p]?.title || p} 원인: ${dbItem['원인']}`);
+        if(dbItem['증상']) lines.push(`  · ${PILATES_DB[p]?.title || p} 증상: ${dbItem['증상']}`);
+      }
+    });
+  } else {
+    lines.push('- 특이 패턴 없음(기본 안정화 권장)');
+  }
 
+  // ✅ 임상적 권고 (상세)
   lines.push('\n▶ 임상적 권고');
   lines.push('- 2~4주 간 주 2~3회, 각 세션 30~45분. 통증 0~2/10 범위 유지.');
   lines.push('- "정렬→가동성→근지구력→기능 통합" 순서로 진행.');
   lines.push('- 일상 자세 팁: 스크린 눈높이 조절, 30~40분마다 30초 리셋 스트레칭, 장시간 서기/앉기 시 골반 중립 체크.');
+  lines.push('- 호흡: 운동 중 "길게 들이쉬고 길게 내쉬기"를 유지하여 코어 안정성을 높입니다.');
+  lines.push('- 진행 순서: ① 워밍업(5분) → ② 스트레칭(10분) → ③ 강화 운동(20분) → ④ 쿨다운(5분)');
+  lines.push('- 주의사항: 통증이 3/10 이상이면 운동을 중단하고 전문가와 상담하세요.');
 
   return lines.join('\n');
 }
@@ -7655,22 +7714,86 @@ function buildAINarrative(analysis) {
   const good = analysis.findings.filter(f => f.abnormal === '정상');
   const lines = [];
 
+  // ✅ 전체 체형 점수 계산
+  const totalScore = computeScore(
+    analysis.findings.find(f => f.code === 'CVA')?.value || null,
+    analysis.findings.find(f => f.code === 'PTA')?.value || null,
+    analysis.findings.find(f => f.code === 'KA')?.value || null
+  );
+  lines.push(`📊 전체 체형 종합 점수: ${totalScore.score}/100점`);
+  if(totalScore.reasons && totalScore.reasons.length > 0) {
+    lines.push(`감점 근거: ${totalScore.reasons.join(', ')}`);
+  }
+
+  // ✅ 측면 분석 결과 상세 표시
+  lines.push('\n📐 측면 분석 결과');
+  const sideMetrics = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA'];
+  sideMetrics.forEach(code => {
+    const finding = analysis.findings.find(f => f.code === code);
+    if(finding) {
+      const unit = /cm$/.test(finding.normal) ? 'cm' : '°';
+      const status = finding.abnormal === '정상' ? 'normal' : 
+                     finding.abnormal.includes('높음') ? 'severe' :
+                     finding.abnormal.includes('낮음') ? 'mild' : 'moderate';
+      const statusText = status === 'normal' ? '정상' : 
+                         status === 'severe' ? '심각' :
+                         status === 'mild' ? '경미' : '중등도';
+      lines.push(`${code}: ${finding.value.toFixed(2)}${unit} (${statusText})`);
+    }
+  });
+
+  // ✅ PDS 종합점수 (있는 경우)
+  const pdsFinding = analysis.findings.find(f => f.code === 'PDS');
+  if(pdsFinding) {
+    lines.push(`PDS: ${pdsFinding.value.toFixed(1)}° (${pdsFinding.abnormal === '정상' ? '정상' : '주의'})`);
+    lines.push(`PDS 종합점수: ${pdsFinding.value.toFixed(1)} (${pdsFinding.abnormal === '정상' ? '정상' : '주의'})`);
+  }
+
+  // ✅ 핵심 이슈 상세 설명
   if (bad.length) {
-    const key = bad.map(b => `${b.code} ${b.value}${/cm$/.test(b.normal) ? 'cm' : '°'} (${b.abnormal})`).join(', ');
-    lines.push(`⚠ 핵심 이슈: ${key}`);
+    lines.push('\n⚠️ 주요 문제 패턴:');
+    bad.forEach(b => {
+      const dbItem = POSTURE_DB.find(r => {
+        const dbCode = String(r['지표코드'] || '').toUpperCase();
+        const dbAbnormal = String(r['이상유형'] || '');
+        return dbCode === b.code.toUpperCase() && dbAbnormal.includes(b.abnormal);
+      });
+      
+      if(dbItem) {
+        lines.push(`\n📍 ${dbItem['지표명'] || b.code} (${b.abnormal})`);
+        if(dbItem['원인']) lines.push(`  원인: ${dbItem['원인']}`);
+        if(dbItem['증상']) lines.push(`  증상: ${dbItem['증상']}`);
+        if(dbItem['임상적의미']) lines.push(`  임상적 의미: ${dbItem['임상적의미']}`);
+        if(dbItem['긴장근육(주요)']) lines.push(`  긴장된 근육: ${dbItem['긴장근육(주요)']}`);
+        if(dbItem['약화근육(주요)']) lines.push(`  약화된 근육: ${dbItem['약화근육(주요)']}`);
+      } else {
+        lines.push(`\n📍 ${b.code}: ${b.value}${/cm$/.test(b.normal) ? 'cm' : '°'} (${b.abnormal})`);
+      }
+    });
   } else {
-    lines.push('✅ 모든 핵심 지표가 정상 범위입니다.');
+    lines.push('\n✅ 모든 핵심 지표가 정상 범위입니다.');
   }
 
   if (good.length) {
-    const ok = good.map(g => g.code).join(', ');
-    lines.push(`✓ 안정 항목: ${ok}`);
+    lines.push(`\n✓ 안정 항목: ${good.map(g => g.code).join(', ')}`);
   }
 
+  // ✅ 근육 불균형 상세
   if (analysis.muscles.tight.length || analysis.muscles.weak.length) {
-    lines.push(`긴장 근육: ${analysis.muscles.tight.join(', ') || '—'}`);
-    lines.push(`약화 근육: ${analysis.muscles.weak.join(', ') || '—'}`);
+    lines.push('\n💪 근육 불균형 분석:');
+    if(analysis.muscles.tight.length > 0) {
+      lines.push(`긴장된 근육: ${analysis.muscles.tight.join(', ')}`);
+      lines.push(`  → 이 근육들은 과도하게 수축되어 있어 스트레칭과 이완이 필요합니다.`);
+    }
+    if(analysis.muscles.weak.length > 0) {
+      lines.push(`약화된 근육: ${analysis.muscles.weak.join(', ')}`);
+      lines.push(`  → 이 근육들은 약화되어 있어 강화 운동이 필요합니다.`);
+    }
   }
+
+  // ✅ AI 실시간 분석
+  lines.push('\n🤖 AI 실시간 분석');
+  lines.push('데이터베이스 기반 분석 완료');
 
   return lines.join('\n');
 }
@@ -8793,13 +8916,33 @@ function exportAsPdf(options = {}) {
       analysisSummaryHtml = buildAnalysisSummaryHtml(analysisResult);
     }
     
+    // ✅ 전체 체형 점수 계산
+    const fullMetricsForScore = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
+    const scoreResult = computeScore(
+      fullMetricsForScore.CVA?.value || fullMetricsForScore.CVA?.value_deg || null,
+      fullMetricsForScore.PTA?.value || fullMetricsForScore.PTA?.value_deg || null,
+      fullMetricsForScore.KA?.value || fullMetricsForScore.KA?.value_deg || null
+    );
+    
     page4Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 분석 (DB 100종 기반)</h2>
+      
+      ${scoreResult ? `
+      <div style="margin-top:15px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:16px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">📊 체형 종합 점수</div>
+        <div style="font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:8px;">${scoreResult.score}/100점</div>
+        ${scoreResult.reasons && scoreResult.reasons.length > 0 ? `
+        <div style="font-size:11px; line-height:1.6; color:#555; margin-top:8px; word-wrap:break-word; white-space:pre-wrap;">
+          감점 근거: ${scoreResult.reasons.join(', ')}
+        </div>
+        ` : ''}
+      </div>
+      ` : ''}
       
       ${dbNarrative ? `
       <div style="margin-top:15px; padding:15px; background:#f8fafc; border-radius:8px; border-left:4px solid #6366f1;">
         <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#6366f1;">📊 DB 기반 AI 분석 요약</div>
-        <pre style="white-space:pre-wrap; font-family:inherit; font-size:12px; line-height:1.6; color:#333; margin:0; padding:0;">${dbNarrative}</pre>
+        <pre style="white-space:pre-wrap; font-family:inherit; font-size:12px; line-height:1.6; color:#333; margin:0; padding:0; word-wrap:break-word;">${dbNarrative}</pre>
       </div>
       ` : ''}
       
