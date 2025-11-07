@@ -5975,7 +5975,11 @@ function endDrag(e) {
 let isMouseDown = false;
 cv.addEventListener('mousedown', (e) => {
   isMouseDown = true;
-  startDrag(e);
+  const dragStarted = startDrag(e);
+  // 점을 찾지 못했으면 isMouseDown을 false로 설정 (드래그가 시작되지 않았으므로)
+  if(!dragStarted) {
+    isMouseDown = false;
+  }
 });
 
 window.addEventListener('mouseup', () => {
@@ -5989,7 +5993,8 @@ window.addEventListener('mouseleave', () => {
 });
 
 window.addEventListener('mousemove', (e) => {
-  if(isMouseDown || dragKey) {
+  // dragKey가 설정되어 있을 때만 드래그 처리 (점을 클릭했을 때만)
+  if(dragKey) {
     doDrag(e);
   }
 });
