@@ -9890,6 +9890,50 @@ function initializeApp() {
   } else {
     console.error("setupImageButton 함수를 찾을 수 없습니다.");
   }
+  
+  // AI 분석 버튼 초기화
+  const btnAIAnalysis = document.getElementById("btnAIAnalysis");
+  if (btnAIAnalysis) {
+    btnAIAnalysis.addEventListener('click', async () => {
+      try {
+        const originalText = btnAIAnalysis.textContent;
+        btnAIAnalysis.textContent = "⏳ AI 분석 중...";
+        btnAIAnalysis.disabled = true;
+        
+        // 현재 세션 데이터 확인
+        const S = sessions[cur];
+        if (!S || (!S.sidePoints || S.sidePoints.size === 0) && (!S.frontPoints || S.frontPoints.size === 0)) {
+          alert("먼저 이미지를 업로드하고 좌표를 설정해주세요.");
+          btnAIAnalysis.textContent = originalText;
+          btnAIAnalysis.disabled = false;
+          return;
+        }
+        
+        // 전체 분석 실행
+        await computeAll();
+        
+        // 분석 결과 표시 영역 업데이트
+        const S2 = sessions[cur];
+        if (S2.analysis && S2.score) {
+          updateScoreAndAnalysis(S2.score.score, S2.metrics?.cva, S2.metrics?.pelvic, S2.metrics?.knee, S2.analysis);
+        }
+        
+        btnAIAnalysis.textContent = "✅ 분석 완료";
+        setTimeout(() => {
+          btnAIAnalysis.textContent = originalText;
+          btnAIAnalysis.disabled = false;
+        }, 2000);
+      } catch (error) {
+        console.error("AI 분석 실패:", error);
+        alert("AI 분석에 실패했습니다: " + (error.message || '알 수 없는 오류'));
+        const btn = document.getElementById("btnAIAnalysis");
+        if (btn) {
+          btn.textContent = "🤖 AI 분석";
+          btn.disabled = false;
+        }
+      }
+    });
+  }
 
   // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
   // sessions 객체에 orientation과 landmarks 정보 추가
