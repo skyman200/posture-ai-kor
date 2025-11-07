@@ -3698,13 +3698,20 @@ function computeAll() {
     const score = computeScore(cva, pelvic, knee);
     S.score = score;
     
-    // AI 분석 실행 (통합된 fullMetrics 사용)
-    const analysis = analyzeMuscles(cva, pelvic, knee, mergedMetrics);
-    S.analysis = analysis;
-    
-    updateDisplay();
-    updateCompare();
-    updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
+    // AI 분석 실행 (통합된 fullMetrics 사용) - 데이터베이스 기반
+    analyzeMusclesWithDB(mergedMetrics).then(analysis => {
+      S.analysis = analysis;
+      updateDisplay();
+      updateCompare();
+      updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
+    }).catch(err => {
+      console.warn('DB 기반 분석 실패, 기존 방식 사용:', err);
+      const analysis = analyzeMuscles(cva, pelvic, knee, mergedMetrics);
+      S.analysis = analysis;
+      updateDisplay();
+      updateCompare();
+      updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
+    });
     
     // 골반 분석 자동 실행
     analyzePelvicTiltAuto();
@@ -7267,6 +7274,44 @@ function generateAIDeepAnalysis(metrics) {
 let POSTURE_DB = [];
 let postureDBCache = null;
 
+// CSV 파싱 함수
+function parseCSV(csvText) {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim());
+  const records = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = [];
+    let currentValue = '';
+    let inQuotes = false;
+    
+    for (let j = 0; j < lines[i].length; j++) {
+      const char = lines[i][j];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(currentValue.trim());
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    values.push(currentValue.trim());
+    
+    if (values.length === headers.length) {
+      const record = {};
+      headers.forEach((header, idx) => {
+        record[header] = values[idx] || '';
+      });
+      records.push(record);
+    }
+  }
+  
+  return records;
+}
+
 async function loadPostureDB() {
   // 캐시 우선 확인
   if (postureDBCache) {
@@ -7280,17 +7325,30 @@ async function loadPostureDB() {
   }
   
   try {
-    const response = await fetch('/db/Posture_Muscle_DB_Full.json', { cache: 'no-store' });
+    // CSV 파일 로드 시도
+    const response = await fetch('/db/Posture_Muscle_DB_Full.csv', { cache: 'no-store' });
     if (!response.ok) throw new Error('DB 파일 로드 실패');
-    POSTURE_DB = await response.json();
+    const csvText = await response.text();
+    POSTURE_DB = parseCSV(csvText);
     postureDBCache = POSTURE_DB;
-    console.log('✅ DB Loaded:', POSTURE_DB.length, 'records');
+    console.log('✅ DB Loaded (CSV):', POSTURE_DB.length, 'records');
     return POSTURE_DB;
   } catch (e) {
-    console.error('❌ DB 로드 실패:', e);
-    POSTURE_DB = []; // 빈 배열로도 동작
-    postureDBCache = null;
-    return POSTURE_DB;
+    console.warn('⚠️ CSV 로드 실패, JSON 시도:', e);
+    try {
+      // JSON 파일 폴백 시도
+      const response = await fetch('/db/Posture_Muscle_DB_Full.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error('JSON 파일도 로드 실패');
+      POSTURE_DB = await response.json();
+      postureDBCache = POSTURE_DB;
+      console.log('✅ DB Loaded (JSON):', POSTURE_DB.length, 'records');
+      return POSTURE_DB;
+    } catch (e2) {
+      console.error('❌ DB 로드 실패:', e2);
+      POSTURE_DB = []; // 빈 배열로도 동작
+      postureDBCache = null;
+      return POSTURE_DB;
+    }
   }
 }
 
