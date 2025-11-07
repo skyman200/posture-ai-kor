@@ -1,32 +1,55 @@
-// js/main.js
+// =============================================================
+// main.js (통합 버전) - ai_posture_pipeline_pro.js 연결
+// =============================================================
 
-import { analyzePosture } from "../assets/analyzePosture.js";
-import { analyzePostureType } from "./analyzePostureType.js";
-import { loadPostureDB } from "./loadPostureDB.js";
+import { runPipeline, buildFullMetrics } from "./ai_posture_pipeline_pro.js";
 
-// ✅ 1. fullMetrics 전역 변수 초기화
-window.fullMetrics = {};
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("=== 🚀 AI Posture Main.js 초기화 시작 ===");
 
-window.addEventListener("DOMContentLoaded", async () => {
-  console.log("=== DOMContentLoaded 이벤트 발생 ===");
+  // 🔹 AI 분석 버튼 클릭 이벤트
+  const analyzeBtn = document.getElementById("analyze-btn");
+  if (analyzeBtn) {
+    analyzeBtn.addEventListener("click", async () => {
+      try {
+        console.log("▶️ AI 자세 분석 시작...");
 
-  try {
-    // ✅ DB 로드
-    await loadPostureDB();
+        // ✅ 측정값 (예시 / 실제는 AI 측정 모듈에서 전달)
+        const values = window.fullMetrics || {
+          CVA: 61.2,
+          HPD: 1.1,
+          TIA: 7.2,
+          SAA: 12.3,
+          PTA: 10.4,
+          KA: 174.8,
+          Tibial: 2.2,
+          GSB: 0.8,
+          HPA: 14.1,
+        };
 
-    // ✅ AI 자세 분석
-    const fullMetrics = await analyzePosture("side_view_image");
-    
-    // ✅ 전역 변수에 저장 (다른 코드에서 참조 가능하도록)
-    window.fullMetrics = fullMetrics;
-    window.currentPostureMetrics = fullMetrics; // 하위 호환성
-    
-    console.log(`[AI-Posture] PTA=${fullMetrics.PTA.toFixed(2)}° → 자동 분석 완료`);
+        // ✅ fullMetrics 생성
+        const fullMetrics = buildFullMetrics(values);
 
-    // ✅ fullMetrics 전달
-    analyzePostureType(fullMetrics);
-  } catch (err) {
-    console.error("AI 자동 분석 실패:", err);
+        // ✅ 파이프라인 실행
+        const report = await runPipeline(fullMetrics);
+
+        // ✅ 콘솔 출력
+        console.log("📊 [AI 자세 리포트]");
+        console.log(report);
+
+        // ✅ HTML 결과 표시 (선택)
+        const reportBox = document.getElementById("report-box");
+        if (reportBox) {
+          reportBox.innerText = report;
+          reportBox.style.whiteSpace = "pre-wrap";
+        }
+
+        console.log("✅ 분석 완료!");
+      } catch (err) {
+        console.error("❌ AI 분석 중 오류:", err);
+      }
+    });
   }
-});
 
+  console.log("=== ✅ Main.js 초기화 완료 ===");
+});
