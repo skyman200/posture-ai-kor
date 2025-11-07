@@ -1,7 +1,8 @@
 // js/loadPostureDB.js
 
 export async function loadPostureDB() {
-  const base = "https://skyman200.github.io/posture-ai-kor/db";
+  // ✅ raw.githubusercontent.com 경로 사용 (GitHub Pages 배포 문제 해결)
+  const base = "https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db";
   try {
     const res = await fetch(`${base}/Posture_Muscle_DB_Full_v3.json`);
     if (res.ok) {

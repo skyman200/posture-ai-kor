@@ -30,16 +30,20 @@ async function loadJSON(paths) {
 }
 
 export async function loadMuscleDB() {
+  // ✅ raw.githubusercontent.com 경로 사용 (GitHub Pages 배포 문제 해결)
   return await loadJSON([
-    "./db/Posture_Muscle_DB_Full_v3.json",
-    "/db/Posture_Muscle_DB_Full_v3.json",
+    "https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full_v3.json",
+    "./db/Posture_Muscle_DB_Full_v3.json",  // 로컬 폴백
+    "/db/Posture_Muscle_DB_Full_v3.json",   // 로컬 폴백
   ]);
 }
 
 export async function loadPilatesDB() {
+  // ✅ raw.githubusercontent.com 경로 사용 (GitHub Pages 배포 문제 해결)
   return await loadJSON([
-    "./db/Pilates_Exercise_DB_1000_v2.json",
-    "/db/Pilates_Exercise_DB_1000_v2.json",
+    "https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Pilates_Exercise_DB_1000_v2.json",
+    "./db/Pilates_Exercise_DB_1000_v2.json",  // 로컬 폴백
+    "/db/Pilates_Exercise_DB_1000_v2.json",   // 로컬 폴백
   ]);
 }
 
