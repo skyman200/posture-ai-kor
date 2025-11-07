@@ -40,8 +40,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     const reportBox = document.getElementById("report-box");
     if (reportBox) {
-      reportBox.innerText = report;
+      // report가 객체인 경우 문자열로 변환
+      const reportText = typeof report === 'string' ? report : JSON.stringify(report, null, 2);
+      reportBox.innerText = reportText;
       reportBox.style.whiteSpace = "pre-wrap";
+      reportBox.style.display = "block";
     }
 
     console.log("✅ 모든 AI 분석 완료!");
