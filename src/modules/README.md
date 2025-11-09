@@ -249,3 +249,4 @@ import { AIReportManager } from './src/modules/aiReportManager.js';
 - 브라우저 개발자 도구에서 localStorage 확인
 
 
+

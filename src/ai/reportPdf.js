@@ -2,6 +2,14 @@
 // jsPDF만 사용 (모바일 저장 호환) – html2canvas 없이 캔버스/이미지 직접 삽입도 가능
 
 /**
+ * 모바일 감지 함수
+ */
+function isMobileDevice() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+         (window.innerWidth <= 768 && 'ontouchstart' in window);
+}
+
+/**
  * 모바일 호환 PDF 저장
  * @param {string} fileName - 파일명
  * @param {object} pdfInstance - jsPDF 인스턴스
@@ -9,21 +17,67 @@
 async function savePDFMobileCompatible(fileName, pdfInstance) {
   try {
     const blob = pdfInstance.output('blob');
+    
+    // 모바일에서 Web Share API 사용 (iOS Safari 등에서 작동)
+    if (isMobileDevice() && navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        
+        // Web Share API로 파일 공유 시도
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: fileName.replace('.pdf', ''),
+            files: [file]
+          });
+          console.log('✅ PDF 공유 성공 (Web Share API)');
+          return;
+        }
+      } catch (shareErr) {
+        // 사용자가 취소한 경우가 아니면 폴백으로 진행
+        if (shareErr.name !== 'AbortError') {
+          console.warn('⚠️ Web Share API 실패, 폴백 사용:', shareErr);
+        } else {
+          // 사용자가 취소한 경우
+          return;
+        }
+      }
+    }
+    
+    // 데스크톱 또는 Web Share API 미지원 환경
     const fileURL = URL.createObjectURL(blob);
-
-    // 모바일 Safari나 Chrome에서 다운로드 강제 트리거
     const link = document.createElement('a');
     link.href = fileURL;
     link.download = fileName;
+    link.style.display = 'none';
     document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(fileURL);
-
-    alert('📄 PDF가 다운로드 폴더 또는 파일 앱에 저장되었습니다.');
+    
+    // 클릭 이벤트 트리거
+    if (link.click) {
+      link.click();
+    } else {
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+        buttons: 1
+      });
+      link.dispatchEvent(clickEvent);
+    }
+    
+    // 정리
+    setTimeout(() => {
+      URL.revokeObjectURL(fileURL);
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 1000);
+    
+    if (isMobileDevice()) {
+      alert('📄 PDF가 저장되었습니다. 파일 앱에서 확인하세요.');
+    }
   } catch (err) {
     console.error('❌ PDF 저장 실패:', err);
-    alert('⚠️ PDF 저장 중 오류가 발생했습니다.');
+    alert('⚠️ PDF 저장 중 오류가 발생했습니다: ' + err.message);
   }
 }
 
@@ -250,5 +304,6 @@ export async function exportDetailedPDF({
   
   console.log(`✅ 상세 PDF 리포트 생성 완료: ${fileName}`);
 }
+
 
 

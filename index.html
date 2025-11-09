@@ -8374,26 +8374,80 @@ function drawComparisonChart(before, after, containerId = null, options = {}) {
 }
 
 /**********************
+ * 모바일 감지 함수
+ **********************/
+function isMobileDevice() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+         (window.innerWidth <= 768 && 'ontouchstart' in window);
+}
+
+/**********************
  * 모바일 호환 PDF 저장 기능
  **********************/
 async function savePDFMobileCompatible(fileName, pdfInstance) {
   try {
     const blob = pdfInstance.output('blob');
+    
+    // 모바일에서 Web Share API 사용 (iOS Safari 등에서 작동)
+    if (isMobileDevice() && navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        
+        // Web Share API로 파일 공유 시도
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: fileName.replace('.pdf', ''),
+            files: [file]
+          });
+          console.log('✅ PDF 공유 성공 (Web Share API)');
+          return;
+        }
+      } catch (shareErr) {
+        // 사용자가 취소한 경우가 아니면 폴백으로 진행
+        if (shareErr.name !== 'AbortError') {
+          console.warn('⚠️ Web Share API 실패, 폴백 사용:', shareErr);
+        } else {
+          // 사용자가 취소한 경우
+          return;
+        }
+      }
+    }
+    
+    // 데스크톱 또는 Web Share API 미지원 환경
     const fileURL = URL.createObjectURL(blob);
-
-    // 모바일 Safari나 Chrome에서 다운로드 강제 트리거
     const link = document.createElement('a');
     link.href = fileURL;
     link.download = fileName;
+    link.style.display = 'none';
     document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(fileURL);
-
-    alert('📄 PDF가 다운로드 폴더 또는 파일 앱에 저장되었습니다.');
+    
+    // 클릭 이벤트 트리거
+    if (link.click) {
+      link.click();
+    } else {
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+        buttons: 1
+      });
+      link.dispatchEvent(clickEvent);
+    }
+    
+    // 정리
+    setTimeout(() => {
+      URL.revokeObjectURL(fileURL);
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 1000);
+    
+    if (isMobileDevice()) {
+      alert('📄 PDF가 저장되었습니다. 파일 앱에서 확인하세요.');
+    }
   } catch (err) {
     console.error('❌ PDF 저장 실패:', err);
-    alert('⚠️ PDF 저장 중 오류가 발생했습니다.');
+    alert('⚠️ PDF 저장 중 오류가 발생했습니다: ' + err.message);
   }
 }
 
@@ -8402,17 +8456,72 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
  **********************/
 async function saveImageMobile(canvas, fileName = 'report_image.png') {
   try {
-    const image = canvas.toDataURL('image/png');
+    // Canvas를 Blob으로 변환
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('이미지 변환 실패'));
+        }
+      }, 'image/png');
+    });
+    
+    // 모바일에서 Web Share API 사용
+    if (isMobileDevice() && navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], fileName, { type: 'image/png' });
+        
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: fileName.replace('.png', ''),
+            files: [file]
+          });
+          console.log('✅ 이미지 공유 성공 (Web Share API)');
+          return;
+        }
+      } catch (shareErr) {
+        if (shareErr.name !== 'AbortError') {
+          console.warn('⚠️ Web Share API 실패, 폴백 사용:', shareErr);
+        } else {
+          return;
+        }
+      }
+    }
+    
+    // 데스크톱 또는 Web Share API 미지원 환경
+    const fileURL = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = image;
+    link.href = fileURL;
     link.download = fileName;
+    link.style.display = 'none';
     document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    alert('🖼️ 이미지가 다운로드 폴더에 저장되었습니다.');
+    
+    if (link.click) {
+      link.click();
+    } else {
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+        buttons: 1
+      });
+      link.dispatchEvent(clickEvent);
+    }
+    
+    setTimeout(() => {
+      URL.revokeObjectURL(fileURL);
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 1000);
+    
+    if (isMobileDevice()) {
+      alert('🖼️ 이미지가 저장되었습니다. 파일 앱에서 확인하세요.');
+    }
   } catch (err) {
     console.error('❌ 이미지 저장 오류:', err);
-    alert('⚠️ 이미지 저장 중 문제가 발생했습니다.');
+    alert('⚠️ 이미지 저장 중 문제가 발생했습니다: ' + err.message);
   }
 }
 
@@ -9600,99 +9709,81 @@ function exportAsPdf(options = {}) {
     addPageToPdf(canvas6, 6);
     addPageToPdf(canvas7, 7);
     
-    // PDF 다운로드 (다중 방식 시도로 브라우저 호환성 개선)
+    // PDF 다운로드 (모바일 최적화)
     let pdfSaved = false;
     try {
-      // 방법 1: 직접 save 메서드 시도 (가장 안정적)
-      try {
-        pdf.save(finalFileName);
-        console.log('✅ PDF 저장 성공 (직접 save)');
-        pdfSaved = true;
-      } catch (saveErr) {
-        console.warn('⚠️ 직접 save 실패, Blob 방식 시도:', saveErr);
-        
-        // 방법 2: Blob 방식
+      const pdfBlob = pdf.output('blob');
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('PDF Blob 생성 실패');
+      }
+      
+      // 모바일에서 Web Share API 사용
+      if (isMobileDevice() && navigator.share && navigator.canShare) {
         try {
-          const pdfBlob = pdf.output('blob');
-          if (pdfBlob && pdfBlob.size > 0) {
-            const url = URL.createObjectURL(pdfBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = finalFileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            
-            // 여러 방식으로 클릭 시도
-            if (link.click) {
-              link.click();
-            } else {
-              // click() 메서드가 없는 경우 MouseEvent 사용
-              const clickEvent = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                buttons: 1
-              });
-              link.dispatchEvent(clickEvent);
-            }
-            
-            // 정리
-            setTimeout(() => {
-              URL.revokeObjectURL(url);
-              if (document.body.contains(link)) {
-                document.body.removeChild(link);
-              }
-            }, 1000);
-            console.log('✅ PDF 저장 성공 (Blob 방식)');
-            pdfSaved = true;
-          } else {
-            throw new Error('Blob 생성 실패 또는 빈 파일');
-          }
-        } catch (blobErr) {
-          console.warn('⚠️ Blob 방식 실패, data URI 방식 시도:', blobErr);
+          const file = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
           
-          // 방법 3: Data URI 방식
-          try {
-            const pdfDataUri = pdf.output('datauristring');
-            if (pdfDataUri && pdfDataUri.length > 100) {
-              const link = document.createElement('a');
-              link.href = pdfDataUri;
-              link.download = finalFileName;
-              link.style.display = 'none';
-              document.body.appendChild(link);
-              
-              if (link.click) {
-                link.click();
-              } else {
-                const clickEvent = new MouseEvent('click', {
-                  view: window,
-                  bubbles: true,
-                  cancelable: true,
-                  buttons: 1
-                });
-                link.dispatchEvent(clickEvent);
-              }
-              
-              setTimeout(() => {
-                if (document.body.contains(link)) {
-                  document.body.removeChild(link);
-                }
-              }, 1000);
-              console.log('✅ PDF 저장 성공 (Data URI 방식)');
-              pdfSaved = true;
-            } else {
-              throw new Error('Data URI 생성 실패 또는 빈 데이터');
-            }
-          } catch (dataUriErr) {
-            console.error('❌ 모든 PDF 저장 방식 실패:', dataUriErr);
-            throw new Error('PDF 저장에 실패했습니다: ' + (dataUriErr.message || '알 수 없는 오류'));
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: finalFileName.replace('.pdf', ''),
+              files: [file]
+            });
+            console.log('✅ PDF 공유 성공 (Web Share API)');
+            pdfSaved = true;
           }
+        } catch (shareErr) {
+          if (shareErr.name !== 'AbortError') {
+            console.warn('⚠️ Web Share API 실패, 폴백 사용:', shareErr);
+          } else {
+            // 사용자가 취소한 경우
+            resolve();
+            return;
+          }
+        }
+      }
+      
+      // 데스크톱 또는 Web Share API 미사용 시 기존 방식
+      if (!pdfSaved) {
+        // 방법 1: 직접 save 메서드 시도
+        try {
+          pdf.save(finalFileName);
+          console.log('✅ PDF 저장 성공 (직접 save)');
+          pdfSaved = true;
+        } catch (saveErr) {
+          console.warn('⚠️ 직접 save 실패, Blob 방식 시도:', saveErr);
+          
+          // 방법 2: Blob 방식
+          const url = URL.createObjectURL(pdfBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = finalFileName;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          
+          if (link.click) {
+            link.click();
+          } else {
+            const clickEvent = new MouseEvent('click', {
+              view: window,
+              bubbles: true,
+              cancelable: true,
+              buttons: 1
+            });
+            link.dispatchEvent(clickEvent);
+          }
+          
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+          }, 1000);
+          console.log('✅ PDF 저장 성공 (Blob 방식)');
+          pdfSaved = true;
         }
       }
     } catch (err) {
       console.error('❌ PDF 다운로드 오류:', err);
-      // 최종 폴백: 사용자에게 알림
-      alert('PDF 저장에 실패했습니다: ' + (err.message || '알 수 없는 오류') + '\n브라우저 콘솔을 확인해주세요.');
+      alert('PDF 저장에 실패했습니다: ' + (err.message || '알 수 없는 오류'));
       reject(err);
       return;
     }
@@ -10164,32 +10255,61 @@ function setupImageButton() {
     
     document.body.removeChild(fullContainer);
     
-    // 이미지 다운로드 (Blob 방식으로 개선)
+    // 이미지 다운로드 (모바일 최적화)
     try {
+      const fileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+      
       // Canvas를 Blob으로 변환
-      fullCanvas.toBlob((blob) => {
+      fullCanvas.toBlob(async (blob) => {
         if (!blob) {
           throw new Error('이미지 변환 실패');
         }
         
+        // 모바일에서 Web Share API 사용
+        if (isMobileDevice() && navigator.share && navigator.canShare) {
+          try {
+            const file = new File([blob], fileName, { type: 'image/png' });
+            
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title: fileName.replace('.png', ''),
+                files: [file]
+              });
+              console.log('✅ 이미지 공유 성공 (Web Share API)');
+              btn.textContent = originalText;
+              btn.disabled = false;
+              return;
+            }
+          } catch (shareErr) {
+            if (shareErr.name !== 'AbortError') {
+              console.warn('⚠️ Web Share API 실패, 폴백 사용:', shareErr);
+            } else {
+              // 사용자가 취소한 경우
+              btn.textContent = originalText;
+              btn.disabled = false;
+              return;
+            }
+          }
+        }
+        
+        // 데스크톱 또는 Web Share API 미사용 시 기존 방식
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        link.download = fileName;
         link.style.position = 'fixed';
         link.style.top = '-9999px';
         link.style.left = '-9999px';
         document.body.appendChild(link);
         
-        // 강제로 다운로드 트리거
         const clickEvent = new MouseEvent('click', {
           view: window,
           bubbles: true,
-          cancelable: true
+          cancelable: true,
+          buttons: 1
         });
         link.dispatchEvent(clickEvent);
         
-        // 약간의 지연 후 정리
         setTimeout(() => {
           URL.revokeObjectURL(url);
           if (document.body.contains(link)) {
@@ -10198,42 +10318,16 @@ function setupImageButton() {
           btn.textContent = originalText;
           btn.disabled = false;
           
-          // 모바일에서 성공 메시지
-          if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          if (isMobileDevice()) {
             alert("이미지가 저장되었습니다!");
           }
         }, 500);
       }, 'image/png');
     } catch (err) {
-      // 폴백: data URL 방식
-      console.warn('Blob 다운로드 실패, data URL 폴백 사용:', err);
-      const imgData = fullCanvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = imgData;
-      link.download = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
-      link.style.position = 'fixed';
-      link.style.top = '-9999px';
-      link.style.left = '-9999px';
-      document.body.appendChild(link);
-      
-      const clickEvent = new MouseEvent('click', {
-        view: window,
-        bubbles: true,
-        cancelable: true
-      });
-      link.dispatchEvent(clickEvent);
-      
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-        btn.textContent = originalText;
-        btn.disabled = false;
-        
-        if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-          alert("이미지가 저장되었습니다!");
-        }
-      }, 500);
+      console.error('이미지 저장 실패:', err);
+      alert('이미지 저장에 실패했습니다: ' + err.message);
+      btn.textContent = originalText;
+      btn.disabled = false;
     }
     } catch(error) {
       console.error("이미지 생성 실패:", error);

@@ -305,3 +305,4 @@ console.log('DB 로드됨:', Object.keys(db).length, '지표');
 - 캔버스가 DOM에 추가되어 있는지 확인
 
 
+
