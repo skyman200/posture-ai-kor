@@ -4123,9 +4123,9 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     if (fullMetrics.HPD) flatMetrics.HPD = fullMetrics.HPD.value_cm || fullMetrics.HPD.value;
     if (fullMetrics.SAA) flatMetrics.SAA = fullMetrics.SAA.value_deg || fullMetrics.SAA.value;
     if (fullMetrics.PTA) {
-      // PTA는 부호 포함 값 사용
+      // PTA는 부호 포함 값 사용 (음수도 그대로 전달)
       const ptaSigned = fullMetrics.PTA.value_signed;
-      flatMetrics.PTA = ptaSigned != null ? Math.abs(ptaSigned) : (fullMetrics.PTA.value_deg || fullMetrics.PTA.value);
+      flatMetrics.PTA = ptaSigned != null ? ptaSigned : (fullMetrics.PTA.value_deg || fullMetrics.PTA.value);
     }
     if (fullMetrics.KA) flatMetrics.KA = fullMetrics.KA.value_deg || fullMetrics.KA.value;
     if (fullMetrics.GSB) flatMetrics.GSB = fullMetrics.GSB.value_cm || fullMetrics.GSB.value;
@@ -5059,7 +5059,13 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
         processedKeys.add(metricKey);
         if(m.key !== metricKey) processedKeys.add(m.key);
         
-        const value = metric.value !== undefined ? metric.value : (metric.value_deg !== undefined ? metric.value_deg : (metric.value_cm !== undefined ? metric.value_cm : null));
+        // PTA는 부호 포함 값(value_signed) 사용, 나머지는 기존 방식
+        let value;
+        if (metricKey === 'PTA' && metric.value_signed !== undefined) {
+          value = metric.value_signed; // 음수 값도 그대로 표시
+        } else {
+          value = metric.value !== undefined ? metric.value : (metric.value_deg !== undefined ? metric.value_deg : (metric.value_cm !== undefined ? metric.value_cm : null));
+        }
         const status = metric.status || 'unknown';
         const unit = metric.unit || m.unit;
         if(value !== null && value !== undefined) {
@@ -5069,9 +5075,13 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
           // 측면 항목은 파란색, 정면 항목은 청록색으로 이름 표시
           const nameColor = m.type === 'front' ? '#2ec4b6' : '#7c9cff';
           
+          // PTA 음수 값 표시 (부호 포함)
+          const displayValue = (metricKey === 'PTA' && value < 0) ? value.toFixed(1) : value.toFixed(1);
+          const sign = (metricKey === 'PTA' && value < 0) ? '' : '';
+          
           html += `<div style="display:flex; justify-content:space-between; margin-bottom:3px; padding:2px 0;">
             <span style="color:${nameColor}; font-weight:${m.type === 'front' ? '600' : '400'};">${m.name}:</span>
-            <span style="color:${statusColor};">${value.toFixed(1)}${unit} ${statusText}</span>
+            <span style="color:${statusColor};">${displayValue}${unit} ${statusText}</span>
           </div>`;
         }
       }
@@ -7813,6 +7823,8 @@ async function analyzeWithDB(metrics) {
     '높음(라운드숄더)': 'Rounded Shoulder',
     '높음(전방경사)': 'Anterior Pelvic Tilt',
     '낮음(후경사)': 'Posterior Pelvic Tilt',
+    '후방경사': 'Posterior Pelvic Tilt',
+    '골반 후방경사': 'Posterior Pelvic Tilt',
     '높음(과신전)': 'Hyperlordosis',
     '낮음': 'Hyperkyphosis',
     '높음': 'Hyperkyphosis'
@@ -7835,9 +7847,22 @@ async function analyzeWithDB(metrics) {
 
     // 일부 지표는 의미 있는 세분 라벨 부여
     if (code === 'PTA') {
-      if (v < 5) abnormal = '낮음(후경사)';
-      else if (v > 15) abnormal = '높음(전방경사)';
-      else abnormal = '정상';
+      // PTA는 부호 포함 값 (음수=후방경사, 양수=전방경사)
+      if (v < 0) {
+        // 음수: 후방경사
+        abnormal = '낮음(후경사)';
+      } else if (v > 15) {
+        // 양수이고 15도 초과: 전방경사
+        abnormal = '높음(전방경사)';
+      } else if (v >= 5 && v <= 15) {
+        // 정상 범위
+        abnormal = '정상';
+      } else if (v > 0 && v < 5) {
+        // 양수이지만 작은 값: 경미한 전방경사 또는 정상
+        abnormal = '정상';
+      } else {
+        abnormal = '정상';
+      }
     }
     if (code === 'SAA') {
       if (v > 10) abnormal = '높음(라운드숄더)';
@@ -7862,21 +7887,38 @@ async function analyzeWithDB(metrics) {
         const metricValue = metrics[code] || metrics[code.toUpperCase()] || metrics[code.toLowerCase()];
         
         if (metricValue != null) {
-          // 임계값 문자열 파싱 (예: "> 15", "<= 10")
+          // 임계값 문자열 파싱 (예: "> 15", "<= 10", "< -5°")
           const cond = String(metricValue).trim();
-          const num = parseFloat(cond.replace(/[^\d.-]/g, ""));
+          // 음수 포함 숫자 추출 (예: "-5" 추출)
+          const numMatch = cond.match(/-?\d+\.?\d*/);
+          const num = numMatch ? parseFloat(numMatch[0]) : parseFloat(cond.replace(/[^\d.-]/g, ""));
           
           let match = false;
-          if (cond.includes(">") && !cond.includes("=")) {
-            match = v > num;
-          } else if (cond.includes(">=")) {
-            match = v >= num;
-          } else if (cond.includes("<") && !cond.includes("=")) {
-            match = v < num;
-          } else if (cond.includes("<=")) {
-            match = v <= num;
-          } else if (cond.includes("==")) {
-            match = Math.abs(v - num) < 0.1;
+          // PTA 특별 처리: 음수 값 매칭
+          if (code === 'PTA' && v < 0) {
+            // 음수 값인 경우: "< -5°" 같은 조건 처리
+            if (cond.includes("<") && num < 0) {
+              match = v <= num; // 예: v가 -10이고 num이 -5이면 -10 <= -5 (true)
+            } else if (cond.includes("<=") && num < 0) {
+              match = v <= num;
+            } else if (cond.includes(">") && num < 0) {
+              match = v > num; // 예: v가 -3이고 num이 -5이면 -3 > -5 (true)
+            } else if (cond.includes(">=") && num < 0) {
+              match = v >= num;
+            }
+          } else {
+            // 일반적인 양수 값 처리
+            if (cond.includes(">") && !cond.includes("=")) {
+              match = v > num;
+            } else if (cond.includes(">=")) {
+              match = v >= num;
+            } else if (cond.includes("<") && !cond.includes("=")) {
+              match = v < num;
+            } else if (cond.includes("<=")) {
+              match = v <= num;
+            } else if (cond.includes("==")) {
+              match = Math.abs(v - num) < 0.1;
+            }
           }
           
           // abnormal 타입과도 매칭 확인
@@ -7959,11 +8001,22 @@ async function analyzeWithDB(metrics) {
         ? [...(r.muscle_pattern.weak?.primary || []), ...(r.muscle_pattern.weak?.secondary || [])].join(', ')
         : (r['약화근육(주요)'] || '');
       
+      // PTA 음수일 때는 "Posterior Pelvic Tilt"로 명시적으로 설정
+      let postureKey = r.key || r.posture_key;
+      if (code === 'PTA' && v < 0 && !postureKey) {
+        postureKey = 'Posterior Pelvic Tilt';
+      } else if (code === 'PTA' && v < 0) {
+        // 이미 posture_key가 있지만, 확실하게 매칭되도록
+        postureKey = postureKey || 'Posterior Pelvic Tilt';
+      } else {
+        postureKey = postureKey || postureKeyMap[abnormal] || name;
+      }
+      
       const postureResult = {
         code: code,
         name: name,
         abnormal: abnormal,
-        posture_key: r.key || r.posture_key || postureKeyMap[abnormal] || name,
+        posture_key: postureKey,
         posture_ko: r.posture_ko || name,
         tight: tightStr,
         weak: weakStr,
