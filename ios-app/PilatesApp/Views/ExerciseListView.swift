@@ -219,3 +219,5 @@ struct ExerciseRow: View {
 
 
 
+
+

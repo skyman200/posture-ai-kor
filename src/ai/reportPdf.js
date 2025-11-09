@@ -311,11 +311,20 @@ export async function exportDetailedPDF({
     pdf.text('- 추천 세션이 없습니다.', 18, y);
   }
 
-  // 저장 (모바일 호환)
+  // 미리보기 표시 (옵션 2: 미리보기 + 다운로드)
   const fileName = `${memberName || 'member'}_${sessionName || 'session'}_AI_Posture_Report.pdf`;
-  await savePDFMobileCompatible(fileName, pdf);
   
-  console.log(`✅ 상세 PDF 리포트 생성 완료: ${fileName}`);
+  // 미리보기 유틸리티 동적 import
+  try {
+    const { previewPDF } = await import('../utils/previewUtils');
+    await previewPDF(pdf, fileName);
+    console.log(`✅ 상세 PDF 리포트 생성 완료 (미리보기): ${fileName}`);
+  } catch (importErr) {
+    console.warn('⚠️ 미리보기 모듈 로드 실패, 직접 저장으로 폴백:', importErr);
+    // 폴백: 기존 저장 방식
+    await savePDFMobileCompatible(fileName, pdf);
+    console.log(`✅ 상세 PDF 리포트 생성 완료 (직접 저장): ${fileName}`);
+  }
 }
 
 
