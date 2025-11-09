@@ -209,6 +209,12 @@ export const AIReportManager = (() => {
   const savePDFMobileCompatible = async (fileName, pdfInstance) => {
     try {
       const blob = pdfInstance.output('blob');
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF Blob 생성 실패');
+      }
+      
+      // iOS 감지
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       
       // 모바일에서 Web Share API 사용 (iOS Safari 등에서 작동)
       if (isMobileDevice() && navigator.share && navigator.canShare) {
@@ -235,7 +241,24 @@ export const AIReportManager = (() => {
         }
       }
       
-      // 데스크톱 또는 Web Share API 미지원 환경
+      // iOS에서 새 창으로 열기
+      if (isIOS) {
+        try {
+          const fileURL = URL.createObjectURL(blob);
+          const newWindow = window.open(fileURL, '_blank');
+          if (newWindow) {
+            setTimeout(() => {
+              URL.revokeObjectURL(fileURL);
+              alert('📄 PDF가 새 창에서 열렸습니다. 길게 눌러 저장하세요.');
+            }, 100);
+            return;
+          }
+        } catch (err) {
+          console.warn('⚠️ iOS 새 창 열기 실패:', err);
+        }
+      }
+      
+      // Android 또는 데스크톱: 다운로드 링크 사용
       const fileURL = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = fileURL;
@@ -243,17 +266,21 @@ export const AIReportManager = (() => {
       link.style.display = 'none';
       document.body.appendChild(link);
       
-      // 클릭 이벤트 트리거
-      if (link.click) {
+      // 강제 클릭
+      try {
         link.click();
-      } else {
-        const clickEvent = new MouseEvent('click', {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-          buttons: 1
-        });
-        link.dispatchEvent(clickEvent);
+      } catch (e1) {
+        try {
+          const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            buttons: 1
+          });
+          link.dispatchEvent(clickEvent);
+        } catch (e2) {
+          window.open(fileURL, '_blank');
+        }
       }
       
       // 정리
@@ -262,10 +289,12 @@ export const AIReportManager = (() => {
         if (document.body.contains(link)) {
           document.body.removeChild(link);
         }
-      }, 1000);
+      }, 2000);
       
       if (isMobileDevice()) {
-        alert('📄 PDF가 저장되었습니다. 파일 앱에서 확인하세요.');
+        setTimeout(() => {
+          alert('📄 PDF 저장을 시도했습니다. 다운로드 폴더나 파일 앱에서 확인하세요.');
+        }, 500);
       }
     } catch (err) {
       console.error('❌ PDF 저장 실패:', err);

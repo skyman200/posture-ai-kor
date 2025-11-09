@@ -272,19 +272,19 @@ canvas {
     </div>
   </div>
 
-  <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🤖 AI 체형 분석</div>
-    <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5;"></div>
+  <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; font-family: 'Noto Sans KR', sans-serif;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">🤖 AI 체형 분석</div>
+    <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5; font-family: 'Noto Sans KR', sans-serif; color:var(--ink);"></div>
     
     <!-- 개인별 체형 분석 설명 -->
-    <div id="postureTypeDesc" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.1); border-radius:8px; border-left:3px solid #2ec4b6;">
-      <div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#2ec4b6;">📌 체형 유형 분석</div>
-      <div id="postureTypeContent" style="font-size:11px; line-height:1.6; color:var(--muted);"></div>
+    <div id="postureTypeDesc" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.1); border-radius:8px; border-left:3px solid #2ec4b6; font-family: 'Noto Sans KR', sans-serif;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">📌 체형 유형 분석</div>
+      <div id="postureTypeContent" style="font-size:11px; line-height:1.6; color:var(--muted); font-family: 'Noto Sans KR', sans-serif;"></div>
     </div>
   </div>
 
   <!-- AI PRO 리포트 표시 영역 -->
-  <div id="report-box" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; white-space: pre-wrap; font-size:12px; line-height:1.5; max-height:400px; overflow-y:auto; color:var(--ink);"></div>
+  <div id="report-box" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; white-space: pre-wrap; font-size:12px; line-height:1.5; max-height:400px; overflow-y:auto; color:var(--ink); font-family: 'Noto Sans KR', sans-serif;"></div>
   
   <!-- 16개 항목 상세 설명 -->
   <div id="metricsDescPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
@@ -8175,25 +8175,50 @@ function buildAINarrative(analysis) {
  * PDF에 들어갈 "세션 카드" HTML 생성 (간단 카드)
  **********************/
 function renderSessionCardsHTML(list) {
-  if (!list || list.length === 0) return '<div style="padding:20px; text-align:center; color:#999;">추천 세션이 없습니다.</div>';
+  if (!list || list.length === 0) return '<div style="padding:20px; text-align:center; color:#999; font-family: \'Noto Sans KR\', sans-serif;">추천 세션이 없습니다.</div>';
   
   return list.map((r, i) => {
+    // pilatesExercises 객체가 있으면 상세 정보 표시
+    let pilatesHTML = '';
+    if (r.pilatesExercises && typeof r.pilatesExercises === 'object') {
+      const equipmentList = ['매트', '리포머', '캐딜락', '체어', '바렐'];
+      equipmentList.forEach(equipment => {
+        const exercises = r.pilatesExercises[equipment] || [];
+        if (exercises.length > 0) {
+          pilatesHTML += `<div style="margin-top:8px; padding:8px; background:#f8f9fa; border-radius:6px;">`;
+          pilatesHTML += `<strong style="color:#6366f1; font-size:11px;">${equipment}:</strong>`;
+          exercises.slice(0, 3).forEach(ex => {
+            const exName = ex.name || ex.ko || ex.exercise_ko || ex.exercise_en || '';
+            const purpose = ex.purpose ? ` (${ex.purpose})` : '';
+            const setsReps = ex.sets_reps ? ` - ${ex.sets_reps}` : '';
+            if (exName) {
+              pilatesHTML += `<div style="margin-top:4px; font-size:11px; color:#333; padding-left:8px;">• ${exName}${purpose}${setsReps}</div>`;
+            }
+          });
+          pilatesHTML += `</div>`;
+        }
+      });
+    } else {
+      // 기존 방식 (문자열)
+      if (r.mat) pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong>매트:</strong> ${r.mat}</div>`;
+      if (r.reformer) pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong>리포머:</strong> ${r.reformer}</div>`;
+      if (r.cadillac) pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong>캐딜락:</strong> ${r.cadillac}</div>`;
+      if (r.chair) pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong>체어:</strong> ${r.chair}</div>`;
+      if (r.barrel) pilatesHTML += `<div style="margin-top:4px; font-size:11px;"><strong>바렐:</strong> ${r.barrel}</div>`;
+    }
+    
     return `
-      <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff;">
-        <div style="font-weight:700; margin-bottom:6px; font-size:13px;">
+      <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; background:#fff; font-family: 'Noto Sans KR', sans-serif;">
+        <div style="font-weight:700; margin-bottom:8px; font-size:13px; color:#0b0f14; font-family: 'Noto Sans KR', sans-serif;">
           ${i+1}. ${r.name} — <span style="color:#ef4444">${r.abnormal}</span> 
-          ${r.level ? `<span style="color:#64748b">(${r.level})</span>` : ''}
+          ${r.level ? `<span style="color:#64748b; font-size:11px;">(${r.level})</span>` : ''}
         </div>
-        <div style="font-size:12px; line-height:1.5; color:#333;">
-          <b>긴장</b>: ${r.tight || '—'}<br>
-          <b>약화</b>: ${r.weak || '—'}<br>
-          <b>도수/자가</b>: ${r.manual || '—'}<br>
-          <b>Mat</b>: ${r.mat || '—'}<br>
-          <b>Reformer</b>: ${r.reformer || '—'}<br>
-          <b>Cadillac</b>: ${r.cadillac || '—'}<br>
-          <b>Chair</b>: ${r.chair || '—'}<br>
-          <b>Barrel</b>: ${r.barrel || '—'}<br>
-          ${r.note ? `<i style="color:#6b7280; font-size:11px;">${r.note}</i>` : ''}
+        <div style="font-size:12px; line-height:1.6; color:#333; font-family: 'Noto Sans KR', sans-serif;">
+          ${r.tight ? `<div style="margin-bottom:6px;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> ${r.tight}</div>` : ''}
+          ${r.weak ? `<div style="margin-bottom:6px;"><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> ${r.weak}</div>` : ''}
+          ${r.manual ? `<div style="margin-bottom:6px;"><strong>도수/자가:</strong> ${r.manual}</div>` : ''}
+          ${pilatesHTML ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><strong style="color:#6366f1;">🧘 필라테스 추천:</strong>${pilatesHTML}</div>` : ''}
+          ${r.note ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb;"><i style="color:#6b7280; font-size:11px;">${r.note}</i></div>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -8387,6 +8412,13 @@ function isMobileDevice() {
 async function savePDFMobileCompatible(fileName, pdfInstance) {
   try {
     const blob = pdfInstance.output('blob');
+    if (!blob || blob.size === 0) {
+      throw new Error('PDF Blob 생성 실패');
+    }
+    
+    // iOS 감지
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
     
     // 모바일에서 Web Share API 사용 (iOS Safari 등에서 작동)
     if (isMobileDevice() && navigator.share && navigator.canShare) {
@@ -8413,7 +8445,24 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
       }
     }
     
-    // 데스크톱 또는 Web Share API 미지원 환경
+    // iOS에서 새 창으로 열기 (다운로드 대신)
+    if (isIOS) {
+      try {
+        const fileURL = URL.createObjectURL(blob);
+        const newWindow = window.open(fileURL, '_blank');
+        if (newWindow) {
+          setTimeout(() => {
+            URL.revokeObjectURL(fileURL);
+            alert('📄 PDF가 새 창에서 열렸습니다. 길게 눌러 저장하세요.');
+          }, 100);
+          return;
+        }
+      } catch (err) {
+        console.warn('⚠️ iOS 새 창 열기 실패:', err);
+      }
+    }
+    
+    // Android 또는 데스크톱: 다운로드 링크 사용
     const fileURL = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = fileURL;
@@ -8421,17 +8470,22 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
     link.style.display = 'none';
     document.body.appendChild(link);
     
-    // 클릭 이벤트 트리거
-    if (link.click) {
+    // 강제 클릭 (여러 방법 시도)
+    try {
       link.click();
-    } else {
-      const clickEvent = new MouseEvent('click', {
-        view: window,
-        bubbles: true,
-        cancelable: true,
-        buttons: 1
-      });
-      link.dispatchEvent(clickEvent);
+    } catch (e1) {
+      try {
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          buttons: 1
+        });
+        link.dispatchEvent(clickEvent);
+      } catch (e2) {
+        // 최종 폴백: 새 창으로 열기
+        window.open(fileURL, '_blank');
+      }
     }
     
     // 정리
@@ -8440,10 +8494,12 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
       if (document.body.contains(link)) {
         document.body.removeChild(link);
       }
-    }, 1000);
+    }, 2000);
     
     if (isMobileDevice()) {
-      alert('📄 PDF가 저장되었습니다. 파일 앱에서 확인하세요.');
+      setTimeout(() => {
+        alert('📄 PDF 저장을 시도했습니다. 다운로드 폴더나 파일 앱에서 확인하세요.');
+      }, 500);
     }
   } catch (err) {
     console.error('❌ PDF 저장 실패:', err);
@@ -8464,8 +8520,12 @@ async function saveImageMobile(canvas, fileName = 'report_image.png') {
         } else {
           reject(new Error('이미지 변환 실패'));
         }
-      }, 'image/png');
+      }, 'image/png', 1.0);
     });
+    
+    // iOS 감지
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
     
     // 모바일에서 Web Share API 사용
     if (isMobileDevice() && navigator.share && navigator.canShare) {
@@ -8489,7 +8549,24 @@ async function saveImageMobile(canvas, fileName = 'report_image.png') {
       }
     }
     
-    // 데스크톱 또는 Web Share API 미지원 환경
+    // iOS에서 새 창으로 열기
+    if (isIOS) {
+      try {
+        const fileURL = URL.createObjectURL(blob);
+        const newWindow = window.open(fileURL, '_blank');
+        if (newWindow) {
+          setTimeout(() => {
+            URL.revokeObjectURL(fileURL);
+            alert('🖼️ 이미지가 새 창에서 열렸습니다. 길게 눌러 저장하세요.');
+          }, 100);
+          return;
+        }
+      } catch (err) {
+        console.warn('⚠️ iOS 새 창 열기 실패:', err);
+      }
+    }
+    
+    // Android 또는 데스크톱: 다운로드 링크 사용
     const fileURL = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = fileURL;
@@ -8497,16 +8574,21 @@ async function saveImageMobile(canvas, fileName = 'report_image.png') {
     link.style.display = 'none';
     document.body.appendChild(link);
     
-    if (link.click) {
+    // 강제 클릭
+    try {
       link.click();
-    } else {
-      const clickEvent = new MouseEvent('click', {
-        view: window,
-        bubbles: true,
-        cancelable: true,
-        buttons: 1
-      });
-      link.dispatchEvent(clickEvent);
+    } catch (e1) {
+      try {
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          buttons: 1
+        });
+        link.dispatchEvent(clickEvent);
+      } catch (e2) {
+        window.open(fileURL, '_blank');
+      }
     }
     
     setTimeout(() => {
@@ -8514,10 +8596,12 @@ async function saveImageMobile(canvas, fileName = 'report_image.png') {
       if (document.body.contains(link)) {
         document.body.removeChild(link);
       }
-    }, 1000);
+    }, 2000);
     
     if (isMobileDevice()) {
-      alert('🖼️ 이미지가 저장되었습니다. 파일 앱에서 확인하세요.');
+      setTimeout(() => {
+        alert('🖼️ 이미지 저장을 시도했습니다. 다운로드 폴더나 파일 앱에서 확인하세요.');
+      }, 500);
     }
   } catch (err) {
     console.error('❌ 이미지 저장 오류:', err);
@@ -9717,6 +9801,9 @@ function exportAsPdf(options = {}) {
         throw new Error('PDF Blob 생성 실패');
       }
       
+      // iOS 감지
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
       // 모바일에서 Web Share API 사용
       if (isMobileDevice() && navigator.share && navigator.canShare) {
         try {
@@ -9741,6 +9828,23 @@ function exportAsPdf(options = {}) {
         }
       }
       
+      // iOS에서 새 창으로 열기
+      if (!pdfSaved && isIOS) {
+        try {
+          const fileURL = URL.createObjectURL(pdfBlob);
+          const newWindow = window.open(fileURL, '_blank');
+          if (newWindow) {
+            setTimeout(() => {
+              URL.revokeObjectURL(fileURL);
+              alert('📄 PDF가 새 창에서 열렸습니다. 길게 눌러 저장하세요.');
+            }, 100);
+            pdfSaved = true;
+          }
+        } catch (err) {
+          console.warn('⚠️ iOS 새 창 열기 실패:', err);
+        }
+      }
+      
       // 데스크톱 또는 Web Share API 미사용 시 기존 방식
       if (!pdfSaved) {
         // 방법 1: 직접 save 메서드 시도
@@ -9759,16 +9863,20 @@ function exportAsPdf(options = {}) {
           link.style.display = 'none';
           document.body.appendChild(link);
           
-          if (link.click) {
+          try {
             link.click();
-          } else {
-            const clickEvent = new MouseEvent('click', {
-              view: window,
-              bubbles: true,
-              cancelable: true,
-              buttons: 1
-            });
-            link.dispatchEvent(clickEvent);
+          } catch (e1) {
+            try {
+              const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                buttons: 1
+              });
+              link.dispatchEvent(clickEvent);
+            } catch (e2) {
+              window.open(url, '_blank');
+            }
           }
           
           setTimeout(() => {
@@ -9776,7 +9884,7 @@ function exportAsPdf(options = {}) {
             if (document.body.contains(link)) {
               document.body.removeChild(link);
             }
-          }, 1000);
+          }, 2000);
           console.log('✅ PDF 저장 성공 (Blob 방식)');
           pdfSaved = true;
         }
@@ -10265,6 +10373,9 @@ function setupImageButton() {
           throw new Error('이미지 변환 실패');
         }
         
+        // iOS 감지
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
         // 모바일에서 Web Share API 사용
         if (isMobileDevice() && navigator.share && navigator.canShare) {
           try {
@@ -10292,7 +10403,26 @@ function setupImageButton() {
           }
         }
         
-        // 데스크톱 또는 Web Share API 미사용 시 기존 방식
+        // iOS에서 새 창으로 열기
+        if (isIOS) {
+          try {
+            const fileURL = URL.createObjectURL(blob);
+            const newWindow = window.open(fileURL, '_blank');
+            if (newWindow) {
+              setTimeout(() => {
+                URL.revokeObjectURL(fileURL);
+                alert('🖼️ 이미지가 새 창에서 열렸습니다. 길게 눌러 저장하세요.');
+                btn.textContent = originalText;
+                btn.disabled = false;
+              }, 100);
+              return;
+            }
+          } catch (err) {
+            console.warn('⚠️ iOS 새 창 열기 실패:', err);
+          }
+        }
+        
+        // Android 또는 데스크톱: 다운로드 링크 사용
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -10302,13 +10432,21 @@ function setupImageButton() {
         link.style.left = '-9999px';
         document.body.appendChild(link);
         
-        const clickEvent = new MouseEvent('click', {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-          buttons: 1
-        });
-        link.dispatchEvent(clickEvent);
+        try {
+          link.click();
+        } catch (e1) {
+          try {
+            const clickEvent = new MouseEvent('click', {
+              view: window,
+              bubbles: true,
+              cancelable: true,
+              buttons: 1
+            });
+            link.dispatchEvent(clickEvent);
+          } catch (e2) {
+            window.open(url, '_blank');
+          }
+        }
         
         setTimeout(() => {
           URL.revokeObjectURL(url);
@@ -10319,9 +10457,11 @@ function setupImageButton() {
           btn.disabled = false;
           
           if (isMobileDevice()) {
-            alert("이미지가 저장되었습니다!");
+            setTimeout(() => {
+              alert("이미지 저장을 시도했습니다. 다운로드 폴더나 파일 앱에서 확인하세요.");
+            }, 500);
           }
-        }, 500);
+        }, 2000);
       }, 'image/png');
     } catch (err) {
       console.error('이미지 저장 실패:', err);
