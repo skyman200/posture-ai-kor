@@ -208,57 +208,47 @@ export const AIReportManager = (() => {
    */
   const savePDFMobileCompatible = async (fileName, pdfInstance) => {
     try {
-      const blob = pdfInstance.output('blob');
-      if (!blob || blob.size === 0) {
-        throw new Error('PDF Blob 생성 실패');
-      }
-      
-      // iOS 감지
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      
-      // 모바일에서 Web Share API 사용 (iOS Safari 등에서 작동)
-      if (isMobileDevice() && navigator.share && navigator.canShare) {
+      // 모바일에서는 간단한 방식 우선 사용
+      if (isMobileDevice()) {
         try {
-          const file = new File([blob], fileName, { type: 'application/pdf' });
-          
-          // Web Share API로 파일 공유 시도
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: fileName.replace('.pdf', ''),
-              files: [file]
-            });
-            console.log('✅ PDF 공유 성공 (Web Share API)');
-            return;
-          }
-        } catch (shareErr) {
-          // 사용자가 취소한 경우가 아니면 폴백으로 진행
-          if (shareErr.name !== 'AbortError') {
-            console.warn('⚠️ Web Share API 실패, 폴백 사용:', shareErr);
-          } else {
-            // 사용자가 취소한 경우
-            return;
-          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+          pdfInstance.save(fileName);
+          console.log('✅ PDF 저장 성공 (직접 save)');
+          return;
+        } catch (saveErr) {
+          console.warn('⚠️ 직접 save 실패:', saveErr);
         }
       }
       
-      // iOS에서 새 창으로 열기
-      if (isIOS) {
+      // Blob 생성
+      let blob;
+      try {
+        blob = pdfInstance.output('blob');
+        if (!blob || blob.size === 0) {
+          throw new Error('PDF Blob 생성 실패');
+        }
+      } catch (blobErr) {
+        // 최종 폴백: data URI
         try {
-          const fileURL = URL.createObjectURL(blob);
-          const newWindow = window.open(fileURL, '_blank');
-          if (newWindow) {
-            setTimeout(() => {
-              URL.revokeObjectURL(fileURL);
-              alert('📄 PDF가 새 창에서 열렸습니다. 길게 눌러 저장하세요.');
-            }, 100);
-            return;
-          }
-        } catch (err) {
-          console.warn('⚠️ iOS 새 창 열기 실패:', err);
+          const dataUri = pdfInstance.output('datauristring');
+          const link = document.createElement('a');
+          link.href = dataUri;
+          link.download = fileName;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+          }, 1000);
+          return;
+        } catch (finalErr) {
+          throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
         }
       }
       
-      // Android 또는 데스크톱: 다운로드 링크 사용
+      // 다운로드 링크 사용
       const fileURL = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = fileURL;
@@ -266,39 +256,33 @@ export const AIReportManager = (() => {
       link.style.display = 'none';
       document.body.appendChild(link);
       
-      // 강제 클릭
-      try {
-        link.click();
-      } catch (e1) {
+      requestAnimationFrame(() => {
         try {
+          link.click();
+        } catch (e) {
           const clickEvent = new MouseEvent('click', {
-            view: window,
             bubbles: true,
             cancelable: true,
-            buttons: 1
+            view: window
           });
           link.dispatchEvent(clickEvent);
-        } catch (e2) {
-          window.open(fileURL, '_blank');
         }
-      }
+      });
       
-      // 정리
       setTimeout(() => {
-        URL.revokeObjectURL(fileURL);
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
+        try {
+          URL.revokeObjectURL(fileURL);
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+        } catch (e) {
+          console.warn('정리 중 오류:', e);
         }
-      }, 2000);
+      }, 3000);
       
-      if (isMobileDevice()) {
-        setTimeout(() => {
-          alert('📄 PDF 저장을 시도했습니다. 다운로드 폴더나 파일 앱에서 확인하세요.');
-        }, 500);
-      }
     } catch (err) {
       console.error('❌ PDF 저장 실패:', err);
-      alert('⚠️ PDF 저장 중 오류가 발생했습니다: ' + err.message);
+      alert('⚠️ PDF 저장 중 오류가 발생했습니다.\n페이지를 새로고침하고 다시 시도해주세요.');
     }
   };
 
