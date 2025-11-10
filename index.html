@@ -9981,7 +9981,7 @@ function exportAsPdf(options = {}) {
     
     // 결론 생성 (회원 이름 포함, 임상 중심)
     let conclusionText = '';
-    const memberNameForPDF = memberName || '회원';
+    const memberNameForPDF1 = memberName || '회원';
     
     // 패턴 요약
     const patterns = [];
@@ -9993,7 +9993,7 @@ function exportAsPdf(options = {}) {
       });
     }
     
-    conclusionText += `${memberNameForPDF}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+    conclusionText += `${memberNameForPDF1}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
@@ -11307,15 +11307,14 @@ let detectors = { front: null, side: null };
 
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 // DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
-if(document.readyState === 'loading') {
-  document.addEventListener("DOMContentLoaded", initializeApp);
-} else {
-  // 이미 로드 완료된 경우 즉시 실행
-  initializeApp();
-}
-
 function initializeApp() {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
+  
+  // sessions가 정의되어 있는지 확인
+  if(typeof sessions === 'undefined') {
+    console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.");
+    return;
+  }
   
   // 파일 업로드 설정 (가장 먼저)
   if(typeof setupFileUploads === 'function') {
@@ -11778,13 +11777,38 @@ async function applyPoseDetection(img, sessionName) {
  * 전역 함수 노출 (AIReportManager 모듈에서 사용)
  **********************/
 if (typeof window !== 'undefined') {
-  window.analyzePostureAI = analyzePostureAI;
-  window.generatePosturePDF = generatePosturePDF;
-  window.drawComparisonChart = drawComparisonChart;
-  window.savePDFMobileCompatible = savePDFMobileCompatible;
-  window.saveImageMobile = saveImageMobile;
-  window.waitForChartRender = waitForChartRender;
-  window.loadPostureDB = loadPostureDB; // DB 로더도 노출
+  // analyzePostureAI가 정의되어 있는지 확인 후 노출
+  if(typeof analyzePostureAI === 'function') {
+    window.analyzePostureAI = analyzePostureAI;
+  } else {
+    console.warn("analyzePostureAI 함수가 정의되지 않았습니다.");
+  }
+  if(typeof generatePosturePDF === 'function') {
+    window.generatePosturePDF = generatePosturePDF;
+  }
+  if(typeof drawComparisonChart === 'function') {
+    window.drawComparisonChart = drawComparisonChart;
+  }
+  if(typeof savePDFMobileCompatible === 'function') {
+    window.savePDFMobileCompatible = savePDFMobileCompatible;
+  }
+  if(typeof saveImageMobile === 'function') {
+    window.saveImageMobile = saveImageMobile;
+  }
+  if(typeof waitForChartRender === 'function') {
+    window.waitForChartRender = waitForChartRender;
+  }
+  if(typeof loadPostureDB === 'function') {
+    window.loadPostureDB = loadPostureDB; // DB 로더도 노출
+  }
+  
+  // 모든 함수가 정의된 후 initializeApp 호출
+  if(document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initializeApp);
+  } else {
+    // 이미 로드 완료된 경우 약간의 지연 후 실행 (함수들이 모두 정의되도록)
+    setTimeout(initializeApp, 0);
+  }
 }
 
 /**********************
