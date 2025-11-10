@@ -7,7 +7,10 @@
 
 import { generateReportHtml, ReportData } from "./makeReportHtml";
 import { renderElementToPdf } from "./generatePdfReport";
-import { analyzePostureWithDB } from "./analyzePosture";
+import {
+  analyzePostureWithDB,
+  AnalysisWithDBResult,
+} from "./analyzePosture";
 
 /**
  * 예제 1: 분석 → HTML 생성 → PDF 저장 (전체 플로우)
@@ -31,17 +34,12 @@ export async function example1_FullFlow() {
   const analysis = await analyzePostureWithDB(measured);
 
   // 3. 리포트 데이터 준비
-  const reportData: ReportData = {
-    memberName: "홍길동",
-    centerName: "필라테스 센터",
-    postureResults: measured,
-    activePatterns: analysis.activePatterns || [],
-    muscleStatus: {
-      tight: analysis.tightAll || [],
-      weak: analysis.weakAll || [],
-    },
-    exercises: analysis.pilatesAll || [],
-  };
+  const reportData = buildReportData(
+    analysis,
+    measured,
+    "홍길동",
+    "필라테스 센터"
+  );
 
   // 4. HTML 생성
   const html = generateReportHtml(reportData);
@@ -71,22 +69,20 @@ export async function example1_FullFlow() {
  * 예제 2: 기존 분석 결과를 사용하여 PDF 생성
  */
 export async function example2_FromExistingAnalysis(
-  analysisResult: any,
+  analysisResult: AnalysisWithDBResult,
   memberName: string,
   centerName: string
 ) {
   // 리포트 데이터 구성
-  const reportData: ReportData = {
+  const reportData = buildReportData(
+    analysisResult,
+    analysisResult.metrics.reduce<Record<string, number>>((acc, cur) => {
+      if (typeof cur.value === "number") acc[cur.key] = cur.value;
+      return acc;
+    }, {}),
     memberName,
-    centerName,
-    postureResults: analysisResult.measured || {},
-    activePatterns: analysisResult.activePatterns || [],
-    muscleStatus: {
-      tight: analysisResult.tightAll || [],
-      weak: analysisResult.weakAll || [],
-    },
-    exercises: analysisResult.pilatesAll || [],
-  };
+    centerName
+  );
 
   // HTML 생성
   const html = generateReportHtml(reportData);
@@ -124,17 +120,12 @@ export function example3_ReactComponent() {
     const analysis = await analyzePostureWithDB(measured);
 
     // 리포트 데이터 준비
-    const reportData: ReportData = {
-      memberName: "홍길동",
-      centerName: "필라테스 센터",
-      postureResults: measured,
-      activePatterns: analysis.activePatterns || [],
-      muscleStatus: {
-        tight: analysis.tightAll || [],
-        weak: analysis.weakAll || [],
-      },
-      exercises: analysis.pilatesAll || [],
-    };
+    const reportData = buildReportData(
+      analysis,
+      measured,
+      "홍길동",
+      "필라테스 센터"
+    );
 
     // HTML 생성
     const html = generateReportHtml(reportData);
@@ -159,6 +150,60 @@ export function example3_ReactComponent() {
   return (
     <button onClick={handleGeneratePDF}>PDF 리포트 생성</button>
   );
+}
+
+function buildReportData(
+  analysis: AnalysisWithDBResult,
+  measured: Record<string, number>,
+  memberName: string,
+  centerName: string
+): ReportData {
+  const activePatterns = analysis.metrics
+    .filter((m) => m.deviationKey)
+    .map((metric) => ({
+      posture_ko: `${metric.key} (${metric.status})`,
+      posture_en: metric.deviationKey,
+      summary: metric.strategy,
+      muscle_pattern: {
+        tight: { primary: metric.tightMuscles },
+        weak: { primary: metric.weakMuscles },
+      },
+    }));
+
+  const tightSet = new Set<string>();
+  const weakSet = new Set<string>();
+  analysis.metrics.forEach((metric) => {
+    metric.tightMuscles.forEach((m) => tightSet.add(m));
+    metric.weakMuscles.forEach((m) => weakSet.add(m));
+  });
+
+  const exercises = [
+    ...analysis.stretchRecommendations,
+    ...analysis.strengthenRecommendations,
+  ].map((exercise) => ({
+    exercise_ko: exercise.nameKo,
+    equipment_ko: exercise.source,
+    equipment_en: exercise.nameEn,
+    purpose: exercise.matchedMuscles.length
+      ? `주요 포커스: ${exercise.matchedMuscles.join(", ")}`
+      : "",
+    how_to_do: exercise.howTo,
+    sets_reps: exercise.reps || "",
+    precaution: exercise.breathing,
+    contra: exercise.references,
+  }));
+
+  return {
+    memberName,
+    centerName,
+    postureResults: measured,
+    activePatterns,
+    muscleStatus: {
+      tight: Array.from(tightSet),
+      weak: Array.from(weakSet),
+    },
+    exercises,
+  };
 }
 
 /**
@@ -209,17 +254,12 @@ export async function example5_WithCharts() {
   // 3. 리포트 HTML 추가
   const measured = { CVA: 65.7, PTA: 18.0 };
   const analysis = await analyzePostureWithDB(measured);
-  const reportData: ReportData = {
-    memberName: "홍길동",
-    centerName: "필라테스 센터",
-    postureResults: measured,
-    activePatterns: analysis.activePatterns || [],
-    muscleStatus: {
-      tight: analysis.tightAll || [],
-      weak: analysis.weakAll || [],
-    },
-    exercises: analysis.pilatesAll || [],
-  };
+  const reportData = buildReportData(
+    analysis,
+    measured,
+    "홍길동",
+    "필라테스 센터"
+  );
   const html = generateReportHtml(reportData);
   const reportDiv = document.createElement("div");
   reportDiv.innerHTML = html;
@@ -237,4 +277,3 @@ export async function example5_WithCharts() {
     document.body.removeChild(container);
   }
 }
-

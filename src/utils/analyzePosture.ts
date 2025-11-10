@@ -2,7 +2,11 @@
 // ─────────────────────────────────────────────────────────────
 // 완전 동작 버전: DB 로드 + 좌표 검증 + PTA 계산(교수님 기준) + 패턴 매칭 + 추천 + PDF 텍스트
 
-import { loadPostureDB } from "./loadDB";
+import {
+  loadPrescriptionDataset,
+  ExerciseEntry,
+  PostureMetricEntry,
+} from "./prescriptionData";
 
 // ─────────────────────────────────────────────────────────────
 // 0) 타입 (any로 둬도 되지만 최소한의 안전망)
@@ -73,6 +77,40 @@ type PilatesExercise = {
   sets_reps: string;
   cues: string[] | string;
   contra: string;
+};
+
+export type MetricSummary = {
+  key: string;
+  value: number | null | undefined;
+  status: string;
+  deviationKey?: string;
+  tightMuscles: string[];
+  weakMuscles: string[];
+  strategy?: string;
+};
+
+export type ExerciseRecommendation = ExerciseEntry & {
+  matchedMuscles: string[];
+};
+
+type LegacyPatternSummary = {
+  posture_ko: string;
+  posture_en?: string;
+  summary?: string;
+  muscle_pattern?: {
+    tight?: { primary?: string[] };
+    weak?: { primary?: string[] };
+  };
+};
+
+export type AnalysisWithDBResult = {
+  metrics: MetricSummary[];
+  stretchRecommendations: ExerciseRecommendation[];
+  strengthenRecommendations: ExerciseRecommendation[];
+  activePatterns?: LegacyPatternSummary[];
+  tightAll?: string[];
+  weakAll?: string[];
+  pilatesAll?: ExerciseRecommendation[];
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -1052,84 +1090,220 @@ export function getReportHistory(
 // DB 기반 분석 함수 (새 버전)
 // ─────────────────────────────────────────────────────────────
 
-export async function analyzePostureWithDB(measured: Metrics) {
-  const { muscle, pilates } = await loadPostureDB();
+export async function analyzePostureWithDB(
+  measured: Metrics
+): Promise<AnalysisWithDBResult> {
+  const { postureMetrics, exercises } = await loadPrescriptionDataset();
 
-  const normalRange: Record<string, [number, number] | null> = {
-    CVA: [50, 999],
-    HPD: [0, 2],
-    TIA: [0, 10],
-    SAA: [0, 10],
-    PTA: [0, 15],
-    KA: [175, 185],
-    Tibial: [0, 10],
-    QAngle: [10, 20],
-    KneeDev: [0, 3],
-    LLD: [0, 1],
-    GSB: [0, 2],
-    HPA: [0, 10],
-    PDS: [0, 10],
-    STA: [0, 3],
-    POA: [0, 3],
-    TD: [0, 3],
-    HTA: [0, 3],
-    SPP: [0, 3],
-    KAS: [0, 3],
-    LLAS: [0, 3],
-  };
-
-  const results = Object.entries(measured).map(([key, val]) => {
-    if (val == null) return { key, value: val, status: "—", muscles: [], exercises: [] };
-
-    const range = normalRange[key];
-    const [min, max] = range || [null, null];
-
-    let status = "정상";
-    if (min !== null && val < min) status = "↓ 낮음";
-    else if (max !== null && val > max) status = "↑ 높음";
-
-    // DB에서 관련 근육 찾기 (Measure 필드로 매칭)
-    const relatedMuscles = muscle.filter((m: any) => {
-      const measureField = m.Measure || m.지표코드 || m.metric || m.key;
-      return measureField && measureField.toUpperCase() === key.toUpperCase();
-    });
-
-    // 관련 운동 찾기 (근육명으로 매칭)
-    const relatedExercises = pilates.filter((ex: any) => {
-      const targetMuscle = ex.TargetMuscle || ex.target_muscle || ex.muscle;
-      if (!targetMuscle) return false;
-      
-      const muscleNames = relatedMuscles.map((m: any) => 
-        m.MuscleName || m.muscle_name || m.근육명 || m.name
-      ).filter(Boolean);
-      
-      if (typeof targetMuscle === 'string') {
-        return muscleNames.some((name: string) => 
-          targetMuscle.includes(name) || name.includes(targetMuscle)
-        );
-      }
-      if (Array.isArray(targetMuscle)) {
-        return targetMuscle.some((tm: string) =>
-          muscleNames.some((name: string) => 
-            tm.includes(name) || name.includes(tm)
-          )
-        );
-      }
-      return false;
-    });
+  const metricSummaries: MetricSummary[] = metricOrder.map((key) => {
+    const value = measured[key as keyof Metrics] ?? null;
+    const normalizedValue =
+      typeof value === "number" && !Number.isNaN(value) ? value : null;
+    const { status, deviationKey } = evaluateMetricDeviation(key, normalizedValue);
+    const postureEntry = deviationKey ? postureMetrics[deviationKey] : undefined;
 
     return {
       key,
-      value: val,
+      value: normalizedValue,
       status,
-      muscles: relatedMuscles.map((m: any) => 
-        m.MuscleName || m.muscle_name || m.근육명 || m.name || ""
-      ).filter(Boolean).slice(0, 5),
-      exercises: relatedExercises.map((e: any) => 
-        e.ExerciseName || e.exercise_name || e.운동명 || e.name_ko || e.name || ""
-      ).filter(Boolean).slice(0, 5),
+      deviationKey,
+      tightMuscles: postureEntry?.tightMuscles ?? [],
+      weakMuscles: postureEntry?.weakMuscles ?? [],
+      strategy: postureEntry?.strategy ?? "",
     };
   });
 
-  return results;
+  const activePatterns: PostureMetricEntry[] = metricSummaries
+    .map((m) => (m.deviationKey ? postureMetrics[m.deviationKey] : undefined))
+    .filter((entry): entry is PostureMetricEntry => Boolean(entry));
+
+  const tightAll = Array.from(
+    new Set(activePatterns.flatMap((pattern) => pattern.tightMuscles))
+  );
+  const weakAll = Array.from(
+    new Set(activePatterns.flatMap((pattern) => pattern.weakMuscles))
+  );
+
+  const { stretch, strengthen } = buildExerciseRecommendations(
+    activePatterns,
+    exercises
+  );
+
+  const legacyPatterns: LegacyPatternSummary[] = metricSummaries
+    .filter((m) => m.deviationKey)
+    .map((metric) => ({
+      posture_ko: `${metric.key} (${metric.status})`,
+      posture_en: metric.deviationKey,
+      summary: metric.strategy,
+      muscle_pattern: {
+        tight: { primary: metric.tightMuscles },
+        weak: { primary: metric.weakMuscles },
+      },
+    }));
+
+  return {
+    metrics: metricSummaries,
+    stretchRecommendations: stretch,
+    strengthenRecommendations: strengthen,
+    activePatterns: legacyPatterns,
+    tightAll,
+    weakAll,
+    pilatesAll: [...stretch, ...strengthen],
+  };
+}
+
+type MetricRule = {
+  min?: number;
+  max?: number;
+  lowCode?: string;
+  highCode?: string;
+  positiveCode?: string;
+  negativeCode?: string;
+  absThreshold?: number;
+  labelLow?: string;
+  labelHigh?: string;
+  labelPositive?: string;
+  labelNegative?: string;
+};
+
+const metricOrder: (keyof Metrics)[] = [
+  "CVA",
+  "HPD",
+  "TIA",
+  "SAA",
+  "PTA",
+  "KA",
+  "Tibial",
+  "QAngle",
+  "KneeDev",
+  "LLD",
+  "GSB",
+  "HPA",
+  "PDS",
+  "STA",
+  "POA",
+  "TD",
+  "HTA",
+  "SPP",
+  "KAS",
+  "LLAS",
+  "FBA",
+];
+
+const metricRules: Record<string, MetricRule> = {
+  CVA: { min: 50, max: 80, lowCode: "CVA_LOW", highCode: "CVA_HIGH" },
+  HPD: { min: -2, max: 2, lowCode: "HPD_LOW", highCode: "HPD_HIGH" },
+  TIA: { min: -5, max: 10, lowCode: "TIA_LOW", highCode: "TIA_HIGH" },
+  SAA: { min: -5, max: 10, lowCode: "SAA_LOW", highCode: "SAA_HIGH" },
+  PTA: { positiveCode: "PTA_ANT", negativeCode: "PTA_POST", absThreshold: 1, labelPositive: "전방경사", labelNegative: "후방경사" },
+  KA: { min: 175, max: 185, lowCode: "KA_VARUS", highCode: "KA_VALGUS" },
+  Tibial: { min: -5, max: 10, lowCode: "TIB_INTERNAL", highCode: "TIB_EXTERNAL" },
+  QAngle: { min: 10, max: 20, lowCode: "QANGLE_SMALL", highCode: "QANGLE_LARGE" },
+  KneeDev: { min: -1, max: 3, lowCode: "KNEEDEV_MEDIAL", highCode: "KNEEDEV_LATERAL" },
+  LLD: { absThreshold: 1, highCode: "LLD_IMBALANCE", labelHigh: "불균형" },
+  GSB: { positiveCode: "GSB_FORWARD", negativeCode: "GSB_BACKWARD", absThreshold: 0.5, labelPositive: "전방 편위", labelNegative: "후방 편위" },
+  HPA: { positiveCode: "HPA_LEFT", negativeCode: "HPA_RIGHT", absThreshold: 5, labelPositive: "좌회전", labelNegative: "우회전" },
+  PDS: { positiveCode: "PDS_HIGH", negativeCode: "PDS_LOW", absThreshold: 3, labelPositive: "골반 하강", labelNegative: "골반 거상" },
+  STA: { positiveCode: "STA_HIGH", negativeCode: "STA_LOW", absThreshold: 2, labelPositive: "전방 경사", labelNegative: "후방 경사" },
+  POA: { positiveCode: "POA_RIGHT", negativeCode: "POA_LEFT", absThreshold: 2, labelPositive: "우하강", labelNegative: "좌하강" },
+  TD: { positiveCode: "TD_KYPHOSIS", negativeCode: "TD_LORDOSIS", absThreshold: 5, labelPositive: "후만 증가", labelNegative: "편평 흉추" },
+  HTA: { positiveCode: "HTA_RIGHT", negativeCode: "HTA_LEFT", absThreshold: 1, labelPositive: "우측 기울기", labelNegative: "좌측 기울기" },
+  SPP: { positiveCode: "SPP_FORWARD", negativeCode: "SPP_BACKWARD", absThreshold: 1, labelPositive: "전방 편위", labelNegative: "후방 편위" },
+  KAS: { positiveCode: "KAS_EXTERNAL", negativeCode: "KAS_INTERNAL", absThreshold: 2, labelPositive: "외회전", labelNegative: "내회전" },
+  LLAS: { positiveCode: "LLAS_RIGHT", negativeCode: "LLAS_LEFT", absThreshold: 2, labelPositive: "우측 이동", labelNegative: "좌측 이동" },
+  FBA: { positiveCode: "FBA_PRONATION", negativeCode: "FBA_SUPINATION", absThreshold: 2, labelPositive: "회내", labelNegative: "회외" },
+};
+
+function evaluateMetricDeviation(
+  key: string,
+  value: number | null
+): { status: string; deviationKey?: string } {
+  if (value == null) return { status: "—" };
+  const rule = metricRules[key];
+  if (!rule) return { status: "정상" };
+
+  if (rule.positiveCode || rule.negativeCode) {
+    const threshold = rule.absThreshold ?? 0;
+    if (value > threshold && rule.positiveCode) {
+      return {
+        status: rule.labelPositive || "→ 편위(+)",
+        deviationKey: rule.positiveCode,
+      };
+    }
+    if (value < -threshold && rule.negativeCode) {
+      return {
+        status: rule.labelNegative || "→ 편위(-)",
+        deviationKey: rule.negativeCode,
+      };
+    }
+  }
+
+  if (rule.min !== undefined && value < rule.min && rule.lowCode) {
+    return { status: rule.labelLow || "↓ 낮음", deviationKey: rule.lowCode };
+  }
+  if (rule.max !== undefined && value > rule.max && rule.highCode) {
+    return { status: rule.labelHigh || "↑ 높음", deviationKey: rule.highCode };
+  }
+
+  if (rule.highCode && rule.absThreshold !== undefined) {
+    if (Math.abs(value) > rule.absThreshold) {
+      return {
+        status: rule.labelHigh || "↑ 편차",
+        deviationKey: rule.highCode,
+      };
+    }
+  }
+
+  return { status: "정상" };
+}
+
+function buildExerciseRecommendations(
+  patterns: PostureMetricEntry[],
+  exercises: ExerciseEntry[]
+): {
+  stretch: ExerciseRecommendation[];
+  strengthen: ExerciseRecommendation[];
+} {
+  const tightMuscles = new Set<string>();
+  const weakMuscles = new Set<string>();
+
+  patterns.forEach((pattern) => {
+    pattern.tightMuscles.forEach((m) => tightMuscles.add(m));
+    pattern.weakMuscles.forEach((m) => weakMuscles.add(m));
+  });
+
+  const stretch: ExerciseRecommendation[] = [];
+  const strengthen: ExerciseRecommendation[] = [];
+
+  exercises.forEach((exercise) => {
+    const stretchMatch = exercise.stretchMuscles.filter((m) =>
+      tightMuscles.has(m)
+    );
+    if (stretchMatch.length) {
+      stretch.push({ ...exercise, matchedMuscles: stretchMatch });
+    }
+
+    const strengthMatch = exercise.strengthenMuscles.filter((m) =>
+      weakMuscles.has(m)
+    );
+    if (strengthMatch.length) {
+      strengthen.push({ ...exercise, matchedMuscles: strengthMatch });
+    }
+  });
+
+  return {
+    stretch: uniqueById(stretch).slice(0, 20),
+    strengthen: uniqueById(strengthen).slice(0, 20),
+  };
+}
+
+function uniqueById(list: ExerciseRecommendation[]): ExerciseRecommendation[] {
+  const seen = new Set<string>();
+  const result: ExerciseRecommendation[] = [];
+  list.forEach((item) => {
+    if (seen.has(item.id)) return;
+    seen.add(item.id);
+    result.push(item);
+  });
+  return result;
 }
