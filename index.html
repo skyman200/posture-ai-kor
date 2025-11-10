@@ -272,16 +272,6 @@ canvas {
     </div>
   </div>
 
-  <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; font-family: 'Noto Sans KR', sans-serif;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">🤖 AI 체형 분석</div>
-    <div id="aiComment" class="muted" style="font-size:12px; line-height:1.5; font-family: 'Noto Sans KR', sans-serif; color:var(--ink);"></div>
-    
-    <!-- 개인별 체형 분석 설명 -->
-    <div id="postureTypeDesc" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.1); border-radius:8px; border-left:3px solid #2ec4b6; font-family: 'Noto Sans KR', sans-serif;">
-      <div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">📌 체형 유형 분석</div>
-      <div id="postureTypeContent" style="font-size:11px; line-height:1.6; color:var(--muted); font-family: 'Noto Sans KR', sans-serif;"></div>
-    </div>
-  </div>
 
   <!-- AI PRO 리포트 표시 영역 -->
   <div id="report-box" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; white-space: pre-wrap; font-size:12px; line-height:1.5; max-height:400px; overflow-y:auto; color:var(--ink); font-family: 'Noto Sans KR', sans-serif;"></div>
@@ -512,30 +502,41 @@ canvas {
     <div id="livePatterns" style="font-size:12px; line-height:1.6;"></div>
   </div>
 
+  <!-- 근육 상태 분석 (먼저 표시) -->
   <div id="musclePanel" style="margin-top:12px; padding:12px; background:rgba(255,184,108,0.1); border-radius:10px; display:none;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#ffb86c;">💪 근육 상태 분석</div>
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#ffb86c; font-family: 'Noto Sans KR', sans-serif;">💪 근육 상태 분석</div>
     <div id="muscleTight" style="margin-bottom:8px;">
-      <div class="muted" style="font-size:11px; margin-bottom:4px;">🔴 긴장된 근육:</div>
-      <div id="muscleTightList" style="font-size:12px; color:#ff6b6b; line-height:1.5;"></div>
+      <div class="muted" style="font-size:12px; margin-bottom:4px; font-family: 'Noto Sans KR', sans-serif;">🔴 긴장된 근육:</div>
+      <div id="muscleTightList" style="font-size:12px; color:#ff6b6b; line-height:1.6; font-family: 'Noto Sans KR', sans-serif;"></div>
     </div>
     <div id="muscleWeak" style="margin-bottom:8px;">
-      <div class="muted" style="font-size:11px; margin-bottom:4px;">🔵 약화된 근육:</div>
-      <div id="muscleWeakList" style="font-size:12px; color:#7c9cff; line-height:1.5;"></div>
-    </div>
-    <div id="muscleDetail" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">
-      <div class="muted" style="font-size:11px; margin-bottom:4px;">📋 상세 분석:</div>
-      <div id="muscleDetailList" style="font-size:11px; line-height:1.6; color:var(--ink);"></div>
+      <div class="muted" style="font-size:12px; margin-bottom:4px; font-family: 'Noto Sans KR', sans-serif;">🔵 약화된 근육:</div>
+      <div id="muscleWeakList" style="font-size:12px; color:#7c9cff; line-height:1.6; font-family: 'Noto Sans KR', sans-serif;"></div>
     </div>
   </div>
 
+  <!-- AI 체형 분석 (근육 상태 분석 다음) -->
+  <div id="aiCommentPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; font-family: 'Noto Sans KR', sans-serif;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">🤖 AI 체형 분석</div>
+    <div id="aiComment" class="muted" style="font-size:12px; line-height:1.6; font-family: 'Noto Sans KR', sans-serif; color:var(--ink);"></div>
+    
+    <!-- 개인별 체형 분석 설명 -->
+    <div id="postureTypeDesc" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.1); border-radius:8px; border-left:3px solid #2ec4b6; font-family: 'Noto Sans KR', sans-serif;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:6px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">📌 체형 유형 분석</div>
+      <div id="postureTypeContent" style="font-size:12px; line-height:1.6; color:var(--muted); font-family: 'Noto Sans KR', sans-serif;"></div>
+    </div>
+  </div>
+
+  <!-- 추천 운동 -->
   <div id="exercisePanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.15); border-radius:10px; display:none;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">🏋️ 추천 운동</div>
-    <div id="exerciseList" style="font-size:12px; line-height:1.6;"></div>
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">🏋️ 추천 운동</div>
+    <div id="exerciseList" style="font-size:12px; line-height:1.6; font-family: 'Noto Sans KR', sans-serif;"></div>
   </div>
 
+  <!-- 필라테스 세션 추천 -->
   <div id="pilatesPanel" style="margin-top:12px; padding:12px; background:rgba(156,136,255,0.15); border-radius:10px; display:none;">
-    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#9c88ff;">🧘 필라테스 세션 추천</div>
-    <div id="pilatesList" style="font-size:12px; line-height:1.6;"></div>
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#9c88ff; font-family: 'Noto Sans KR', sans-serif;">🧘 필라테스 세션 추천</div>
+    <div id="pilatesList" style="font-size:12px; line-height:1.6; font-family: 'Noto Sans KR', sans-serif;"></div>
   </div>
 
   <!-- 필라테스 운동 상세 설명 모달 -->
@@ -552,6 +553,13 @@ canvas {
   </div>
 
 
+  <!-- 결론 및 향후 권장사항 (회원 이름 포함, 임상 중심) -->
+  <div id="conclusionPanel" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none;">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#2ec4b6; font-family: 'Noto Sans KR', sans-serif;">✅ 결론 및 향후 권장사항</div>
+    <div id="conclusionContent" style="font-size:12px; line-height:1.8; color:var(--ink); font-family: 'Noto Sans KR', sans-serif; white-space:pre-wrap; word-wrap:break-word;"></div>
+  </div>
+
+  <!-- 항목 (Before/After 비교 테이블) -->
   <div style="margin-top:12px; max-height:400px; overflow-y:auto;">
     <table class="tbl">
       <thead><tr><th>항목</th><th>Before</th><th>After</th><th>변화</th><th>정상</th></tr></thead>
@@ -5012,13 +5020,14 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const musclePanel = document.getElementById("musclePanel");
   const tightList = document.getElementById("muscleTightList");
   const weakList = document.getElementById("muscleWeakList");
-  const detailList = document.getElementById("muscleDetailList");
   const exercisePanel = document.getElementById("exercisePanel");
   const exerciseList = document.getElementById("exerciseList");
   const pilatesPanel = document.getElementById("pilatesPanel");
   const pilatesList = document.getElementById("pilatesList");
   const allMetricsList = document.getElementById("allMetricsList");
   const pdsValueEl = document.getElementById("pdsValue");
+  const conclusionPanel = document.getElementById("conclusionPanel");
+  const conclusionContent = document.getElementById("conclusionContent");
   
   // 전체 분석 항목 표시
   const S = sessions[cur];
@@ -5198,13 +5207,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       weakList.style.color = "var(--muted)";
     }
     
-    // 상세 분석 표시
-    if(analysis.details && analysis.details.length > 0) {
-      detailList.innerHTML = analysis.details.join("<br>");
-    } else {
-      detailList.textContent = "상세 분석 없음";
-    }
-    
     musclePanel.style.display = "block";
   } else {
     musclePanel.style.display = "none";
@@ -5277,6 +5279,77 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     pilatesPanel.style.display = "block";
   } else {
     pilatesPanel.style.display = "none";
+  }
+  
+  // 결론 및 향후 권장사항 생성 (회원 이름 포함, 임상 중심)
+  if(conclusionPanel && conclusionContent && (analysis || scoreData)) {
+    // 회원 이름 가져오기 (세션에서 또는 전역 변수에서)
+    const memberName = S.memberName || window.memberName || '회원';
+    
+    let conclusionText = '';
+    
+    // 패턴 요약
+    const patterns = [];
+    if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+      analysis.pilates.forEach(item => {
+        if(item.name || item.issue) {
+          patterns.push(item.name || item.issue);
+        }
+      });
+    }
+    
+    // 근육 불균형 요약
+    const tightMuscles = analysis && analysis.tight ? analysis.tight : [];
+    const weakMuscles = analysis && analysis.weak ? analysis.weak : [];
+    
+    // 결론 작성
+    conclusionText += `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+    
+    if(patterns.length > 0) {
+      patterns.forEach((pattern, idx) => {
+        conclusionText += `${idx + 1}. ${pattern}\n`;
+      });
+      conclusionText += '\n';
+    } else {
+      conclusionText += '특이 패턴 없음\n\n';
+    }
+    
+    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
+    
+    // 단기 권장사항
+    conclusionText += `【단기(1~4주)】\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
+    
+    // 중기 권장사항
+    conclusionText += `【중기(4~8주)】\n`;
+    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
+    conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
+    
+    // 장기 권장사항
+    conclusionText += `【장기(8~12주 이상)】\n`;
+    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    
+    // 점수 기반 추가 권장사항
+    if(scoreData && scoreData.score != null) {
+      const score = scoreData.score;
+      if(score < 70) {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 개선이 필요합니다. 위의 단기 권장사항부터 꾸준히 실시하시기 바랍니다.\n\n`;
+      } else if(score < 85) {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 양호한 편입니다. 중기 권장사항을 중심으로 지속적인 관리가 필요합니다.\n\n`;
+      } else {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 우수합니다. 장기 권장사항을 통해 현재 상태를 유지하고 더욱 개선하시기 바랍니다.\n\n`;
+      }
+    }
+    
+    conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
+    
+    conclusionContent.textContent = conclusionText;
+    conclusionPanel.style.display = "block";
+  } else if(conclusionPanel) {
+    conclusionPanel.style.display = "none";
   }
 }
 
@@ -9717,8 +9790,61 @@ function exportAsPdf(options = {}) {
       fullMetricsForScore.KA?.value || fullMetricsForScore.KA?.value_deg || null
     );
     
+    // 결론 생성 (회원 이름 포함, 임상 중심)
+    let conclusionText = '';
+    const memberNameForPDF = memberName || '회원';
+    
+    // 패턴 요약
+    const patterns = [];
+    if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+      analysis.pilates.forEach(item => {
+        if(item.name || item.issue) {
+          patterns.push(item.name || item.issue);
+        }
+      });
+    }
+    
+    conclusionText += `${memberNameForPDF}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+    
+    if(patterns.length > 0) {
+      patterns.forEach((pattern, idx) => {
+        conclusionText += `${idx + 1}. ${pattern}\n`;
+      });
+      conclusionText += '\n';
+    } else {
+      conclusionText += '특이 패턴 없음\n\n';
+    }
+    
+    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
+    
+    conclusionText += `【단기(1~4주)】\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
+    
+    conclusionText += `【중기(4~8주)】\n`;
+    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
+    conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
+    
+    conclusionText += `【장기(8~12주 이상)】\n`;
+    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    
+    if(scoreResult && scoreResult.score != null) {
+      const score = scoreResult.score;
+      if(score < 70) {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 개선이 필요합니다. 위의 단기 권장사항부터 꾸준히 실시하시기 바랍니다.\n\n`;
+      } else if(score < 85) {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 양호한 편입니다. 중기 권장사항을 중심으로 지속적인 관리가 필요합니다.\n\n`;
+      } else {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 우수합니다. 장기 권장사항을 통해 현재 상태를 유지하고 더욱 개선하시기 바랍니다.\n\n`;
+      }
+    }
+    
+    conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
+    
     page4Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 분석 (DB 100종 기반)</h2>
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 자세 분석 리포트</h2>
       
       ${scoreResult ? `
       <div style="margin-top:15px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
@@ -9732,13 +9858,40 @@ function exportAsPdf(options = {}) {
       </div>
       ` : ''}
       
+      <!-- 근육 상태 분석 (먼저) -->
+      ${(analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0) || (analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0) ? `
+      <div style="margin-top:20px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
+        ${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><span style="color:#ff6b6b; font-weight:600;">🔴 긴장된 근육:</span> <span style="font-size:12px; color:#333;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><span style="color:#7c9cff; font-weight:600;">🔵 약화된 근육:</span> <span style="font-size:12px; color:#333;">${analysis.weak.join(", ")}</span></div>` : ""}
+      </div>
+      ` : ""}
+      
+      <!-- AI 체형 분석 (근육 상태 분석 다음) -->
+      ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
+      <div style="margin-top:20px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:10px; color:#2ec4b6;">🤖 AI 체형 분석</div>
+        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
+        ${analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+      </div>
+      ` : ""}
+      
       ${dbNarrative ? `
-      <div style="margin-top:15px; padding:15px; background:#f8fafc; border-radius:8px; border-left:4px solid #6366f1; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+      <div style="margin-top:20px; padding:15px; background:#f8fafc; border-radius:8px; border-left:4px solid #6366f1; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
         <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#6366f1;">📊 DB 기반 AI 분석 요약</div>
         <div style="white-space:pre-wrap; font-size:12px; line-height:1.6; color:#333; margin:0; padding:0; word-wrap:break-word; overflow-wrap:break-word;">${dbNarrative}</div>
       </div>
       ` : ''}
       
+      <!-- 추천 운동 -->
+      ${analysis.exercises && Array.isArray(analysis.exercises) && analysis.exercises.length > 0 ? `
+      <div style="margin-top:20px; padding:18px; background:#e0f2f1; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:12px; color:#2ec4b6;">🏋️ 추천 운동</div>
+        <div style="font-size:12px; line-height:1.8; word-wrap:break-word; overflow-wrap:break-word;">${analysis.exercises.filter(ex => ex != null).map(ex => `<div style="margin-bottom:8px;">${ex}</div>`).join("")}</div>
+      </div>
+      ` : ""}
+      
+      <!-- 필라테스 세션 추천 -->
       ${dbSessionCards ? `
       <div style="margin-top:20px; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
         <h3 style="margin:0; padding:0; font-size:14px; font-weight:600; color:#0b0f14; margin-bottom:12px;">🧘 필라테스 세션 추천 (자동 매칭)</h3>
@@ -9753,21 +9906,11 @@ function exportAsPdf(options = {}) {
       </div>
       ` : ''}
       
-      ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
-      <div style="margin-top:20px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
-        <div style="font-size:14px; font-weight:600; margin-bottom:10px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
-        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
-        ${analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
+      <!-- 결론 및 향후 권장사항 -->
+      <div style="margin-top:20px; padding:18px; background:#f6fff7; border-radius:10px; border-left:4px solid #27ae60; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:12px; color:#27ae60;">✅ 결론 및 향후 권장사항</div>
+        <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${conclusionText}</div>
       </div>
-      ` : ""}
-      
-      ${(analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0) || (analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0) ? `
-      <div style="margin-top:20px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
-        <div style="font-size:14px; font-weight:600; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
-        ${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><span style="color:#ff6b6b; font-weight:600;">🔴 긴장된 근육:</span> <span style="font-size:12px; color:#333;">${analysis.tight.join(", ")}</span></div>` : ""}
-        ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><span style="color:#7c9cff; font-weight:600;">🔵 약화된 근육:</span> <span style="font-size:12px; color:#333;">${analysis.weak.join(", ")}</span></div>` : ""}
-      </div>
-      ` : ""}
       
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -9941,27 +10084,84 @@ function exportAsPdf(options = {}) {
     const page7Container = document.createElement("div");
     setPageContainerStyle(page7Container);
     
-    // ✅ Before-After 비교 요약 생성
-    let comparisonSummary = '';
+    // ✅ 결론 및 향후 권장사항 생성 (회원 이름 포함, 임상 중심, 길게 작성)
+    const memberNameForPDF = memberName || '회원';
+    let conclusionText = '';
+    
+    // Before-After 비교 요약
     if(comparison && comparison.results && comparison.results.length > 0) {
       const improved = comparison.results.filter(r => r.status === 'improved').length;
       const worsened = comparison.results.filter(r => r.status === 'worsened').length;
       const maintained = comparison.results.filter(r => r.status === 'maintained').length;
       
-      comparisonSummary = `전반적인 분석 결과, ${improved}개 항목에서 자세가 개선되었으며 ${maintained}개 항목은 안정적으로 유지되었습니다.`;
+      conclusionText += `${memberNameForPDF}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+      conclusionText += `전반적인 분석 결과, ${improved}개 항목에서 자세가 개선되었으며 ${maintained}개 항목은 안정적으로 유지되었습니다.`;
       if(worsened > 0) {
-        comparisonSummary += ` ${worsened}개 항목은 추가 주의가 필요합니다.`;
+        conclusionText += ` ${worsened}개 항목은 추가 주의가 필요합니다.`;
       }
-      comparisonSummary += ` 전신의 수직정렬과 체간-골반 협응이 ${improved > 0 ? '개선되었습니다' : '유지되었습니다'}. 필라테스 프로그램에서는 안정화 부위의 근긴장 조절 및 안정화 운동을 중심으로 진행하는 것이 효과적입니다.`;
+      conclusionText += ` 전신의 수직정렬과 체간-골반 협응이 ${improved > 0 ? '개선되었습니다' : '유지되었습니다'}.\n\n`;
     } else {
-      comparisonSummary = comparison && comparison.summary ? comparison.summary.overallComment : '분석 결과를 바탕으로 지속적인 자세 개선을 권장합니다.';
+      conclusionText += `${memberNameForPDF}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+      conclusionText += comparison && comparison.summary ? comparison.summary.overallComment : '분석 결과를 바탕으로 지속적인 자세 개선을 권장합니다.';
+      conclusionText += '\n\n';
     }
     
+    // 패턴 요약
+    const patterns = [];
+    if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+      analysis.pilates.forEach(item => {
+        if(item.name || item.issue) {
+          patterns.push(item.name || item.issue);
+        }
+      });
+    }
+    
+    if(patterns.length > 0) {
+      patterns.forEach((pattern, idx) => {
+        conclusionText += `${idx + 1}. ${pattern}\n`;
+      });
+      conclusionText += '\n';
+    } else {
+      conclusionText += '특이 패턴 없음\n\n';
+    }
+    
+    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
+    
+    // 단기 권장사항
+    conclusionText += `【단기(1~4주)】\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
+    
+    // 중기 권장사항
+    conclusionText += `【중기(4~8주)】\n`;
+    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
+    conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
+    
+    // 장기 권장사항
+    conclusionText += `【장기(8~12주 이상)】\n`;
+    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    
+    // 점수 기반 추가 권장사항
+    if(scoreResult && scoreResult.score != null) {
+      const score = scoreResult.score;
+      if(score < 70) {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 개선이 필요합니다. 위의 단기 권장사항부터 꾸준히 실시하시기 바랍니다.\n\n`;
+      } else if(score < 85) {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 양호한 편입니다. 중기 권장사항을 중심으로 지속적인 관리가 필요합니다.\n\n`;
+      } else {
+        conclusionText += `현재 체형 종합 점수가 ${score}점으로 우수합니다. 장기 권장사항을 통해 현재 상태를 유지하고 더욱 개선하시기 바랍니다.\n\n`;
+      }
+    }
+    
+    conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
+    
     page7Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">⚖️ 결론 및 향후 권장사항</h2>
-      <div style="padding:20px; background:#f5f5f5; border-radius:10px; margin-bottom:20px; box-sizing:border-box; overflow:hidden; word-wrap:break-word; overflow-wrap:break-word;">
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">✅ 결론 및 향후 권장사항</h2>
+      <div style="padding:20px; background:#f6fff7; border-radius:10px; margin-bottom:20px; box-sizing:border-box; overflow:hidden; word-wrap:break-word; overflow-wrap:break-word; border-left:4px solid #27ae60;">
         <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap; max-width:100%;">
-          ${comparisonSummary}
+          ${conclusionText}
         </div>
       </div>
       <div style="margin-top:20px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
