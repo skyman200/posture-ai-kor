@@ -122,7 +122,13 @@ label.btn input {
   top: 0;
   left: 0;
   cursor: pointer;
-  z-index: 1;
+  z-index: 10;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 .tbl { 
   width:100%; 
@@ -184,10 +190,10 @@ canvas {
       <button id="btnOrientationSide" class="active">📐 옆모습</button>
       <button id="btnOrientationFront">📷 정면</button>
     </div>
-    <label class="btn">📷 파일 선택
+    <label class="btn" for="filePicker">📷 파일 선택
       <input id="filePicker" type="file" accept="image/*">
     </label>
-    <label class="btn">📸 직접 촬영
+    <label class="btn" for="cameraPicker">📸 직접 촬영
       <input id="cameraPicker" type="file" accept="image/*" capture="environment">
     </label>
     <button class="btn" id="btnReset">↺ 초기화</button>
@@ -6770,7 +6776,7 @@ function setupFileUploads() {
     // 모바일에서 label 클릭 시 input 클릭 트리거
     const label = input.closest('label.btn');
     if(label) {
-      // 기존 이벤트 제거
+      // 기존 이벤트 제거를 위해 새로 생성
       const newLabel = label.cloneNode(true);
       label.parentNode.replaceChild(newLabel, label);
       const newInput = newLabel.querySelector('input');
@@ -6780,30 +6786,147 @@ function setupFileUploads() {
         return;
       }
       
-      // label 클릭 시 input 클릭 (모바일 대응)
+      // input에 직접 change 이벤트 처리
+      newInput.addEventListener("change", handleFileUpload);
+      
+      // input에 직접 터치 이벤트 추가 (모바일에서 직접 클릭 가능하도록)
+      newInput.addEventListener('touchstart', (e) => {
+        // input이 직접 터치된 경우는 그대로 진행
+        console.log('Input 직접 터치됨:', id);
+        e.stopPropagation();
+      }, { passive: true });
+      
+      // input에 직접 클릭 이벤트도 추가
+      newInput.addEventListener('click', (e) => {
+        console.log('Input 직접 클릭됨:', id);
+        // input이 직접 클릭된 경우는 그대로 진행
+        e.stopPropagation();
+      }, { passive: true });
+      
+      // 모바일에서 더 확실하게 작동하도록 여러 이벤트 처리
+      let touchStarted = false;
+      let touchMoved = false;
+      
+      // touchstart: 터치 시작
+      newLabel.addEventListener('touchstart', (e) => {
+        // input이 직접 터치된 경우는 제외
+        if(e.target === newInput || e.target.closest('input') === newInput) {
+          return;
+        }
+        console.log('Label 터치 시작:', id);
+        touchStarted = true;
+        touchMoved = false;
+      }, { passive: true });
+      
+      // touchmove: 터치 이동 감지
+      newLabel.addEventListener('touchmove', (e) => {
+        if(touchStarted) {
+          touchMoved = true;
+        }
+      }, { passive: true });
+      
+      // touchend: 터치 종료 시 input 클릭
+      newLabel.addEventListener('touchend', (e) => {
+        // input이 직접 터치된 경우는 제외
+        if(e.target === newInput || e.target.closest('input') === newInput) {
+          return;
+        }
+        
+        // 터치가 이동했으면 클릭으로 간주하지 않음
+        if(touchMoved) {
+          touchStarted = false;
+          touchMoved = false;
+          return;
+        }
+        
+        if(touchStarted) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          
+          console.log('Label 터치 종료, input 클릭 시도:', id);
+          
+          // 즉시 input 클릭 (모바일에서 더 확실하게 작동)
+          // requestAnimationFrame을 사용하여 브라우저 렌더링 사이클에 맞춤
+          requestAnimationFrame(() => {
+            try {
+              // input을 포커스하고 클릭
+              newInput.focus();
+              // 약간의 지연을 두고 클릭 (모바일에서 더 확실하게 작동)
+              setTimeout(() => {
+                try {
+                  newInput.click();
+                  console.log('Input 클릭 성공:', id);
+                } catch(err) {
+                  console.error('Input click failed:', err);
+                  // 폴백: 직접 파일 선택 다이얼로그 열기 시도
+                  try {
+                    const event = new MouseEvent('click', {
+                      bubbles: true,
+                      cancelable: true,
+                      view: window
+                    });
+                    newInput.dispatchEvent(event);
+                  } catch(err2) {
+                    console.error('Input dispatchEvent failed:', err2);
+                  }
+                }
+              }, 50);
+            } catch(err) {
+              console.error('Input focus failed:', err);
+            }
+          });
+          
+          touchStarted = false;
+          touchMoved = false;
+        }
+      }, { passive: false });
+      
+      // click 이벤트도 처리 (데스크톱 및 일부 모바일)
       newLabel.addEventListener('click', (e) => {
         // input이 직접 클릭된 경우는 제외
-        if(e.target === newInput) return;
+        if(e.target === newInput || e.target.closest('input') === newInput) {
+          return;
+        }
+        
+        // 터치 이벤트에서 이미 처리된 경우는 제외
+        if(touchStarted) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        
         e.preventDefault();
         e.stopPropagation();
-        // 약간의 지연을 두어 모바일에서 안정적으로 작동
-        setTimeout(() => {
-          newInput.click();
-        }, 10);
+        
+        // requestAnimationFrame을 사용하여 브라우저 렌더링 사이클에 맞춤
+        requestAnimationFrame(() => {
+          try {
+            newInput.focus();
+            newInput.click();
+          } catch(err) {
+            console.error('Input click failed:', err);
+            // 폴백: 약간의 지연 후 재시도
+            setTimeout(() => {
+              try {
+                newInput.focus();
+                newInput.click();
+              } catch(err2) {
+                console.error('Input click retry failed:', err2);
+              }
+            }, 10);
+          }
+        });
       }, { passive: false });
       
-      // touch 이벤트도 처리 (모바일)
-      newLabel.addEventListener('touchend', (e) => {
+      // mousedown도 처리 (일부 모바일 브라우저)
+      newLabel.addEventListener('mousedown', (e) => {
         if(e.target === newInput) return;
-        e.preventDefault();
-        e.stopPropagation();
-        setTimeout(() => {
-          newInput.click();
-        }, 10);
+        // 터치 이벤트가 아닌 경우에만 처리
+        if(!('ontouchstart' in window)) {
+          e.preventDefault();
+        }
       }, { passive: false });
-      
-      // change 이벤트 처리
-      newInput.addEventListener("change", handleFileUpload);
     } else {
       // label이 없는 경우 (하위 호환성)
       const newInput = input.cloneNode(true);
