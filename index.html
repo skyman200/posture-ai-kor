@@ -110,8 +110,20 @@ label.btn {
   display: block;
   width: 100%;
   margin-bottom: 8px;
+  position: relative;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-label.btn input { display:none; }
+label.btn input { 
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+  z-index: 1;
+}
 .tbl { 
   width:100%; 
   border-collapse:collapse; 
@@ -3044,6 +3056,37 @@ const internalAngle = (a,b,c) => {
   return d;
 };
 
+// 모바일 터치 이벤트 헬퍼 함수
+function addMobileTouchSupport(element, handler) {
+  if(!element) return;
+  
+  // 클릭 이벤트
+  element.addEventListener('click', handler, { passive: true });
+  
+  // 터치 이벤트 (모바일 대응)
+  let touchStartTime = 0;
+  let touchMoved = false;
+  
+  element.addEventListener('touchstart', (e) => {
+    touchStartTime = Date.now();
+    touchMoved = false;
+  }, { passive: true });
+  
+  element.addEventListener('touchmove', () => {
+    touchMoved = true;
+  }, { passive: true });
+  
+  element.addEventListener('touchend', (e) => {
+    // 터치가 이동했거나 너무 길면 클릭으로 간주하지 않음
+    if(touchMoved || (Date.now() - touchStartTime) > 500) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    handler(e);
+  }, { passive: false });
+}
+
 // Before/After 세션 전환 버튼 (DOM 로드 후 안전하게 연결)
 function initSessionButtons() {
   console.log("initSessionButtons 호출됨, readyState:", document.readyState);
@@ -3055,37 +3098,37 @@ function initSessionButtons() {
   console.log("버튼 요소:", {btnBefore, btnAfter, btnOrientationSide, btnOrientationFront});
   
   if(btnBefore) {
-    btnBefore.onclick = () => {
+    addMobileTouchSupport(btnBefore, () => {
       console.log("Before 버튼 클릭됨");
       switchSession("Before");
-    };
+    });
   } else {
     console.error("btnBefore를 찾을 수 없습니다");
   }
   
   if(btnAfter) {
-    btnAfter.onclick = () => {
+    addMobileTouchSupport(btnAfter, () => {
       console.log("After 버튼 클릭됨");
       switchSession("After");
-    };
+    });
   } else {
     console.error("btnAfter를 찾을 수 없습니다");
   }
   
   if(btnOrientationSide) {
-    btnOrientationSide.onclick = () => {
+    addMobileTouchSupport(btnOrientationSide, () => {
       console.log("옆모습 버튼 클릭됨");
       setOrientation("side");
-    };
+    });
   } else {
     console.error("btnOrientationSide를 찾을 수 없습니다");
   }
   
   if(btnOrientationFront) {
-    btnOrientationFront.onclick = () => {
+    addMobileTouchSupport(btnOrientationFront, () => {
       console.log("정면 버튼 클릭됨");
       setOrientation("front");
-    };
+    });
   } else {
     console.error("btnOrientationFront를 찾을 수 없습니다");
   }
@@ -6637,6 +6680,84 @@ window.addEventListener('touchcancel', (e) => {
   endDrag(e);
 });
 
+// 파일 업로드 핸들러 (공통 함수)
+function handleFileUpload(e) {
+  const f = e.target.files[0];
+  if(!f) return;
+  
+  // 현재 선택된 orientation에 따라 적절한 이미지 저장
+  const orientation = sessions[cur].poseData?.orientation || "side";
+  const imgKey = orientation === "front" ? "imgFront" : "imgSide";
+  
+  const img = new Image();
+  img.onerror = (e) => {
+    console.error("이미지 로드 실패:", e);
+    alert("이미지를 불러올 수 없습니다. 파일 형식을 확인해주세요.");
+  };
+  
+  img.onload = async () => {
+    console.log("이미지 로드 완료:", imgKey, "naturalWidth:", img.naturalWidth, "naturalHeight:", img.naturalHeight);
+    
+    // 기존 이미지가 있으면 메모리 정리 (orientation별로)
+    const existingImg = sessions[cur][imgKey];
+    if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
+      URL.revokeObjectURL(existingImg.src);
+    }
+    
+    // 새 이미지로 교체 (orientation별로 저장)
+    sessions[cur][imgKey] = img;
+    
+    // 원본 크기 초기화 (새 이미지를 로드하므로 다시 계산)
+    originalCanvasSize.width = 0;
+    originalCanvasSize.height = 0;
+    originalCanvasSize.styleWidth = 0;
+    originalCanvasSize.styleHeight = 0;
+    
+    // 캔버스 크기 조정
+    resizeCanvasFor(img);
+    
+    // 해당 orientation에 맞는 키포인트만 초기화
+    const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
+    currentPoints.clear();
+    
+    // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
+    setTimeout(() => {
+      try {
+        draw();
+        computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
+        console.log("이미지 그리기 완료");
+      } catch(err) {
+        console.error("이미지 그리기 실패:", err);
+        // 재시도
+        setTimeout(() => {
+          try {
+            draw();
+            computeMetricsOnly();
+          } catch(err2) {
+            console.error("이미지 그리기 재시도 실패:", err2);
+          }
+        }, 200);
+      }
+    }, 100);
+    
+    // 포즈 감지 자동 실행 (선택된 orientation 사용)
+    if(typeof applyPoseDetection === 'function') {
+      try {
+        await applyPoseDetection(img, cur);
+      } catch(err) {
+        console.error("포즈 감지 실패:", err);
+      }
+    }
+  };
+  
+  img.crossOrigin = "anonymous";
+  const blobUrl = URL.createObjectURL(f);
+  img.src = blobUrl;
+  
+  // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
+  e.target.value = '';
+}
+
 // 업로드 (Before/After 각각 하나의 사진만 유지) - DOM 준비 후 실행
 function setupFileUploads() {
   ["filePicker","cameraPicker"].forEach(id => {
@@ -6646,86 +6767,49 @@ function setupFileUploads() {
       return;
     }
     
-    // 기존 이벤트 리스너 제거 후 재등록 (중복 방지)
-    const newInput = input.cloneNode(true);
-    input.parentNode.replaceChild(newInput, input);
-    
-    newInput.addEventListener("change", async e => {
-    const f = e.target.files[0];
-    if(!f) return;
-    
-    // 현재 선택된 orientation에 따라 적절한 이미지 저장
-    const orientation = sessions[cur].poseData?.orientation || "side";
-    const imgKey = orientation === "front" ? "imgFront" : "imgSide";
-    
-    const img = new Image();
-    img.onerror = (e) => {
-      console.error("이미지 로드 실패:", e);
-      alert("이미지를 불러올 수 없습니다. 파일 형식을 확인해주세요.");
-    };
-    
-    img.onload = async () => {
-      console.log("이미지 로드 완료:", imgKey, "naturalWidth:", img.naturalWidth, "naturalHeight:", img.naturalHeight);
+    // 모바일에서 label 클릭 시 input 클릭 트리거
+    const label = input.closest('label.btn');
+    if(label) {
+      // 기존 이벤트 제거
+      const newLabel = label.cloneNode(true);
+      label.parentNode.replaceChild(newLabel, label);
+      const newInput = newLabel.querySelector('input');
       
-      // 기존 이미지가 있으면 메모리 정리 (orientation별로)
-      const existingImg = sessions[cur][imgKey];
-      if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
-        URL.revokeObjectURL(existingImg.src);
+      if(!newInput) {
+        console.warn(`input 요소를 찾을 수 없습니다: ${id}`);
+        return;
       }
       
-      // 새 이미지로 교체 (orientation별로 저장)
-      sessions[cur][imgKey] = img;
+      // label 클릭 시 input 클릭 (모바일 대응)
+      newLabel.addEventListener('click', (e) => {
+        // input이 직접 클릭된 경우는 제외
+        if(e.target === newInput) return;
+        e.preventDefault();
+        e.stopPropagation();
+        // 약간의 지연을 두어 모바일에서 안정적으로 작동
+        setTimeout(() => {
+          newInput.click();
+        }, 10);
+      }, { passive: false });
       
-      // 원본 크기 초기화 (새 이미지를 로드하므로 다시 계산)
-      originalCanvasSize.width = 0;
-      originalCanvasSize.height = 0;
-      originalCanvasSize.styleWidth = 0;
-      originalCanvasSize.styleHeight = 0;
+      // touch 이벤트도 처리 (모바일)
+      newLabel.addEventListener('touchend', (e) => {
+        if(e.target === newInput) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setTimeout(() => {
+          newInput.click();
+        }, 10);
+      }, { passive: false });
       
-      // 캔버스 크기 조정
-      resizeCanvasFor(img);
-      
-      // 해당 orientation에 맞는 키포인트만 초기화
-      const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
-      currentPoints.clear();
-      
-      // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
-      setTimeout(() => {
-        try {
-          draw();
-          computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
-          console.log("이미지 그리기 완료");
-        } catch(err) {
-          console.error("이미지 그리기 실패:", err);
-          // 재시도
-          setTimeout(() => {
-            try {
-              draw();
-              computeMetricsOnly();
-            } catch(err2) {
-              console.error("이미지 그리기 재시도 실패:", err2);
-            }
-          }, 200);
-        }
-      }, 100);
-      
-      // 포즈 감지 자동 실행 (선택된 orientation 사용)
-      if(typeof applyPoseDetection === 'function') {
-        try {
-        await applyPoseDetection(img, cur);
-        } catch(err) {
-          console.error("포즈 감지 실패:", err);
-        }
-      }
-    };
-    
-    img.crossOrigin = "anonymous";
-    const blobUrl = URL.createObjectURL(f);
-    img.src = blobUrl;
-    
-    // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
-    e.target.value = '';
-    });
+      // change 이벤트 처리
+      newInput.addEventListener("change", handleFileUpload);
+    } else {
+      // label이 없는 경우 (하위 호환성)
+      const newInput = input.cloneNode(true);
+      input.parentNode.replaceChild(newInput, input);
+      newInput.addEventListener("change", handleFileUpload);
+    }
   });
 }
 
@@ -6743,13 +6827,13 @@ function setupResetButton() {
     console.warn("Reset 버튼을 찾을 수 없습니다.");
     return;
   }
-  btnReset.onclick = () => {
+  addMobileTouchSupport(btnReset, () => {
     const orientation = sessions[cur].poseData?.orientation || "side";
     const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     currentPoints.clear();
     draw();
     computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
-  };
+  });
 }
 
 // DOM 준비 후 Reset 버튼 설정
@@ -6767,32 +6851,32 @@ function setupCalibrateButton() {
     console.warn("캘리브레이션 버튼을 찾을 수 없습니다.");
     return;
   }
-  btnCalibrate.onclick = () => {
-  calibrationMode = !calibrationMode;
-  const panel = document.getElementById("calibrationPanel");
-  const S = sessions[cur];
-  
-  if(calibrationMode) {
-    panel.style.display = "block";
-    // 세션에 캘리브레이션 점 저장
-    S.calibrationPoint1 = null;
-    S.calibrationPoint2 = null;
-    document.getElementById("calPoint1").textContent = "클릭하여 선택";
-    document.getElementById("calPoint2").textContent = "클릭하여 선택";
-    document.getElementById("calibrationResult").textContent = "";
-    // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
-    cv.style.cursor = "crosshair";
-    draw(); // 초기화
-  } else {
-    panel.style.display = "none";
-    cv.style.cursor = "default";
-    calibrationMode = false;
-    // 캘리브레이션 점 초기화
-    S.calibrationPoint1 = null;
-    S.calibrationPoint2 = null;
-    draw();
-  }
-  };
+  addMobileTouchSupport(btnCalibrate, () => {
+    calibrationMode = !calibrationMode;
+    const panel = document.getElementById("calibrationPanel");
+    const S = sessions[cur];
+    
+    if(calibrationMode) {
+      panel.style.display = "block";
+      // 세션에 캘리브레이션 점 저장
+      S.calibrationPoint1 = null;
+      S.calibrationPoint2 = null;
+      document.getElementById("calPoint1").textContent = "클릭하여 선택";
+      document.getElementById("calPoint2").textContent = "클릭하여 선택";
+      document.getElementById("calibrationResult").textContent = "";
+      // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
+      cv.style.cursor = "crosshair";
+      draw(); // 초기화
+    } else {
+      panel.style.display = "none";
+      cv.style.cursor = "default";
+      calibrationMode = false;
+      // 캘리브레이션 점 초기화
+      S.calibrationPoint1 = null;
+      S.calibrationPoint2 = null;
+      draw();
+    }
+  });
 }
 
 // DOM 준비 후 캘리브레이션 버튼 설정
@@ -6854,7 +6938,7 @@ function setupCalibrationButtons() {
   const btnLoadJSON = document.getElementById("btnLoadJSON");
   
   if(btnConfirm) {
-    btnConfirm.onclick = () => {
+    addMobileTouchSupport(btnConfirm, () => {
       const S = sessions[cur];
       if(!S.calibrationPoint1 || !S.calibrationPoint2) {
         alert("두 점을 모두 선택해주세요.");
@@ -6881,11 +6965,11 @@ function setupCalibrationButtons() {
       } catch(err) {
         alert("캘리브레이션 오류: " + err.message);
       }
-    };
+    });
   }
   
   if(btnCancel) {
-    btnCancel.onclick = () => {
+    addMobileTouchSupport(btnCancel, () => {
       calibrationMode = false;
       document.getElementById("calibrationPanel").style.display = "none";
       const S = sessions[cur];
@@ -6893,7 +6977,7 @@ function setupCalibrationButtons() {
       S.calibrationPoint2 = null;
       cv.style.cursor = "default";
       draw();
-    };
+    });
   }
   
   if(btnSaveJSON) {
