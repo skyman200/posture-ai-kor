@@ -8054,62 +8054,59 @@ async function loadPostureDB() {
     return POSTURE_DB;
   }
   
-  try {
-    // ✅ Posture_Muscle_DB_Full.json 로드 (public/db/ 경로 사용)
-    const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
-    
-    // 여러 경로 시도 (로컬 개발 환경과 GitHub Pages 모두 지원)
-    const candidates = [
-      // 1. GitHub Pages 경로 (public/db/)
-      `${REPO_ROOT}/public/db/Posture_Muscle_DB_Full.json`,
-      // 2. GitHub raw URL (직접)
-      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.json',
-      // 3. 로컬 개발 환경 경로
-      '/public/db/Posture_Muscle_DB_Full.json',
-      '/db/Posture_Muscle_DB_Full.json',
-      // 4. 상대 경로
-      './public/db/Posture_Muscle_DB_Full.json',
-      './db/Posture_Muscle_DB_Full.json'
-    ];
-    
-    let lastError = null;
-    for (const jsonUrl of candidates) {
-      try {
-        console.log(`📡 근육 분석 DB 로드 시도: ${jsonUrl}`);
-        const response = await fetch(jsonUrl, { cache: 'no-store' });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-    POSTURE_DB = await response.json();
-    const arr = Array.isArray(POSTURE_DB) ? POSTURE_DB : (POSTURE_DB.data || []);
-    POSTURE_DB = arr;
-    postureDBCache = POSTURE_DB;
-    console.log('✅ DB Loaded (JSON):', POSTURE_DB.length, 'records');
-    return POSTURE_DB;
-  } catch (e) {
-    console.warn('⚠️ JSON 로드 실패, CSV 시도:', e);
+  // ✅ Posture_Muscle_DB_Full.json 로드 (public/db/ 경로 사용)
+  const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
+  const candidates = [
+    `${REPO_ROOT}/public/db/Posture_Muscle_DB_Full.json`,
+    'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.json',
+    '/public/db/Posture_Muscle_DB_Full.json',
+    '/db/Posture_Muscle_DB_Full.json',
+    './public/db/Posture_Muscle_DB_Full.json',
+    './db/Posture_Muscle_DB_Full.json'
+  ];
+
+  let lastError = null;
+  for (const jsonUrl of candidates) {
     try {
-      // CSV 파일 폴백 시도
-      const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? '/db'  // 로컬 개발 환경
-        : 'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db';  // 프로덕션 환경
-      
-      const csvUrl = base.startsWith('http') 
-        ? `${base}/Posture_Muscle_DB_Full.csv`
-        : `${base}/Posture_Muscle_DB_Full.csv`;
-      const response = await fetch(csvUrl, { cache: 'no-store' });
-      if (!response.ok) throw new Error('CSV 파일도 로드 실패');
-      const csvText = await response.text();
-      POSTURE_DB = parseCSV(csvText);
-      postureDBCache = POSTURE_DB;
-      console.log('✅ DB Loaded (CSV):', POSTURE_DB.length, 'records');
+      console.log(`📡 근육 분석 DB 로드 시도: ${jsonUrl}`);
+      const response = await fetch(jsonUrl, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const rawData = await response.json();
+      const arr = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+      if (!arr.length) {
+        throw new Error('DB 데이터가 비어 있습니다.');
+      }
+      POSTURE_DB = arr;
+      postureDBCache = arr;
+      console.log('✅ DB Loaded (JSON):', POSTURE_DB.length, 'records');
       return POSTURE_DB;
-    } catch (e2) {
-      console.error('❌ DB 로드 실패:', e2);
-      POSTURE_DB = []; // 빈 배열로도 동작
-      postureDBCache = null;
-      return POSTURE_DB;
+    } catch (err) {
+      lastError = err;
+      console.warn(`⚠️ JSON 로드 실패 (${jsonUrl}):`, err?.message || err);
     }
+  }
+  
+  console.warn('⚠️ JSON 로드 실패, CSV 시도:', lastError?.message || lastError);
+  try {
+    const base = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? '/db'
+      : 'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db';
+    const csvUrl = `${base}/Posture_Muscle_DB_Full.csv`;
+    const response = await fetch(csvUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error('CSV 파일도 로드 실패');
+    const csvText = await response.text();
+    const parsed = parseCSV(csvText);
+    POSTURE_DB = parsed;
+    postureDBCache = parsed;
+    console.log('✅ DB Loaded (CSV):', POSTURE_DB.length, 'records');
+    return POSTURE_DB;
+  } catch (csvError) {
+    console.error('❌ DB 로드 실패:', csvError);
+    POSTURE_DB = [];
+    postureDBCache = null;
+    return POSTURE_DB;
   }
 }
 
@@ -10775,10 +10772,12 @@ function setupImageButton() {
   }
   
   btnImage.onclick = async () => {
+    let btn;
+    let originalText;
     try {
       // 모바일에서 로딩 표시
-      const btn = document.getElementById("btnImage");
-      const originalText = btn.textContent;
+      btn = document.getElementById("btnImage");
+      originalText = btn.textContent;
       btn.textContent = "⏳ 이미지 생성 중...";
       btn.disabled = true;
       
@@ -11227,6 +11226,14 @@ function setupImageButton() {
       alert('이미지 저장에 실패했습니다: ' + err.message);
       btn.textContent = originalText;
       btn.disabled = false;
+    }
+    } catch (error) {
+      console.error("전체 이미지 생성 실패:", error);
+      alert("이미지 생성 중 오류가 발생했습니다: " + (error?.message || "알 수 없는 오류"));
+      if (btn) {
+        btn.textContent = originalText || "🖼️ 이미지 저장";
+        btn.disabled = false;
+      }
     }
   };
 }
