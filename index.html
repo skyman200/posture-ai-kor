@@ -8356,6 +8356,1018 @@ function createCoverPageContainer(params) {
   return container;
 }
 
+
+async function captureReportCanvases({ centerName, memberName, appName, logoUrl }) {
+  const S = sessions[cur];
+  const M = S.metrics || {};
+  const scoreData = S.score || {};
+  let analysis = S.analysis || {};
+  const hasMeaningfulAnalysis = (data) => {
+    if (!data) return false;
+    return ['pilates','exercises','comments','details','tight','weak'].some(key => Array.isArray(data[key]) && data[key].length > 0);
+  };
+  const mergeAnalysisData = (preferred = {}, fallback = {}) => ({
+    ...fallback,
+    ...preferred,
+    pilates: (Array.isArray(preferred.pilates) && preferred.pilates.length > 0) ? preferred.pilates : (fallback.pilates || []),
+    exercises: (Array.isArray(preferred.exercises) && preferred.exercises.length > 0) ? preferred.exercises : (fallback.exercises || []),
+    comments: (Array.isArray(preferred.comments) && preferred.comments.length > 0) ? preferred.comments : (fallback.comments || []),
+    details: (Array.isArray(preferred.details) && preferred.details.length > 0) ? preferred.details : (fallback.details || []),
+    tight: (Array.isArray(preferred.tight) && preferred.tight.length > 0) ? preferred.tight : (fallback.tight || []),
+    weak: (Array.isArray(preferred.weak) && preferred.weak.length > 0) ? preferred.weak : (fallback.weak || [])
+  });
+
+  const analysisResultFallback = S.analysisResult?.analysis || null;
+  if (analysisResultFallback) {
+    analysis = mergeAnalysisData(analysis, analysisResultFallback);
+  }
+
+  if (!hasMeaningfulAnalysis(analysis) && analysisResultFallback) {
+    analysis = mergeAnalysisData(analysisResultFallback, analysis);
+  }
+
+  if (!hasMeaningfulAnalysis(analysis) && S.metrics?.fullMetrics) {
+    try {
+      const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
+      if (refreshedAnalysis) {
+        analysis = refreshedAnalysis;
+        S.analysis = refreshedAnalysis;
+      }
+    } catch (recalcErr) {
+      console.warn('PDF 생성 중 분석 데이터 보강 실패:', recalcErr);
+    }
+  }
+
+  if (!analysis) {
+    analysis = {};
+  }
+
+  // 날짜 포맷
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  // 첫 페이지: 제목과 이미지
+  const page1Container = createCoverPageContainer({
+    memberName,
+    centerName,
+    dateStr,
+    appName,
+    beforeImg,
+    afterImg,
+    overlayImg
+  });
+
+  // 통합 분석 결과 가져오기 (운동 추천 포함)
+  const analysisResult = S.analysisResult || analyzePostureAutoWithRecommendation({
+    sidePts: S.sidePoints.size > 0 ? Object.fromEntries(S.sidePoints) : null,
+    frontPts: S.frontPoints.size > 0 ? Object.fromEntries(S.frontPoints) : null,
+    pxPerCm: S.pxPerCm || 50.0
+  });
+
+  // Before/After 캔버스 이미지 가져오기 (dot와 점선 포함)
+  if (!cv || !cv.toDataURL) {
+    throw new Error("캔버스가 준비되지 않았습니다.");
+  }
+
+  // 현재 세션 저장
+  const originalCur = cur;
+
+  // Before 이미지 캡처
+  let beforeImg = null;
+  let beforeOrientation = "side";
+  if(sessions.Before && (sessions.Before.sidePoints.size > 0 || sessions.Before.frontPoints.size > 0)) {
+    beforeOrientation = sessions.Before.poseData?.orientation || "side";
+    switchSession("Before");
+    if(beforeOrientation !== (sessions.Before.poseData?.orientation || "side")) {
+      setOrientation(beforeOrientation);
+    }
+    // 캔버스 그리기 대기
+    await new Promise(resolve => setTimeout(resolve, 100));
+    draw();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    beforeImg = cv.toDataURL("image/png");
+  }
+
+  // After 이미지 캡처
+  let afterImg = null;
+  let afterOrientation = "side";
+  if(sessions.After && (sessions.After.sidePoints.size > 0 || sessions.After.frontPoints.size > 0)) {
+    afterOrientation = sessions.After.poseData?.orientation || "side";
+    switchSession("After");
+    if(afterOrientation !== (sessions.After.poseData?.orientation || "side")) {
+      setOrientation(afterOrientation);
+    }
+    // 캔버스 그리기 대기
+    await new Promise(resolve => setTimeout(resolve, 100));
+    draw();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    afterImg = cv.toDataURL("image/png");
+  }
+
+  // 원래 세션으로 복원
+  switchSession(originalCur);
+  await new Promise(resolve => setTimeout(resolve, 50));
+  draw();
+
+  // Before-After 오버레이 이미지 생성 (스켈레톤 포함)
+  let overlayImg = null;
+  if(beforeImg && afterImg) {
+    try {
+      // Before와 After 세션의 키포인트 가져오기
+      const beforeOrientation = sessions.Before?.poseData?.orientation || "side";
+      const afterOrientation = sessions.After?.poseData?.orientation || "side";
+      const beforePointsMap = beforeOrientation === "front" ? sessions.Before?.frontPoints : sessions.Before?.sidePoints;
+      const afterPointsMap = afterOrientation === "front" ? sessions.After?.frontPoints : sessions.After?.sidePoints;
+
+      // Map을 일반 객체로 변환 (소문자 키로 통일)
+      const getPointsObject = (pointsMap) => {
+        if(!pointsMap) return null;
+        const obj = {};
+        if(pointsMap instanceof Map) {
+          pointsMap.forEach((value, key) => {
+            // 키를 소문자로 변환 (tragus, c7, acromion 등)
+            const lowerKey = key.toLowerCase();
+            obj[lowerKey] = value;
+          });
+        } else if(typeof pointsMap === 'object') {
+          Object.keys(pointsMap).forEach(key => {
+            const lowerKey = key.toLowerCase();
+            obj[lowerKey] = pointsMap[key];
+          });
+        }
+        return obj;
+      };
+
+      const beforePoints = getPointsObject(beforePointsMap);
+      const afterPoints = getPointsObject(afterPointsMap);
+
+      // 스켈레톤이 있는 경우 스켈레톤 포함 오버레이 생성, 없으면 기본 오버레이
+      if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
+        overlayImg = await createOverlayImageWithSkeleton(beforeImg, afterImg, beforePoints, afterPoints, 0.5);
+      } else {
+        overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+      }
+    } catch(err) {
+      console.warn("오버레이 이미지 생성 실패:", err);
+      // 폴백: 기본 오버레이 시도
+      try {
+        overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+      } catch(err2) {
+        console.warn("기본 오버레이 이미지 생성도 실패:", err2);
+      }
+    }
+  }
+
+  // Confidence Heatmap 생성 (Before, After) - 안전 버전
+  let beforeHeatmap = null;
+  let beforeAvgConfidence = 0.8;
+  let afterHeatmap = null;
+  let afterAvgConfidence = 0.8;
+
+  if(beforeImg && sessions.Before) {
+    try {
+      const beforeOriginalImg = sessions.Before[beforeOrientation === "front" ? "imgFront" : "imgSide"];
+      if(beforeOriginalImg && beforeOriginalImg.src) {
+        const heatmapResult = await createConfidenceHeatmap(beforeOriginalImg.src, "Before", beforeOrientation);
+        if(heatmapResult && typeof heatmapResult === 'object') {
+          beforeHeatmap = heatmapResult.heatmapImage || heatmapResult;
+          beforeAvgConfidence = heatmapResult.avgConfidence || 0.8;
+        } else {
+          beforeHeatmap = heatmapResult;
+        }
+      }
+    } catch(err) {
+      console.warn("Before 히트맵 생성 실패:", err);
+      // 폴백: 원본 이미지 사용
+      beforeHeatmap = beforeImg;
+    }
+  }
+
+  if(afterImg && sessions.After) {
+    try {
+      const afterOriginalImg = sessions.After[afterOrientation === "front" ? "imgFront" : "imgSide"];
+      if(afterOriginalImg && afterOriginalImg.src) {
+        const heatmapResult = await createConfidenceHeatmap(afterOriginalImg.src, "After", afterOrientation);
+        if(heatmapResult && typeof heatmapResult === 'object') {
+          afterHeatmap = heatmapResult.heatmapImage || heatmapResult;
+          afterAvgConfidence = heatmapResult.avgConfidence || 0.8;
+        } else {
+          afterHeatmap = heatmapResult;
+        }
+      }
+    } catch(err) {
+      console.warn("After 히트맵 생성 실패:", err);
+      // 폴백: 원본 이미지 사용
+      afterHeatmap = afterImg;
+    }
+  }
+
+  // 측정 결과 기반 필라테스 추천
+  const beforeMetrics = sessions.Before?.metrics || {};
+  const afterMetrics = sessions.After?.metrics || {};
+  const metricBasedPilates = recommendPilatesFromMetrics(beforeMetrics, afterMetrics);
+
+  // 로고 HTML (있으면)
+  const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
+
+  // 분석 결과 요약 HTML 생성 (undefined 에러 방지)
+  // 운동 추천 HTML 생성
+  const exerciseRecommendationHtml = buildExerciseRecommendationHtml(analysisResult);
+
+  // ========== 페이지 1: 표지 (회원명, 센터명, 분석일) ==========
+  page1Container.innerHTML = `
+    <div style="text-align:center; margin-top:60px;">
+      <h1 style="margin:0; padding:0; font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
+      ${memberName ? `<h2 style="margin:0; padding:0; font-size:20px; font-weight:600; color:#333; margin-bottom:15px;">회원명: ${memberName}</h2>` : ''}
+      ${centerName ? `<h3 style="margin:0; padding:0; font-size:18px; font-weight:500; color:#666; margin-bottom:15px;">센터명: ${centerName}</h3>` : ''}
+      <p style="margin:0; padding:0; font-size:14px; color:#999; margin-bottom:10px;">분석일: ${dateStr}</p>
+      <p style="margin:0; padding:0; font-size:12px; color:#999; margin-top:40px;">Generated by ${appName}</p>
+    </div>
+
+    <!-- Before/After 이미지 비교 -->
+    ${beforeImg && afterImg ? `
+    <div style="margin-top:20px;">
+      <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📸 Before-After 자세 분석</div>
+      <div style="display:flex; gap:15px; justify-content:space-between; margin-bottom:20px;">
+        <div style="flex:1; text-align:center;">
+          <img src="${beforeImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
+          <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">Before</div>
+        </div>
+        <div style="flex:1; text-align:center;">
+          <img src="${afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
+          <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">After</div>
+        </div>
+      </div>
+
+      ${overlayImg ? `
+      <div style="margin-top:20px;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:8px;">🔄 Before-After 오버레이 (변화 시각화)</div>
+        <div style="text-align:center;">
+          <img src="${overlayImg}" style="width:100%; max-width:600px; height:auto; border-radius:8px; border:1px solid #ddd; display:block; margin:0 auto; max-height:400px; object-fit:contain;" />
+          <div style="margin-top:8px; font-size:10px; color:#666;">파란색: Before | 주황색: After (투명도 50%)</div>
+        </div>
+      </div>
+      ` : ''}
+    </div>
+    ` : beforeImg || afterImg ? `
+    <div style="margin-top:20px;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
+      <img src="${beforeImg || afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
+    </div>
+    ` : ''}
+  `;
+
+document.body.appendChild(page1Container);
+
+// html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
+const isMobile = isMobileDevice();
+const html2canvasOptions = {
+  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
+  backgroundColor: "#ffffff",
+  useCORS: true,
+  allowTaint: true,
+  logging: false,
+  // 모바일에서 메모리 최적화
+  ...(isMobile ? {
+    removeContainer: true, // 캡처 후 컨테이너 제거
+    imageTimeout: 15000, // 이미지 로딩 타임아웃
+    maxWidth: 800, // 최대 너비 제한
+    maxHeight: 1200 // 최대 높이 제한
+  } : {})
+};
+
+// 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지, 모바일 최적화)
+let canvas1;
+try {
+  // 모바일에서는 메모리 절약을 위해 지연 추가
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  canvas1 = await html2canvas(page1Container, {
+    ...html2canvasOptions,
+    windowWidth: page1Container.scrollWidth,
+    windowHeight: page1Container.scrollHeight
+  });
+
+  if (!canvas1 || !canvas1.toDataURL) {
+    throw new Error('첫 페이지 캔버스 생성 실패');
+  }
+
+  // 모바일에서 메모리 정리
+  if (isMobile && (canvas1.width > 2000 || canvas1.height > 2000)) {
+    const maxCanvasSize = 2000;
+    const ratio = Math.min(maxCanvasSize / canvas1.width, maxCanvasSize / canvas1.height);
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = Math.floor(canvas1.width * ratio);
+    newCanvas.height = Math.floor(canvas1.height * ratio);
+    const ctx = newCanvas.getContext('2d');
+    ctx.drawImage(canvas1, 0, 0, newCanvas.width, newCanvas.height);
+    canvas1 = newCanvas;
+  }
+} catch (canvasErr) {
+  if (document.body.contains(page1Container)) {
+    document.body.removeChild(page1Container);
+  }
+  console.error('❌ 첫 페이지 캔버스 생성 실패:', canvasErr);
+  throw new Error('PDF 생성 실패: 첫 페이지를 생성할 수 없습니다. ' + (canvasErr.message || ''));
+}
+
+if (document.body.contains(page1Container)) {
+  document.body.removeChild(page1Container);
+}
+
+// 모바일에서 메모리 정리를 위한 짧은 지연
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+const includeHeatmapPage = false;
+const totalPages = includeHeatmapPage ? 7 : 6;
+const pageIndexMap = {
+  metrics: includeHeatmapPage ? 3 : 2,
+  aiSummary: includeHeatmapPage ? 4 : 3,
+  pilates: includeHeatmapPage ? 5 : 4,
+  aiDeep: includeHeatmapPage ? 6 : 5,
+  conclusion: includeHeatmapPage ? 7 : 6
+};
+let planTexts = { quickHtml: '', fullText: '' };
+
+let canvas2 = null;
+if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
+  const page2Container = document.createElement("div");
+  setPageContainerStyle(page2Container);
+  page2Container.classList.add('pdf-safe');
+
+  page2Container.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:8px;">🔥 AI Confidence Heatmap</h2>
+      <div style="font-size:11px; color:#666; margin-bottom:20px;">각 관절의 AI 신뢰도를 색상으로 시각화합니다. 빨강(높음) → 노랑(중간) → 파랑(낮음)</div>
+
+      ${beforeHeatmap ? `
+      <div style="margin-bottom:25px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#6366f1;">Before Confidence Heatmap</div>
+        <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(beforeAvgConfidence * 100).toFixed(1)}%</div>
+        <img src="${beforeHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
+      </div>
+      ` : ''}
+
+      ${afterHeatmap ? `
+      <div style="margin-bottom:25px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#10b981;">After Confidence Heatmap</div>
+        <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(afterAvgConfidence * 100).toFixed(1)}%</div>
+        <img src="${afterHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
+      </div>
+      ` : ''}
+
+      ${!beforeHeatmap && !afterHeatmap ? `
+      <div style="padding:40px; text-align:center; color:#999; font-size:12px;">
+        Confidence 데이터가 없습니다. AI 포즈 감지를 실행해주세요.
+      </div>
+      ` : ''}
+    </div>
+
+    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+        <span>Generated by ${appName}</span>
+        <span>Page 2/${totalPages}</span>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(page2Container);
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  canvas2 = await html2canvas(page2Container, {
+    ...html2canvasOptions,
+    scale: isMobile ? 1.5 : 3,
+    windowWidth: page2Container.scrollWidth,
+    windowHeight: page2Container.scrollHeight
+  });
+  if (document.body.contains(page2Container)) {
+    document.body.removeChild(page2Container);
+  }
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+// 공통 페이지 스타일 설정 함수 (안전 폰트 사용)
+const setPageContainerStyle = (container) => {
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.style.width = "794px";
+  container.style.padding = "30px 25px";
+  container.style.paddingBottom = "40px";
+  container.style.background = "#ffffff";
+  container.style.color = "#111";
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
+  container.style.fontSize = "12px";
+  container.style.lineHeight = "1.45";
+  container.style.letterSpacing = "0.2px";
+  container.style.boxSizing = "border-box";
+  container.style.overflow = "hidden";
+  container.style.wordWrap = "break-word";
+  // PDF 안전 폰트 클래스 추가
+  container.classList.add('pdf-safe');
+};
+
+// ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) ==========
+const comparison = analyzeBeforeAfterComparison();
+try {
+  await ensureChartLibrary();
+} catch (chartErr) {
+  console.warn('Chart.js 준비 실패:', chartErr);
+}
+const page3Container = document.createElement("div");
+setPageContainerStyle(page3Container);
+
+let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
+
+if(comparison && comparison.results.length > 0) {
+  let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
+
+  comparison.results.forEach((item, idx) => {
+    const statusColor = item.status === 'improved' ? '#2ec4b6' : item.status === 'worsened' ? '#ff6b6b' : '#666';
+    const statusIcon = item.status === 'improved' ? '↑' : item.status === 'worsened' ? '↓' : '→';
+    const deltaStr = item.delta >= 0 ? '+' + item.delta.toFixed(1) : item.delta.toFixed(1);
+    comparisonTableHTML += `<tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
+      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${item.name}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px; color:${statusColor}; font-weight:600;">${deltaStr}${item.unit} ${statusIcon}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555; line-height:1.4;">${item.comment}</td>
+    </tr>`;
+  });
+  comparisonTableHTML += '</table>';
+
+  // 정상 범위 정의
+  const normalRange = {
+    'CVA(두개경추각)': [50, 90],
+    'HPD(두부전방이동)': [0, 2],
+    'TIA(체간경사각)': [0, 10],
+    'SAA(어깨전방각)': [0, 10],
+    'PTA(골반경사각)': [0, 15],
+    'KA(무릎각)': [175, 185],
+    'Tibial(경골경사각)': [0, 10],
+    'GSB(중심선)': [0, 2],
+    'HPA(머리-골반각)': [0, 10]
+  };
+
+  // 정상 범위 벗어남 확인 함수
+  const isOutOfRange = (metricName, val) => {
+    const key = Object.keys(normalRange).find(k => metricName.includes(k.replace(/[()]/g, '')));
+    if(!key) return false;
+    const [min, max] = normalRange[key];
+    return val < min || val > max;
+  };
+
+  const labels = comparison.results.map(r => r.name);
+  const beforeData = comparison.results.map(r => r.before);
+  const afterData = comparison.results.map(r => r.after);
+
+  // Chart.js 그래프 생성
+  if(typeof Chart !== 'undefined') {
+    const ctx = chartCanvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Before',
+            data: beforeData,
+            backgroundColor: beforeData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
+            borderColor: beforeData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
+            borderWidth: 1
+          },
+          {
+            label: 'After',
+            data: afterData,
+            backgroundColor: afterData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
+            borderColor: afterData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { 
+            display: true, 
+            text: 'Before–After 자세 비교 그래프', 
+            font: { size: 16, weight: 'bold' },
+            padding: { top: 10, bottom: 20 }
+          },
+          legend: { 
+            position: 'top',
+            labels: {
+              font: { size: 12 },
+              padding: 15
+            }
+          },
+          tooltip: { 
+            callbacks: { 
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
+            } 
+          }
+        },
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            title: { 
+              display: true, 
+              text: '단위 (° / cm)',
+              font: { size: 12 }
+            },
+            ticks: {
+              font: { size: 10 }
+            }
+          },
+          x: { 
+            ticks: { 
+              autoSkip: false, 
+              maxRotation: 45, 
+              minRotation: 45,
+              font: { size: 9 }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
+    <div id="beforeAfterChartSection"></div>
+    <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">📈 전체 변화 요약</div>
+      <div style="font-size:11px; line-height:1.6; color:#333;">${comparison.summary.overallComment}</div>
+    </div>`;
+} else {
+  page3HTML += '<div style="padding:40px; text-align:center; color:#999;">Before-After 비교 데이터가 없습니다.</div>';
+}
+
+const metricsPageNumber = pageIndexMap.metrics;
+page3HTML += `<div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+    <span>Generated by ${appName}</span>
+    <span>Page ${metricsPageNumber}/${totalPages}</span>
+  </div>
+</div>`;
+
+page3Container.innerHTML = page3HTML;
+const chartSectionPlaceholder = page3Container.querySelector('#beforeAfterChartSection');
+if(chartSectionPlaceholder) {
+  const section = document.createElement('div');
+  section.style.marginTop = '20px';
+  section.innerHTML = `
+    <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#333;">📈 Before-After 그래프 (Chart.js)</div>
+    <div style="background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd;">
+      <div style="font-size:10px; color:#666; margin-bottom:8px;">🔵 Before (교정 전) | 🟢 After (교정 후) | ⚠️ 붉은 값 = 정상범위 벗어남</div>
+    </div>
+  `;
+  const graphShell = section.querySelector('div:nth-child(2)');
+  const chartCanvas = document.createElement('canvas');
+  chartCanvas.width = 800;
+  chartCanvas.height = 400;
+  chartCanvas.style.width = '100%';
+  chartCanvas.style.maxHeight = '420px';
+  graphShell.appendChild(chartCanvas);
+  chartSectionPlaceholder.replaceWith(section);
+
+  if(typeof Chart !== 'undefined') {
+    const ctx = chartCanvas.getContext('2d');
+    chartCanvas.chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Before',
+            data: beforeData,
+            backgroundColor: beforeData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
+            borderColor: beforeData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
+            borderWidth: 1
+          },
+          {
+            label: 'After',
+            data: afterData,
+            backgroundColor: afterData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
+            borderColor: afterData.map((v, i) => 
+              isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { 
+            display: true, 
+            text: 'Before–After 자세 비교 그래프', 
+            font: { size: 16, weight: 'bold' },
+            padding: { top: 10, bottom: 20 }
+          },
+          legend: { 
+            position: 'top',
+            labels: {
+              font: { size: 12 },
+              padding: 15
+            }
+          },
+          tooltip: { 
+            callbacks: { 
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
+            } 
+          }
+        },
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            title: { 
+              display: true, 
+              text: '단위 (° / cm)',
+              font: { size: 12 }
+            },
+            ticks: {
+              font: { size: 10 }
+            }
+          },
+          x: { 
+            ticks: { 
+              autoSkip: false, 
+              maxRotation: 45, 
+              minRotation: 45,
+              font: { size: 9 }
+            }
+          }
+        }
+      }
+    });
+    await waitForChartRender(chartCanvas.chartInstance);
+  }
+}
+
+document.body.appendChild(page3Container);
+
+const canvas3 = await html2canvas(page3Container, {
+  ...html2canvasOptions,
+  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
+  windowWidth: page3Container.scrollWidth,
+  windowHeight: page3Container.scrollHeight
+});
+
+if (document.body.contains(page3Container)) {
+  document.body.removeChild(page3Container);
+}
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+// ========== 페이지 4: AI 해석 요약 (DB 기반 분석 포함) ==========
+const page4Container = document.createElement("div");
+setPageContainerStyle(page4Container);
+
+// After metrics 추출 (DB 기반 분석용)
+const afterMetricsForDB = {};
+const aMetricsForDB = sessions.After?.metrics?.fullMetrics || {};
+const metricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA', 
+                    'STA', 'STA_F', 'POA', 'POA_F', 'TD', 'HTA', 'SPP', 'LLD', 'LLD_F'];
+metricKeys.forEach(key => {
+  const val = aMetricsForDB[key]?.value != null ? aMetricsForDB[key].value : 
+              (aMetricsForDB[key]?.value_deg != null ? aMetricsForDB[key].value_deg : 
+              (aMetricsForDB[key]?.value_cm != null ? aMetricsForDB[key].value_cm : null));
+  if(val != null) {
+    afterMetricsForDB[key] = val;
+  }
+});
+
+// DB 기반 AI 분석 수행
+let dbAnalysis = null;
+try {
+  if(Object.keys(afterMetricsForDB).length > 0) {
+    dbAnalysis = await runDBDrivenAI(afterMetricsForDB);
+  }
+} catch(err) {
+  console.warn('DB 기반 분석 실패:', err);
+}
+
+// ✅ 전체 체형 점수 계산
+const fullMetricsForScore = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
+const scoreResult = computeScore(
+  fullMetricsForScore.CVA?.value || fullMetricsForScore.CVA?.value_deg || null,
+  fullMetricsForScore.PTA?.value || fullMetricsForScore.PTA?.value_deg || null,
+  fullMetricsForScore.KA?.value || fullMetricsForScore.KA?.value_deg || null
+);
+
+const memberNameForPDF1 = memberName || '회원';
+
+// 패턴 요약
+const patterns = [];
+if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+  analysis.pilates.forEach(item => {
+    if(item.name || item.issue) {
+      patterns.push(item.name || item.issue);
+    }
+  });
+}
+planTexts = buildPlanTexts({
+  memberName: memberNameForPDF1,
+  patterns,
+  scoreResult,
+  analysis,
+  comparisonSummary: comparison?.summary?.overallComment || ''
+});
+
+page4Container.innerHTML = `
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 자세 분석 리포트</h2>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+    ${scoreResult ? `
+    <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
+      <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 체형 종합 점수</div>
+      <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${scoreResult.score}/100</div>
+      <div style="font-size:11px; color:#15803d;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
+    </div>` : ''}
+
+    ${(analysis.tight && analysis.tight.length) || (analysis.weak && analysis.weak.length) ? `
+    <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
+      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
+      ${analysis.tight?.length ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${analysis.tight.join(', ')}</div>` : ''}
+      ${analysis.weak?.length ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${analysis.weak.join(', ')}</div>` : ''}
+    </div>` : ''}
+
+    ${analysis.comments?.length ? `
+    <div style="padding:18px; background:#e0f2fe; border-radius:12px; border:1px solid #bae6fd;">
+      <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px;">🤖 AI 코멘트</div>
+      <div style="font-size:11px; line-height:1.7; color:#0f172a;">${analysis.comments.join(' ')}</div>
+    </div>` : ''}
+  </div>
+
+  ${(dbAnalysis?.topRecommendations || []).length ? `
+  <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
+    <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴 (Top 3)</div>
+    <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
+      ${(dbAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+        <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
+        ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
+        ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
+      </li>`).join('')}
+    </ul>
+    <div style="margin-top:6px; font-size:10px; color:#6b7280;">※ 상세 루틴은 다음 페이지 '필라테스 추천'에서 확인하세요.</div>
+  </div>` : ''}
+
+  <div style="margin-top:15px; padding:12px; background:#f6fff7; border-radius:10px; border-left:4px solid #27ae60;">
+    <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#27ae60;">✅ 향후 관리 요약</div>
+    ${planTexts.quickHtml || '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>'}
+  </div>
+
+  <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+      <span>Generated by ${appName}</span>
+      <span>Page ${pageIndexMap.aiSummary}/${totalPages}</span>
+    </div>
+  </div>
+`;
+document.body.appendChild(page4Container);
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+const canvas4 = await html2canvas(page4Container, html2canvasOptions);
+
+if (document.body.contains(page4Container)) {
+  document.body.removeChild(page4Container);
+}
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+// ========== 페이지 5: 필라테스 추천 루틴 (쉬운 따라하기) ==========
+const page5Container = document.createElement("div");
+setPageContainerStyle(page5Container);
+
+// metrics 데이터 준비 (Before-After 비교용)
+const combinedMetrics = {};
+const bMetrics = sessions.Before?.metrics?.fullMetrics || {};
+const aMetrics = sessions.After?.metrics?.fullMetrics || {};
+
+// 각 지표를 {before, after} 형태로 변환
+['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA'].forEach(key => {
+  const bVal = bMetrics[key]?.value != null ? bMetrics[key].value : 
+               (bMetrics[key]?.value_deg != null ? bMetrics[key].value_deg : 
+               (bMetrics[key]?.value_cm != null ? bMetrics[key].value_cm : null));
+  const aVal = aMetrics[key]?.value != null ? aMetrics[key].value : 
+               (aMetrics[key]?.value_deg != null ? aMetrics[key].value_deg : 
+               (aMetrics[key]?.value_cm != null ? aMetrics[key].value_cm : null));
+  if(bVal != null || aVal != null) {
+    combinedMetrics[key] = { before: bVal, after: aVal };
+  }
+});
+
+// 필라테스 추천 카드 HTML 생성
+const pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
+
+page5Container.innerHTML = `
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 추천 루틴 (쉬운 따라하기)</h2>
+  <div style="margin-top:20px; line-height:1.6;">
+    ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
+  </div>
+  <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+    <span>Generated by ${appName}</span>
+    <span>Page ${pageIndexMap.pilates}/${totalPages}</span>
+  </div>
+  </div>
+`;
+
+document.body.appendChild(page5Container);
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+const canvas5 = await html2canvas(page5Container, {
+  ...html2canvasOptions,
+  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
+  windowWidth: page5Container.scrollWidth,
+  windowHeight: page5Container.scrollHeight
+});
+
+if (document.body.contains(page5Container)) {
+  document.body.removeChild(page5Container);
+}
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+// ========== 페이지 6: AI 심층 분석 ==========
+const page6Container = document.createElement("div");
+setPageContainerStyle(page6Container);
+
+// ✅ AI 심층 분석 텍스트 생성 (DB 기반)
+const deepAnalysisText = generateAIDeepAnalysis(combinedMetrics);
+
+// ✅ 텍스트를 HTML로 변환 (글자 잘림 방지 - word-wrap, white-space:pre-wrap 추가)
+const deepAnalysisHtml = deepAnalysisText.split('\n').map(line => {
+  if(line.trim() === '') return '<br>';
+  if(line.startsWith('▶')) {
+    return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
+  }
+  if(line.startsWith('📍')) {
+    return `<div style="font-size:14px; font-weight:600; color:#6366f1; margin-top:15px; margin-bottom:8px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
+  }
+  if(line.startsWith('- ')) {
+    return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
+  }
+  if(line.startsWith('  ·')) {
+    return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
+  }
+  return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
+}).join('');
+
+page6Container.innerHTML = `
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 심층 분석</h2>
+  <div style="margin-top:20px; line-height:1.6;">
+    ${deepAnalysisHtml}
+  </div>
+  <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+    <span>Generated by ${appName}</span>
+    <span>Page ${pageIndexMap.aiDeep}/${totalPages}</span>
+  </div>
+  </div>
+`;
+
+document.body.appendChild(page6Container);
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+const canvas6 = await html2canvas(page6Container, {
+  ...html2canvasOptions,
+  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
+  windowWidth: page6Container.scrollWidth,
+  windowHeight: page6Container.scrollHeight
+});
+
+if (document.body.contains(page6Container)) {
+  document.body.removeChild(page6Container);
+}
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+// ========== 페이지 7: 결론 (기존 페이지 6) ==========
+const page7Container = document.createElement("div");
+setPageContainerStyle(page7Container);
+
+    const beforeAfterSummaryHtml = buildBeforeAfterSummaryHTML(comparison);
+const fullPlanHtml = planTexts.fullText
+  ? formatMultilineText(planTexts.fullText)
+  : '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>';
+
+page7Container.innerHTML = `
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략</h2>
+  ${beforeAfterSummaryHtml}
+  <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
+    <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
+    <div style="font-size:12px; line-height:1.7; color:#111;">${fullPlanHtml}</div>
+  </div>
+  <div style="margin-top:16px; font-size:10px; color:#6b7280; line-height:1.6;">
+    ※ 본 리포트는 교육용으로 제공되며, 의료 진단을 대체하지 않습니다. 통증이 지속되면 전문의와 상의하세요.
+  </div>
+  <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+      <span>Generated by ${appName}</span>
+      <span>Page ${pageIndexMap.conclusion}/${totalPages}</span>
+    </div>
+  </div>
+`;
+
+document.body.appendChild(page7Container);
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+const canvas7 = await html2canvas(page7Container, html2canvasOptions);
+
+if (document.body.contains(page7Container)) {
+  document.body.removeChild(page7Container);
+}
+
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+// 기존 페이지 5, 6 코드는 위에서 새로운 페이지 5, 6, 7로 대체됨
+
+
+  return {
+    canvases: {
+      cover: canvas1,
+      heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
+      metrics: canvas3,
+      aiSummary: canvas4,
+      pilates: canvas5,
+      aiDeep: canvas6,
+      conclusion: canvas7
+    },
+    includeHeatmapPage,
+    totalPages,
+    pageIndexMap
+  };
+}
+
+function combineCanvasesVertical(canvasList, gap = 40) {
+  if (!Array.isArray(canvasList) || canvasList.length === 0) {
+    throw new Error("결합할 캔버스가 없습니다.");
+  }
+  const maxWidth = Math.max(...canvasList.map(canvas => canvas.width || 0));
+  if (!maxWidth) {
+    throw new Error("캔버스 너비를 확인할 수 없습니다.");
+  }
+  const scaledHeights = canvasList.map(canvas => {
+    const scale = maxWidth / canvas.width;
+    return Math.round(canvas.height * scale);
+  });
+  const totalHeight = scaledHeights.reduce((sum, h) => sum + h, 0) + gap * (canvasList.length - 1);
+  const combined = document.createElement('canvas');
+  combined.width = maxWidth;
+  combined.height = totalHeight;
+  const ctx = combined.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, combined.width, combined.height);
+  let offsetY = 0;
+  canvasList.forEach((canvas, idx) => {
+    const height = scaledHeights[idx];
+    ctx.drawImage(canvas, 0, offsetY, maxWidth, height);
+    offsetY += height;
+    if (idx < canvasList.length - 1) {
+      offsetY += gap;
+    }
+  });
+  return combined;
+}
+
 function downloadCanvasAsImage(canvas, fileName, btn, originalText) {
   return new Promise((resolve, reject) => {
     const finalize = () => {
@@ -9711,10 +10723,7 @@ async function generatePosturePDF(centerName, memberName, before, after) {
     await savePDFMobileCompatible(fileName, pdf);
   } catch (err) {
     console.error('PDF 생성 오류:', err);
-    return await exportAsPdf({
-      centerName: centerName,
-      memberName: memberName
-    });
+    alert('간단 PDF 생성 중 오류가 발생했습니다: ' + (err.message || '알 수 없는 오류'));
   }
 }
 
@@ -9857,969 +10866,18 @@ function exportAsPdf(options = {}) {
       }
       
       const { jsPDF } = window.jspdf;
-      
-      const S = sessions[cur];
-      const M = S.metrics || {};
-      const scoreData = S.score || {};
-      let analysis = S.analysis || {};
-      const hasMeaningfulAnalysis = (data) => {
-        if (!data) return false;
-        return ['pilates','exercises','comments','details','tight','weak'].some(key => Array.isArray(data[key]) && data[key].length > 0);
-      };
-      const mergeAnalysisData = (preferred = {}, fallback = {}) => ({
-        ...fallback,
-        ...preferred,
-        pilates: (Array.isArray(preferred.pilates) && preferred.pilates.length > 0) ? preferred.pilates : (fallback.pilates || []),
-        exercises: (Array.isArray(preferred.exercises) && preferred.exercises.length > 0) ? preferred.exercises : (fallback.exercises || []),
-        comments: (Array.isArray(preferred.comments) && preferred.comments.length > 0) ? preferred.comments : (fallback.comments || []),
-        details: (Array.isArray(preferred.details) && preferred.details.length > 0) ? preferred.details : (fallback.details || []),
-        tight: (Array.isArray(preferred.tight) && preferred.tight.length > 0) ? preferred.tight : (fallback.tight || []),
-        weak: (Array.isArray(preferred.weak) && preferred.weak.length > 0) ? preferred.weak : (fallback.weak || [])
-      });
-      
-      const analysisResultFallback = S.analysisResult?.analysis || null;
-      if (analysisResultFallback) {
-        analysis = mergeAnalysisData(analysis, analysisResultFallback);
-      }
-      
-      if (!hasMeaningfulAnalysis(analysis) && analysisResultFallback) {
-        analysis = mergeAnalysisData(analysisResultFallback, analysis);
-      }
-      
-      if (!hasMeaningfulAnalysis(analysis) && S.metrics?.fullMetrics) {
-        try {
-          const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
-          if (refreshedAnalysis) {
-            analysis = refreshedAnalysis;
-            S.analysis = refreshedAnalysis;
-          }
-        } catch (recalcErr) {
-          console.warn('PDF 생성 중 분석 데이터 보강 실패:', recalcErr);
-        }
-      }
-      
-      if (!analysis) {
-        analysis = {};
-      }
-      
-      // 날짜 포맷
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      
-      // 첫 페이지: 제목과 이미지
-      const page1Container = createCoverPageContainer({
-        memberName,
+      const {
+        canvases,
+        includeHeatmapPage,
+        totalPages,
+        pageIndexMap
+      } = await captureReportCanvases({
         centerName,
-        dateStr,
+        memberName,
         appName,
-        beforeImg,
-        afterImg,
-        overlayImg
+        logoUrl
       });
       
-      // 통합 분석 결과 가져오기 (운동 추천 포함)
-      const analysisResult = S.analysisResult || analyzePostureAutoWithRecommendation({
-        sidePts: S.sidePoints.size > 0 ? Object.fromEntries(S.sidePoints) : null,
-        frontPts: S.frontPoints.size > 0 ? Object.fromEntries(S.frontPoints) : null,
-        pxPerCm: S.pxPerCm || 50.0
-      });
-      
-      // Before/After 캔버스 이미지 가져오기 (dot와 점선 포함)
-      if (!cv || !cv.toDataURL) {
-        throw new Error("캔버스가 준비되지 않았습니다.");
-      }
-      
-      // 현재 세션 저장
-      const originalCur = cur;
-      
-      // Before 이미지 캡처
-      let beforeImg = null;
-      let beforeOrientation = "side";
-      if(sessions.Before && (sessions.Before.sidePoints.size > 0 || sessions.Before.frontPoints.size > 0)) {
-        beforeOrientation = sessions.Before.poseData?.orientation || "side";
-        switchSession("Before");
-        if(beforeOrientation !== (sessions.Before.poseData?.orientation || "side")) {
-          setOrientation(beforeOrientation);
-        }
-        // 캔버스 그리기 대기
-        await new Promise(resolve => setTimeout(resolve, 100));
-        draw();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        beforeImg = cv.toDataURL("image/png");
-      }
-      
-      // After 이미지 캡처
-      let afterImg = null;
-      let afterOrientation = "side";
-      if(sessions.After && (sessions.After.sidePoints.size > 0 || sessions.After.frontPoints.size > 0)) {
-        afterOrientation = sessions.After.poseData?.orientation || "side";
-        switchSession("After");
-        if(afterOrientation !== (sessions.After.poseData?.orientation || "side")) {
-          setOrientation(afterOrientation);
-        }
-        // 캔버스 그리기 대기
-        await new Promise(resolve => setTimeout(resolve, 100));
-        draw();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        afterImg = cv.toDataURL("image/png");
-      }
-      
-      // 원래 세션으로 복원
-      switchSession(originalCur);
-      await new Promise(resolve => setTimeout(resolve, 50));
-      draw();
-      
-      // Before-After 오버레이 이미지 생성 (스켈레톤 포함)
-      let overlayImg = null;
-      if(beforeImg && afterImg) {
-        try {
-          // Before와 After 세션의 키포인트 가져오기
-          const beforeOrientation = sessions.Before?.poseData?.orientation || "side";
-          const afterOrientation = sessions.After?.poseData?.orientation || "side";
-          const beforePointsMap = beforeOrientation === "front" ? sessions.Before?.frontPoints : sessions.Before?.sidePoints;
-          const afterPointsMap = afterOrientation === "front" ? sessions.After?.frontPoints : sessions.After?.sidePoints;
-          
-          // Map을 일반 객체로 변환 (소문자 키로 통일)
-          const getPointsObject = (pointsMap) => {
-            if(!pointsMap) return null;
-            const obj = {};
-            if(pointsMap instanceof Map) {
-              pointsMap.forEach((value, key) => {
-                // 키를 소문자로 변환 (tragus, c7, acromion 등)
-                const lowerKey = key.toLowerCase();
-                obj[lowerKey] = value;
-              });
-            } else if(typeof pointsMap === 'object') {
-              Object.keys(pointsMap).forEach(key => {
-                const lowerKey = key.toLowerCase();
-                obj[lowerKey] = pointsMap[key];
-              });
-            }
-            return obj;
-          };
-          
-          const beforePoints = getPointsObject(beforePointsMap);
-          const afterPoints = getPointsObject(afterPointsMap);
-          
-          // 스켈레톤이 있는 경우 스켈레톤 포함 오버레이 생성, 없으면 기본 오버레이
-          if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
-            overlayImg = await createOverlayImageWithSkeleton(beforeImg, afterImg, beforePoints, afterPoints, 0.5);
-          } else {
-            overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
-          }
-        } catch(err) {
-          console.warn("오버레이 이미지 생성 실패:", err);
-          // 폴백: 기본 오버레이 시도
-          try {
-            overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
-          } catch(err2) {
-            console.warn("기본 오버레이 이미지 생성도 실패:", err2);
-          }
-        }
-      }
-      
-      // Confidence Heatmap 생성 (Before, After) - 안전 버전
-      let beforeHeatmap = null;
-      let beforeAvgConfidence = 0.8;
-      let afterHeatmap = null;
-      let afterAvgConfidence = 0.8;
-      
-      if(beforeImg && sessions.Before) {
-        try {
-          const beforeOriginalImg = sessions.Before[beforeOrientation === "front" ? "imgFront" : "imgSide"];
-          if(beforeOriginalImg && beforeOriginalImg.src) {
-            const heatmapResult = await createConfidenceHeatmap(beforeOriginalImg.src, "Before", beforeOrientation);
-            if(heatmapResult && typeof heatmapResult === 'object') {
-              beforeHeatmap = heatmapResult.heatmapImage || heatmapResult;
-              beforeAvgConfidence = heatmapResult.avgConfidence || 0.8;
-            } else {
-              beforeHeatmap = heatmapResult;
-            }
-          }
-        } catch(err) {
-          console.warn("Before 히트맵 생성 실패:", err);
-          // 폴백: 원본 이미지 사용
-          beforeHeatmap = beforeImg;
-        }
-      }
-      
-      if(afterImg && sessions.After) {
-        try {
-          const afterOriginalImg = sessions.After[afterOrientation === "front" ? "imgFront" : "imgSide"];
-          if(afterOriginalImg && afterOriginalImg.src) {
-            const heatmapResult = await createConfidenceHeatmap(afterOriginalImg.src, "After", afterOrientation);
-            if(heatmapResult && typeof heatmapResult === 'object') {
-              afterHeatmap = heatmapResult.heatmapImage || heatmapResult;
-              afterAvgConfidence = heatmapResult.avgConfidence || 0.8;
-            } else {
-              afterHeatmap = heatmapResult;
-            }
-          }
-        } catch(err) {
-          console.warn("After 히트맵 생성 실패:", err);
-          // 폴백: 원본 이미지 사용
-          afterHeatmap = afterImg;
-        }
-      }
-      
-      // 측정 결과 기반 필라테스 추천
-      const beforeMetrics = sessions.Before?.metrics || {};
-      const afterMetrics = sessions.After?.metrics || {};
-      const metricBasedPilates = recommendPilatesFromMetrics(beforeMetrics, afterMetrics);
-      
-      // 로고 HTML (있으면)
-      const logoHtml = logoUrl ? `<img src="${logoUrl}" style="width:32px; height:32px; margin-right:8px; vertical-align:middle;" />` : '';
-      
-      // 분석 결과 요약 HTML 생성 (undefined 에러 방지)
-      // 운동 추천 HTML 생성
-      const exerciseRecommendationHtml = buildExerciseRecommendationHtml(analysisResult);
-      
-      // ========== 페이지 1: 표지 (회원명, 센터명, 분석일) ==========
-      page1Container.innerHTML = `
-        <div style="text-align:center; margin-top:60px;">
-          <h1 style="margin:0; padding:0; font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
-          ${memberName ? `<h2 style="margin:0; padding:0; font-size:20px; font-weight:600; color:#333; margin-bottom:15px;">회원명: ${memberName}</h2>` : ''}
-          ${centerName ? `<h3 style="margin:0; padding:0; font-size:18px; font-weight:500; color:#666; margin-bottom:15px;">센터명: ${centerName}</h3>` : ''}
-          <p style="margin:0; padding:0; font-size:14px; color:#999; margin-bottom:10px;">분석일: ${dateStr}</p>
-          <p style="margin:0; padding:0; font-size:12px; color:#999; margin-top:40px;">Generated by ${appName}</p>
-        </div>
-        
-        <!-- Before/After 이미지 비교 -->
-        ${beforeImg && afterImg ? `
-        <div style="margin-top:20px;">
-          <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📸 Before-After 자세 분석</div>
-          <div style="display:flex; gap:15px; justify-content:space-between; margin-bottom:20px;">
-            <div style="flex:1; text-align:center;">
-              <img src="${beforeImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
-              <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">Before</div>
-            </div>
-            <div style="flex:1; text-align:center;">
-              <img src="${afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
-              <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">After</div>
-            </div>
-          </div>
-          
-          ${overlayImg ? `
-          <div style="margin-top:20px;">
-            <div style="font-size:12px; font-weight:600; margin-bottom:8px;">🔄 Before-After 오버레이 (변화 시각화)</div>
-            <div style="text-align:center;">
-              <img src="${overlayImg}" style="width:100%; max-width:600px; height:auto; border-radius:8px; border:1px solid #ddd; display:block; margin:0 auto; max-height:400px; object-fit:contain;" />
-              <div style="margin-top:8px; font-size:10px; color:#666;">파란색: Before | 주황색: After (투명도 50%)</div>
-            </div>
-          </div>
-          ` : ''}
-        </div>
-        ` : beforeImg || afterImg ? `
-        <div style="margin-top:20px;">
-          <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
-          <img src="${beforeImg || afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
-        </div>
-        ` : ''}
-      `;
-    
-    document.body.appendChild(page1Container);
-    
-    // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
-    const isMobile = isMobileDevice();
-    const html2canvasOptions = {
-      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      // 모바일에서 메모리 최적화
-      ...(isMobile ? {
-        removeContainer: true, // 캡처 후 컨테이너 제거
-        imageTimeout: 15000, // 이미지 로딩 타임아웃
-        maxWidth: 800, // 최대 너비 제한
-        maxHeight: 1200 // 최대 높이 제한
-      } : {})
-    };
-    
-    // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지, 모바일 최적화)
-    let canvas1;
-    try {
-      // 모바일에서는 메모리 절약을 위해 지연 추가
-      if (isMobile) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
-      canvas1 = await html2canvas(page1Container, {
-        ...html2canvasOptions,
-        windowWidth: page1Container.scrollWidth,
-        windowHeight: page1Container.scrollHeight
-      });
-      
-      if (!canvas1 || !canvas1.toDataURL) {
-        throw new Error('첫 페이지 캔버스 생성 실패');
-      }
-      
-      // 모바일에서 메모리 정리
-      if (isMobile && (canvas1.width > 2000 || canvas1.height > 2000)) {
-        const maxCanvasSize = 2000;
-        const ratio = Math.min(maxCanvasSize / canvas1.width, maxCanvasSize / canvas1.height);
-        const newCanvas = document.createElement('canvas');
-        newCanvas.width = Math.floor(canvas1.width * ratio);
-        newCanvas.height = Math.floor(canvas1.height * ratio);
-        const ctx = newCanvas.getContext('2d');
-        ctx.drawImage(canvas1, 0, 0, newCanvas.width, newCanvas.height);
-        canvas1 = newCanvas;
-      }
-    } catch (canvasErr) {
-      if (document.body.contains(page1Container)) {
-        document.body.removeChild(page1Container);
-      }
-      console.error('❌ 첫 페이지 캔버스 생성 실패:', canvasErr);
-      throw new Error('PDF 생성 실패: 첫 페이지를 생성할 수 없습니다. ' + (canvasErr.message || ''));
-    }
-    
-    if (document.body.contains(page1Container)) {
-      document.body.removeChild(page1Container);
-    }
-    
-    // 모바일에서 메모리 정리를 위한 짧은 지연
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const includeHeatmapPage = false;
-    const totalPages = includeHeatmapPage ? 7 : 6;
-    const pageIndexMap = {
-      metrics: includeHeatmapPage ? 3 : 2,
-      aiSummary: includeHeatmapPage ? 4 : 3,
-      pilates: includeHeatmapPage ? 5 : 4,
-      aiDeep: includeHeatmapPage ? 6 : 5,
-      conclusion: includeHeatmapPage ? 7 : 6
-    };
-    let planTexts = { quickHtml: '', fullText: '' };
-    
-    let canvas2 = null;
-    if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
-      const page2Container = document.createElement("div");
-      setPageContainerStyle(page2Container);
-      page2Container.classList.add('pdf-safe');
-      
-      page2Container.innerHTML = `
-        <div style="margin-bottom:20px;">
-          <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:8px;">🔥 AI Confidence Heatmap</h2>
-          <div style="font-size:11px; color:#666; margin-bottom:20px;">각 관절의 AI 신뢰도를 색상으로 시각화합니다. 빨강(높음) → 노랑(중간) → 파랑(낮음)</div>
-          
-          ${beforeHeatmap ? `
-          <div style="margin-bottom:25px;">
-            <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#6366f1;">Before Confidence Heatmap</div>
-            <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(beforeAvgConfidence * 100).toFixed(1)}%</div>
-            <img src="${beforeHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
-          </div>
-          ` : ''}
-          
-          ${afterHeatmap ? `
-          <div style="margin-bottom:25px;">
-            <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#10b981;">After Confidence Heatmap</div>
-            <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(afterAvgConfidence * 100).toFixed(1)}%</div>
-            <img src="${afterHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
-          </div>
-          ` : ''}
-          
-          ${!beforeHeatmap && !afterHeatmap ? `
-          <div style="padding:40px; text-align:center; color:#999; font-size:12px;">
-            Confidence 데이터가 없습니다. AI 포즈 감지를 실행해주세요.
-          </div>
-          ` : ''}
-        </div>
-        
-        <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-          <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-            <span>Generated by ${appName}</span>
-            <span>Page 2/${totalPages}</span>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(page2Container);
-      if (isMobile) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      canvas2 = await html2canvas(page2Container, {
-        ...html2canvasOptions,
-        scale: isMobile ? 1.5 : 3,
-        windowWidth: page2Container.scrollWidth,
-        windowHeight: page2Container.scrollHeight
-      });
-      if (document.body.contains(page2Container)) {
-        document.body.removeChild(page2Container);
-      }
-      if (isMobile) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-    
-    // 공통 페이지 스타일 설정 함수 (안전 폰트 사용)
-    const setPageContainerStyle = (container) => {
-      container.style.position = "fixed";
-      container.style.left = "-9999px";
-      container.style.top = "0";
-      container.style.width = "794px";
-      container.style.padding = "30px 25px";
-      container.style.paddingBottom = "40px";
-      container.style.background = "#ffffff";
-      container.style.color = "#111";
-      container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
-      container.style.fontSize = "12px";
-      container.style.lineHeight = "1.45";
-      container.style.letterSpacing = "0.2px";
-      container.style.boxSizing = "border-box";
-      container.style.overflow = "hidden";
-      container.style.wordWrap = "break-word";
-      // PDF 안전 폰트 클래스 추가
-      container.classList.add('pdf-safe');
-    };
-    
-    // ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) ==========
-    const comparison = analyzeBeforeAfterComparison();
-    try {
-      await ensureChartLibrary();
-    } catch (chartErr) {
-      console.warn('Chart.js 준비 실패:', chartErr);
-    }
-    const page3Container = document.createElement("div");
-    setPageContainerStyle(page3Container);
-    
-    let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
-    
-    if(comparison && comparison.results.length > 0) {
-      let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
-      
-      comparison.results.forEach((item, idx) => {
-        const statusColor = item.status === 'improved' ? '#2ec4b6' : item.status === 'worsened' ? '#ff6b6b' : '#666';
-        const statusIcon = item.status === 'improved' ? '↑' : item.status === 'worsened' ? '↓' : '→';
-        const deltaStr = item.delta >= 0 ? '+' + item.delta.toFixed(1) : item.delta.toFixed(1);
-        comparisonTableHTML += `<tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
-          <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${item.name}</td>
-          <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
-          <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
-          <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px; color:${statusColor}; font-weight:600;">${deltaStr}${item.unit} ${statusIcon}</td>
-          <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555; line-height:1.4;">${item.comment}</td>
-        </tr>`;
-      });
-      comparisonTableHTML += '</table>';
-      
-      // 정상 범위 정의
-      const normalRange = {
-        'CVA(두개경추각)': [50, 90],
-        'HPD(두부전방이동)': [0, 2],
-        'TIA(체간경사각)': [0, 10],
-        'SAA(어깨전방각)': [0, 10],
-        'PTA(골반경사각)': [0, 15],
-        'KA(무릎각)': [175, 185],
-        'Tibial(경골경사각)': [0, 10],
-        'GSB(중심선)': [0, 2],
-        'HPA(머리-골반각)': [0, 10]
-      };
-      
-      // 정상 범위 벗어남 확인 함수
-      const isOutOfRange = (metricName, val) => {
-        const key = Object.keys(normalRange).find(k => metricName.includes(k.replace(/[()]/g, '')));
-        if(!key) return false;
-        const [min, max] = normalRange[key];
-        return val < min || val > max;
-      };
-      
-      const labels = comparison.results.map(r => r.name);
-      const beforeData = comparison.results.map(r => r.before);
-      const afterData = comparison.results.map(r => r.after);
-      
-      // Chart.js 그래프 생성
-      if(typeof Chart !== 'undefined') {
-        const ctx = chartCanvas.getContext('2d');
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Before',
-                data: beforeData,
-                backgroundColor: beforeData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
-                borderColor: beforeData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
-                borderWidth: 1
-              },
-              {
-                label: 'After',
-                data: afterData,
-                backgroundColor: afterData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
-                borderColor: afterData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
-                borderWidth: 1
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              title: { 
-                display: true, 
-                text: 'Before–After 자세 비교 그래프', 
-                font: { size: 16, weight: 'bold' },
-                padding: { top: 10, bottom: 20 }
-              },
-              legend: { 
-                position: 'top',
-                labels: {
-                  font: { size: 12 },
-                  padding: 15
-                }
-              },
-              tooltip: { 
-                callbacks: { 
-                  label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
-                } 
-              }
-            },
-            scales: {
-              y: { 
-                beginAtZero: true, 
-                title: { 
-                  display: true, 
-                  text: '단위 (° / cm)',
-                  font: { size: 12 }
-                },
-                ticks: {
-                  font: { size: 10 }
-                }
-              },
-              x: { 
-                ticks: { 
-                  autoSkip: false, 
-                  maxRotation: 45, 
-                  minRotation: 45,
-                  font: { size: 9 }
-                }
-              }
-            }
-          }
-        });
-      }
-      
-      page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
-        <div id="beforeAfterChartSection"></div>
-        <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
-          <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">📈 전체 변화 요약</div>
-          <div style="font-size:11px; line-height:1.6; color:#333;">${comparison.summary.overallComment}</div>
-        </div>`;
-    } else {
-      page3HTML += '<div style="padding:40px; text-align:center; color:#999;">Before-After 비교 데이터가 없습니다.</div>';
-    }
-    
-    const metricsPageNumber = pageIndexMap.metrics;
-    page3HTML += `<div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName}</span>
-        <span>Page ${metricsPageNumber}/${totalPages}</span>
-      </div>
-    </div>`;
-    
-    page3Container.innerHTML = page3HTML;
-    const chartSectionPlaceholder = page3Container.querySelector('#beforeAfterChartSection');
-    if(chartSectionPlaceholder) {
-      const section = document.createElement('div');
-      section.style.marginTop = '20px';
-      section.innerHTML = `
-        <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#333;">📈 Before-After 그래프 (Chart.js)</div>
-        <div style="background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd;">
-          <div style="font-size:10px; color:#666; margin-bottom:8px;">🔵 Before (교정 전) | 🟢 After (교정 후) | ⚠️ 붉은 값 = 정상범위 벗어남</div>
-        </div>
-      `;
-      const graphShell = section.querySelector('div:nth-child(2)');
-      const chartCanvas = document.createElement('canvas');
-      chartCanvas.width = 800;
-      chartCanvas.height = 400;
-      chartCanvas.style.width = '100%';
-      chartCanvas.style.maxHeight = '420px';
-      graphShell.appendChild(chartCanvas);
-      chartSectionPlaceholder.replaceWith(section);
-      
-      if(typeof Chart !== 'undefined') {
-        const ctx = chartCanvas.getContext('2d');
-        chartCanvas.chartInstance = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Before',
-                data: beforeData,
-                backgroundColor: beforeData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
-                borderColor: beforeData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
-                borderWidth: 1
-              },
-              {
-                label: 'After',
-                data: afterData,
-                backgroundColor: afterData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
-                borderColor: afterData.map((v, i) => 
-                  isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
-                borderWidth: 1
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              title: { 
-                display: true, 
-                text: 'Before–After 자세 비교 그래프', 
-                font: { size: 16, weight: 'bold' },
-                padding: { top: 10, bottom: 20 }
-              },
-              legend: { 
-                position: 'top',
-                labels: {
-                  font: { size: 12 },
-                  padding: 15
-                }
-              },
-              tooltip: { 
-                callbacks: { 
-                  label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
-                } 
-              }
-            },
-            scales: {
-              y: { 
-                beginAtZero: true, 
-                title: { 
-                  display: true, 
-                  text: '단위 (° / cm)',
-                  font: { size: 12 }
-                },
-                ticks: {
-                  font: { size: 10 }
-                }
-              },
-              x: { 
-                ticks: { 
-                  autoSkip: false, 
-                  maxRotation: 45, 
-                  minRotation: 45,
-                  font: { size: 9 }
-                }
-              }
-            }
-          }
-        });
-        await waitForChartRender(chartCanvas.chartInstance);
-      }
-    }
-    
-    document.body.appendChild(page3Container);
-    
-    const canvas3 = await html2canvas(page3Container, {
-      ...html2canvasOptions,
-      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
-      windowWidth: page3Container.scrollWidth,
-      windowHeight: page3Container.scrollHeight
-    });
-    
-    if (document.body.contains(page3Container)) {
-      document.body.removeChild(page3Container);
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // ========== 페이지 4: AI 해석 요약 (DB 기반 분석 포함) ==========
-    const page4Container = document.createElement("div");
-    setPageContainerStyle(page4Container);
-    
-    // After metrics 추출 (DB 기반 분석용)
-    const afterMetricsForDB = {};
-    const aMetricsForDB = sessions.After?.metrics?.fullMetrics || {};
-    const metricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA', 
-                        'STA', 'STA_F', 'POA', 'POA_F', 'TD', 'HTA', 'SPP', 'LLD', 'LLD_F'];
-    metricKeys.forEach(key => {
-      const val = aMetricsForDB[key]?.value != null ? aMetricsForDB[key].value : 
-                  (aMetricsForDB[key]?.value_deg != null ? aMetricsForDB[key].value_deg : 
-                  (aMetricsForDB[key]?.value_cm != null ? aMetricsForDB[key].value_cm : null));
-      if(val != null) {
-        afterMetricsForDB[key] = val;
-      }
-    });
-    
-    // DB 기반 AI 분석 수행
-    let dbAnalysis = null;
-    try {
-      if(Object.keys(afterMetricsForDB).length > 0) {
-        dbAnalysis = await runDBDrivenAI(afterMetricsForDB);
-      }
-    } catch(err) {
-      console.warn('DB 기반 분석 실패:', err);
-    }
-    
-    // ✅ 전체 체형 점수 계산
-    const fullMetricsForScore = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
-    const scoreResult = computeScore(
-      fullMetricsForScore.CVA?.value || fullMetricsForScore.CVA?.value_deg || null,
-      fullMetricsForScore.PTA?.value || fullMetricsForScore.PTA?.value_deg || null,
-      fullMetricsForScore.KA?.value || fullMetricsForScore.KA?.value_deg || null
-    );
-    
-    const memberNameForPDF1 = memberName || '회원';
-    
-    // 패턴 요약
-    const patterns = [];
-    if(analysis && analysis.pilates && analysis.pilates.length > 0) {
-      analysis.pilates.forEach(item => {
-        if(item.name || item.issue) {
-          patterns.push(item.name || item.issue);
-        }
-      });
-    }
-    planTexts = buildPlanTexts({
-      memberName: memberNameForPDF1,
-      patterns,
-      scoreResult,
-      analysis,
-      comparisonSummary: comparison?.summary?.overallComment || ''
-    });
-    
-    page4Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 자세 분석 리포트</h2>
-      
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
-        ${scoreResult ? `
-        <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
-          <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 체형 종합 점수</div>
-          <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${scoreResult.score}/100</div>
-          <div style="font-size:11px; color:#15803d;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
-        </div>` : ''}
-        
-        ${(analysis.tight && analysis.tight.length) || (analysis.weak && analysis.weak.length) ? `
-        <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
-          <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
-          ${analysis.tight?.length ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${analysis.tight.join(', ')}</div>` : ''}
-          ${analysis.weak?.length ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${analysis.weak.join(', ')}</div>` : ''}
-        </div>` : ''}
-        
-        ${analysis.comments?.length ? `
-        <div style="padding:18px; background:#e0f2fe; border-radius:12px; border:1px solid #bae6fd;">
-          <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px;">🤖 AI 코멘트</div>
-          <div style="font-size:11px; line-height:1.7; color:#0f172a;">${analysis.comments.join(' ')}</div>
-        </div>` : ''}
-      </div>
-      
-      ${(dbAnalysis?.topRecommendations || []).length ? `
-      <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
-        <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴 (Top 3)</div>
-        <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
-          ${(dbAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
-            <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
-            ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
-            ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
-          </li>`).join('')}
-        </ul>
-        <div style="margin-top:6px; font-size:10px; color:#6b7280;">※ 상세 루틴은 다음 페이지 '필라테스 추천'에서 확인하세요.</div>
-      </div>` : ''}
-      
-      <div style="margin-top:15px; padding:12px; background:#f6fff7; border-radius:10px; border-left:4px solid #27ae60;">
-        <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#27ae60;">✅ 향후 관리 요약</div>
-        ${planTexts.quickHtml || '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>'}
-      </div>
-      
-      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-          <span>Generated by ${appName}</span>
-          <span>Page ${pageIndexMap.aiSummary}/${totalPages}</span>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(page4Container);
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const canvas4 = await html2canvas(page4Container, html2canvasOptions);
-    
-    if (document.body.contains(page4Container)) {
-      document.body.removeChild(page4Container);
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // ========== 페이지 5: 필라테스 추천 루틴 (쉬운 따라하기) ==========
-    const page5Container = document.createElement("div");
-    setPageContainerStyle(page5Container);
-    
-    // metrics 데이터 준비 (Before-After 비교용)
-    const combinedMetrics = {};
-    const bMetrics = sessions.Before?.metrics?.fullMetrics || {};
-    const aMetrics = sessions.After?.metrics?.fullMetrics || {};
-    
-    // 각 지표를 {before, after} 형태로 변환
-    ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'GSB', 'HPA'].forEach(key => {
-      const bVal = bMetrics[key]?.value != null ? bMetrics[key].value : 
-                   (bMetrics[key]?.value_deg != null ? bMetrics[key].value_deg : 
-                   (bMetrics[key]?.value_cm != null ? bMetrics[key].value_cm : null));
-      const aVal = aMetrics[key]?.value != null ? aMetrics[key].value : 
-                   (aMetrics[key]?.value_deg != null ? aMetrics[key].value_deg : 
-                   (aMetrics[key]?.value_cm != null ? aMetrics[key].value_cm : null));
-      if(bVal != null || aVal != null) {
-        combinedMetrics[key] = { before: bVal, after: aVal };
-      }
-    });
-    
-    // 필라테스 추천 카드 HTML 생성
-    const pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
-    
-    page5Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 추천 루틴 (쉬운 따라하기)</h2>
-      <div style="margin-top:20px; line-height:1.6;">
-        ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
-      </div>
-      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName}</span>
-        <span>Page ${pageIndexMap.pilates}/${totalPages}</span>
-      </div>
-      </div>
-    `;
-    
-    document.body.appendChild(page5Container);
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const canvas5 = await html2canvas(page5Container, {
-      ...html2canvasOptions,
-      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
-      windowWidth: page5Container.scrollWidth,
-      windowHeight: page5Container.scrollHeight
-    });
-    
-    if (document.body.contains(page5Container)) {
-      document.body.removeChild(page5Container);
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // ========== 페이지 6: AI 심층 분석 ==========
-    const page6Container = document.createElement("div");
-    setPageContainerStyle(page6Container);
-    
-    // ✅ AI 심층 분석 텍스트 생성 (DB 기반)
-    const deepAnalysisText = generateAIDeepAnalysis(combinedMetrics);
-    
-    // ✅ 텍스트를 HTML로 변환 (글자 잘림 방지 - word-wrap, white-space:pre-wrap 추가)
-    const deepAnalysisHtml = deepAnalysisText.split('\n').map(line => {
-      if(line.trim() === '') return '<br>';
-      if(line.startsWith('▶')) {
-        return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
-      }
-      if(line.startsWith('📍')) {
-        return `<div style="font-size:14px; font-weight:600; color:#6366f1; margin-top:15px; margin-bottom:8px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
-      }
-      if(line.startsWith('- ')) {
-        return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
-      }
-      if(line.startsWith('  ·')) {
-        return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
-      }
-      return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
-    }).join('');
-    
-    page6Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 심층 분석</h2>
-      <div style="margin-top:20px; line-height:1.6;">
-        ${deepAnalysisHtml}
-      </div>
-      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName}</span>
-        <span>Page ${pageIndexMap.aiDeep}/${totalPages}</span>
-      </div>
-      </div>
-    `;
-    
-    document.body.appendChild(page6Container);
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const canvas6 = await html2canvas(page6Container, {
-      ...html2canvasOptions,
-      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
-      windowWidth: page6Container.scrollWidth,
-      windowHeight: page6Container.scrollHeight
-    });
-    
-    if (document.body.contains(page6Container)) {
-      document.body.removeChild(page6Container);
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // ========== 페이지 7: 결론 (기존 페이지 6) ==========
-    const page7Container = document.createElement("div");
-    setPageContainerStyle(page7Container);
-    
-        const beforeAfterSummaryHtml = buildBeforeAfterSummaryHTML(comparison);
-    const fullPlanHtml = planTexts.fullText
-      ? formatMultilineText(planTexts.fullText)
-      : '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>';
-
-    page7Container.innerHTML = `
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략</h2>
-      ${beforeAfterSummaryHtml}
-      <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
-        <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
-        <div style="font-size:12px; line-height:1.7; color:#111;">${fullPlanHtml}</div>
-      </div>
-      <div style="margin-top:16px; font-size:10px; color:#6b7280; line-height:1.6;">
-        ※ 본 리포트는 교육용으로 제공되며, 의료 진단을 대체하지 않습니다. 통증이 지속되면 전문의와 상의하세요.
-      </div>
-      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-          <span>Generated by ${appName}</span>
-          <span>Page ${pageIndexMap.conclusion}/${totalPages}</span>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(page7Container);
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const canvas7 = await html2canvas(page7Container, html2canvasOptions);
-    
-    if (document.body.contains(page7Container)) {
-      document.body.removeChild(page7Container);
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // 기존 페이지 5, 6 코드는 위에서 새로운 페이지 5, 6, 7로 대체됨
-    
     // PDF 생성 (마진 24px = 약 0.6cm, 폰트 안전화)
     const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
     // 폰트 안전화: helvetica만 사용 (폰트 오류 방지)
@@ -10833,14 +10891,25 @@ function exportAsPdf(options = {}) {
     const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
     const imgW = pageW - (margin * 2);
     
+    const coverCanvas = canvases.cover;
+    if (!coverCanvas) {
+      throw new Error("표지 캔버스를 생성하지 못했습니다.");
+    }
+    const heatmapCanvas = canvases.heatmap;
+    const metricsCanvas = canvases.metrics;
+    const aiSummaryCanvas = canvases.aiSummary;
+    const pilatesCanvas = canvases.pilates;
+    const aiDeepCanvas = canvases.aiDeep;
+    const conclusionCanvas = canvases.conclusion;
+    
     // 첫 페이지: 제목과 이미지
-    const img1H = canvas1.height * (imgW / canvas1.width);
+    const img1H = coverCanvas.height * (imgW / coverCanvas.width);
     const maxImg1H = pageH - (margin * 2);
     if(img1H <= maxImg1H) {
-      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, img1H);
+      pdf.addImage(coverCanvas.toDataURL("image/png"), "PNG", margin, margin, imgW, img1H);
     } else {
       // 이미지가 크면 자르기
-      pdf.addImage(canvas1.toDataURL("image/png"), "PNG", margin, margin, imgW, maxImg1H);
+      pdf.addImage(coverCanvas.toDataURL("image/png"), "PNG", margin, margin, imgW, maxImg1H);
     }
     
     // 페이지 2-6 추가 (간단한 추가 함수)
@@ -10880,14 +10949,14 @@ function exportAsPdf(options = {}) {
     };
     
     // 모든 페이지 추가
-    if (includeHeatmapPage && canvas2) {
-      addPageToPdf(canvas2, 2);
+    if (includeHeatmapPage && heatmapCanvas) {
+      addPageToPdf(heatmapCanvas, 2);
     }
-    addPageToPdf(canvas3, pageIndexMap.metrics);
-    addPageToPdf(canvas4, pageIndexMap.aiSummary);
-    addPageToPdf(canvas5, pageIndexMap.pilates);
-    addPageToPdf(canvas6, pageIndexMap.aiDeep);
-    addPageToPdf(canvas7, pageIndexMap.conclusion);
+    if (metricsCanvas) addPageToPdf(metricsCanvas, pageIndexMap.metrics);
+    if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas, pageIndexMap.aiSummary);
+    if (pilatesCanvas) addPageToPdf(pilatesCanvas, pageIndexMap.pilates);
+    if (aiDeepCanvas) addPageToPdf(aiDeepCanvas, pageIndexMap.aiDeep);
+    if (conclusionCanvas) addPageToPdf(conclusionCanvas, pageIndexMap.conclusion);
     
     // PDF 다운로드 (모바일 안정화)
     let pdfSaved = false;
@@ -11100,101 +11169,41 @@ function setupImageButton() {
   }
   
   btnImage.onclick = async () => {
-    let btn;
-    let originalText;
+    const btn = document.getElementById("btnImage");
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ 이미지 생성 중...";
+    btn.disabled = true;
     try {
-      btn = document.getElementById("btnImage");
-      originalText = btn.textContent;
-      btn.textContent = "⏳ 이미지 생성 중...";
-      btn.disabled = true;
-      
-      let retryCount = 0;
-      while ((typeof html2canvas === 'undefined') && retryCount < 30) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        retryCount++;
-      }
       if (typeof html2canvas === 'undefined') {
         throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
       }
-      
-      const S = sessions[cur];
-      if (!S) {
-        throw new Error("세션 데이터가 없습니다.");
-      }
-      if (!cv || !cv.toDataURL) {
-        throw new Error("캔버스가 준비되지 않았습니다.");
-      }
-      
-      const originalCur = cur;
-      let beforeImg = null;
-      let afterImg = null;
-      
-      if(sessions.Before && (sessions.Before.sidePoints.size > 0 || sessions.Before.frontPoints.size > 0)) {
-        const orientation = sessions.Before.poseData?.orientation || "side";
-        switchSession("Before");
-        setOrientation(orientation);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        draw();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        beforeImg = cv.toDataURL("image/png");
-      }
-      
-      if(sessions.After && (sessions.After.sidePoints.size > 0 || sessions.After.frontPoints.size > 0)) {
-        const orientation = sessions.After.poseData?.orientation || "side";
-        switchSession("After");
-        setOrientation(orientation);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        draw();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        afterImg = cv.toDataURL("image/png");
-      }
-      
-      switchSession(originalCur);
-      await new Promise(resolve => setTimeout(resolve, 50));
-      draw();
-      
-      let overlayImg = null;
-      if(beforeImg && afterImg) {
-        try {
-          overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
-        } catch (err) {
-          console.warn("오버레이 이미지 생성 실패:", err);
-        }
-      }
-      
       const memberNameDisplay = localStorage.getItem('memberName') || window.memberName || '회원';
       const centerNameDisplay = localStorage.getItem('centerName') || window.centerName || '';
-      const dateStr = new Date().toLocaleString('ko-KR');
-      const coverContainer = createCoverPageContainer({
-        memberName: memberNameDisplay,
+      const pageData = await captureReportCanvases({
         centerName: centerNameDisplay,
-        dateStr,
+        memberName: memberNameDisplay,
         appName: 'DIT 자세 분석 AI',
-        beforeImg: beforeImg || afterImg || cv.toDataURL("image/png"),
-        afterImg: afterImg || beforeImg || cv.toDataURL("image/png"),
-        overlayImg
+        logoUrl: null
       });
-      
-      document.body.appendChild(coverContainer);
-      const canvas = await html2canvas(coverContainer, {
-        scale: isMobileDevice() ? 1.5 : 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        windowWidth: coverContainer.scrollWidth,
-        windowHeight: coverContainer.scrollHeight
-      });
-      document.body.removeChild(coverContainer);
-      
-      await downloadCanvasAsImage(canvas, `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`, btn, originalText);
+      const orderedCanvases = [
+        pageData.canvases.cover,
+        ...(pageData.includeHeatmapPage && pageData.canvases.heatmap ? [pageData.canvases.heatmap] : []),
+        pageData.canvases.metrics,
+        pageData.canvases.aiSummary,
+        pageData.canvases.pilates,
+        pageData.canvases.aiDeep,
+        pageData.canvases.conclusion
+      ].filter(Boolean);
+      if (!orderedCanvases.length) {
+        throw new Error("저장할 페이지가 없습니다.");
+      }
+      const combinedCanvas = combineCanvasesVertical(orderedCanvases);
+      await downloadCanvasAsImage(combinedCanvas, `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`, btn, originalText);
     } catch (error) {
       console.error("전체 이미지 생성 실패:", error);
       alert("이미지 생성 중 오류가 발생했습니다: " + (error?.message || "알 수 없는 오류"));
-      if (btn) {
-        btn.textContent = originalText || "🖼️ 이미지 저장";
-        btn.disabled = false;
-      }
+      btn.textContent = originalText || "🖼️ 이미지 저장";
+      btn.disabled = false;
     }
   };
 }
