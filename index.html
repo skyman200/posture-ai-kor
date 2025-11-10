@@ -8402,21 +8402,6 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     analysis = {};
   }
 
-  // 날짜 포맷
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-  // 첫 페이지: 제목과 이미지
-  const page1Container = createCoverPageContainer({
-    memberName,
-    centerName,
-    dateStr,
-    appName,
-    beforeImg,
-    afterImg,
-    overlayImg
-  });
-
   // 통합 분석 결과 가져오기 (운동 추천 포함)
   const analysisResult = S.analysisResult || analyzePostureAutoWithRecommendation({
     sidePts: S.sidePoints.size > 0 ? Object.fromEntries(S.sidePoints) : null,
@@ -8573,6 +8558,18 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   // 분석 결과 요약 HTML 생성 (undefined 에러 방지)
   // 운동 추천 HTML 생성
   const exerciseRecommendationHtml = buildExerciseRecommendationHtml(analysisResult);
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const page1Container = createCoverPageContainer({
+    memberName,
+    centerName,
+    dateStr,
+    appName,
+    beforeImg,
+    afterImg,
+    overlayImg
+  });
 
   // ========== 페이지 1: 표지 (회원명, 센터명, 분석일) ==========
   page1Container.innerHTML = `
