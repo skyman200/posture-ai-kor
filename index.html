@@ -613,6 +613,58 @@ canvas {
   <canvas id="cv" width="1600" height="1000"></canvas>
 </main>
 
+<!-- ✅ 전역 충돌 방어 및 강제 등록 (최우선 실행) -->
+<script>
+// ---- 전역 충돌 방어 ----
+window.sessions = window.sessions || [];
+window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
+  console.log("✅ analyzePostureAI 강제 바인딩 실행됨", { before, after });
+  // 실제 함수가 나중에 정의되면 덮어씌워짐
+  return { results: [], findings: [], muscles: { tight: [], weak: [] } };
+};
+
+// ---- 파일 업로드 강제 등록 ----
+window.setupFileUploads = window.setupFileUploads || function() {
+  console.log("📌 setupFileUploads 강제 활성화");
+  
+  const fileInputs = document.querySelectorAll("input[type=file]");
+  fileInputs.forEach(input => {
+    // 기존 이벤트 제거 후 재등록
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+    
+    newInput.addEventListener("change", (e) => {
+      console.log("📁 파일 선택됨:", e.target.files);
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // 실제 파일 업로드 핸들러가 있으면 호출
+      if (typeof handleFileUpload === 'function') {
+        handleFileUpload(e);
+      } else {
+        console.warn("⚠️ handleFileUpload 함수가 아직 정의되지 않았습니다.");
+      }
+    });
+  });
+};
+
+// DOM 준비되면 즉시 실행
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log("🔥 DOM 준비됨 → 파일 첨부 기능 주입");
+    if (window.setupFileUploads) {
+      window.setupFileUploads();
+    }
+  });
+} else {
+  // 이미 로드 완료된 경우 즉시 실행
+  console.log("🔥 DOM 이미 준비됨 → 파일 첨부 기능 주입");
+  if (window.setupFileUploads) {
+    window.setupFileUploads();
+  }
+}
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
