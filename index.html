@@ -641,12 +641,22 @@ window.setupFileUploads = window.setupFileUploads || function() {
       const file = e.target.files[0];
       if (!file) return;
       
-      // 실제 파일 업로드 핸들러가 있으면 호출
-      if (typeof handleFileUpload === 'function') {
-        handleFileUpload(e);
-      } else {
-        console.warn("⚠️ handleFileUpload 함수가 아직 정의되지 않았습니다.");
-      }
+      // 실제 파일 업로드 핸들러가 있으면 호출 (약간의 지연을 두어 함수가 정의될 때까지 대기)
+      setTimeout(() => {
+        if (typeof handleFileUpload === 'function') {
+          handleFileUpload(e);
+        } else {
+          console.warn("⚠️ handleFileUpload 함수가 아직 정의되지 않았습니다. 잠시 후 다시 시도합니다.");
+          // 100ms 후 다시 시도
+          setTimeout(() => {
+            if (typeof handleFileUpload === 'function') {
+              handleFileUpload(e);
+            } else {
+              console.error("❌ handleFileUpload 함수를 찾을 수 없습니다.");
+            }
+          }, 100);
+        }
+      }, 50);
     });
   });
 };
