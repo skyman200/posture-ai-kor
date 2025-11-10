@@ -5660,26 +5660,75 @@ if(coordApply) {
         }
       }, 10);
     }
-    // 저장 버튼이므로 AI 분석 실행
-    computeAll();
     // 입력 필드 업데이트
     coordX.value = clampedX.toFixed(1);
     coordY.value = clampedY.toFixed(1);
     
-    // 실시간 분석 실행
-    if(typeof liveAnalyzer !== 'undefined') {
-      liveAnalyzer.analyzeCurrentSession();
-    }
-    // 저장 후 원래 크기로 복원
+    // 저장 후 원래 크기로 복원 및 모드 종료
     if(editMode) {
+      // 먼저 editMode를 false로 설정하여 resizeCanvasFor가 원본 크기로 복원하도록 함
+      editMode = false;
       currentZoom = 1;
+      
+      // UI 업데이트
       const zoomEl = document.getElementById("zoomLevel");
       if(zoomEl) zoomEl.value = "1";
-      if(sessions[cur].img) {
-        resizeCanvasFor(sessions[cur].img);
-        draw();
+      
+      // 패널 닫기
+      if(coordEditPanel) {
+        coordEditPanel.style.display = "none";
       }
+      
+      // 버튼 상태 업데이트
+      if(btnEditCoords) {
+        btnEditCoords.style.background = "rgba(124,156,255,0.2)";
+        btnEditCoords.textContent = "✏️ 좌표 수정 모드";
+      }
+      
+      // 선택된 점 초기화
+      selectedPoint = null;
+      const selectEl = document.getElementById("coordSelectPoint");
+      if(selectEl) selectEl.value = "";
+      
+      // 원본 크기로 복원 (orientation에 따라 올바른 이미지 사용)
+      const S = sessions[cur];
+      const orientation = S.poseData?.orientation || "side";
+      const img = orientation === "front" ? S.imgFront : S.imgSide;
+      
+      // 모바일에서 안정적인 렌더링을 위해 requestAnimationFrame 사용
+      requestAnimationFrame(() => {
+        if(img) {
+          resizeCanvasFor(img);
+        } else if(S.img) {
+          resizeCanvasFor(S.img);
+        }
+        
+        // 강제 리플로우를 위해 한 프레임 더 대기 (모바일에서 필요)
+        requestAnimationFrame(() => {
+          draw();
+          
+          // 모바일에서 추가 안정성을 위해 한 번 더 대기
+          requestAnimationFrame(() => {
+            // 캔버스 크기 강제 업데이트 (모바일에서 필요할 수 있음)
+            if(cv && cv.style) {
+              cv.style.width = cv.style.width;
+              cv.style.height = cv.style.height;
+            }
+          });
+        });
+      });
     }
+    
+    // AI 분석 실행 (비동기로 처리하여 랙 방지, 모바일에서는 더 긴 지연)
+    const isMobile = window.innerWidth <= 768 && 'ontouchstart' in window;
+    const delay = isMobile ? 150 : 50;
+    setTimeout(() => {
+      computeAll();
+      // 실시간 분석 실행
+      if(typeof liveAnalyzer !== 'undefined') {
+        liveAnalyzer.analyzeCurrentSession();
+      }
+    }, delay);
   };
 }
 
