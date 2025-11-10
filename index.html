@@ -8100,10 +8100,9 @@ async function loadPilatesDB() {
   }
   
   console.error('❌ 필라테스 운동 DB 로드 실패: 모든 경로 시도 실패', lastError?.message || '');
-  
-  console.warn('⚠️ Pilates DB를 불러올 수 없습니다.');
   PILATES_EXERCISE_DB = [];
-  return [];
+  pilatesDBCache = null;
+  return PILATES_EXERCISE_DB;
 }
 
 // ✅ 필라테스 운동 매칭 함수 (참고 코드 기반)
