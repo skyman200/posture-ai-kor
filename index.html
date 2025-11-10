@@ -10369,6 +10369,9 @@ function exportAsPdf(options = {}) {
     const memberNameForPDF = memberName || '회원';
     let conclusionText = '';
     
+    // 패턴 요약 (먼저 선언)
+    const patterns2 = [];
+    
     // Before-After 비교 요약
     if(comparison && comparison.results && comparison.results.length > 0) {
       const improved = comparison.results.filter(r => r.status === 'improved').length;
@@ -10386,9 +10389,6 @@ function exportAsPdf(options = {}) {
       conclusionText += comparison && comparison.summary ? comparison.summary.overallComment : '분석 결과를 바탕으로 지속적인 자세 개선을 권장합니다.';
       conclusionText += '\n\n';
     }
-    
-    // 패턴 요약
-    const patterns = [];
     if(analysis && analysis.pilates && analysis.pilates.length > 0) {
       analysis.pilates.forEach(item => {
         if(item.name || item.issue) {
@@ -11494,6 +11494,11 @@ function initializeApp() {
 
   // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
   // sessions 객체에 orientation과 landmarks 정보 추가
+  if(!sessions || !sessions.Before || !sessions.After) {
+    console.error("sessions 객체가 아직 초기화되지 않았습니다.");
+    return;
+  }
+  
   if(!sessions.Before.poseData) {
     sessions.Before.poseData = { orientation: "side", landmarks: null };
   }
