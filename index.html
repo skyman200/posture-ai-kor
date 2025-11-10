@@ -1633,18 +1633,18 @@ function buildAnalysisSummaryHtml(analysisResult, metrics = null, rules = null) 
   const front = analysisResult?.front || {};
   const summary = analysisResult?.summary || {};
   
-  let html = '<div style="margin-bottom:20px; padding:15px; background:#f5f5f5; border-radius:8px;">';
+  let html = '<div style="margin-bottom:20px; padding:15px; background:#f5f5f5; border-radius:8px; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">';
   
   // 측면 분석 결과
   if(side.status !== "not_available") {
-    html += '<div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#0b0f14;">측면 분석 결과</div>';
+    html += '<div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#0b0f14;">측면 분석 결과</div>';
     for(const [key, value] of Object.entries(side)) {
       if(value && typeof value === 'object' && value.value != null && key !== 'status') {
         const unit = value.value_cm != null ? 'cm' : '°';
         const val = value.value_deg != null ? value.value_deg : (value.value_cm != null ? value.value_cm : value.value);
         const status = value.status || 'unknown';
         if(val != null && typeof val === 'number') {
-          html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+          html += `<div style="font-size:12px; margin-bottom:4px; line-height:1.5; word-wrap:break-word;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
         }
       }
     }
@@ -1653,14 +1653,14 @@ function buildAnalysisSummaryHtml(analysisResult, metrics = null, rules = null) 
   
   // 정면 분석 결과
   if(front.status !== "not_available") {
-    html += '<div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#0b0f14;">정면 분석 결과</div>';
+    html += '<div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#0b0f14;">정면 분석 결과</div>';
     for(const [key, value] of Object.entries(front)) {
       if(value && typeof value === 'object' && value.value != null && key !== 'status') {
         const unit = value.value_cm != null ? 'cm' : '°';
         const val = value.value_deg != null ? value.value_deg : (value.value_cm != null ? value.value_cm : value.value);
         const status = value.status || 'unknown';
         if(val != null && typeof val === 'number') {
-          html += `<div style="font-size:11px; margin-bottom:4px; line-height:1.5;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
+          html += `<div style="font-size:12px; margin-bottom:4px; line-height:1.5; word-wrap:break-word;">${key}: ${val.toFixed(2)}${unit} (${status})</div>`;
         }
       }
     }
@@ -1670,9 +1670,9 @@ function buildAnalysisSummaryHtml(analysisResult, metrics = null, rules = null) 
   // 종합 점수
   html += '<div style="border-top:1px solid #ddd; padding-top:12px; margin-top:12px;"></div>';
   if(summary.PDS_total != null) {
-    html += `<div style="font-size:12px; font-weight:700; color:#6b46c1;">PDS 종합점수: ${summary.PDS_total} (${summary.risk_level})</div>`;
+    html += `<div style="font-size:12px; font-weight:600; color:#6b46c1; word-wrap:break-word;">PDS 종합점수: ${summary.PDS_total} (${summary.risk_level})</div>`;
   } else {
-    html += '<div style="font-size:11px; color:#666;">종합분석: 해당없음</div>';
+    html += '<div style="font-size:12px; color:#666; word-wrap:break-word;">종합분석: 해당없음</div>';
   }
   
   html += '</div>';
@@ -9670,11 +9670,11 @@ function exportAsPdf(options = {}) {
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 분석 (DB 100종 기반)</h2>
       
       ${scoreResult ? `
-      <div style="margin-top:15px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
-        <div style="font-size:16px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">📊 체형 종합 점수</div>
+      <div style="margin-top:15px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:10px; color:#2ec4b6;">📊 체형 종합 점수</div>
         <div style="font-size:24px; font-weight:800; color:#0b0f14; margin-bottom:8px;">${scoreResult.score}/100점</div>
         ${scoreResult.reasons && scoreResult.reasons.length > 0 ? `
-        <div style="font-size:11px; line-height:1.6; color:#555; margin-top:8px; word-wrap:break-word; white-space:pre-wrap;">
+        <div style="font-size:12px; line-height:1.6; color:#555; margin-top:8px; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           감점 근거: ${scoreResult.reasons.join(', ')}
         </div>
         ` : ''}
@@ -9682,39 +9682,39 @@ function exportAsPdf(options = {}) {
       ` : ''}
       
       ${dbNarrative ? `
-      <div style="margin-top:15px; padding:15px; background:#f8fafc; border-radius:8px; border-left:4px solid #6366f1;">
-        <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#6366f1;">📊 DB 기반 AI 분석 요약</div>
-        <pre style="white-space:pre-wrap; font-family:inherit; font-size:12px; line-height:1.6; color:#333; margin:0; padding:0; word-wrap:break-word;">${dbNarrative}</pre>
+      <div style="margin-top:15px; padding:15px; background:#f8fafc; border-radius:8px; border-left:4px solid #6366f1; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#6366f1;">📊 DB 기반 AI 분석 요약</div>
+        <div style="white-space:pre-wrap; font-size:12px; line-height:1.6; color:#333; margin:0; padding:0; word-wrap:break-word; overflow-wrap:break-word;">${dbNarrative}</div>
       </div>
       ` : ''}
       
       ${dbSessionCards ? `
-      <div style="margin-top:20px;">
-        <h3 style="margin:0; padding:0; font-size:16px; font-weight:600; color:#0b0f14; margin-bottom:12px;">🧘 필라테스 세션 추천 (자동 매칭)</h3>
+      <div style="margin-top:20px; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <h3 style="margin:0; padding:0; font-size:14px; font-weight:600; color:#0b0f14; margin-bottom:12px;">🧘 필라테스 세션 추천 (자동 매칭)</h3>
         ${dbSessionCards}
       </div>
       ` : ''}
       
       ${analysisSummaryHtml ? `
-      <div style="margin-top:20px; padding-top:15px; border-top:1px solid #e0e0e0;">
-        <h3 style="margin:0; padding:0; font-size:16px; font-weight:600; color:#0b0f14; margin-bottom:12px;">📋 기존 분석 결과</h3>
+      <div style="margin-top:20px; padding-top:15px; border-top:1px solid #e0e0e0; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <h3 style="margin:0; padding:0; font-size:14px; font-weight:600; color:#0b0f14; margin-bottom:12px;">📋 기존 분석 결과</h3>
         ${analysisSummaryHtml}
       </div>
       ` : ''}
       
       ${analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0 ? `
-      <div style="margin-top:20px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6;">
-        <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
-        <div style="font-size:12px; line-height:1.6;">${analysis.comments.join(" ")}</div>
-        ${analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555;">${analysis.details.join("<br>")}</div>` : ""}
+      <div style="margin-top:20px; padding:18px; background:#e8f5e9; border-radius:10px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:10px; color:#2ec4b6;">🤖 AI 실시간 분석</div>
+        <div style="font-size:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">${analysis.comments.join(" ")}</div>
+        ${analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0 ? `<div style="margin-top:12px; font-size:11px; line-height:1.6; color:#555; word-wrap:break-word; overflow-wrap:break-word;">${analysis.details.join("<br>")}</div>` : ""}
       </div>
       ` : ""}
       
       ${(analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0) || (analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0) ? `
-      <div style="margin-top:20px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c;">
-        <div style="font-size:14px; font-weight:700; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
-        ${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? `<div style="margin-bottom:10px;"><strong style="color:#ff6b6b;">🔴 긴장된 근육:</strong> <span style="font-size:12px;">${analysis.tight.join(", ")}</span></div>` : ""}
-        ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div><strong style="color:#7c9cff;">🔵 약화된 근육:</strong> <span style="font-size:12px;">${analysis.weak.join(", ")}</span></div>` : ""}
+      <div style="margin-top:20px; padding:18px; background:#fff3e0; border-radius:10px; border-left:4px solid #ffb86c; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:12px; color:#ffb86c;">💪 근육 상태 분석</div>
+        ${analysis.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0 ? `<div style="margin-bottom:10px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><span style="color:#ff6b6b; font-weight:600;">🔴 긴장된 근육:</span> <span style="font-size:12px; color:#333;">${analysis.tight.join(", ")}</span></div>` : ""}
+        ${analysis.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0 ? `<div style="line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;"><span style="color:#7c9cff; font-weight:600;">🔵 약화된 근육:</span> <span style="font-size:12px; color:#333;">${analysis.weak.join(", ")}</span></div>` : ""}
       </div>
       ` : ""}
       
@@ -9872,14 +9872,14 @@ function exportAsPdf(options = {}) {
     
     page7Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">⚖️ 결론 및 향후 권장사항</h2>
-      <div style="padding:20px; background:#f5f5f5; border-radius:10px; margin-bottom:20px;">
-        <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; white-space:pre-wrap;">
+      <div style="padding:20px; background:#f5f5f5; border-radius:10px; margin-bottom:20px; box-sizing:border-box; overflow:hidden; word-wrap:break-word; overflow-wrap:break-word;">
+        <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap; max-width:100%;">
           ${comparisonSummary}
         </div>
       </div>
-      <div style="margin-top:20px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
-        <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#2ec4b6;">📋 추적관리 권고</div>
-        <div style="font-size:11px; line-height:1.6; color:#333;">
+      <div style="margin-top:20px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:10px; color:#2ec4b6;">📋 추적관리 권고</div>
+        <div style="font-size:12px; line-height:1.6; color:#333; word-wrap:break-word; overflow-wrap:break-word;">
           • 정기적인 자세 측정을 통해 변화를 모니터링하세요.<br>
           • 추천된 필라테스 운동을 꾸준히 실시하세요.<br>
           • 일상생활에서 올바른 자세를 유지하도록 노력하세요.<br>
