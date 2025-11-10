@@ -7839,8 +7839,43 @@ const PILATES_PATTERN_DB = {
   },
 };
 
+function buildPilatesTextFromAnalysis(pilatesItems) {
+  if (!Array.isArray(pilatesItems) || pilatesItems.length === 0) return '';
+  
+  return pilatesItems.map((item, idx) => {
+    if (!item) return '';
+    const title = item.issue || item.name || `추천 ${idx + 1}`;
+    const muscles = Array.isArray(item.muscles) && item.muscles.length > 0
+      ? item.muscles.join(', ')
+      : '관련 근육 정보 없음';
+    
+    let blockText = `■ ${title}\n- 관련 근육: ${muscles}\n`;
+    
+    if (item.pilates && typeof item.pilates === 'object') {
+      Object.entries(item.pilates).forEach(([tool, moves]) => {
+        if (!Array.isArray(moves) || moves.length === 0) return;
+        const moveText = moves.map(move => {
+          if (typeof move === 'string') return move;
+          if (move?.name) {
+            const localized = move?.ko && move.ko !== move.name ? ` (${move.ko})` : '';
+            return `${move.name}${localized}`;
+          }
+          if (move?.ko) return move.ko;
+          return typeof move === 'object' ? JSON.stringify(move) : String(move);
+        }).join(', ');
+        blockText += `- ${tool}: ${moveText}\n`;
+      });
+    }
+    
+    return blockText.trim();
+  }).filter(Boolean).join('\n\n');
+}
+
 // 필라테스 추천 텍스트 생성
-function generatePilatesSessionText(metrics) {
+function generatePilatesSessionText(metrics, pilatesItems = null) {
+  const pilatesTextFromAnalysis = buildPilatesTextFromAnalysis(pilatesItems);
+  if (pilatesTextFromAnalysis) return pilatesTextFromAnalysis;
+  
   const pats = detectPatterns(metrics);
   if (!pats.length) return '현재 측정값은 대체로 정상 범위입니다. 기본 코어 안정과 전신 가동성 루틴을 권장합니다.';
 
@@ -8054,14 +8089,12 @@ async function loadPostureDB() {
     return POSTURE_DB;
   }
   
-  // ✅ Posture_Muscle_DB_Full.json 로드 (public/db/ 경로 사용)
+  // ✅ Posture_Muscle_DB_Full.json 로드 (public/db → /db 경로)
   const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
   const candidates = [
-    `${REPO_ROOT}/public/db/Posture_Muscle_DB_Full.json`,
+    `${REPO_ROOT}/db/Posture_Muscle_DB_Full.json`,
     'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.json',
-    '/public/db/Posture_Muscle_DB_Full.json',
     '/db/Posture_Muscle_DB_Full.json',
-    './public/db/Posture_Muscle_DB_Full.json',
     './db/Posture_Muscle_DB_Full.json'
   ];
 
@@ -8090,18 +8123,28 @@ async function loadPostureDB() {
   
   console.warn('⚠️ JSON 로드 실패, CSV 시도:', lastError?.message || lastError);
   try {
-    const base = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? '/db'
-      : 'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db';
-    const csvUrl = `${base}/Posture_Muscle_DB_Full.csv`;
-    const response = await fetch(csvUrl, { cache: 'no-store' });
-    if (!response.ok) throw new Error('CSV 파일도 로드 실패');
-    const csvText = await response.text();
-    const parsed = parseCSV(csvText);
-    POSTURE_DB = parsed;
-    postureDBCache = parsed;
-    console.log('✅ DB Loaded (CSV):', POSTURE_DB.length, 'records');
-    return POSTURE_DB;
+    const csvCandidates = [
+      `${REPO_ROOT}/db/Posture_Muscle_DB_Full.csv`,
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.csv',
+      '/db/Posture_Muscle_DB_Full.csv',
+      './db/Posture_Muscle_DB_Full.csv'
+    ];
+    for (const csvUrl of csvCandidates) {
+      try {
+        const response = await fetch(csvUrl, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const csvText = await response.text();
+        const parsed = parseCSV(csvText);
+        POSTURE_DB = parsed;
+        postureDBCache = parsed;
+        console.log('✅ DB Loaded (CSV):', POSTURE_DB.length, 'records');
+        return POSTURE_DB;
+      } catch (csvErr) {
+        console.warn(`⚠️ CSV 로드 실패 (${csvUrl}):`, csvErr?.message || csvErr);
+        lastError = csvErr;
+      }
+    }
+    throw lastError || new Error('CSV 로드 실패');
   } catch (csvError) {
     console.error('❌ DB 로드 실패:', csvError);
     POSTURE_DB = [];
@@ -8123,20 +8166,17 @@ async function loadPilatesDB() {
     return PILATES_EXERCISE_DB;
   }
   
-  // ✅ Pilates_Exercise_DB_1000_v2.json 로드 (public/db/ 경로 사용)
+  // ✅ Pilates_Exercise_DB_1000_v2.json 로드 (/db/ 경로 사용)
   const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
   
   // 여러 경로 시도 (로컬 개발 환경과 GitHub Pages 모두 지원)
   const urls = [
-    // 1. GitHub Pages 경로 (public/db/)
-    `${REPO_ROOT}/public/db/Pilates_Exercise_DB_1000_v2.json`,
+    // 1. GitHub Pages 경로 (/db/)
+    `${REPO_ROOT}/db/Pilates_Exercise_DB_1000_v2.json`,
     // 2. GitHub raw URL (직접)
     'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Pilates_Exercise_DB_1000_v2.json',
-    // 3. 로컬 개발 환경 경로
-    '/public/db/Pilates_Exercise_DB_1000_v2.json',
+    // 3. 로컬 및 상대 경로
     '/db/Pilates_Exercise_DB_1000_v2.json',
-    // 4. 상대 경로
-    './public/db/Pilates_Exercise_DB_1000_v2.json',
     './db/Pilates_Exercise_DB_1000_v2.json'
   ];
 
@@ -9460,7 +9500,46 @@ function exportAsPdf(options = {}) {
       const S = sessions[cur];
       const M = S.metrics || {};
       const scoreData = S.score || {};
-      const analysis = S.analysis || {};
+      let analysis = S.analysis || {};
+      const hasMeaningfulAnalysis = (data) => {
+        if (!data) return false;
+        return ['pilates','exercises','comments','details','tight','weak'].some(key => Array.isArray(data[key]) && data[key].length > 0);
+      };
+      const mergeAnalysisData = (preferred = {}, fallback = {}) => ({
+        ...fallback,
+        ...preferred,
+        pilates: (Array.isArray(preferred.pilates) && preferred.pilates.length > 0) ? preferred.pilates : (fallback.pilates || []),
+        exercises: (Array.isArray(preferred.exercises) && preferred.exercises.length > 0) ? preferred.exercises : (fallback.exercises || []),
+        comments: (Array.isArray(preferred.comments) && preferred.comments.length > 0) ? preferred.comments : (fallback.comments || []),
+        details: (Array.isArray(preferred.details) && preferred.details.length > 0) ? preferred.details : (fallback.details || []),
+        tight: (Array.isArray(preferred.tight) && preferred.tight.length > 0) ? preferred.tight : (fallback.tight || []),
+        weak: (Array.isArray(preferred.weak) && preferred.weak.length > 0) ? preferred.weak : (fallback.weak || [])
+      });
+      
+      const analysisResultFallback = S.analysisResult?.analysis || null;
+      if (analysisResultFallback) {
+        analysis = mergeAnalysisData(analysis, analysisResultFallback);
+      }
+      
+      if (!hasMeaningfulAnalysis(analysis) && analysisResultFallback) {
+        analysis = mergeAnalysisData(analysisResultFallback, analysis);
+      }
+      
+      if (!hasMeaningfulAnalysis(analysis) && S.metrics?.fullMetrics) {
+        try {
+          const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
+          if (refreshedAnalysis) {
+            analysis = refreshedAnalysis;
+            S.analysis = refreshedAnalysis;
+          }
+        } catch (recalcErr) {
+          console.warn('PDF 생성 중 분석 데이터 보강 실패:', recalcErr);
+        }
+      }
+      
+      if (!analysis) {
+        analysis = {};
+      }
       
       // 날짜 포맷
       const now = new Date();
@@ -10250,7 +10329,7 @@ function exportAsPdf(options = {}) {
     });
     
     // 필라테스 추천 텍스트 생성
-    const pilatesText = generatePilatesSessionText(combinedMetrics);
+    const pilatesText = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
     
     // 텍스트를 HTML로 변환 (줄바꿈 처리)
     const pilatesHtml = pilatesText.split('\n').map(line => {
