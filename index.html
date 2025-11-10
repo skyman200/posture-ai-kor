@@ -9984,8 +9984,20 @@ function exportAsPdf(options = {}) {
       </div>
     `;
     document.body.appendChild(page7Container);
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     const canvas7 = await html2canvas(page7Container, html2canvasOptions);
-    document.body.removeChild(page7Container);
+    
+    if (document.body.contains(page7Container)) {
+      document.body.removeChild(page7Container);
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // 기존 페이지 5, 6 코드는 위에서 새로운 페이지 5, 6, 7로 대체됨
     
