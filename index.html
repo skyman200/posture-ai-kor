@@ -10087,12 +10087,14 @@ async function analyzeWithDB(metrics) {
       // 추천 객체 반환
       // ✅ Posture_Muscle_DB_Full.json 구조 지원
       const recName = r.posture_ko || r['지표명'] || r.key || r.posture_key || code;
-      const recTight = r.muscle_pattern
-        ? [...(r.muscle_pattern.tight?.primary || []), ...(r.muscle_pattern.tight?.secondary || [])].join(', ')
-        : (r['긴장근육(주요)'] || '');
-      const recWeak = r.muscle_pattern
-        ? [...(r.muscle_pattern.weak?.primary || []), ...(r.muscle_pattern.weak?.secondary || [])].join(', ')
-        : (r['약화근육(주요)'] || '');
+      const recTightList = r.muscle_pattern
+        ? [...(r.muscle_pattern.tight?.primary || []), ...(r.muscle_pattern.tight?.secondary || [])]
+        : splitMuscleList(r['긴장근육(주요)'] || '');
+      const recWeakList = r.muscle_pattern
+        ? [...(r.muscle_pattern.weak?.primary || []), ...(r.muscle_pattern.weak?.secondary || [])]
+        : splitMuscleList(r['약화근육(주요)'] || '');
+      const recTight = recTightList.join(', ');
+      const recWeak = recWeakList.join(', ');
       
       return {
         code,
@@ -10108,6 +10110,8 @@ async function analyzeWithDB(metrics) {
         chair: pilatesExercises['체어'].map(e => e.name || e.ko).join(', ') || chairStr,
         barrel: pilatesExercises['바렐'].map(e => e.name || e.ko).join(', ') || barrelStr,
         pilatesExercises: pilatesExercises, // ✅ 상세 필라테스 운동 정보 추가
+        tightMuscles: recTightList,
+        weakMuscles: recWeakList,
         note: (r.clinical_significance && Array.isArray(r.clinical_significance) ? r.clinical_significance.join(', ') : r.clinical_significance) || r['임상적의미'] || '',
         level: r.level || r['추천레벨(초급/중급/고급)'] || ''
       };
@@ -10121,13 +10125,18 @@ async function analyzeWithDB(metrics) {
   // 4) 우선순위 정렬(가중치↓, 과거 악화 항목 가점 가능)
   matches.sort((a,b) => (b.weight) - (a.weight));
 
+  const tightList = Array.from(tight);
+  const weakList = Array.from(weak);
+
   return {
     findings,                                  // 지표별 판정표
     topRecommendations: matches.slice(0,12),   // 상위 12개 세션 카드
     muscles: {
-      tight: Array.from(tight),
-      weak: Array.from(weak)
-    }
+      tight: tightList,
+      weak: weakList
+    },
+    tight: tightList,
+    weak: weakList
   };
 }
 
