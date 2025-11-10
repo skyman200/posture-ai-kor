@@ -9324,18 +9324,31 @@ function exportAsPdf(options = {}) {
     
     document.body.appendChild(page1Container);
     
-    // html2canvas 옵션 정의 (폰트 디코딩 오류 방지)
+    // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
+    const isMobile = isMobileDevice();
     const html2canvasOptions = {
-      scale: 2,
+      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
       backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
-      logging: false
+      logging: false,
+      // 모바일에서 메모리 최적화
+      ...(isMobile ? {
+        removeContainer: true, // 캡처 후 컨테이너 제거
+        imageTimeout: 15000, // 이미지 로딩 타임아웃
+        maxWidth: 800, // 최대 너비 제한
+        maxHeight: 1200 // 최대 높이 제한
+      } : {})
     };
     
-    // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지)
+    // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지, 모바일 최적화)
     let canvas1;
     try {
+      // 모바일에서는 메모리 절약을 위해 지연 추가
+      if (isMobile) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
       canvas1 = await html2canvas(page1Container, {
         ...html2canvasOptions,
         windowWidth: page1Container.scrollWidth,
@@ -9345,13 +9358,34 @@ function exportAsPdf(options = {}) {
       if (!canvas1 || !canvas1.toDataURL) {
         throw new Error('첫 페이지 캔버스 생성 실패');
       }
+      
+      // 모바일에서 메모리 정리
+      if (isMobile && (canvas1.width > 2000 || canvas1.height > 2000)) {
+        const maxCanvasSize = 2000;
+        const ratio = Math.min(maxCanvasSize / canvas1.width, maxCanvasSize / canvas1.height);
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = Math.floor(canvas1.width * ratio);
+        newCanvas.height = Math.floor(canvas1.height * ratio);
+        const ctx = newCanvas.getContext('2d');
+        ctx.drawImage(canvas1, 0, 0, newCanvas.width, newCanvas.height);
+        canvas1 = newCanvas;
+      }
     } catch (canvasErr) {
-      document.body.removeChild(page1Container);
+      if (document.body.contains(page1Container)) {
+        document.body.removeChild(page1Container);
+      }
       console.error('❌ 첫 페이지 캔버스 생성 실패:', canvasErr);
       throw new Error('PDF 생성 실패: 첫 페이지를 생성할 수 없습니다. ' + (canvasErr.message || ''));
     }
     
-    document.body.removeChild(page1Container);
+    if (document.body.contains(page1Container)) {
+      document.body.removeChild(page1Container);
+    }
+    
+    // 모바일에서 메모리 정리를 위한 짧은 지연
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // ========== 페이지 2: Confidence Heatmap ==========
     const page2Container = document.createElement("div");
@@ -9408,15 +9442,25 @@ function exportAsPdf(options = {}) {
     
     document.body.appendChild(page2Container);
     
-    // 두 번째 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지)
+    // 두 번째 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지, 모바일 최적화)
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     const canvas2 = await html2canvas(page2Container, {
       ...html2canvasOptions,
-      scale: 3, // 고해상도
+      scale: isMobile ? 1.5 : 3, // 모바일에서는 scale 낮춰서 메모리 절약
       windowWidth: page2Container.scrollWidth,
       windowHeight: page2Container.scrollHeight
     });
     
-    document.body.removeChild(page2Container);
+    if (document.body.contains(page2Container)) {
+      document.body.removeChild(page2Container);
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // 공통 페이지 스타일 설정 함수 (안전 폰트 사용)
     const setPageContainerStyle = (container) => {
@@ -9604,15 +9648,22 @@ function exportAsPdf(options = {}) {
     document.body.appendChild(page3Container);
     
     // Chart.js 그래프가 렌더링될 시간을 주기 위해 약간 대기
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, isMobile ? 300 : 500));
     
     const canvas3 = await html2canvas(page3Container, {
       ...html2canvasOptions,
-      scale: 2,
+      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
       windowWidth: page3Container.scrollWidth,
       windowHeight: page3Container.scrollHeight
     });
-    document.body.removeChild(page3Container);
+    
+    if (document.body.contains(page3Container)) {
+      document.body.removeChild(page3Container);
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // ========== 페이지 4: AI 해석 요약 (DB 기반 분석 포함) ==========
     const page4Container = document.createElement("div");
@@ -9726,8 +9777,20 @@ function exportAsPdf(options = {}) {
       </div>
     `;
     document.body.appendChild(page4Container);
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     const canvas4 = await html2canvas(page4Container, html2canvasOptions);
-    document.body.removeChild(page4Container);
+    
+    if (document.body.contains(page4Container)) {
+      document.body.removeChild(page4Container);
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // ========== 페이지 5: 필라테스 추천 루틴 (쉬운 따라하기) ==========
     const page5Container = document.createElement("div");
@@ -9795,13 +9858,25 @@ function exportAsPdf(options = {}) {
     `;
     
     document.body.appendChild(page5Container);
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     const canvas5 = await html2canvas(page5Container, {
       ...html2canvasOptions,
-      scale: 2,
+      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
       windowWidth: page5Container.scrollWidth,
       windowHeight: page5Container.scrollHeight
     });
-    document.body.removeChild(page5Container);
+    
+    if (document.body.contains(page5Container)) {
+      document.body.removeChild(page5Container);
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // ========== 페이지 6: AI 심층 분석 ==========
     const page6Container = document.createElement("div");
@@ -9842,13 +9917,25 @@ function exportAsPdf(options = {}) {
     `;
     
     document.body.appendChild(page6Container);
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     const canvas6 = await html2canvas(page6Container, {
       ...html2canvasOptions,
-      scale: 2,
+      scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
       windowWidth: page6Container.scrollWidth,
       windowHeight: page6Container.scrollHeight
     });
-    document.body.removeChild(page6Container);
+    
+    if (document.body.contains(page6Container)) {
+      document.body.removeChild(page6Container);
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // ========== 페이지 7: 결론 (기존 페이지 6) ==========
     const page7Container = document.createElement("div");
