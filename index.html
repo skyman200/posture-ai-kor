@@ -10389,16 +10389,17 @@ function exportAsPdf(options = {}) {
       conclusionText += comparison && comparison.summary ? comparison.summary.overallComment : '분석 결과를 바탕으로 지속적인 자세 개선을 권장합니다.';
       conclusionText += '\n\n';
     }
+    // 패턴 요약 (이미 선언된 patterns2 사용)
     if(analysis && analysis.pilates && analysis.pilates.length > 0) {
       analysis.pilates.forEach(item => {
         if(item.name || item.issue) {
-          patterns.push(item.name || item.issue);
+          patterns2.push(item.name || item.issue);
         }
       });
     }
     
-    if(patterns.length > 0) {
-      patterns.forEach((pattern, idx) => {
+    if(patterns2.length > 0) {
+      patterns2.forEach((pattern, idx) => {
         conclusionText += `${idx + 1}. ${pattern}\n`;
       });
       conclusionText += '\n';
