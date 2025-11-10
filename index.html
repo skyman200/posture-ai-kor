@@ -8074,23 +8074,32 @@ async function loadPilatesDB() {
     './db/Pilates_Exercise_DB_1000_v2.json'
   ];
 
+  let lastError = null;
   for (const url of urls) {
     try {
+      console.log(`📡 필라테스 운동 DB 로드 시도: ${url}`);
       const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
       const arr = Array.isArray(data) ? data : (data.data || []);
-      if (!arr.length) throw new Error(`DB empty @ ${url}`);
+      if (!arr.length) {
+        throw new Error(`DB empty @ ${url}`);
+      }
       
       PILATES_EXERCISE_DB = arr;
       pilatesDBCache = arr;
       window.PilatesDB = arr; // 전역 변수로도 저장 (참고 코드 호환)
-      console.log(`✅ Pilates DB Loaded: ${arr.length} exercises`);
+      console.log(`✅ 필라테스 운동 DB 로드 완료: ${arr.length} exercises`);
       return arr;
     } catch (e) {
-      console.warn(`⚠️ Pilates DB 로드 실패 @ ${url}:`, e.message);
+      console.warn(`⚠️ 필라테스 DB 로드 실패 @ ${url}:`, e.message);
+      lastError = e;
     }
   }
+  
+  console.error('❌ 필라테스 운동 DB 로드 실패: 모든 경로 시도 실패', lastError?.message || '');
   
   console.warn('⚠️ Pilates DB를 불러올 수 없습니다.');
   PILATES_EXERCISE_DB = [];
