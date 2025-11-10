@@ -1,8 +1,0 @@
-{
-  "how_to_use_in_app": {
-    "fetch": "const muscleDB = await fetch('/db/Posture_Muscle_DB_Full_v3.json').then(r=>r.json());",
-    "match_key": "Use item.posture_en (e.g., 'Anterior Pelvic Tilt') as posture_key to join with Pilates_Exercise_DB_1000_v2.json",
-    "ai_thresholds": "Use item.ai_detection_metrics to decide active patterns."
-  },
-  "count_items": 100
-}
