@@ -11869,6 +11869,16 @@ if (typeof window !== 'undefined') {
       userDataManager: `${REPO_ROOT}/assets/utils/userDataManager.js`,
       aiReportManager: `${REPO_ROOT}/assets/modules/aiReportManager.js`
     };
+    
+    // 모듈 파일 존재 여부 확인 (404 방지)
+    async function checkModuleExists(url) {
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
 
     // DB 기반 분석기 모듈 로드 (파일이 있을 때만)
     try {
