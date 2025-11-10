@@ -643,20 +643,24 @@ window.setupFileUploads = window.setupFileUploads || function() {
       
       // 실제 파일 업로드 핸들러가 있으면 호출 (약간의 지연을 두어 함수가 정의될 때까지 대기)
       setTimeout(() => {
-        if (typeof handleFileUpload === 'function') {
+        if (typeof window.handleFileUpload === 'function') {
+          window.handleFileUpload(e);
+        } else if (typeof handleFileUpload === 'function') {
           handleFileUpload(e);
         } else {
           console.warn("⚠️ handleFileUpload 함수가 아직 정의되지 않았습니다. 잠시 후 다시 시도합니다.");
-          // 100ms 후 다시 시도
+          // 200ms 후 다시 시도
           setTimeout(() => {
-            if (typeof handleFileUpload === 'function') {
+            if (typeof window.handleFileUpload === 'function') {
+              window.handleFileUpload(e);
+            } else if (typeof handleFileUpload === 'function') {
               handleFileUpload(e);
             } else {
               console.error("❌ handleFileUpload 함수를 찾을 수 없습니다.");
             }
-          }, 100);
+          }, 200);
         }
-      }, 50);
+      }, 100);
     });
   });
 };
@@ -6758,8 +6762,8 @@ window.addEventListener('touchcancel', (e) => {
   endDrag(e);
 });
 
-// 파일 업로드 핸들러 (공통 함수)
-function handleFileUpload(e) {
+// 파일 업로드 핸들러 (공통 함수) - 전역으로 등록
+window.handleFileUpload = function handleFileUpload(e) {
   const f = e.target.files[0];
   if(!f) return;
   
@@ -11223,15 +11227,6 @@ function setupImageButton() {
       alert('이미지 저장에 실패했습니다: ' + err.message);
       btn.textContent = originalText;
       btn.disabled = false;
-    }
-    } catch(error) {
-      console.error("이미지 생성 실패:", error);
-      alert("이미지 생성에 실패했습니다: " + error.message);
-      const btn = document.getElementById("btnImage");
-      if (btn) {
-        btn.textContent = "🖼️ 그림으로 저장";
-        btn.disabled = false;
-      }
     }
   };
 }
