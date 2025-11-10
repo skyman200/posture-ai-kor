@@ -7986,17 +7986,31 @@ async function loadPostureDB() {
   }
   
   try {
-    // GitHub Pages 경로 또는 GitHub raw URL 사용
-    const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? '/db'  // 로컬 개발 환경
-      : 'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db';  // 프로덕션 환경
+    // ✅ Posture_Muscle_DB_Full.json 로드 (public/db/ 경로 사용)
+    const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
     
-    // ✅ Posture_Muscle_DB_Full.json 로드 (사용자 지정 파일명)
-    const jsonUrl = base.startsWith('http')
-      ? `${base}/Posture_Muscle_DB_Full.json`
-      : `${base}/Posture_Muscle_DB_Full.json`;
-    const response = await fetch(jsonUrl, { cache: 'no-store' });
-    if (!response.ok) throw new Error('DB 파일 로드 실패');
+    // 여러 경로 시도 (로컬 개발 환경과 GitHub Pages 모두 지원)
+    const candidates = [
+      // 1. GitHub Pages 경로 (public/db/)
+      `${REPO_ROOT}/public/db/Posture_Muscle_DB_Full.json`,
+      // 2. GitHub raw URL (직접)
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.json',
+      // 3. 로컬 개발 환경 경로
+      '/public/db/Posture_Muscle_DB_Full.json',
+      '/db/Posture_Muscle_DB_Full.json',
+      // 4. 상대 경로
+      './public/db/Posture_Muscle_DB_Full.json',
+      './db/Posture_Muscle_DB_Full.json'
+    ];
+    
+    let lastError = null;
+    for (const jsonUrl of candidates) {
+      try {
+        console.log(`📡 근육 분석 DB 로드 시도: ${jsonUrl}`);
+        const response = await fetch(jsonUrl, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
     POSTURE_DB = await response.json();
     const arr = Array.isArray(POSTURE_DB) ? POSTURE_DB : (POSTURE_DB.data || []);
     POSTURE_DB = arr;
@@ -8043,13 +8057,21 @@ async function loadPilatesDB() {
     return PILATES_EXERCISE_DB;
   }
   
-  // ✅ GitHub Pages 경로 자동 감지
+  // ✅ Pilates_Exercise_DB_1000_v2.json 로드 (public/db/ 경로 사용)
   const REPO_ROOT = location.origin + (location.pathname.includes('/posture-ai-kor') ? '/posture-ai-kor' : '');
+  
+  // 여러 경로 시도 (로컬 개발 환경과 GitHub Pages 모두 지원)
   const urls = [
-    `${REPO_ROOT}/db/Pilates_Exercise_DB_1000_v2.json`,
-    `https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Pilates_Exercise_DB_1000_v2.json`,
-    `/public/db/Pilates_Exercise_DB_1000_v2.json`,
-    `/db/Pilates_Exercise_DB_1000_v2.json`,
+    // 1. GitHub Pages 경로 (public/db/)
+    `${REPO_ROOT}/public/db/Pilates_Exercise_DB_1000_v2.json`,
+    // 2. GitHub raw URL (직접)
+    'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Pilates_Exercise_DB_1000_v2.json',
+    // 3. 로컬 개발 환경 경로
+    '/public/db/Pilates_Exercise_DB_1000_v2.json',
+    '/db/Pilates_Exercise_DB_1000_v2.json',
+    // 4. 상대 경로
+    './public/db/Pilates_Exercise_DB_1000_v2.json',
+    './db/Pilates_Exercise_DB_1000_v2.json'
   ];
 
   for (const url of urls) {
