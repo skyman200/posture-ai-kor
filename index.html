@@ -6789,19 +6789,8 @@ function setupFileUploads() {
       // input에 직접 change 이벤트 처리
       newInput.addEventListener("change", handleFileUpload);
       
-      // input에 직접 터치 이벤트 추가 (모바일에서 직접 클릭 가능하도록)
-      newInput.addEventListener('touchstart', (e) => {
-        // input이 직접 터치된 경우는 그대로 진행
-        console.log('Input 직접 터치됨:', id);
-        e.stopPropagation();
-      }, { passive: true });
-      
-      // input에 직접 클릭 이벤트도 추가
-      newInput.addEventListener('click', (e) => {
-        console.log('Input 직접 클릭됨:', id);
-        // input이 직접 클릭된 경우는 그대로 진행
-        e.stopPropagation();
-      }, { passive: true });
+      // input에 직접 터치/클릭 이벤트는 기본 동작을 사용하므로 추가 처리 불필요
+      // (input이 직접 클릭/터치되면 자동으로 파일 선택 다이얼로그가 열림)
       
       // 모바일에서 더 확실하게 작동하도록 여러 이벤트 처리
       let touchStarted = false;
@@ -6882,51 +6871,44 @@ function setupFileUploads() {
         }
       }, { passive: false });
       
-      // click 이벤트도 처리 (데스크톱 및 일부 모바일)
+      // click 이벤트 처리 (데스크톱 및 일부 모바일)
+      // 데스크탑에서는 label의 기본 동작을 신뢰하고, 모바일에서만 추가 처리
+      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      
       newLabel.addEventListener('click', (e) => {
-        // input이 직접 클릭된 경우는 제외
+        // input이 직접 클릭된 경우는 제외 (기본 동작 사용)
         if(e.target === newInput || e.target.closest('input') === newInput) {
           return;
         }
         
-        // 터치 이벤트에서 이미 처리된 경우는 제외
-        if(touchStarted) {
+        // 모바일에서 터치 이벤트로 이미 처리된 경우는 제외
+        if(isMobile && touchStarted) {
           e.preventDefault();
           e.stopPropagation();
           return;
         }
         
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // requestAnimationFrame을 사용하여 브라우저 렌더링 사이클에 맞춤
-        requestAnimationFrame(() => {
-          try {
-            newInput.focus();
-            newInput.click();
-          } catch(err) {
-            console.error('Input click failed:', err);
-            // 폴백: 약간의 지연 후 재시도
-            setTimeout(() => {
-              try {
-                newInput.focus();
-                newInput.click();
-              } catch(err2) {
-                console.error('Input click retry failed:', err2);
-              }
-            }, 10);
-          }
-        });
+        // 데스크탑에서는 label의 기본 동작을 신뢰 (for 속성으로 자동 연결됨)
+        // 모바일에서만 프로그래밍 방식으로 클릭
+        if(isMobile) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // requestAnimationFrame을 사용하여 브라우저 렌더링 사이클에 맞춤
+          requestAnimationFrame(() => {
+            try {
+              newInput.focus();
+              newInput.click();
+              console.log('Input 클릭 성공 (모바일):', id);
+            } catch(err) {
+              console.error('Input click failed:', err);
+            }
+          });
+        }
+        // 데스크탑에서는 기본 동작을 그대로 사용 (label의 for 속성이 자동으로 input을 클릭함)
       }, { passive: false });
       
-      // mousedown도 처리 (일부 모바일 브라우저)
-      newLabel.addEventListener('mousedown', (e) => {
-        if(e.target === newInput) return;
-        // 터치 이벤트가 아닌 경우에만 처리
-        if(!('ontouchstart' in window)) {
-          e.preventDefault();
-        }
-      }, { passive: false });
+      // mousedown은 처리하지 않음 (데스크탑에서 기본 동작 사용)
     } else {
       // label이 없는 경우 (하위 호환성)
       const newInput = input.cloneNode(true);
