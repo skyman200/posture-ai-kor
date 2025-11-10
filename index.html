@@ -688,6 +688,7 @@ const keypointsFront = [
 // 기존 호환성을 위해 keypoints 변수 유지 (getKeypoints 함수로 동적 반환)
 let keypoints = keypointsSide; // 기본값
 
+// sessions를 전역으로 노출
 const sessions = {
   Before: { 
     imgSide:null, 
@@ -708,6 +709,12 @@ const sessions = {
     analysis:null 
   }
 };
+
+// sessions를 window에 명시적으로 할당 (전역 접근 가능하도록)
+if(typeof window !== 'undefined') {
+  window.sessions = sessions;
+}
+
 let cur = "Before";
 
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
@@ -9980,7 +9987,7 @@ function exportAsPdf(options = {}) {
     );
     
     // 결론 생성 (회원 이름 포함, 임상 중심)
-    let conclusionText = '';
+    let conclusionText1 = '';
     const memberNameForPDF1 = memberName || '회원';
     
     // 패턴 요약
@@ -9993,44 +10000,44 @@ function exportAsPdf(options = {}) {
       });
     }
     
-    conclusionText += `${memberNameForPDF1}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+    conclusionText1 += `${memberNameForPDF1}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
-        conclusionText += `${idx + 1}. ${pattern}\n`;
+        conclusionText1 += `${idx + 1}. ${pattern}\n`;
       });
-      conclusionText += '\n';
+      conclusionText1 += '\n';
     } else {
-      conclusionText += '특이 패턴 없음\n\n';
+      conclusionText1 += '특이 패턴 없음\n\n';
     }
     
-    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
+    conclusionText1 += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
     
-    conclusionText += `【단기(1~4주)】\n`;
-    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
-    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
-    conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
+    conclusionText1 += `【단기(1~4주)】\n`;
+    conclusionText1 += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
+    conclusionText1 += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText1 += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
     
-    conclusionText += `【중기(4~8주)】\n`;
-    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
-    conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
-    conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
+    conclusionText1 += `【중기(4~8주)】\n`;
+    conclusionText1 += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText1 += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
+    conclusionText1 += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
     
-    conclusionText += `【장기(8~12주 이상)】\n`;
-    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    conclusionText1 += `【장기(8~12주 이상)】\n`;
+    conclusionText1 += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
     
     if(scoreResult && scoreResult.score != null) {
       const score = scoreResult.score;
       if(score < 70) {
-        conclusionText += `현재 체형 종합 점수가 ${score}점으로 개선이 필요합니다. 위의 단기 권장사항부터 꾸준히 실시하시기 바랍니다.\n\n`;
+        conclusionText1 += `현재 체형 종합 점수가 ${score}점으로 개선이 필요합니다. 위의 단기 권장사항부터 꾸준히 실시하시기 바랍니다.\n\n`;
       } else if(score < 85) {
-        conclusionText += `현재 체형 종합 점수가 ${score}점으로 양호한 편입니다. 중기 권장사항을 중심으로 지속적인 관리가 필요합니다.\n\n`;
+        conclusionText1 += `현재 체형 종합 점수가 ${score}점으로 양호한 편입니다. 중기 권장사항을 중심으로 지속적인 관리가 필요합니다.\n\n`;
       } else {
-        conclusionText += `현재 체형 종합 점수가 ${score}점으로 우수합니다. 장기 권장사항을 통해 현재 상태를 유지하고 더욱 개선하시기 바랍니다.\n\n`;
+        conclusionText1 += `현재 체형 종합 점수가 ${score}점으로 우수합니다. 장기 권장사항을 통해 현재 상태를 유지하고 더욱 개선하시기 바랍니다.\n\n`;
       }
     }
     
-    conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
+    conclusionText1 += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
     
     page4Container.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 자세 분석 리포트</h2>
@@ -10098,7 +10105,7 @@ function exportAsPdf(options = {}) {
       <!-- 결론 및 향후 권장사항 -->
       <div style="margin-top:20px; padding:18px; background:#f6fff7; border-radius:10px; border-left:4px solid #27ae60; box-sizing:border-box; overflow:hidden; word-wrap:break-word;">
         <div style="font-size:14px; font-weight:600; margin-bottom:12px; color:#27ae60;">✅ 결론 및 향후 권장사항</div>
-        <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${conclusionText}</div>
+        <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${conclusionText1}</div>
       </div>
       
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -10350,7 +10357,7 @@ function exportAsPdf(options = {}) {
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">✅ 결론 및 향후 권장사항</h2>
       <div style="padding:20px; background:#f6fff7; border-radius:10px; margin-bottom:20px; box-sizing:border-box; overflow:hidden; word-wrap:break-word; overflow-wrap:break-word; border-left:4px solid #27ae60;">
         <div style="font-size:12px; line-height:1.8; color:#333; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap; max-width:100%;">
-          ${conclusionText}
+          ${conclusionText || conclusionText1 || ''}
         </div>
       </div>
       <div style="margin-top:20px; padding:15px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6; box-sizing:border-box; overflow:hidden;">
@@ -11863,35 +11870,50 @@ if (typeof window !== 'undefined') {
       aiReportManager: `${REPO_ROOT}/assets/modules/aiReportManager.js`
     };
 
-    // DB 기반 분석기 모듈 로드
+    // DB 기반 분석기 모듈 로드 (파일이 있을 때만)
     try {
-      const analyzerModule = await import(MODULES.analyzerWithDB);
-      if (analyzerModule && analyzerModule.analyzeWithDB) {
-        window.analyzeWithDB = analyzerModule.analyzeWithDB;
-        window.loadPostureDBModule = analyzerModule.loadPostureDB;
-        console.log('✅ DB 기반 분석기 모듈 로드 완료');
+      const exists = await checkModuleExists(MODULES.analyzerWithDB);
+      if (exists) {
+        const analyzerModule = await import(MODULES.analyzerWithDB);
+        if (analyzerModule && analyzerModule.analyzeWithDB) {
+          window.analyzeWithDB = analyzerModule.analyzeWithDB;
+          window.loadPostureDBModule = analyzerModule.loadPostureDB;
+          console.log('✅ DB 기반 분석기 모듈 로드 완료');
+        }
+      } else {
+        console.log('ℹ️ analyzerWithDB 모듈 파일이 없습니다. 인라인 함수를 사용합니다.');
       }
     } catch (err) {
       console.warn('⚠️ analyzerWithDB 모듈 로드 실패:', err);
     }
 
-    // 상세 PDF 리포트 모듈 로드
+    // 상세 PDF 리포트 모듈 로드 (파일이 있을 때만)
     try {
-      const reportModule = await import(MODULES.reportPdf);
-      if (reportModule && reportModule.exportDetailedPDF) {
-        window.exportDetailedPDF = reportModule.exportDetailedPDF;
-        console.log('✅ 상세 PDF 리포트 모듈 로드 완료');
+      const exists = await checkModuleExists(MODULES.reportPdf);
+      if (exists) {
+        const reportModule = await import(MODULES.reportPdf);
+        if (reportModule && reportModule.exportDetailedPDF) {
+          window.exportDetailedPDF = reportModule.exportDetailedPDF;
+          console.log('✅ 상세 PDF 리포트 모듈 로드 완료');
+        }
+      } else {
+        console.log('ℹ️ reportPdf 모듈 파일이 없습니다. 인라인 함수를 사용합니다.');
       }
     } catch (err) {
       console.warn('⚠️ reportPdf 모듈 로드 실패:', err);
     }
 
-    // AIReportManager 모듈 로드
+    // AIReportManager 모듈 로드 (파일이 있을 때만)
     try {
-      const managerModule = await import(MODULES.aiReportManager);
-      if (managerModule && managerModule.AIReportManager) {
-        window.AIReportManager = managerModule.AIReportManager;
-        console.log('✅ AIReportManager 모듈 로드 완료');
+      const exists = await checkModuleExists(MODULES.aiReportManager);
+      if (exists) {
+        const managerModule = await import(MODULES.aiReportManager);
+        if (managerModule && managerModule.AIReportManager) {
+          window.AIReportManager = managerModule.AIReportManager;
+          console.log('✅ AIReportManager 모듈 로드 완료');
+        }
+      } else {
+        console.log('ℹ️ aiReportManager 모듈 파일이 없습니다. 인라인 함수를 사용합니다.');
       }
     } catch (err) {
       console.warn('⚠️ aiReportManager 모듈 로드 실패:', err);
