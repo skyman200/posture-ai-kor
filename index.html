@@ -8597,6 +8597,12 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   const M = S.metrics || {};
   const scoreData = S.score || {};
   let analysis = S.analysis || {};
+  
+  // 모든 캔버스 변수를 함수 스코프 상단에서 초기화 (에러 방지)
+  let canvas4 = null;
+  let canvas5 = null;
+  let canvas6 = null;
+  let canvas7 = null;
   const hasMeaningfulAnalysis = (data) => {
     if (!data) return false;
     return ['pilates','exercises','comments','details','tight','weak'].some(key => Array.isArray(data[key]) && data[key].length > 0);
@@ -9333,11 +9339,16 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-let canvas4 = await html2canvas(page4Container, {
-  ...html2canvasOptions,
-  windowWidth: page4Container.scrollWidth,
-  windowHeight: page4Container.scrollHeight
-});
+try {
+  canvas4 = await html2canvas(page4Container, {
+    ...html2canvasOptions,
+    windowWidth: page4Container.scrollWidth,
+    windowHeight: page4Container.scrollHeight
+  });
+} catch (err) {
+  console.error('❌ canvas4 생성 실패:', err);
+  canvas4 = null;
+}
 
 if (document.body.contains(page4Container)) {
   document.body.removeChild(page4Container);
@@ -9402,11 +9413,16 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-let canvas5 = await html2canvas(page5Container, {
-  ...html2canvasOptions,
-  windowWidth: page5Container.scrollWidth,
-  windowHeight: page5Container.scrollHeight
-});
+try {
+  canvas5 = await html2canvas(page5Container, {
+    ...html2canvasOptions,
+    windowWidth: page5Container.scrollWidth,
+    windowHeight: page5Container.scrollHeight
+  });
+} catch (err) {
+  console.error('❌ canvas5 생성 실패:', err);
+  canvas5 = null;
+}
 
 if (document.body.contains(page5Container)) {
   document.body.removeChild(page5Container);
@@ -9471,11 +9487,16 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-let canvas6 = await html2canvas(page6Container, {
-  ...html2canvasOptions,
-  windowWidth: page6Container.scrollWidth,
-  windowHeight: page6Container.scrollHeight
-});
+try {
+  canvas6 = await html2canvas(page6Container, {
+    ...html2canvasOptions,
+    windowWidth: page6Container.scrollWidth,
+    windowHeight: page6Container.scrollHeight
+  });
+} catch (err) {
+  console.error('❌ canvas6 생성 실패:', err);
+  canvas6 = null;
+}
 
 if (document.body.contains(page6Container)) {
   document.body.removeChild(page6Container);
@@ -9529,11 +9550,16 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-let canvas7 = await html2canvas(page7Container, {
-  ...html2canvasOptions,
-  windowWidth: page7Container.scrollWidth,
-  windowHeight: page7Container.scrollHeight
-});
+try {
+  canvas7 = await html2canvas(page7Container, {
+    ...html2canvasOptions,
+    windowWidth: page7Container.scrollWidth,
+    windowHeight: page7Container.scrollHeight
+  });
+} catch (err) {
+  console.error('❌ canvas7 생성 실패:', err);
+  canvas7 = null;
+}
 
 if (document.body.contains(page7Container)) {
   document.body.removeChild(page7Container);
