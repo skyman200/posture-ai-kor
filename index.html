@@ -6761,10 +6761,16 @@ window.addEventListener('touchcancel', (e) => {
 window.handleFileUpload = function handleFileUpload(e) {
   const f = e.target.files[0];
   if(!f) return;
+  const targetSessionName = cur;
+  const targetSession = sessions[targetSessionName];
+  if(!targetSession) {
+    console.warn("세션 정보를 찾을 수 없습니다.");
+    return;
+  }
   
-  // 현재 선택된 orientation에 따라 적절한 이미지 저장
-  const orientation = sessions[cur].poseData?.orientation || "side";
-  const imgKey = orientation === "front" ? "imgFront" : "imgSide";
+  // 현재 선택된 orientation은 힌트로만 사용 (실제 저장은 AI 추론 결과에 따름)
+  const guessedOrientation = targetSession.poseData?.orientation || "side";
+  let imgKey = guessedOrientation === "front" ? "imgFront" : "imgSide";
   
   const img = new Image();
   img.onerror = (e) => {
@@ -6776,13 +6782,13 @@ window.handleFileUpload = function handleFileUpload(e) {
     console.log("이미지 로드 완료:", imgKey, "naturalWidth:", img.naturalWidth, "naturalHeight:", img.naturalHeight);
     
     // 기존 이미지가 있으면 메모리 정리 (orientation별로)
-    const existingImg = sessions[cur][imgKey];
+    const existingImg = targetSession[imgKey];
     if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
       URL.revokeObjectURL(existingImg.src);
     }
     
     // 새 이미지로 교체 (orientation별로 저장)
-    sessions[cur][imgKey] = img;
+    targetSession[imgKey] = img;
     
     // 원본 크기 초기화 (새 이미지를 로드하므로 다시 계산)
     originalCanvasSize.width = 0;
@@ -6792,10 +6798,6 @@ window.handleFileUpload = function handleFileUpload(e) {
     
     // 캔버스 크기 조정
     resizeCanvasFor(img);
-    
-    // 해당 orientation에 맞는 키포인트만 초기화
-    const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
-    currentPoints.clear();
     
     // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
     setTimeout(() => {
@@ -6818,11 +6820,48 @@ window.handleFileUpload = function handleFileUpload(e) {
     }, 100);
     
     // 포즈 감지 자동 실행 (선택된 orientation 사용)
+    const prevOrientation = targetSession.poseData?.orientation || guessedOrientation;
+    let detectedOrientation = null;
     if(typeof applyPoseDetection === 'function') {
       try {
-        await applyPoseDetection(img, cur);
+        const detectionResult = await applyPoseDetection(img, targetSessionName);
+        detectedOrientation = detectionResult?.orientation || null;
       } catch(err) {
         console.error("포즈 감지 실패:", err);
+      }
+    }
+
+    if(detectedOrientation) {
+      const desiredKey = detectedOrientation === "front" ? "imgFront" : "imgSide";
+      if(desiredKey !== imgKey) {
+        const prevImg = targetSession[desiredKey];
+        if(prevImg && prevImg !== img && prevImg.src && prevImg.src.startsWith('blob:')) {
+          URL.revokeObjectURL(prevImg.src);
+        }
+        targetSession[desiredKey] = img;
+        if(targetSession[imgKey] === img) {
+          targetSession[imgKey] = null;
+        }
+        imgKey = desiredKey;
+      }
+      
+      if(!targetSession.poseData) {
+        targetSession.poseData = { orientation: detectedOrientation, landmarks: null };
+      }
+      targetSession.poseData.orientation = detectedOrientation;
+      
+      if(targetSessionName === cur) {
+        if(prevOrientation !== detectedOrientation) {
+          setOrientation(detectedOrientation);
+        } else {
+          draw();
+        }
+        try {
+          computeAll();
+        } catch(errCompute) {
+          console.warn("computeAll 실행 실패, 기본 지표만 갱신:", errCompute);
+          computeMetricsOnly();
+        }
       }
     }
   };
@@ -8150,6 +8189,26 @@ function formatMultilineText(text) {
 
 const PILATES_EQUIPMENT_LIST = ['매트', '리포머', '캐딜락', '체어', '바렐'];
 const REPORT_SIGNATURE = 'created by Kim Cook (@pila_strong)';
+const REPORT_METRIC_RANGE = {
+  'CVA(두개경추각)': [50, 90],
+  'HPD(두부전방이동)': [0, 2],
+  'TIA(체간경사각)': [0, 10],
+  'SAA(어깨전방각)': [0, 10],
+  'PTA(골반경사각)': [0, 15],
+  'KA(무릎각)': [175, 185],
+  'Tibial(경골경사각)': [0, 10],
+  'GSB(중심선)': [0, 2],
+  'HPA(머리-골반각)': [0, 10]
+};
+
+function chartOutOfRange(metricName = '', value = null) {
+  if (value == null || Number.isNaN(value)) return false;
+  const label = (metricName || '').replace(/\s+/g, '');
+  const key = Object.keys(REPORT_METRIC_RANGE).find((k) => label.includes(k.replace(/[()\s]/g, '')));
+  if (!key) return false;
+  const [min, max] = REPORT_METRIC_RANGE[key];
+  return value < min || value > max;
+}
 
 function escapeHtml(value) {
   if (value == null) return '';
@@ -8336,12 +8395,48 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.lineHeight = "1.55";
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
-  container.style.overflow = "hidden";
+  container.style.overflow = "visible";
   container.style.wordWrap = "break-word";
   container.style.minHeight = "1100px";
 }
 
-function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeImg, afterImg, overlayImg }) {
+function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeViews = {}, afterViews = {}, overlayImg }) {
+  const hasBefore = !!(beforeViews.side || beforeViews.front);
+  const hasAfter = !!(afterViews.side || afterViews.front);
+  const renderViewColumn = (label, views) => {
+    const hasView = !!(views.side || views.front);
+    if(!hasView) {
+      return `
+        <div style="flex:1; min-height:360px; border:1px dashed #cbd5f5; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:12px;">
+          ${label} 이미지가 없습니다.
+        </div>
+      `;
+    }
+    const rows = [];
+    if(views.side) {
+      rows.push(`
+        <div style="text-align:center;">
+          <img src="${views.side}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff;" />
+          <div style="margin-top:6px; font-size:11px; color:#475569; font-weight:600;">${label} · 옆모습</div>
+        </div>
+      `);
+    }
+    if(views.front) {
+      rows.push(`
+        <div style="text-align:center;">
+          <img src="${views.front}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff;" />
+          <div style="margin-top:6px; font-size:11px; color:#475569; font-weight:600;">${label} · 정면</div>
+        </div>
+      `);
+    }
+    return `
+      <div style="flex:1; display:flex; flex-direction:column; gap:14px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#fafbff;">
+        <div style="font-size:13px; font-weight:700; color:#0f172a;">${label}</div>
+        ${rows.join('')}
+      </div>
+    `;
+  };
+
   return `
     <div style="text-align:center; margin-top:60px;">
       <h1 style="margin:0; padding:0; font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
@@ -8351,34 +8446,27 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeIm
       <p style="margin:0; padding:0; font-size:12px; color:#999; margin-top:40px;">Generated by ${appName} · ${REPORT_SIGNATURE}</p>
     </div>
     
-    ${beforeImg && afterImg ? `
-    <div style="margin-top:20px;">
-      <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📸 Before-After 자세 분석</div>
-      <div style="display:flex; gap:15px; justify-content:space-between; margin-bottom:20px;">
-        <div style="flex:1; text-align:center;">
-          <img src="${beforeImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
-          <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">Before</div>
-        </div>
-        <div style="flex:1; text-align:center;">
-          <img src="${afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
-          <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">After</div>
-        </div>
+    ${(hasBefore || hasAfter) ? `
+    <div style="margin-top:24px;">
+      <div style="font-size:14px; font-weight:700; margin-bottom:12px; text-align:left;">📸 Before / After (측면 + 정면)</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        ${renderViewColumn('Before', beforeViews)}
+        ${renderViewColumn('After', afterViews)}
       </div>
-      
-      ${overlayImg ? `
-      <div style="margin-top:20px;">
-        <div style="font-size:12px; font-weight:600; margin-bottom:8px;">🔄 Before-After 오버레이 (변화 시각화)</div>
-        <div style="text-align:center;">
-          <img src="${overlayImg}" style="width:100%; max-width:600px; height:auto; border-radius:8px; border:1px solid #ddd; display:block; margin:0 auto; max-height:400px; object-fit:contain;" />
-          <div style="margin-top:8px; font-size:10px; color:#666;">파란색: Before | 주황색: After (투명도 50%)</div>
-        </div>
-      </div>
-      ` : ''}
     </div>
-    ` : beforeImg || afterImg ? `
-    <div style="margin-top:20px;">
-      <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
-      <img src="${beforeImg || afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
+    ` : `
+    <div style="margin-top:24px; padding:32px; border:1px dashed #cbd5f5; border-radius:12px; text-align:center; color:#94a3b8;">
+      업로드된 사진이 없어 표지를 구성할 수 없습니다.
+    </div>
+    `}
+    
+    ${overlayImg ? `
+    <div style="margin-top:24px;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:8px;">🔄 Before-After 오버레이 (변화 시각화)</div>
+      <div style="text-align:center;">
+        <img src="${overlayImg}" style="width:100%; max-width:600px; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; margin:0 auto; max-height:400px; object-fit:contain; background:#fff;" />
+        <div style="margin-top:8px; font-size:10px; color:#666;">파란색: Before | 주황색: After (투명도 50%)</div>
+      </div>
     </div>
     ` : ''}
   `;
@@ -8450,55 +8538,83 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     throw new Error("캔버스가 준비되지 않았습니다.");
   }
 
-  // 현재 세션 저장
-  const originalCur = cur;
+  const originalSession = cur;
+  const wait = (ms = 80) => new Promise(resolve => setTimeout(resolve, ms));
+  const hasOrientationData = (session, orientation) => {
+    if (!session) return false;
+    const map = orientation === "front" ? session.frontPoints : session.sidePoints;
+    const imgRef = orientation === "front" ? session.imgFront : session.imgSide;
+    return (map && map.size > 0) || !!imgRef;
+  };
 
-  // Before 이미지 캡처
-  let beforeImg = null;
-  let beforeOrientation = "side";
-  if(sessions.Before && (sessions.Before.sidePoints.size > 0 || sessions.Before.frontPoints.size > 0)) {
-    beforeOrientation = sessions.Before.poseData?.orientation || "side";
-    switchSession("Before");
-    if(beforeOrientation !== (sessions.Before.poseData?.orientation || "side")) {
-      setOrientation(beforeOrientation);
+  const captureSessionSnapshot = async (sessionName, orientation) => {
+    const session = sessions[sessionName];
+    if(!session || !hasOrientationData(session, orientation)) return null;
+    const originalSession = cur;
+    const originalOrientation = session.poseData?.orientation || "side";
+
+    if(cur !== sessionName) {
+      switchSession(sessionName);
+      await wait(80);
     }
-    // 캔버스 그리기 대기
-    await new Promise(resolve => setTimeout(resolve, 100));
+    if(originalOrientation !== orientation) {
+      setOrientation(orientation);
+      await wait(80);
+    } else {
+      draw();
+      await wait(50);
+    }
+
+    const snapshot = cv.toDataURL("image/png");
+
+    if(originalOrientation !== orientation) {
+      setOrientation(originalOrientation);
+      await wait(60);
+    }
+    if(cur !== originalSession) {
+      switchSession(originalSession);
+      await wait(60);
+    } else {
+      draw();
+    }
+    return snapshot;
+  };
+
+  const beforeViews = {};
+  const afterViews = {};
+
+  const beforeSideImg = await captureSessionSnapshot("Before", "side");
+  if(beforeSideImg) beforeViews.side = beforeSideImg;
+  const beforeFrontImg = await captureSessionSnapshot("Before", "front");
+  if(beforeFrontImg) beforeViews.front = beforeFrontImg;
+
+  const afterSideImg = await captureSessionSnapshot("After", "side");
+  if(afterSideImg) afterViews.side = afterSideImg;
+  const afterFrontImg = await captureSessionSnapshot("After", "front");
+  if(afterFrontImg) afterViews.front = afterFrontImg;
+
+  if(cur !== originalSession) {
+    switchSession(originalSession);
+    await wait(60);
+  } else {
     draw();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    beforeImg = cv.toDataURL("image/png");
   }
 
-  // After 이미지 캡처
-  let afterImg = null;
-  let afterOrientation = "side";
-  if(sessions.After && (sessions.After.sidePoints.size > 0 || sessions.After.frontPoints.size > 0)) {
-    afterOrientation = sessions.After.poseData?.orientation || "side";
-    switchSession("After");
-    if(afterOrientation !== (sessions.After.poseData?.orientation || "side")) {
-      setOrientation(afterOrientation);
-    }
-    // 캔버스 그리기 대기
-    await new Promise(resolve => setTimeout(resolve, 100));
-    draw();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    afterImg = cv.toDataURL("image/png");
-  }
-
-  // 원래 세션으로 복원
-  switchSession(originalCur);
-  await new Promise(resolve => setTimeout(resolve, 50));
-  draw();
+  const beforeImg = beforeViews.side || beforeViews.front || null;
+  const afterImg = afterViews.side || afterViews.front || null;
+  const beforeOrientation = beforeViews.side ? "side" : (beforeViews.front ? "front" : "side");
+  const afterOrientation = afterViews.side ? "side" : (afterViews.front ? "front" : "side");
 
   // Before-After 오버레이 이미지 생성 (스켈레톤 포함)
   let overlayImg = null;
-  if(beforeImg && afterImg) {
+  const overlayOrientation = (beforeViews.side && afterViews.side) ? "side"
+    : (beforeViews.front && afterViews.front) ? "front"
+    : null;
+
+  if(beforeImg && afterImg && overlayOrientation) {
     try {
-      // Before와 After 세션의 키포인트 가져오기
-      const beforeOrientation = sessions.Before?.poseData?.orientation || "side";
-      const afterOrientation = sessions.After?.poseData?.orientation || "side";
-      const beforePointsMap = beforeOrientation === "front" ? sessions.Before?.frontPoints : sessions.Before?.sidePoints;
-      const afterPointsMap = afterOrientation === "front" ? sessions.After?.frontPoints : sessions.After?.sidePoints;
+      const beforePointsMap = overlayOrientation === "front" ? sessions.Before?.frontPoints : sessions.Before?.sidePoints;
+      const afterPointsMap = overlayOrientation === "front" ? sessions.After?.frontPoints : sessions.After?.sidePoints;
 
       // Map을 일반 객체로 변환 (소문자 키로 통일)
       const getPointsObject = (pointsMap) => {
@@ -8523,10 +8639,13 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
       const afterPoints = getPointsObject(afterPointsMap);
 
       // 스켈레톤이 있는 경우 스켈레톤 포함 오버레이 생성, 없으면 기본 오버레이
-      if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
-        overlayImg = await createOverlayImageWithSkeleton(beforeImg, afterImg, beforePoints, afterPoints, 0.5);
+      const beforeBaseImg = overlayOrientation === "front" ? beforeViews.front : beforeViews.side;
+      const afterBaseImg = overlayOrientation === "front" ? afterViews.front : afterViews.side;
+
+      if(beforeBaseImg && afterBaseImg && beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
+        overlayImg = await createOverlayImageWithSkeleton(beforeBaseImg, afterBaseImg, beforePoints, afterPoints, 0.5);
       } else {
-        overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+        overlayImg = await createOverlayImage(beforeBaseImg || beforeImg, afterBaseImg || afterImg, 0.5);
       }
     } catch(err) {
       console.warn("오버레이 이미지 생성 실패:", err);
@@ -8602,53 +8721,10 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     centerName,
     dateStr,
     appName,
-    beforeImg,
-    afterImg,
+    beforeViews,
+    afterViews,
     overlayImg
   });
-
-  // ========== 페이지 1: 표지 (회원명, 센터명, 분석일) ==========
-  page1Container.innerHTML = `
-    <div style="text-align:center; margin-top:60px;">
-      <h1 style="margin:0; padding:0; font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
-      ${memberName ? `<h2 style="margin:0; padding:0; font-size:20px; font-weight:600; color:#333; margin-bottom:15px;">회원명: ${memberName}</h2>` : ''}
-      ${centerName ? `<h3 style="margin:0; padding:0; font-size:18px; font-weight:500; color:#666; margin-bottom:15px;">센터명: ${centerName}</h3>` : ''}
-      <p style="margin:0; padding:0; font-size:14px; color:#999; margin-bottom:10px;">분석일: ${dateStr}</p>
-      <p style="margin:0; padding:0; font-size:12px; color:#999; margin-top:40px;">Generated by ${appName} · ${REPORT_SIGNATURE}</p>
-    </div>
-
-    <!-- Before/After 이미지 비교 -->
-    ${beforeImg && afterImg ? `
-    <div style="margin-top:20px;">
-      <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📸 Before-After 자세 분석</div>
-      <div style="display:flex; gap:15px; justify-content:space-between; margin-bottom:20px;">
-        <div style="flex:1; text-align:center;">
-          <img src="${beforeImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
-          <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">Before</div>
-        </div>
-        <div style="flex:1; text-align:center;">
-          <img src="${afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:350px; object-fit:contain;" />
-          <div style="margin-top:8px; font-size:11px; color:#666; font-weight:600;">After</div>
-        </div>
-      </div>
-
-      ${overlayImg ? `
-      <div style="margin-top:20px;">
-        <div style="font-size:12px; font-weight:600; margin-bottom:8px;">🔄 Before-After 오버레이 (변화 시각화)</div>
-        <div style="text-align:center;">
-          <img src="${overlayImg}" style="width:100%; max-width:600px; height:auto; border-radius:8px; border:1px solid #ddd; display:block; margin:0 auto; max-height:400px; object-fit:contain;" />
-          <div style="margin-top:8px; font-size:10px; color:#666;">파란색: Before | 주황색: After (투명도 50%)</div>
-        </div>
-      </div>
-      ` : ''}
-    </div>
-    ` : beforeImg || afterImg ? `
-    <div style="margin-top:20px;">
-      <div style="font-size:12px; font-weight:600; margin-bottom:8px;">자세 분석 이미지</div>
-      <img src="${beforeImg || afterImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:600px; object-fit:contain;" />
-    </div>
-    ` : ''}
-  `;
 
 document.body.appendChild(page1Container);
 
@@ -8877,27 +8953,6 @@ if(chartSectionPlaceholder) {
   chartSectionPlaceholder.replaceWith(section);
 
   if(typeof Chart !== 'undefined') {
-    const rangeMap = {
-      'CVA(두개경추각)': [50, 90],
-      'HPD(두부전방이동)': [0, 2],
-      'TIA(체간경사각)': [0, 10],
-      'SAA(어깨전방각)': [0, 10],
-      'PTA(골반경사각)': [0, 15],
-      'KA(무릎각)': [175, 185],
-      'Tibial(경골경사각)': [0, 10],
-      'GSB(중심선)': [0, 2],
-      'HPA(머리-골반각)': [0, 10]
-    };
-    const chartOutOfRange = (metricName, value) => {
-      if (value == null) return false;
-      const key = Object.keys(rangeMap).find((k) =>
-        metricName.includes(k.replace(/[()]/g, ''))
-      );
-      if (!key) return false;
-      const [min, max] = rangeMap[key];
-      return value < min || value > max;
-    };
-
     const ctx = chartCanvas.getContext('2d');
     chartCanvas.chartInstance = new Chart(ctx, {
       type: 'bar',
@@ -12043,9 +12098,7 @@ function mapPoseToKeypoints(pose, orientation) {
   }
   
   if(orientation === "front") {
-    // 정면: 양쪽 모두 표시
-    // MediaPipe의 left/right는 환자 기준이지만, 이미지 좌표 기준으로 매핑해야 함
-    // 이미지에서 왼쪽(x 작음) = L, 오른쪽(x 큼) = R
+    // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
     const leftShoulder = keypoints[11];  // MediaPipe: 환자 왼쪽 어깨
     const rightShoulder = keypoints[12]; // MediaPipe: 환자 오른쪽 어깨
     const leftHip = keypoints[23];       // MediaPipe: 환자 왼쪽 골반
@@ -12054,26 +12107,32 @@ function mapPoseToKeypoints(pose, orientation) {
     const rightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
     const leftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
     const rightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
-    
-    const assignFrontBilateral = (mpLeft, mpRight, leftKey, rightKey) => {
-      const leftValid = mpLeft && mpLeft.visibility >= 0.3;
-      const rightValid = mpRight && mpRight.visibility >= 0.3;
-      const assign = (kp, targetKey) => {
-        if (!kp) return;
-        keypointMap[targetKey] = { x: kp.x, y: kp.y, score: kp.visibility };
-      };
-      if (leftValid && rightValid) {
-        // MediaPipe 좌표계: left = 화면 왼쪽(환자 오른쪽), right = 화면 오른쪽(환자 왼쪽)
-        assign(mpRight, leftKey);
-        assign(mpLeft, rightKey);
-      } else if (rightValid) {
-        assign(mpRight, leftKey);
-      } else if (leftValid) {
-        assign(mpLeft, rightKey);
-      }
+    const collectAvg = (indices) => {
+      const samples = [];
+      indices.forEach(idx => {
+        const kp = keypoints[idx];
+        if (kp && kp.visibility >= 0.3) samples.push(kp.x);
+      });
+      if (!samples.length) return null;
+      return samples.reduce((a, b) => a + b, 0) / samples.length;
+    };
+    const leftAvg = collectAvg([11, 23, 25, 27]);
+    const rightAvg = collectAvg([12, 24, 26, 28]);
+    // 환자 기준 좌/우를 화면 좌/우로 뒤집어야 하는 경우 감지 (환자 왼쪽이 화면 오른쪽에 위치하면 미러링)
+    const shouldMirrorFront = leftAvg != null && rightAvg != null && leftAvg > rightAvg;
+    const makePoint = (kp) => {
+      if (!kp || kp.visibility < 0.3) return null;
+      const mirroredX = shouldMirrorFront ? 1 - kp.x : kp.x;
+      return { x: mirroredX, y: kp.y, score: kp.visibility };
+    };
+    const assignPoint = (kp, targetKey) => {
+      const point = makePoint(kp);
+      if (!point) return;
+      keypointMap[targetKey] = point;
     };
 
-    assignFrontBilateral(leftShoulder, rightShoulder, 'L_acromion', 'R_acromion');
+    assignPoint(leftShoulder, 'L_acromion');
+    assignPoint(rightShoulder, 'R_acromion');
     
     // c7: 양쪽 어깨 중간 (목 아래) - Flutter 1:1 매칭
     if(keypointMap['L_acromion'] && keypointMap['R_acromion']) {
@@ -12096,23 +12155,12 @@ function mapPoseToKeypoints(pose, orientation) {
       };
     }
     
-    assignFrontBilateral(leftHip, rightHip, 'L_asis', 'R_asis');
-    assignFrontBilateral(leftKnee, rightKnee, 'L_knee', 'R_knee');
-    assignFrontBilateral(leftAnkle, rightAnkle, 'L_ankle', 'R_ankle');
-
-    const ensurePatientLeftRight = (leftKey, rightKey) => {
-      const leftPt = keypointMap[leftKey];
-      const rightPt = keypointMap[rightKey];
-      if (leftPt && rightPt && leftPt.x < rightPt.x) {
-        keypointMap[leftKey] = rightPt;
-        keypointMap[rightKey] = leftPt;
-      }
-    };
-
-    ensurePatientLeftRight('L_acromion', 'R_acromion');
-    ensurePatientLeftRight('L_asis', 'R_asis');
-    ensurePatientLeftRight('L_knee', 'R_knee');
-    ensurePatientLeftRight('L_ankle', 'R_ankle');
+    assignPoint(leftHip, 'L_asis');
+    assignPoint(rightHip, 'R_asis');
+    assignPoint(leftKnee, 'L_knee');
+    assignPoint(rightKnee, 'R_knee');
+    assignPoint(leftAnkle, 'L_ankle');
+    assignPoint(rightAnkle, 'R_ankle');
 
     console.log('정면 랜드마크 매핑 (이미지 좌표 기준):', Object.keys(keypointMap));
   }
@@ -12123,7 +12171,7 @@ function mapPoseToKeypoints(pose, orientation) {
 // ✅ 포즈 감지 후 기존 시스템에 통합
 async function applyPoseDetection(img, sessionName) {
   const session = sessions[sessionName];
-  if(!session) return;
+  if(!session) return null;
   
   // 세션의 orientation 사용 (기본값: side)
   if(!session.poseData) {
@@ -12134,7 +12182,7 @@ async function applyPoseDetection(img, sessionName) {
   console.log(`${sessionName} 세션: ${orientation === "side" ? "옆모습" : "정면"} 포즈 감지 시작`);
   
   let pose = await detectPose(img, orientation);
-  if(!pose) return;
+  if(!pose) return null;
   
   let activeOrientation = orientation;
   const inferredOrientation = inferOrientationFromPose(pose);
@@ -12144,25 +12192,21 @@ async function applyPoseDetection(img, sessionName) {
       pose = retryPose;
     }
     console.log(`자동 orientation 감지: ${orientation} → ${inferredOrientation}`);
-    session.poseData.orientation = inferredOrientation;
-    if (sessionName === cur) {
-      setOrientation(inferredOrientation);
-    } else {
-      sessions[sessionName].poseData.orientation = inferredOrientation;
-    }
     activeOrientation = inferredOrientation;
-  } else {
-    session.poseData.orientation = orientation;
   }
   
   // 포즈 정보 저장
   session.poseData.landmarks = pose.keypoints;
+  session.poseData.detectedOrientation = activeOrientation;
   
   // 기존 점 시스템에 매핑 (선택적)
   const keypointMap = mapPoseToKeypoints(pose, activeOrientation);
   if(keypointMap) {
     // 매핑된 키포인트를 기존 점 시스템에 적용
     const map = activeOrientation === "front" ? session.frontPoints : session.sidePoints;
+    if(map?.clear) {
+      map.clear();
+    }
     
     // 원본 크기 계산 (아직 없으면 계산)
     if(originalCanvasSize.width === 0) {
@@ -12197,13 +12241,10 @@ async function applyPoseDetection(img, sessionName) {
       }
     }
     
-    // 화면 업데이트
-    draw();
-    computeAll(); // 전체 분석 실행
     console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료 (${activeOrientation === "side" ? "옆모습" : "정면"})`);
   }
   
-  return pose;
+  return { orientation: activeOrientation, pose };
 }
 
 // ✅ 포즈 감지는 위의 업로드 핸들러에서 자동으로 호출됨
