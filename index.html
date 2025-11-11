@@ -9592,6 +9592,7 @@ if (isMobile) {
     canvases: {
       cover: canvas1,
       heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
+      metrics: canvas3 || null, // 수치표 + 변화 그래프 페이지
       chartCanvas: chartCanvas?.chartInstance?.canvas || null, // 그래프만 캡처
       aiSummary: canvas4 || null, // AI 해석 요약 페이지
       pilates: canvas5 || null, // 필라테스 추천 페이지
@@ -11782,227 +11783,25 @@ function exportAsPdf(options = {}) {
     // 페이지 4: AI 해석 요약 (기존 canvas 사용)
     if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas);
     
-    // 페이지 5: 필라테스 추천 (앱과 동일하게 텍스트로 작성)
-    if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+    // 페이지 5: 필라테스 추천 (canvas 사용 - 한글 깨짐 방지)
+    // 필라테스 추천은 한글이 많아서 html2canvas로 캡처한 이미지를 사용
+    if (pilatesCanvas) {
+      addPageToPdf(pilatesCanvas);
+    } else if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+      // canvas가 없으면 텍스트로 폴백 (영문만)
       pdf.addPage();
       let y = margin + 10;
       
-      // 제목
       pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 0, 0);
-      pdf.text('🧘 필라테스 운동 추천', margin, y);
+      pdf.text('Pilates Exercise Recommendations', margin, y);
       y += 30;
       
-      // 각 추천 항목 (앱의 renderPilatesItemCard와 동일하게)
-      analysis.pilates.forEach((item, idx) => {
-        if (y > pageH - 150) {
-          pdf.addPage();
-          y = margin + 20;
-        }
-        
-        const title = item.name || item.issue || `추천 ${idx + 1}`;
-        const musclesText = Array.isArray(item.muscles) ? item.muscles.join(', ') : (item.muscles || '');
-        const tightText = Array.isArray(item.tight) ? item.tight.join(', ') : (item.tight || '');
-        const weakText = Array.isArray(item.weak) ? item.weak.join(', ') : (item.weak || '');
-        
-        // 설명 조합 (condition, interpretation, description)
-        const descriptionParts = [];
-        if (item.condition) descriptionParts.push(item.condition);
-        if (item.interpretation) descriptionParts.push(item.interpretation);
-        if (item.description) descriptionParts.push(item.description);
-        const description = descriptionParts.join(' · ');
-        
-        // 항목 제목
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(12);
-        pdf.setTextColor(92, 68, 184); // #5c44b8
-        pdf.text(`${idx + 1}. ${title}`, margin, y);
-        y += 18;
-        
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        
-        // 설명
-        if (description) {
-          pdf.setTextColor(50, 50, 50);
-          const descLines = pdf.splitTextToSize(description, imgW - 20);
-          pdf.text(descLines, margin + 10, y);
-          y += descLines.length * 11 + 6;
-        }
-        
-        // 관련 근육
-        if (musclesText) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(92, 68, 184);
-          pdf.text('관련 근육:', margin + 10, y);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(50, 50, 50);
-          pdf.text(musclesText, margin + 70, y);
-          y += 14;
-        }
-        
-        // 긴장 근육
-        if (tightText) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(231, 76, 60);
-          pdf.text('긴장:', margin + 10, y);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(50, 50, 50);
-          pdf.text(tightText, margin + 50, y);
-          y += 14;
-        }
-        
-        // 약화 근육
-        if (weakText) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(124, 156, 255); // #7c9cff
-          pdf.text('약화:', margin + 10, y);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(50, 50, 50);
-          pdf.text(weakText, margin + 50, y);
-          y += 14;
-        }
-        
-        // 필라테스 기구별 추천 (각 운동의 상세 정보 포함)
-        const pilatesData = item.pilates || item.pilatesExercises || null;
-        if (pilatesData) {
-          y += 5;
-          // PILATES_EQUIPMENT_LIST 순서대로 처리
-          const equipmentList = typeof PILATES_EQUIPMENT_LIST !== 'undefined' ? PILATES_EQUIPMENT_LIST : ['매트', '리포머', '체어', '캐딜락', '바렐', 'Tower'];
-          
-          equipmentList.forEach(equipment => {
-            const exercises = pilatesData[equipment];
-            if (Array.isArray(exercises) && exercises.length > 0) {
-              // 기구명
-              pdf.setFont('helvetica', 'bold');
-              pdf.setFontSize(10);
-              pdf.setTextColor(92, 68, 184);
-              pdf.text(`${equipment}:`, margin + 20, y);
-              y += 14;
-              
-              // 각 운동의 상세 정보
-              exercises.forEach((exercise, exIdx) => {
-                if (y > pageH - 200) {
-                  pdf.addPage();
-                  y = margin + 20;
-                }
-                
-                const exerciseInfo = getExerciseDetailInfo(exercise);
-                if (!exerciseInfo.title) {
-                  // 운동 이름만 있는 경우
-                  const exerciseName = typeof exercise === 'string' ? exercise : (exercise.name || exercise.exercise_ko || exercise.exercise_en || '');
-                  if (exerciseName) {
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(50, 50, 50);
-                    pdf.text(`  • ${exerciseName}`, margin + 30, y);
-                    y += 12;
-                  }
-                } else {
-                  // 운동 상세 정보가 있는 경우
-                  pdf.setFont('helvetica', 'bold');
-                  pdf.setFontSize(9);
-                  pdf.setTextColor(92, 68, 184);
-                  pdf.text(`  • ${exerciseInfo.title}`, margin + 30, y);
-                  y += 12;
-                  
-                  pdf.setFont('helvetica', 'normal');
-                  pdf.setFontSize(8);
-                  pdf.setTextColor(50, 50, 50);
-                  
-                  // 목적
-                  if (exerciseInfo.purpose) {
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(92, 68, 184);
-                    pdf.text('    목적:', margin + 35, y);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(50, 50, 50);
-                    const purposeLines = pdf.splitTextToSize(exerciseInfo.purpose, imgW - 100);
-                    pdf.text(purposeLines, margin + 80, y);
-                    y += purposeLines.length * 10 + 4;
-                  }
-                  
-                  // 운동 설명
-                  if (exerciseInfo.how) {
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(92, 68, 184);
-                    pdf.text('    운동 설명:', margin + 35, y);
-                    y += 10;
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(50, 50, 50);
-                    const howLines = pdf.splitTextToSize(exerciseInfo.how, imgW - 100);
-                    pdf.text(howLines, margin + 80, y);
-                    y += howLines.length * 10 + 4;
-                  }
-                  
-                  // 핵심 큐
-                  if (exerciseInfo.cues) {
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(92, 68, 184);
-                    pdf.text('    핵심 큐:', margin + 35, y);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(50, 50, 50);
-                    const cuesLines = pdf.splitTextToSize(exerciseInfo.cues, imgW - 100);
-                    pdf.text(cuesLines, margin + 80, y);
-                    y += cuesLines.length * 10 + 4;
-                  }
-                  
-                  // 세트/반복
-                  if (exerciseInfo.sets) {
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(92, 68, 184);
-                    pdf.text('    세트/반복:', margin + 35, y);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(50, 50, 50);
-                    pdf.text(exerciseInfo.sets, margin + 95, y);
-                    y += 12;
-                  }
-                  
-                  // 주의사항
-                  if (exerciseInfo.precaution) {
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(231, 76, 60);
-                    pdf.text('    주의:', margin + 35, y);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(50, 50, 50);
-                    const precautionLines = pdf.splitTextToSize(exerciseInfo.precaution, imgW - 100);
-                    pdf.text(precautionLines, margin + 80, y);
-                    y += precautionLines.length * 10 + 4;
-                  }
-                  
-                  y += 4; // 운동 간 간격
-                }
-              });
-              
-              y += 5; // 기구 간 간격
-            }
-          });
-        }
-        
-        // 노트 (note 또는 manual)
-        const note = item.note || item.manual || '';
-        if (note) {
-          y += 5;
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(8);
-          pdf.setTextColor(75, 85, 99); // #4b5563
-          const noteLines = pdf.splitTextToSize(note, imgW - 40);
-          pdf.text(noteLines, margin + 20, y);
-          y += noteLines.length * 10 + 8;
-        }
-        
-        y += 10; // 항목 간 간격
-      });
-      
-      // 페이지 번호
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      const pilatesPageNum = pageIndexMap.pilates || 4;
-      pdf.text(`Page ${pilatesPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
-    } else if (pilatesCanvas) {
-      // 필라테스 데이터가 없으면 기존 canvas 사용
-      addPageToPdf(pilatesCanvas);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(50, 50, 50);
+      pdf.text('Pilates recommendations are available in the canvas version.', margin, y);
     }
     
     // 페이지 6: AI 심층 분석 (canvas 사용 - 한글 깨짐 방지)
