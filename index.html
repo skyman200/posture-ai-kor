@@ -8460,7 +8460,12 @@ function renderPilatesItemCard(item, options = {}) {
   const tightText = Array.isArray(item.tight) ? item.tight.join(', ') : (item.tight || '');
   const weakText = Array.isArray(item.weak) ? item.weak.join(', ') : (item.weak || '');
   const pilatesData = item.pilates || item.pilatesExercises || null;
-  const equipmentHTML = renderPilatesEquipmentSections(pilatesData, { context, limit: options.limitPerTool });
+  // limitPerTool을 명시적으로 전달
+  const equipmentHTML = renderPilatesEquipmentSections(pilatesData, { 
+    context, 
+    limitPerTool: options.limitPerTool,
+    limit: options.limitPerTool  // 호환성을 위해 limit도 함께 전달
+  });
   const descriptionParts = [];
   if (item.condition) descriptionParts.push(item.condition);
   if (item.interpretation) descriptionParts.push(item.interpretation);
