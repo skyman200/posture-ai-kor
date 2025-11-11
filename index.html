@@ -11315,6 +11315,10 @@ function exportAsPdf(options = {}) {
     const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
     const imgW = pageW - (margin * 2);
     
+    // PDF 생성용 캔버스 크기 제한 (모바일/데스크톱 구분)
+    const isMobileForPDF = isMobileDevice();
+    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 1100 : 1400;
+    
     const coverCanvas = canvases.cover;
     if (!coverCanvas) {
       throw new Error("표지 캔버스를 생성하지 못했습니다.");
