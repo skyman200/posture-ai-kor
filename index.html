@@ -13402,13 +13402,27 @@ if (typeof window !== 'undefined') {
     if (allDefined && sessionsReady) {
       initializeApp();
     } else {
-      // 아직 준비되지 않았으면 다시 시도 (최대 10번, 총 2초)
+      // 아직 준비되지 않았으면 다시 시도 (최대 20번, 총 4초)
       const retryCount = initAppWhenReady.retryCount || 0;
-      if (retryCount < 10) {
+      if (retryCount < 20) {
         initAppWhenReady.retryCount = retryCount + 1;
+        // 디버깅을 위한 로그
+        if (retryCount % 5 === 0) {
+          console.log(`⏳ 초기화 대기 중... (${retryCount}/20)`, {
+            allDefined,
+            sessionsReady,
+            windowSessions: typeof window.sessions,
+            windowSessionsValue: window.sessions
+          });
+        }
         setTimeout(initAppWhenReady, 200);
       } else {
-        console.warn('⚠️ 일부 함수가 로드되지 않았지만 initializeApp을 실행합니다.');
+        console.warn('⚠️ 일부 함수가 로드되지 않았지만 initializeApp을 실행합니다.', {
+          allDefined,
+          sessionsReady,
+          windowSessions: typeof window.sessions,
+          windowSessionsValue: window.sessions
+        });
         initializeApp();
       }
     }
