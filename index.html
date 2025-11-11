@@ -9304,33 +9304,35 @@ if(chartSectionPlaceholder) {
       }
     }
   }
-}
 
-document.body.appendChild(page3Container);
+  document.body.appendChild(page3Container);
 
-let canvas3 = await html2canvas(page3Container, {
-  ...html2canvasOptions,
-  windowWidth: page3Container.scrollWidth,
-  windowHeight: page3Container.scrollHeight
-});
+  canvas3 = await html2canvas(page3Container, {
+    ...html2canvasOptions,
+    windowWidth: page3Container.scrollWidth,
+    windowHeight: page3Container.scrollHeight
+  });
 
-if (document.body.contains(page3Container)) {
-  document.body.removeChild(page3Container);
-}
+  if (document.body.contains(page3Container)) {
+    document.body.removeChild(page3Container);
+  }
 
-// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
-if (canvas3 && (canvas3.width > PDF_MAX_CANVAS_EDGE || canvas3.height > PDF_MAX_CANVAS_EDGE)) {
-  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas3.width, PDF_MAX_CANVAS_EDGE / canvas3.height);
-  const newCanvas = document.createElement('canvas');
-  newCanvas.width = Math.floor(canvas3.width * ratio);
-  newCanvas.height = Math.floor(canvas3.height * ratio);
-  const ctx = newCanvas.getContext('2d');
-  ctx.drawImage(canvas3, 0, 0, newCanvas.width, newCanvas.height);
-  canvas3 = newCanvas;
-}
+  // 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+  if (canvas3 && (canvas3.width > PDF_MAX_CANVAS_EDGE || canvas3.height > PDF_MAX_CANVAS_EDGE)) {
+    const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas3.width, PDF_MAX_CANVAS_EDGE / canvas3.height);
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = Math.floor(canvas3.width * ratio);
+    newCanvas.height = Math.floor(canvas3.height * ratio);
+    const ctx = newCanvas.getContext('2d');
+    ctx.drawImage(canvas3, 0, 0, newCanvas.width, newCanvas.height);
+    canvas3 = newCanvas;
+  }
 
-if (isMobile) {
-  await new Promise(resolve => setTimeout(resolve, 100));
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+} else {
+  console.log('⚠️ Before/After 모두 없음 - 페이지 3(수치표+변화 그래프) 생략');
 }
 
 // ========== 페이지 4: AI 해석 요약 (DB 기반 분석 포함) ==========
