@@ -7975,8 +7975,70 @@ function buildPilatesTextFromAnalysis(pilatesItems) {
   return pilatesItems.map((item, idx) => renderPilatesItemCard(item, { context:'pdf', index: idx, limitPerTool: Infinity })).join('');
 }
 
-// 필라테스 추천 텍스트 생성
+// 필라테스 추천 텍스트 생성 (텍스트 형태로)
 function generatePilatesSessionText(metrics, pilatesItems = null) {
+  // pilatesItems가 있으면 텍스트 형태로 변환
+  if (pilatesItems && Array.isArray(pilatesItems) && pilatesItems.length > 0) {
+    let text = '';
+    pilatesItems.forEach((item, idx) => {
+      const title = item.name || item.issue || `추천 ${idx + 1}`;
+      const musclesText = Array.isArray(item.muscles) ? item.muscles.join(', ') : (item.muscles || '');
+      const tightText = Array.isArray(item.tight) ? item.tight.join(', ') : (item.tight || '');
+      const weakText = Array.isArray(item.weak) ? item.weak.join(', ') : (item.weak || '');
+      const pilatesData = item.pilates || item.pilatesExercises || null;
+      
+      text += `<div style="margin-bottom:20px; padding:12px; background:#f8f9fa; border-radius:8px; border-left:4px solid #5c44b8;">`;
+      text += `<div style="font-weight:700; font-size:14px; color:#5c44b8; margin-bottom:8px;">${title}</div>`;
+      
+      if (musclesText) {
+        text += `<div style="font-size:11px; margin-bottom:4px;"><strong>관련 근육:</strong> ${musclesText}</div>`;
+      }
+      if (tightText) {
+        text += `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장:</strong> ${tightText}</div>`;
+      }
+      if (weakText) {
+        text += `<div style="font-size:11px; margin-bottom:8px;"><strong style="color:#2563eb;">약화:</strong> ${weakText}</div>`;
+      }
+      
+      if (pilatesData) {
+        PILATES_EQUIPMENT_LIST.forEach(tool => {
+          const exercises = pilatesData[tool];
+          if (exercises && Array.isArray(exercises) && exercises.length > 0) {
+            text += `<div style="margin-top:8px; margin-bottom:8px;">`;
+            text += `<div style="font-weight:600; font-size:12px; color:#5c44b8; margin-bottom:4px;">${tool}</div>`;
+            exercises.forEach(exercise => {
+              const info = getExerciseDetailInfo(exercise);
+              if (info.title) {
+                text += `<div style="margin-left:12px; margin-bottom:6px; padding:8px; background:#ffffff; border-radius:6px;">`;
+                text += `<div style="font-weight:600; font-size:11px; color:#0b0f14; margin-bottom:4px;">${info.title}</div>`;
+                if (info.purpose) {
+                  text += `<div style="font-size:10px; margin-bottom:3px;"><strong>목적:</strong> ${info.purpose}</div>`;
+                }
+                if (info.how) {
+                  text += `<div style="font-size:10px; margin-bottom:3px;"><strong>방법:</strong> ${info.how}</div>`;
+                }
+                if (info.cues) {
+                  text += `<div style="font-size:10px; margin-bottom:3px;"><strong>핵심 큐:</strong> ${info.cues}</div>`;
+                }
+                if (info.sets) {
+                  text += `<div style="font-size:10px; margin-bottom:3px;"><strong>세트/반복:</strong> ${info.sets}</div>`;
+                }
+                if (info.precaution) {
+                  text += `<div style="font-size:10px; color:#dc2626;"><strong>주의:</strong> ${info.precaution}</div>`;
+                }
+                text += `</div>`;
+              }
+            });
+            text += `</div>`;
+          }
+        });
+      }
+      
+      text += `</div>`;
+    });
+    return text;
+  }
+  
   const pilatesTextFromAnalysis = buildPilatesTextFromAnalysis(pilatesItems);
   if (pilatesTextFromAnalysis) return pilatesTextFromAnalysis;
   
@@ -8616,6 +8678,13 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   const scoreData = S.score || {};
   let analysis = S.analysis || {};
   
+  // Before/After 존재 여부 확인
+  const hasBefore = !!(sessions.Before && (sessions.Before.imgSide || sessions.Before.imgFront));
+  const hasAfter = !!(sessions.After && (sessions.After.imgSide || sessions.After.imgFront));
+  const hasBeforeAfter = hasBefore && hasAfter;
+  
+  console.log('📊 Before/After 상태:', { hasBefore, hasAfter, hasBeforeAfter });
+  
   // 모든 캔버스 변수를 함수 스코프 상단에서 초기화 (에러 방지)
   let canvas4 = null;
   let canvas5 = null;
@@ -9069,22 +9138,24 @@ const setPageContainerStyle = (container) => {
   container.classList.add('pdf-safe');
 };
 
-// ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) ==========
-const comparison = analyzeBeforeAfterComparison();
-try {
-  await ensureChartLibrary();
-} catch (chartErr) {
-  console.warn('Chart.js 준비 실패:', chartErr);
-}
-const page3Container = document.createElement("div");
-setPageContainerStyle(page3Container);
-
-// chartCanvas 변수를 함수 스코프 상단에서 선언
+// ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) - Before/After 모두 있을 때만 생성 ==========
+let canvas3 = null;
 let chartCanvas = null;
 
-let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
+// Before/After 모두 있을 때만 페이지 3 생성
+if (hasBeforeAfter) {
+  const comparison = analyzeBeforeAfterComparison();
+  try {
+    await ensureChartLibrary();
+  } catch (chartErr) {
+    console.warn('Chart.js 준비 실패:', chartErr);
+  }
+  const page3Container = document.createElement("div");
+  setPageContainerStyle(page3Container);
 
-if(comparison && comparison.results.length > 0) {
+  let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
+
+  if(comparison && comparison.results.length > 0) {
   let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
 
   comparison.results.forEach((item, idx) => {
@@ -9425,24 +9496,12 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
-// 필라테스 추천 카드 HTML 생성 (앱과 완전히 동일한 형식으로)
+// 필라테스 추천 텍스트 생성 (카드 형태가 아닌 텍스트 형태로)
 let pilatesHtml = '';
 if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
-  // 앱에서 사용하는 것과 완전히 동일한 방식으로 렌더링
-  // 앱에서는 context: 'dark', limitPerTool: 2를 사용하지만
-  // PDF에서는 모든 운동을 표시하기 위해 limitPerTool: Infinity 사용
-  // context는 'ui'를 사용 (PDF 배경이 흰색이므로)
-  pilatesHtml = analysis.pilates.map((item, idx) => {
-    // 앱과 동일한 데이터 구조로 렌더링
-    const cardHtml = renderPilatesItemCard(item, { 
-      context: 'ui',  // PDF는 흰 배경이므로 'ui' 사용
-      index: idx, 
-      limitPerTool: Infinity  // PDF에서는 모든 운동 상세 정보 표시
-    });
-    console.log(`📋 필라테스 카드 ${idx + 1}:`, item.name || item.issue, 'pilatesData:', item.pilates ? Object.keys(item.pilates) : '없음');
-    return cardHtml;
-  }).join('');
-  console.log('✅ 필라테스 HTML 생성 완료, 길이:', pilatesHtml.length);
+  // 텍스트 형태로 생성 (카드 형태 제거)
+  pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis.pilates);
+  console.log('✅ 필라테스 텍스트 생성 완료, 길이:', pilatesHtml.length);
 } else {
   console.warn('⚠️ 필라테스 데이터 없음, 폴백 사용');
   // 폴백: generatePilatesSessionText 사용
