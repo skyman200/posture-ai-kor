@@ -12168,23 +12168,9 @@ function mapPoseToKeypoints(pose, orientation) {
     const rightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
     const leftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
     const rightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
-    const collectAvg = (indices) => {
-      const samples = [];
-      indices.forEach(idx => {
-        const kp = keypoints[idx];
-        if (kp && kp.visibility >= 0.3) samples.push(kp.x);
-      });
-      if (!samples.length) return null;
-      return samples.reduce((a, b) => a + b, 0) / samples.length;
-    };
-    const leftAvg = collectAvg([11, 23, 25, 27]);
-    const rightAvg = collectAvg([12, 24, 26, 28]);
-    // 환자 기준 좌/우를 화면 좌/우로 뒤집어야 하는 경우 감지 (환자 왼쪽이 화면 오른쪽에 위치하면 미러링)
-    const shouldMirrorFront = leftAvg != null && rightAvg != null && leftAvg > rightAvg;
     const makePoint = (kp) => {
       if (!kp || kp.visibility < 0.3) return null;
-      const mirroredX = shouldMirrorFront ? 1 - kp.x : kp.x;
-      return { x: mirroredX, y: kp.y, score: kp.visibility };
+      return { x: kp.x, y: kp.y, score: kp.visibility };
     };
     const assignPoint = (kp, targetKey) => {
       const point = makePoint(kp);
