@@ -12385,8 +12385,11 @@ function setupImageButton() {
     }
   };
 }
+
 // 공유하기 (Web Share API 사용)
-document.getElementById("btnShare").onclick = async () => {
+const btnShare = document.getElementById("btnShare");
+if (btnShare) {
+  btnShare.onclick = async () => {
   try {
     const btn = document.getElementById("btnShare");
     const originalText = btn.textContent;
@@ -12525,7 +12528,8 @@ document.getElementById("btnShare").onclick = async () => {
     btn.textContent = "📤 공유하기";
     btn.disabled = false;
   }
-};
+  };
+}
 
 // 실시간 분석 리스너 등록 (UI 업데이트)
 // 주석: updateLiveAnalysisUI 함수가 필요할 경우 여기에 구현
@@ -13348,11 +13352,15 @@ if (typeof window !== 'undefined') {
   }
   
   // 모든 함수가 정의된 후 initializeApp 호출
+  // 함수들이 모두 로드되도록 충분한 지연 시간 제공
   if(document.readyState === 'loading') {
-    document.addEventListener("DOMContentLoaded", initializeApp);
+    document.addEventListener("DOMContentLoaded", () => {
+      // 함수들이 모두 정의되도록 약간의 지연
+      setTimeout(initializeApp, 100);
+    });
   } else {
     // 이미 로드 완료된 경우 약간의 지연 후 실행 (함수들이 모두 정의되도록)
-    setTimeout(initializeApp, 0);
+    setTimeout(initializeApp, 100);
   }
 }
 
