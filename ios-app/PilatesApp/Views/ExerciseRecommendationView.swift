@@ -252,3 +252,4 @@ struct ExerciseCard: View {
 
 
 
+
