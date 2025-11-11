@@ -8328,15 +8328,17 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.top = "0";
   container.style.width = `${width}px`;
   container.style.padding = "30px 25px";
-  container.style.paddingBottom = "40px";
+  container.style.paddingBottom = "140px";
   container.style.background = "#ffffff";
   container.style.color = "#111";
   container.style.fontFamily = 'var(--font-body)';
   container.style.fontSize = "12px";
-  container.style.lineHeight = "1.6";
+  container.style.lineHeight = "1.55";
+  container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
   container.style.overflow = "hidden";
   container.style.wordWrap = "break-word";
+  container.style.minHeight = "1100px";
 }
 
 function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeImg, afterImg, overlayImg }) {
@@ -8788,16 +8790,17 @@ const setPageContainerStyle = (container) => {
   container.style.top = "0";
   container.style.width = "794px";
   container.style.padding = "30px 25px";
-  container.style.paddingBottom = "40px";
+  container.style.paddingBottom = "140px";
   container.style.background = "#ffffff";
   container.style.color = "#111";
   container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
   container.style.fontSize = "12px";
-  container.style.lineHeight = "1.45";
+  container.style.lineHeight = "1.55";
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
   container.style.overflow = "hidden";
   container.style.wordWrap = "break-word";
+  container.style.minHeight = "1100px";
   // PDF 안전 폰트 클래스 추가
   container.classList.add('pdf-safe');
 };
@@ -8852,86 +8855,6 @@ if(comparison && comparison.results.length > 0) {
     return val < min || val > max;
   };
 
-  const labels = comparison.results.map(r => r.name);
-  const beforeData = comparison.results.map(r => r.before);
-  const afterData = comparison.results.map(r => r.after);
-
-  // Chart.js 그래프 생성
-  if(typeof Chart !== 'undefined') {
-    const ctx = chartCanvas.getContext('2d');
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Before',
-            data: beforeData,
-            backgroundColor: beforeData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
-            borderColor: beforeData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
-            borderWidth: 1
-          },
-          {
-            label: 'After',
-            data: afterData,
-            backgroundColor: afterData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
-            borderColor: afterData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
-            borderWidth: 1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: { 
-            display: true, 
-            text: 'Before–After 자세 비교 그래프', 
-            font: { size: 16, weight: 'bold' },
-            padding: { top: 10, bottom: 20 }
-          },
-          legend: { 
-            position: 'top',
-            labels: {
-              font: { size: 12 },
-              padding: 15
-            }
-          },
-          tooltip: { 
-            callbacks: { 
-              label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
-            } 
-          }
-        },
-        scales: {
-          y: { 
-            beginAtZero: true, 
-            title: { 
-              display: true, 
-              text: '단위 (° / cm)',
-              font: { size: 12 }
-            },
-            ticks: {
-              font: { size: 10 }
-            }
-          },
-          x: { 
-            ticks: { 
-              autoSkip: false, 
-              maxRotation: 45, 
-              minRotation: 45,
-              font: { size: 9 }
-            }
-          }
-        }
-      }
-    });
-  }
-
   page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
     <div id="beforeAfterChartSection"></div>
     <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
@@ -8951,6 +8874,10 @@ page3HTML += `<div style="margin-top:20px; padding-top:10px; border-top:1px soli
     </div>`;
 
 page3Container.innerHTML = page3HTML;
+const labels = comparison?.results?.map(r => r.name) || [];
+const beforeData = comparison?.results?.map(r => r.before) || [];
+const afterData = comparison?.results?.map(r => r.after) || [];
+
 const chartSectionPlaceholder = page3Container.querySelector('#beforeAfterChartSection');
 if(chartSectionPlaceholder) {
   const section = document.createElement('div');
@@ -11300,18 +11227,13 @@ function exportAsPdf(options = {}) {
       const maxImgH = pageH - margin * 2;
       const targetWidth = Math.min(imgW, canvas.width);
       const scaleRatio = targetWidth / canvas.width;
-      const pageHeightPx = Math.max(180, Math.floor(maxImgH / (scaleRatio || 1)));
-      const overlapPx = Math.max(80, Math.floor(120 / (scaleRatio || 1)));
+      const pageHeightPx = Math.max(160, Math.floor(maxImgH / (scaleRatio || 1)));
+      const overlapPx = Math.max(pageHeightPx * 0.45, 220);
 
       const renderSlice = (sliceCanvas, sliceHeightPx) => {
         if (!sliceCanvas) return;
-        let renderWidth = targetWidth;
-        let renderHeight = sliceHeightPx * scaleRatio;
-        if (renderHeight > maxImgH) {
-          const shrink = maxImgH / renderHeight;
-          renderHeight = maxImgH;
-          renderWidth = targetWidth * shrink;
-        }
+        const renderWidth = targetWidth;
+        const renderHeight = Math.min(maxImgH, sliceHeightPx * scaleRatio);
         const pageX = margin + (imgW - renderWidth) / 2;
         pdf.addPage();
         pdf.setFillColor(255, 255, 255);
@@ -11355,8 +11277,8 @@ function exportAsPdf(options = {}) {
         if (offsetY + currentHeight >= canvas.height) {
           break;
         }
-        const advance = currentHeight - overlapPx;
-        offsetY += advance > 0 ? advance : currentHeight;
+        const advance = Math.max(1, currentHeight - overlapPx);
+        offsetY += advance;
       }
     };
     
