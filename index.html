@@ -8813,10 +8813,10 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
-// 화질 개선을 위해 scale과 크기 제한 조정
+// 화질 대폭 개선을 위해 scale과 크기 제한 증가
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = isMobile ? 1400 : 1800; // 화질 개선 (900/1200 → 1400/1800)
-const baseCanvasScale = isMobile ? 1.5 : 2.0; // 화질 개선 (1.0/1.1 → 1.5/2.0)
+const PDF_MAX_CANVAS_EDGE = isMobile ? 2000 : 3000; // 화질 대폭 개선 (1400/1800 → 2000/3000)
+const baseCanvasScale = isMobile ? 2.5 : 3.0; // 화질 대폭 개선 (1.5/2.0 → 2.5/3.0)
 const html2canvasOptions = {
   scale: baseCanvasScale,
   backgroundColor: "#ffffff",
@@ -8979,7 +8979,7 @@ if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   }
 }
 
-// 공통 페이지 스타일 설정 함수 (안전 폰트 사용)
+// 공통 페이지 스타일 설정 함수 (안전 폰트 사용, 글자 가독성 개선)
 const setPageContainerStyle = (container) => {
   container.style.position = "fixed";
   container.style.left = "-9999px";
@@ -8990,8 +8990,8 @@ const setPageContainerStyle = (container) => {
   container.style.background = "#ffffff";
   container.style.color = "#111";
   container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
-  container.style.fontSize = "12px";
-  container.style.lineHeight = "1.55";
+  container.style.fontSize = "14px"; // 글자 가독성 개선 (12px -> 14px)
+  container.style.lineHeight = "1.6"; // 줄 간격 개선 (1.55 -> 1.6)
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
   container.style.overflow = "hidden";
@@ -9014,18 +9014,18 @@ setPageContainerStyle(page3Container);
 let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
 
 if(comparison && comparison.results.length > 0) {
-  let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
+  let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
 
   comparison.results.forEach((item, idx) => {
     const statusColor = item.status === 'improved' ? '#2ec4b6' : item.status === 'worsened' ? '#ff6b6b' : '#666';
     const statusIcon = item.status === 'improved' ? '↑' : item.status === 'worsened' ? '↓' : '→';
     const deltaStr = item.delta >= 0 ? '+' + item.delta.toFixed(1) : item.delta.toFixed(1);
     comparisonTableHTML += `<tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
-      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:10px;">${item.name}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:10px; color:${statusColor}; font-weight:600;">${deltaStr}${item.unit} ${statusIcon}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:9px; color:#555; line-height:1.4;">${item.comment}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:12px;">${item.name}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:12px;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:12px;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:12px; color:${statusColor}; font-weight:600;">${deltaStr}${item.unit} ${statusIcon}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:11px; color:#555; line-height:1.4;">${item.comment}</td>
     </tr>`;
   });
   comparisonTableHTML += '</table>';
@@ -11436,9 +11436,9 @@ function exportAsPdf(options = {}) {
     const imgW = pageW - (margin * 2);
     
     // PDF 생성용 캔버스 크기 제한 (모바일/데스크톱 구분)
-    // 화질 개선을 위해 크기 제한 증가
+    // 화질 대폭 개선을 위해 크기 제한 증가
     const isMobileForPDF = isMobileDevice();
-    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 1400 : 1800;
+    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 2000 : 3000;
     
     const coverCanvas = canvases.cover;
     if (!coverCanvas) {
@@ -11475,8 +11475,8 @@ function exportAsPdf(options = {}) {
     const coverH = Math.min(img1H, maxImg1H);
     
     try {
-      // JPEG로 변환 (화질 개선: 0.7 -> 0.85)
-      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.85);
+      // JPEG로 변환 (화질 대폭 개선: 0.85 -> 0.95)
+      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.95);
       // 이미지 비율 유지: 원본 비율에 맞춰 높이 계산
       const coverAspectRatio = compressedCover.width / compressedCover.height;
       const finalCoverH = coverTargetW / coverAspectRatio;
@@ -11554,10 +11554,10 @@ function exportAsPdf(options = {}) {
           const renderHeight = Math.min(maxImgH, sliceHeightPx * scaleRatio);
           const pageX = margin + (imgW - renderWidth) / 2;
           
-          // 이미지 데이터를 JPEG로 변환 (화질 개선: 0.65 -> 0.85)
+          // 이미지 데이터를 JPEG로 변환 (화질 대폭 개선: 0.85 -> 0.95)
           let imageData;
           let imageFormat = "JPEG";
-          let quality = 0.85; // 화질 개선
+          let quality = 0.95; // 화질 대폭 개선
           
           try {
             // JPEG로 변환 시도 (고화질)
@@ -11575,10 +11575,10 @@ function exportAsPdf(options = {}) {
           }
           
           // 이미지 데이터가 너무 크면 추가 압축 (동기적으로 처리)
-          // 2MB 제한으로 완화 (1MB -> 2MB)
-          if (imageData.length > 2000000) { // 약 2MB 제한
-            quality = 0.75; // 여전히 높은 품질 유지
-            const scaleDown = 0.85; // 덜 축소 (0.7 -> 0.85)
+          // 5MB 제한으로 완화 (2MB -> 5MB)
+          if (imageData.length > 5000000) { // 약 5MB 제한
+            quality = 0.9; // 여전히 높은 품질 유지
+            const scaleDown = 0.9; // 덜 축소 (0.85 -> 0.9)
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = Math.floor(compressedCanvas.width * scaleDown);
             tempCanvas.height = Math.floor(compressedCanvas.height * scaleDown);
@@ -12441,8 +12441,8 @@ function mapPoseToKeypoints(pose, orientation) {
     
     console.log('옆모습 감지:', useLeft ? '왼쪽 사용' : '오른쪽 사용');
     
-    // visibility 임계값을 낮춰서 더 많은 랜드마크를 매핑 (0.3 -> 0.2)
-    const minVisibility = 0.2;
+    // visibility 임계값을 더 낮춰서 더 많은 랜드마크를 매핑 (0.2 -> 0.1)
+    const minVisibility = 0.1;
     
     // tragus: ear (더 보이는 쪽) - Flutter 1:1 매칭
     const ear = useLeft ? leftEar : rightEar;
@@ -12518,49 +12518,49 @@ function mapPoseToKeypoints(pose, orientation) {
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
     // 중요: MediaPipe keypoints는 화면 좌표 기준입니다
-    // keypoints[11] = 화면 왼쪽 어깨 → 환자의 오른쪽 어깨 → R_acromion
-    // keypoints[12] = 화면 오른쪽 어깨 → 환자의 왼쪽 어깨 → L_acromion
-    const mpScreenLeft = keypoints[11];   // 화면 왼쪽 어깨 (환자 오른쪽)
-    const mpScreenRight = keypoints[12]; // 화면 오른쪽 어깨 (환자 왼쪽)
-    const mpScreenLeftHip = keypoints[23];   // 화면 왼쪽 골반 (환자 오른쪽)
-    const mpScreenRightHip = keypoints[24]; // 화면 오른쪽 골반 (환자 왼쪽)
-    const mpScreenLeftKnee = keypoints[25];   // 화면 왼쪽 무릎 (환자 오른쪽)
-    const mpScreenRightKnee = keypoints[26]; // 화면 오른쪽 무릎 (환자 왼쪽)
-    const mpScreenLeftAnkle = keypoints[27];   // 화면 왼쪽 발목 (환자 오른쪽)
-    const mpScreenRightAnkle = keypoints[28]; // 화면 오른쪽 발목 (환자 왼쪽)
+    // keypoints[11] = 화면 왼쪽 어깨 → 환자의 왼쪽 어깨 → L_acromion
+    // keypoints[12] = 화면 오른쪽 어깨 → 환자의 오른쪽 어깨 → R_acromion
+    const mpScreenLeft = keypoints[11];   // 화면 왼쪽 어깨 (환자 왼쪽)
+    const mpScreenRight = keypoints[12]; // 화면 오른쪽 어깨 (환자 오른쪽)
+    const mpScreenLeftHip = keypoints[23];   // 화면 왼쪽 골반 (환자 왼쪽)
+    const mpScreenRightHip = keypoints[24]; // 화면 오른쪽 골반 (환자 오른쪽)
+    const mpScreenLeftKnee = keypoints[25];   // 화면 왼쪽 무릎 (환자 왼쪽)
+    const mpScreenRightKnee = keypoints[26]; // 화면 오른쪽 무릎 (환자 오른쪽)
+    const mpScreenLeftAnkle = keypoints[27];   // 화면 왼쪽 발목 (환자 왼쪽)
+    const mpScreenRightAnkle = keypoints[28]; // 화면 오른쪽 발목 (환자 오른쪽)
     
-    // 좌표 변환 함수: 화면 좌표를 그대로 사용 (환자 기준으로 매핑만 반대로)
-    // confidence 임계값을 낮춰서 더 많은 랜드마크를 매핑 (0.2 -> 0.15)
+    // 좌표 변환 함수: 화면 좌표를 그대로 사용 (환자 기준으로 매핑)
+    // confidence 임계값을 더 낮춰서 더 많은 랜드마크를 매핑 (0.15 -> 0.1)
     const makePoint = (kp, label = '') => {
       if (!kp) {
         console.warn(`⚠️ ${label}: keypoint이 null입니다`);
         return null;
       }
       const confidence = getKeypointConfidence(kp);
-      if (confidence < 0.15) {
+      if (confidence < 0.1) {
         console.warn(`⚠️ ${label}: confidence가 너무 낮음 (${confidence.toFixed(2)})`);
         return null;
       }
       return { x: kp.x, y: kp.y, score: confidence || 0.5 };
     };
     
-    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
-    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 오른쪽 어깨 → R_acromion
-    const rightShoulderPoint = makePoint(mpScreenLeft, 'R_acromion');
-    if (rightShoulderPoint) {
-      keypointMap['R_acromion'] = rightShoulderPoint;
-      console.log(`✅ R_acromion 매핑 (화면 왼쪽 → 환자 오른쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
-    } else {
-      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
-    }
-    
-    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 왼쪽 어깨 → L_acromion
-    const leftShoulderPoint = makePoint(mpScreenRight, 'L_acromion');
+    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
+    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 왼쪽 어깨 → L_acromion
+    const leftShoulderPoint = makePoint(mpScreenLeft, 'L_acromion');
     if (leftShoulderPoint) {
       keypointMap['L_acromion'] = leftShoulderPoint;
-      console.log(`✅ L_acromion 매핑 (화면 오른쪽 → 환자 왼쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
+      console.log(`✅ L_acromion 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
     } else {
-      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
+      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
+    }
+    
+    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 오른쪽 어깨 → R_acromion
+    const rightShoulderPoint = makePoint(mpScreenRight, 'R_acromion');
+    if (rightShoulderPoint) {
+      keypointMap['R_acromion'] = rightShoulderPoint;
+      console.log(`✅ R_acromion 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
+    } else {
+      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
     }
     
     // c7: 양쪽 어깨 중간 (목 아래) - 항상 생성 시도
@@ -12589,41 +12589,41 @@ function mapPoseToKeypoints(pose, orientation) {
       console.warn(`⚠️ c7 매핑 실패: 어깨 랜드마크가 없음`);
     }
     
-    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
-    const rightHipPoint = makePoint(mpScreenLeftHip, 'R_asis');
-    if (rightHipPoint) {
-      keypointMap['R_asis'] = rightHipPoint;
-      console.log(`✅ R_asis 매핑 (화면 왼쪽 → 환자 오른쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
-    }
-    
-    const leftHipPoint = makePoint(mpScreenRightHip, 'L_asis');
+    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
+    const leftHipPoint = makePoint(mpScreenLeftHip, 'L_asis');
     if (leftHipPoint) {
       keypointMap['L_asis'] = leftHipPoint;
-      console.log(`✅ L_asis 매핑 (화면 오른쪽 → 환자 왼쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
+      console.log(`✅ L_asis 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
     }
     
-    const rightKneePoint = makePoint(mpScreenLeftKnee, 'R_knee');
-    if (rightKneePoint) {
-      keypointMap['R_knee'] = rightKneePoint;
-      console.log(`✅ R_knee 매핑: (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
+    const rightHipPoint = makePoint(mpScreenRightHip, 'R_asis');
+    if (rightHipPoint) {
+      keypointMap['R_asis'] = rightHipPoint;
+      console.log(`✅ R_asis 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
     }
     
-    const leftKneePoint = makePoint(mpScreenRightKnee, 'L_knee');
+    const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
     if (leftKneePoint) {
       keypointMap['L_knee'] = leftKneePoint;
       console.log(`✅ L_knee 매핑: (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
     }
     
-    const rightAnklePoint = makePoint(mpScreenLeftAnkle, 'R_ankle');
-    if (rightAnklePoint) {
-      keypointMap['R_ankle'] = rightAnklePoint;
-      console.log(`✅ R_ankle 매핑: (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
+    const rightKneePoint = makePoint(mpScreenRightKnee, 'R_knee');
+    if (rightKneePoint) {
+      keypointMap['R_knee'] = rightKneePoint;
+      console.log(`✅ R_knee 매핑: (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
     }
     
-    const leftAnklePoint = makePoint(mpScreenRightAnkle, 'L_ankle');
+    const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'L_ankle');
     if (leftAnklePoint) {
       keypointMap['L_ankle'] = leftAnklePoint;
       console.log(`✅ L_ankle 매핑: (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
+    }
+    
+    const rightAnklePoint = makePoint(mpScreenRightAnkle, 'R_ankle');
+    if (rightAnklePoint) {
+      keypointMap['R_ankle'] = rightAnklePoint;
+      console.log(`✅ R_ankle 매핑: (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
     }
 
     console.log(`✅ 정면 랜드마크 매핑 완료 (환자 기준): ${Object.keys(keypointMap).length}개 - [${Object.keys(keypointMap).join(', ')}]`);
@@ -12704,9 +12704,9 @@ async function applyPoseDetection(img, sessionName) {
         continue;
       }
       
-      // score 체크 (score가 없거나 낮아도 저장) - 임계값을 낮춤 (0.1 -> 0.05)
+      // score 체크 (score가 없거나 낮아도 저장) - 임계값을 더 낮춤 (0.05 -> 0.01)
       const confidence = value.score || value.visibility || 0.5;
-      if(confidence < 0.05) {
+      if(confidence < 0.01) {
         console.warn(`⚠️ ${key} confidence가 너무 낮음: ${confidence.toFixed(2)}, 스킵`);
         continue;
       }
