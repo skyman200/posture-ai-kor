@@ -9204,6 +9204,21 @@ if(chartSectionPlaceholder) {
       }
     });
     await waitForChartRender(chartCanvas.chartInstance);
+    
+    // 차트가 완전히 렌더링될 때까지 추가 대기
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // 차트 캔버스 크기 확인 및 재설정
+    if (chartCanvas.width === 0 || chartCanvas.height === 0) {
+      console.warn('⚠️ 차트 캔버스 크기가 0입니다. 재설정합니다.');
+      chartCanvas.width = 800;
+      chartCanvas.height = 400;
+      if (chartCanvas.chartInstance) {
+        chartCanvas.chartInstance.resize();
+        await waitForChartRender(chartCanvas.chartInstance);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
   }
 }
 
