@@ -1,0 +1,89 @@
+# === PROJECT IDENTITY ===
+Project: Posture AI Kor
+Type: Web-based Pose Estimation & Physiotherapy Analysis
+Core Stack: JavaScript (ES Modules), Tensorflow.js, MediaPipe, BlazePose
+Author tone: Casual Korean, direct, practical, minimal bullshit
+
+# === IMPORTANT ABSOLUTE RULES ===
+1. ❗ 절대 이 프로젝트에서 `sessions is undefined` 상태를 만들지 말 것
+2. ❗ initializeApp()은 1번만 호출되어야 하며 무한 루프를 금지한다
+3. ❗ DOMContentLoaded 이벤트 중복 등록 금지
+4. ❗ <script> 태그 미완성(`Unexpected end of input`) 발생 금지
+5. ❗ 외부 스크립트보다 내부 모듈이 먼저 실행되어야 함
+6. ❗ 모델 로딩(loadModels) 이전에 분석(analyze)을 실행 금지
+7. ❗ 브라우저 콘솔에 warning/error 0개가 되도록 유지
+8. ❗ 모든 JS는 ES Module 방식( import/export )으로 관리
+9. ❗ "그냥 해보세요" 같은 설명 금지. 코드 or 해결책만 제시
+10. ❗ 변경 시 항상 '영향 범위 분석 → 리팩토링 → 테스트' 순으로 실행
+
+# === CONSOLE MUST BE CLEAN ===
+🚫 Allowed in final state:
+- Uncaught exceptions
+- Red console errors
+- Repeated warnings
+- Infinite loops
+- Model not loaded before execution
+- Undefined access
+- Duplicate event listeners
+
+✅ Required final log shape:
+initializeApp 실행됨
+sessions 초기화됨
+모델(front/side) 로드 완료
+분석 실행 준비 완료
+(이외의 반복 없는 구조)
+
+# === CODE ARCHITECTURE POLICY ===
+Directory must follow:
+src/
+ ├─ core/ (session, init, utils)
+ ├─ ai/   (modelLoader, analyzer)
+ └─ index.js (entry)
+
+HTML must not manually call initialize functions.
+Execution entry must always be:
+<script type="module" src="./src/index.js"></script>
+
+# === SAFETY CODE PATTERNS ===
+✔ sessions must always initialize as:
+export const sessions = {};
+
+✔ initializeApp structure must always include:
+- idempotent safeguard (run only once)
+- model loading before analysis
+- retry protection must have a max cap
+- no recursive self-trigger without exit condition
+
+✔ Detector loading must use ESM CDN imports where possible
+
+# === TEST BEFORE SUBMIT ===
+Before providing final code or completing task, you MUST:
+1. Simulate execution flow mentally
+2. Verify initialization order
+3. Ensure no undefined access
+4. Confirm no repeating event listeners
+5. Confirm exit conditions exist for retries
+6. Confirm zero console errors
+
+# === REFACTORING GUIDELINES ===
+- Split files logically, avoid 500+ line single files
+- Avoid nested callback hell → prefer async/await
+- No silent fails → log with meaning
+- No magic globals except controlled ones (sessions)
+
+# === RESPONSE STYLE RULE ===
+- Reply in Korean casual tone
+- No unnecessary CS theory essays
+- Show final code first
+- Explain only if necessary
+- Be concise, savage if needed, practical always
+
+# === QUALITY GATE ===
+✅ Merge / Approve only if:
+- 실행 즉시 stabilize
+- error 0
+- warning 0
+- loop 0
+- undefined 0
+- 분석 타이밍 정확
+
