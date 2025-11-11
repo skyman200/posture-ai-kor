@@ -8834,26 +8834,26 @@ if(comparison && comparison.results.length > 0) {
   });
   comparisonTableHTML += '</table>';
 
-  // 정상 범위 정의
-  const normalRange = {
-    'CVA(두개경추각)': [50, 90],
-    'HPD(두부전방이동)': [0, 2],
-    'TIA(체간경사각)': [0, 10],
-    'SAA(어깨전방각)': [0, 10],
-    'PTA(골반경사각)': [0, 15],
-    'KA(무릎각)': [175, 185],
-    'Tibial(경골경사각)': [0, 10],
-    'GSB(중심선)': [0, 2],
-    'HPA(머리-골반각)': [0, 10]
-  };
+const normalRangeMap = {
+  'CVA(두개경추각)': [50, 90],
+  'HPD(두부전방이동)': [0, 2],
+  'TIA(체간경사각)': [0, 10],
+  'SAA(어깨전방각)': [0, 10],
+  'PTA(골반경사각)': [0, 15],
+  'KA(무릎각)': [175, 185],
+  'Tibial(경골경사각)': [0, 10],
+  'GSB(중심선)': [0, 2],
+  'HPA(머리-골반각)': [0, 10]
+};
 
-  // 정상 범위 벗어남 확인 함수
-  const isOutOfRange = (metricName, val) => {
-    const key = Object.keys(normalRange).find(k => metricName.includes(k.replace(/[()]/g, '')));
-    if(!key) return false;
-    const [min, max] = normalRange[key];
-    return val < min || val > max;
-  };
+const chartOutOfRange = (metricName, val) => {
+  const key = Object.keys(normalRangeMap).find(k =>
+    metricName.includes(k.replace(/[()]/g, ''))
+  );
+  if (!key || val == null) return false;
+  const [min, max] = normalRangeMap[key];
+  return val < min || val > max;
+};
 
   page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
     <div id="beforeAfterChartSection"></div>
@@ -8908,18 +8908,18 @@ if(chartSectionPlaceholder) {
             label: 'Before',
             data: beforeData,
             backgroundColor: beforeData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
+              chartOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
             borderColor: beforeData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
+              chartOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
             borderWidth: 1
           },
           {
             label: 'After',
             data: afterData,
             backgroundColor: afterData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
+              chartOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
             borderColor: afterData.map((v, i) => 
-              isOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
+              chartOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
             borderWidth: 1
           }
         ]
