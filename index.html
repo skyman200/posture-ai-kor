@@ -5300,7 +5300,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     }
     
     // 점수 근거
-    if(scoreData.reasons && scoreData.reasons.length > 0) {
+    if(scoreData.reasons && Array.isArray(scoreData.reasons) && scoreData.reasons.length > 0) {
       reasonEl.textContent = "감점 근거: " + scoreData.reasons.join(", ");
     } else {
       reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
@@ -5311,9 +5311,9 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   }
   
   // AI 코멘트 (더 상세하게)
-  if(analysis && analysis.comments && analysis.comments.length > 0) {
+  if(analysis && analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0) {
     let commentText = analysis.comments.join(" ");
-    if(analysis.details && analysis.details.length > 0) {
+    if(analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0) {
       commentText += "\n\n" + analysis.details.join("\n");
     }
     commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
@@ -5337,15 +5337,18 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   }
   
   // 근육 분석 (상세)
-  if(analysis && (analysis.tight.length > 0 || analysis.weak.length > 0)) {
-    if(analysis.tight.length > 0) {
+  const hasTight = analysis?.tight && Array.isArray(analysis.tight) && analysis.tight.length > 0;
+  const hasWeak = analysis?.weak && Array.isArray(analysis.weak) && analysis.weak.length > 0;
+  
+  if(analysis && (hasTight || hasWeak)) {
+    if(hasTight) {
       tightList.innerHTML = analysis.tight.join(", ").replace(/,/g, ', ');
     } else {
       tightList.textContent = "없음";
       tightList.style.color = "var(--muted)";
     }
     
-    if(analysis.weak.length > 0) {
+    if(hasWeak) {
       weakList.innerHTML = analysis.weak.join(", ").replace(/,/g, ', ');
     } else {
       weakList.textContent = "없음";
@@ -5358,7 +5361,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   }
   
   // 운동 추천
-  if(analysis && analysis.exercises && analysis.exercises.length > 0) {
+  if(analysis && analysis.exercises && Array.isArray(analysis.exercises) && analysis.exercises.length > 0) {
     exerciseList.innerHTML = analysis.exercises.map(ex => `<div style="margin-bottom:6px;">${ex}</div>`).join("");
     exercisePanel.style.display = "block";
   } else {
@@ -5366,7 +5369,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   }
   
   // 필라테스 추천 (패턴 기반)
-  if(analysis && analysis.pilates && analysis.pilates.length > 0) {
+  if(analysis && analysis.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
     const pilatesHTML = analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context:'dark', index: idx, limitPerTool: 2 })).join('');
     pilatesList.innerHTML = pilatesHTML;
     pilatesPanel.style.display = "block";
