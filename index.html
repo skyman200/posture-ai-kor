@@ -4260,19 +4260,29 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     await loadPostureDB();
     
     // fullMetrics를 평탄화하여 analyzeWithDB에 전달
-    const flatMetrics = {};
-    if (fullMetrics.CVA) flatMetrics.CVA = fullMetrics.CVA.value_deg || fullMetrics.CVA.value;
-    if (fullMetrics.HPD) flatMetrics.HPD = fullMetrics.HPD.value_cm || fullMetrics.HPD.value;
-    if (fullMetrics.SAA) flatMetrics.SAA = fullMetrics.SAA.value_deg || fullMetrics.SAA.value;
-    if (fullMetrics.PTA) {
-      // PTA는 부호 포함 값 사용 (음수도 그대로 전달)
+    const flatMetrics = flattenFullMetrics(fullMetrics);
+    if (flatMetrics.PTA == null && fullMetrics.PTA) {
       const ptaSigned = fullMetrics.PTA.value_signed;
-      flatMetrics.PTA = ptaSigned != null ? ptaSigned : (fullMetrics.PTA.value_deg || fullMetrics.PTA.value);
+      if (typeof ptaSigned === 'number' && !Number.isNaN(ptaSigned)) {
+        flatMetrics.PTA = ptaSigned;
+      } else {
+        const ptaVal = extractMetricValue(fullMetrics.PTA);
+        if (ptaVal != null) flatMetrics.PTA = ptaVal;
+      }
     }
-    if (fullMetrics.KA) flatMetrics.KA = fullMetrics.KA.value_deg || fullMetrics.KA.value;
-    if (fullMetrics.GSB) flatMetrics.GSB = fullMetrics.GSB.value_cm || fullMetrics.GSB.value;
-    if (fullMetrics.HPA) flatMetrics.HPA = fullMetrics.HPA.value_deg || fullMetrics.HPA.value;
-    if (fullMetrics.TIA) flatMetrics.TIA = fullMetrics.TIA.value_deg || fullMetrics.TIA.value;
+    if (flatMetrics.PDS == null && fullMetrics.PDS) {
+      const pdsVal = extractMetricValue(fullMetrics.PDS);
+      if (pdsVal != null) flatMetrics.PDS = pdsVal;
+    }
+    if (flatMetrics.PDS == null) {
+      const sessionScore = sessions?.[cur]?.score?.score;
+      if (typeof sessionScore === 'number' && !Number.isNaN(sessionScore)) {
+        flatMetrics.PDS = sessionScore;
+      }
+    }
+    if (Object.keys(flatMetrics).length === 0) {
+      return analyzeMuscles(null, null, null, fullMetrics);
+    }
     
     // DB 기반 분석 실행
     // ✅ index.html 내부의 analyzeWithDB 함수 사용 (muscles, topRecommendations 반환)
@@ -9795,27 +9805,94 @@ function parseNormalRange(str) {
   return null;
 }
 
+const RANGE_LABEL_RULES = {
+  CVA: { low: '낮음(거북목)', high: '높음(과신전)' },
+  HPD: { low: '낮음', high: '높음' },
+  TIA: { low: '낮음', high: '높음' },
+  SAA: { low: '낮음', high: '높음(라운드숄더)' },
+  KA: { low: '내반', high: '외반' },
+  Tibial: { low: '내회전', high: '외회전' },
+  Tibial_Angle: { low: '내회전', high: '외회전' },
+  QAngle: { low: '과소', high: '과대' },
+  Q_Angle: { low: '과소', high: '과대' },
+  KneeDev: { low: '내측', high: '외측' },
+  Knee_Deviation: { low: '내측', high: '외측' }
+};
+
+const DIRECTIONAL_LABEL_RULES = {
+  GSB: { threshold: 0.5, positive: '전방 편위', negative: '후방 편위' },
+  SPP: { threshold: 1, positive: '전방', negative: '후방' },
+  HPA: { threshold: 5, positive: '좌회전', negative: '우회전' },
+  PDS: { threshold: 3, positive: '골반 하강', negative: '골반 거상' },
+  POA: { threshold: 2, positive: '우하강', negative: '좌하강' },
+  POA_F: { threshold: 2, positive: '우하강', negative: '좌하강' },
+  TD: { threshold: 5, positive: '후만증', negative: '전만증' },
+  HTA: { threshold: 1, positive: '우측 기울기', negative: '좌측 기울기' },
+  KAS: { threshold: 2, positive: '외회전', negative: '내회전' },
+  LLAS: { threshold: 2, positive: '우측 이동', negative: '좌측 이동' },
+  FBA: { threshold: 2, positive: '회내', negative: '회외' }
+};
+
+const ABSOLUTE_LABEL_RULES = {
+  LLD: { threshold: 1, label: '불균형' },
+  LLD_F: { threshold: 1, label: '불균형' }
+};
+
+const SPECIAL_CLASSIFIERS = {
+  PTA: (value) => {
+    if (value <= -1) return '후방경사';
+    if (value >= 15) return '전방경사';
+    return '정상';
+  },
+  CVA: (value) => {
+    if (value < 50) return '낮음(거북목)';
+    if (value >= 70) return '높음(과신전)';
+    return '정상';
+  }
+};
+
 /**********************
  * 이상유형 분류기 (측정값 → DB의 이상유형 label)
  * 각 지표별 텍스트 기준에 매핑
  **********************/
 function classifyAbnormalType(metricCode, value, normalText) {
+  if (value == null) return '정상';
+
+  if (SPECIAL_CLASSIFIERS[metricCode]) {
+    const specialLabel = SPECIAL_CLASSIFIERS[metricCode](value);
+    if (specialLabel !== '정상') return specialLabel;
+  }
+
+  const directionalRule = DIRECTIONAL_LABEL_RULES[metricCode];
+  if (directionalRule) {
+    const threshold = directionalRule.threshold ?? 0;
+    if (value > threshold) return directionalRule.positive || '높음';
+    if (value < -threshold) return directionalRule.negative || '낮음';
+    return '정상';
+  }
+
+  const absRule = ABSOLUTE_LABEL_RULES[metricCode];
+  if (absRule) {
+    if (Math.abs(value) > absRule.threshold) return absRule.label;
+    return '정상';
+  }
+
   const norm = parseNormalRange(normalText);
-  if (value == null || !norm) return '정상';
+  if (!norm) return '정상';
+  const labels = RANGE_LABEL_RULES[metricCode];
+
   switch (norm.type) {
     case 'range': {
-      if (value < norm.min) return '낮음';
-      if (value > norm.max) return '높음';
+      if (value < norm.min) return labels?.low || '낮음';
+      if (value > norm.max) return labels?.high || '높음';
       return '정상';
     }
     case 'min': {
-      if (value < norm.min) return '낮음';
-      // 상한 없는 최소 기준 → 과도/과신전 등 코드별 특수 처리
-      if (metricCode === 'CVA' && value >= 70) return '높음(과신전)';
-      return '정상';
+      if (value < norm.min) return labels?.low || '낮음';
+      return labels?.high ? labels.high : '정상';
     }
     case 'max': {
-      if (value > norm.max) return '높음';
+      if (value > norm.max) return labels?.high || '높음';
       return '정상';
     }
     default:
@@ -9828,15 +9905,20 @@ function classifyAbnormalType(metricCode, value, normalText) {
  **********************/
 const NORMAL_TEXT = {
   CVA: '≥50°',
-  HPD: '≤2cm',
+  HPD: '-2–2cm',
   TIA: '0–10°',
   SAA: '0–10°',
   PTA: '0–15°',
   KA:  '175–185°',
   Tibial: '0–10°',
   Tibial_Angle: '0–10°',
-  GSB: '≤2cm',
-  HPA: '0–10°',
+  QAngle: '10–20°',
+  Q_Angle: '10–20°',
+  KneeDev: '-1–3°',
+  Knee_Deviation: '-1–3°',
+  GSB: '-0.5–0.5cm',
+  HPA: '-10–10°',
+  PDS: '-3–3°',
   // 정면 지표
   STA: '≤3°',
   STA_F: '≤3°',
@@ -9846,8 +9928,47 @@ const NORMAL_TEXT = {
   HTA: '≤3°',
   SPP: '0–3°',
   LLD: '≤1cm',
-  LLD_F: '≤1cm'
+  LLD_F: '≤1cm',
+  KAS: '-2–2°',
+  LLAS: '-2–2°',
+  FBA: '-2–2°'
 };
+
+const METRIC_KEY_ALIASES = {
+  STA_F: 'STA',
+  POA_F: 'POA',
+  Q_Angle: 'QAngle',
+  QAngle: 'QAngle',
+  Tibial_Angle: 'Tibial',
+  Knee_Deviation: 'KneeDev',
+  LLD_F: 'LLD'
+};
+
+function extractMetricValue(entry) {
+  if (entry == null) return null;
+  if (typeof entry === 'number' && !Number.isNaN(entry)) return entry;
+  if (typeof entry === 'object') {
+    const candidates = ['value_signed', 'value_deg', 'value_cm', 'value'];
+    for (const key of candidates) {
+      if (typeof entry[key] === 'number' && !Number.isNaN(entry[key])) {
+        return entry[key];
+      }
+    }
+  }
+  return null;
+}
+
+function flattenFullMetrics(fullMetrics) {
+  const flat = {};
+  if (!fullMetrics || typeof fullMetrics !== 'object') return flat;
+  for (const [rawKey, metric] of Object.entries(fullMetrics)) {
+    const value = extractMetricValue(metric);
+    if (value == null) continue;
+    const canonicalKey = METRIC_KEY_ALIASES[rawKey] || rawKey;
+    flat[canonicalKey] = value;
+  }
+  return flat;
+}
 
 /**********************
  * DB 매칭 핵심 함수
@@ -9891,19 +10012,10 @@ async function analyzeWithDB(metrics) {
 
     // 일부 지표는 의미 있는 세분 라벨 부여
     if (code === 'PTA') {
-      // PTA는 부호 포함 값 (음수=후방경사, 양수=전방경사)
-      if (v < 0) {
-        // 음수: 후방경사
-        abnormal = '낮음(후경사)';
-      } else if (v > 15) {
-        // 양수이고 15도 초과: 전방경사
-        abnormal = '높음(전방경사)';
-      } else if (v >= 5 && v <= 15) {
-        // 정상 범위
-        abnormal = '정상';
-      } else if (v > 0 && v < 5) {
-        // 양수이지만 작은 값: 경미한 전방경사 또는 정상
-        abnormal = '정상';
+      if (v <= -1) {
+        abnormal = '후방경사';
+      } else if (v >= 15) {
+        abnormal = '전방경사';
       } else {
         abnormal = '정상';
       }
