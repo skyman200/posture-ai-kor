@@ -8454,7 +8454,7 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.minHeight = "1100px";
 }
 
-function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeViews = {}, afterViews = {}, overlayImg }) {
+function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeViews = {}, afterViews = {}, overlayImg, frontOverlayImg }) {
   const hasBefore = !!(beforeViews.side || beforeViews.front);
   const hasAfter = !!(afterViews.side || afterViews.front);
   const renderViewColumn = (label, views) => {
@@ -8470,7 +8470,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
     if(views.side) {
       rows.push(`
         <div style="text-align:center;">
-          <img src="${views.side}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff;" />
+          <img src="${views.side}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
           <div style="margin-top:6px; font-size:11px; color:#475569; font-weight:600;">${label} · 옆모습</div>
         </div>
       `);
@@ -8478,7 +8478,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
     if(views.front) {
       rows.push(`
         <div style="text-align:center;">
-          <img src="${views.front}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff;" />
+          <img src="${views.front}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
           <div style="margin-top:6px; font-size:11px; color:#475569; font-weight:600;">${label} · 정면</div>
         </div>
       `);
@@ -8514,12 +8514,26 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
     </div>
     `}
     
-    ${overlayImg ? `
+    ${(overlayImg || frontOverlayImg) ? `
     <div style="margin-top:24px;">
       <div style="font-size:12px; font-weight:600; margin-bottom:8px;">🔄 Before-After 오버레이 (변화 시각화)</div>
-      <div style="text-align:center;">
-        <img src="${overlayImg}" style="width:100%; max-width:600px; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; margin:0 auto; max-height:400px; object-fit:contain; background:#fff;" />
-        <div style="margin-top:8px; font-size:10px; color:#666;">파란색: Before | 주황색: After (투명도 50%)</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        ${overlayImg ? `
+        <div style="flex:1; min-width:280px; max-width:400px;">
+          <div style="text-align:center;">
+            <img src="${overlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
+            <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색(Before) | 주황색(After)</div>
+          </div>
+        </div>
+        ` : ''}
+        ${frontOverlayImg ? `
+        <div style="flex:1; min-width:280px; max-width:400px;">
+          <div style="text-align:center;">
+            <img src="${frontOverlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
+            <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색(Before) | 주황색(After)</div>
+          </div>
+        </div>
+        ` : ''}
       </div>
     </div>
     ` : ''}
@@ -8659,55 +8673,70 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   const beforeOrientation = beforeViews.side ? "side" : (beforeViews.front ? "front" : "side");
   const afterOrientation = afterViews.side ? "side" : (afterViews.front ? "front" : "side");
 
-  // Before-After 오버레이 이미지 생성 (스켈레톤 포함)
-  let overlayImg = null;
-  const overlayOrientation = (beforeViews.side && afterViews.side) ? "side"
-    : (beforeViews.front && afterViews.front) ? "front"
-    : null;
+  // Before-After 오버레이 이미지 생성 (측면 + 정면 모두)
+  let overlayImg = null; // 측면 overlay
+  let frontOverlayImg = null; // 정면 overlay
+  
+  // Map을 일반 객체로 변환 (소문자 키로 통일)
+  const getPointsObject = (pointsMap) => {
+    if(!pointsMap) return null;
+    const obj = {};
+    if(pointsMap instanceof Map) {
+      pointsMap.forEach((value, key) => {
+        const lowerKey = key.toLowerCase();
+        obj[lowerKey] = value;
+      });
+    } else if(typeof pointsMap === 'object') {
+      Object.keys(pointsMap).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        obj[lowerKey] = pointsMap[key];
+      });
+    }
+    return obj;
+  };
 
-  if(beforeImg && afterImg && overlayOrientation) {
+  // 측면 overlay 생성
+  if(beforeViews.side && afterViews.side) {
     try {
-      const beforePointsMap = overlayOrientation === "front" ? sessions.Before?.frontPoints : sessions.Before?.sidePoints;
-      const afterPointsMap = overlayOrientation === "front" ? sessions.After?.frontPoints : sessions.After?.sidePoints;
-
-      // Map을 일반 객체로 변환 (소문자 키로 통일)
-      const getPointsObject = (pointsMap) => {
-        if(!pointsMap) return null;
-        const obj = {};
-        if(pointsMap instanceof Map) {
-          pointsMap.forEach((value, key) => {
-            // 키를 소문자로 변환 (tragus, c7, acromion 등)
-            const lowerKey = key.toLowerCase();
-            obj[lowerKey] = value;
-          });
-        } else if(typeof pointsMap === 'object') {
-          Object.keys(pointsMap).forEach(key => {
-            const lowerKey = key.toLowerCase();
-            obj[lowerKey] = pointsMap[key];
-          });
-        }
-        return obj;
-      };
-
+      const beforePointsMap = sessions.Before?.sidePoints;
+      const afterPointsMap = sessions.After?.sidePoints;
       const beforePoints = getPointsObject(beforePointsMap);
       const afterPoints = getPointsObject(afterPointsMap);
 
-      // 스켈레톤이 있는 경우 스켈레톤 포함 오버레이 생성, 없으면 기본 오버레이
-      const beforeBaseImg = overlayOrientation === "front" ? beforeViews.front : beforeViews.side;
-      const afterBaseImg = overlayOrientation === "front" ? afterViews.front : afterViews.side;
-
-      if(beforeBaseImg && afterBaseImg && beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
-        overlayImg = await createOverlayImageWithSkeleton(beforeBaseImg, afterBaseImg, beforePoints, afterPoints, 0.5);
+      if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
+        overlayImg = await createOverlayImageWithSkeleton(beforeViews.side, afterViews.side, beforePoints, afterPoints, 0.5);
       } else {
-        overlayImg = await createOverlayImage(beforeBaseImg || beforeImg, afterBaseImg || afterImg, 0.5);
+        overlayImg = await createOverlayImage(beforeViews.side, afterViews.side, 0.5);
       }
     } catch(err) {
-      console.warn("오버레이 이미지 생성 실패:", err);
-      // 폴백: 기본 오버레이 시도
+      console.warn("측면 오버레이 이미지 생성 실패:", err);
       try {
-        overlayImg = await createOverlayImage(beforeImg, afterImg, 0.5);
+        overlayImg = await createOverlayImage(beforeViews.side, afterViews.side, 0.5);
       } catch(err2) {
-        console.warn("기본 오버레이 이미지 생성도 실패:", err2);
+        console.warn("측면 기본 오버레이 이미지 생성도 실패:", err2);
+      }
+    }
+  }
+
+  // 정면 overlay 생성
+  if(beforeViews.front && afterViews.front) {
+    try {
+      const beforePointsMap = sessions.Before?.frontPoints;
+      const afterPointsMap = sessions.After?.frontPoints;
+      const beforePoints = getPointsObject(beforePointsMap);
+      const afterPoints = getPointsObject(afterPointsMap);
+
+      if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
+        frontOverlayImg = await createOverlayImageWithSkeleton(beforeViews.front, afterViews.front, beforePoints, afterPoints, 0.5);
+      } else {
+        frontOverlayImg = await createOverlayImage(beforeViews.front, afterViews.front, 0.5);
+      }
+    } catch(err) {
+      console.warn("정면 오버레이 이미지 생성 실패:", err);
+      try {
+        frontOverlayImg = await createOverlayImage(beforeViews.front, afterViews.front, 0.5);
+      } catch(err2) {
+        console.warn("정면 기본 오버레이 이미지 생성도 실패:", err2);
       }
     }
   }
@@ -8777,16 +8806,17 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     appName,
     beforeViews,
     afterViews,
-    overlayImg
+    overlayImg,
+    frontOverlayImg
   });
 
 document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
-// 4개 사진 처리 시 메모리 절약을 위해 scale과 크기 제한을 더 낮춤
+// 화질 개선을 위해 scale과 크기 제한 조정
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = isMobile ? 900 : 1200; // 더 낮춤 (1100/1400 → 900/1200)
-const baseCanvasScale = isMobile ? 1.0 : 1.1; // 더 낮춤 (1.1/1.25 → 1.0/1.1)
+const PDF_MAX_CANVAS_EDGE = isMobile ? 1400 : 1800; // 화질 개선 (900/1200 → 1400/1800)
+const baseCanvasScale = isMobile ? 1.5 : 2.0; // 화질 개선 (1.0/1.1 → 1.5/2.0)
 const html2canvasOptions = {
   scale: baseCanvasScale,
   backgroundColor: "#ffffff",
@@ -11406,9 +11436,9 @@ function exportAsPdf(options = {}) {
     const imgW = pageW - (margin * 2);
     
     // PDF 생성용 캔버스 크기 제한 (모바일/데스크톱 구분)
-    // 4개 사진 처리 시 메모리 절약을 위해 더 낮춤
+    // 화질 개선을 위해 크기 제한 증가
     const isMobileForPDF = isMobileDevice();
-    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 900 : 1200;
+    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 1400 : 1800;
     
     const coverCanvas = canvases.cover;
     if (!coverCanvas) {
@@ -11445,27 +11475,41 @@ function exportAsPdf(options = {}) {
     const coverH = Math.min(img1H, maxImg1H);
     
     try {
-      // JPEG로 변환하여 크기 줄이기 (4개 사진 처리 시 품질 낮춤)
-      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.7);
+      // JPEG로 변환 (화질 개선: 0.7 -> 0.85)
+      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.85);
+      // 이미지 비율 유지: 원본 비율에 맞춰 높이 계산
+      const coverAspectRatio = compressedCover.width / compressedCover.height;
+      const finalCoverH = coverTargetW / coverAspectRatio;
+      const finalCoverH_clamped = Math.min(finalCoverH, maxImg1H);
+      const finalCoverW = finalCoverH_clamped * coverAspectRatio;
+      const finalCoverX = margin + (imgW - finalCoverW) / 2;
+      
       pdf.addImage(
         coverImageData,
         "JPEG",
-        coverX,
+        finalCoverX,
         margin,
-        coverTargetW,
-        coverH
+        finalCoverW,
+        finalCoverH_clamped
       );
     } catch (err) {
       console.warn('표지 이미지 추가 실패, PNG로 재시도:', err);
       try {
         const coverImageData = compressedCover.toDataURL("image/png");
+        // 이미지 비율 유지
+        const coverAspectRatio = compressedCover.width / compressedCover.height;
+        const finalCoverH = coverTargetW / coverAspectRatio;
+        const finalCoverH_clamped = Math.min(finalCoverH, maxImg1H);
+        const finalCoverW = finalCoverH_clamped * coverAspectRatio;
+        const finalCoverX = margin + (imgW - finalCoverW) / 2;
+        
         pdf.addImage(
           coverImageData,
           "PNG",
-          coverX,
+          finalCoverX,
           margin,
-          coverTargetW,
-          coverH
+          finalCoverW,
+          finalCoverH_clamped
         );
       } catch (err2) {
         console.error('표지 이미지 추가 완전 실패:', err2);
@@ -11510,14 +11554,13 @@ function exportAsPdf(options = {}) {
           const renderHeight = Math.min(maxImgH, sliceHeightPx * scaleRatio);
           const pageX = margin + (imgW - renderWidth) / 2;
           
-          // 이미지 데이터를 JPEG로 변환하여 크기 줄이기 (PNG보다 작음)
-          // 4개 사진 처리 시 메모리 절약을 위해 품질을 더 낮춤
+          // 이미지 데이터를 JPEG로 변환 (화질 개선: 0.65 -> 0.85)
           let imageData;
           let imageFormat = "JPEG";
-          let quality = 0.65; // 더 낮춤 (0.72 → 0.65)
+          let quality = 0.85; // 화질 개선
           
           try {
-            // JPEG로 변환 시도 (품질 낮춰 메모리 절약)
+            // JPEG로 변환 시도 (고화질)
             imageData = compressedCanvas.toDataURL("image/jpeg", quality);
             imageFormat = "JPEG";
           } catch (e) {
@@ -11532,10 +11575,10 @@ function exportAsPdf(options = {}) {
           }
           
           // 이미지 데이터가 너무 크면 추가 압축 (동기적으로 처리)
-          // 4개 사진 처리 시 더 엄격한 제한 (1.5MB → 1MB)
-          if (imageData.length > 1000000) { // 약 1MB 제한
-            quality = 0.55; // 더 낮춤
-            const scaleDown = 0.7; // 더 많이 축소 (0.75 → 0.7)
+          // 2MB 제한으로 완화 (1MB -> 2MB)
+          if (imageData.length > 2000000) { // 약 2MB 제한
+            quality = 0.75; // 여전히 높은 품질 유지
+            const scaleDown = 0.85; // 덜 축소 (0.7 -> 0.85)
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = Math.floor(compressedCanvas.width * scaleDown);
             tempCanvas.height = Math.floor(compressedCanvas.height * scaleDown);
@@ -11553,16 +11596,24 @@ function exportAsPdf(options = {}) {
             }
           }
           
+          // 이미지 비율 유지: 원본 캔버스 비율에 맞춰 높이 계산
+          const canvasAspectRatio = compressedCanvas.width / compressedCanvas.height;
+          const finalRenderWidth = Math.min(renderWidth, imgW);
+          const finalRenderHeight = finalRenderWidth / canvasAspectRatio;
+          const finalRenderHeight_clamped = Math.min(finalRenderHeight, maxImgH);
+          const finalRenderWidth_adjusted = finalRenderHeight_clamped * canvasAspectRatio;
+          const finalPageX = margin + (imgW - finalRenderWidth_adjusted) / 2;
+          
           pdf.addPage();
           pdf.setFillColor(255, 255, 255);
           pdf.rect(0, 0, pageW, pageH, "F");
           pdf.addImage(
             imageData,
             imageFormat,
-            pageX,
+            finalPageX,
             margin,
-            renderWidth,
-            renderHeight
+            finalRenderWidth_adjusted,
+            finalRenderHeight_clamped
           );
         } catch (err) {
           console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
