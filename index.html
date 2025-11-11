@@ -9563,10 +9563,16 @@ function mapPostureRecord(row) {
 }
 
 function mapPilatesExerciseRow(row, equipmentKo) {
-  const stretchTargets = splitMuscleList(row.Main_Stretch_Muscles || row.main_stretch || '');
-  const strengthenTargets = splitMuscleList(row.Main_Strengthen_Muscles || row.main_strengthen || '');
+  // CSV 컬럼명 확인: Main_Strengthen_Muscles, Main_Stretch_Muscles
+  const stretchStr = row.Main_Stretch_Muscles || row['Main_Stretch_Muscles (주요 스트레칭 근육)'] || row.main_stretch || '';
+  const strengthenStr = row.Main_Strengthen_Muscles || row['Main_Strengthen_Muscles (주요 강화 근육)'] || row.main_strengthen || '';
+  
+  const stretchTargets = splitMuscleList(stretchStr);
+  const strengthenTargets = splitMuscleList(strengthenStr);
+  
   const exerciseKo = row.Exercise_Name_KR || row.exercise_ko || '';
   const exerciseEn = row.Exercise_Name_EN || row.exercise_en || '';
+  
   return {
     equipment: equipmentKo,
     equipment_ko: equipmentKo,
@@ -9576,16 +9582,21 @@ function mapPilatesExerciseRow(row, equipmentKo) {
     ko: exerciseKo,
     posture_key: '',
     posture_ko: '',
-    purpose: row.Main_Strengthen_Muscles
-      ? `강화: ${row.Main_Strengthen_Muscles}${row.Main_Stretch_Muscles ? ` / 스트레칭: ${row.Main_Stretch_Muscles}` : ''}`
+    purpose: strengthenStr
+      ? `강화: ${strengthenStr}${stretchStr ? ` / 스트레칭: ${stretchStr}` : ''}`
       : '',
-    how_to_do: row.How_to_Perform_Step_by_Step || row.How_to_Perform || '',
-    key_cues: row.Breathing_Pattern || row.Breathing || '',
+    how_to_do: row.How_to_Perform_Step_by_Step_FULL_CLASSICAL || row.How_to_Perform_EASY_FOR_BEGINNERS || row.How_to_Perform_Step_by_Step || row.How_to_Perform || '',
+    key_cues: row.Classical_Cues_by_Jay_Grimes_Romana || row.Breathing_Pattern || row.Breathing || '',
     sets_reps: row.Reps || '',
     spring: row.Spring_Traditional || row.Spring || '',
     references: row.References || '',
     stretch_targets: stretchTargets,
-    strengthen_targets: strengthenTargets
+    strengthen_targets: strengthenTargets,
+    // CSV 원본 데이터도 저장 (하위 호환성)
+    Main_Strengthen_Muscles: strengthenStr,
+    Main_Stretch_Muscles: stretchStr,
+    stretchMuscles: stretchTargets,
+    strengthenMuscles: strengthenTargets
   };
 }
 
@@ -9681,15 +9692,35 @@ async function linkPilatesDB(postureResult) {
   if (postureResult.code) searchKeys.push(postureResult.code.toLowerCase());
   if (postureResult.abnormal) searchKeys.push(postureResult.abnormal.toLowerCase());
 
+  // tight와 weak를 배열로 변환 (문자열인 경우 split)
+  let tightArray = [];
+  let weakArray = [];
+  
+  if (postureResult.tightMuscles) {
+    tightArray = Array.isArray(postureResult.tightMuscles) 
+      ? postureResult.tightMuscles 
+      : splitMuscleList(postureResult.tightMuscles);
+  } else if (postureResult.tight) {
+    tightArray = Array.isArray(postureResult.tight)
+      ? postureResult.tight
+      : splitMuscleList(postureResult.tight);
+  }
+  
+  if (postureResult.weakMuscles) {
+    weakArray = Array.isArray(postureResult.weakMuscles)
+      ? postureResult.weakMuscles
+      : splitMuscleList(postureResult.weakMuscles);
+  } else if (postureResult.weak) {
+    weakArray = Array.isArray(postureResult.weak)
+      ? postureResult.weak
+      : splitMuscleList(postureResult.weak);
+  }
+
   const tightSet = new Set(
-    (postureResult.tightMuscles || postureResult.tight || [])
-      .map(normalizeMuscleName)
-      .filter(Boolean)
+    tightArray.map(normalizeMuscleName).filter(Boolean)
   );
   const weakSet = new Set(
-    (postureResult.weakMuscles || postureResult.weak || [])
-      .map(normalizeMuscleName)
-      .filter(Boolean)
+    weakArray.map(normalizeMuscleName).filter(Boolean)
   );
 
   const matchedExercises = pilatesDB.filter((ex) => {
@@ -9709,23 +9740,37 @@ async function linkPilatesDB(postureResult) {
         exKeys.some((exKey) => exKey.includes(key) || key.includes(exKey))
       );
 
-    if (!matched && tightSet.size && Array.isArray(ex.stretch_targets)) {
-      matched = ex.stretch_targets.some((target) =>
-        tightSet.has(normalizeMuscleName(target))
-      );
+    // 근육 기반 매칭: stretch_targets와 strengthen_targets 확인
+    if (!matched && tightSet.size > 0) {
+      // 긴장 근육을 스트레칭하는 운동 찾기
+      const stretchTargets = ex.stretch_targets || ex.stretchMuscles || 
+        (ex.Main_Stretch_Muscles ? splitMuscleList(ex.Main_Stretch_Muscles) : []);
+      matched = stretchTargets.some((target) => {
+        const normalized = normalizeMuscleName(target);
+        return tightSet.has(normalized) || 
+          Array.from(tightSet).some(t => normalized.includes(t) || t.includes(normalized));
+      });
     }
 
-    if (!matched && weakSet.size && Array.isArray(ex.strengthen_targets)) {
-      matched = ex.strengthen_targets.some((target) =>
-        weakSet.has(normalizeMuscleName(target))
-      );
+    if (!matched && weakSet.size > 0) {
+      // 약화 근육을 강화하는 운동 찾기
+      const strengthenTargets = ex.strengthen_targets || ex.strengthenMuscles ||
+        (ex.Main_Strengthen_Muscles ? splitMuscleList(ex.Main_Strengthen_Muscles) : []);
+      matched = strengthenTargets.some((target) => {
+        const normalized = normalizeMuscleName(target);
+        return weakSet.has(normalized) ||
+          Array.from(weakSet).some(w => normalized.includes(w) || w.includes(normalized));
+      });
     }
 
     return matched;
   });
 
   const recommended = matchedExercises.slice(0, 10);
-  console.log('✅ 필라테스 운동 추천:', recommended.map(e => e.exercise_ko || e.exercise_en || e.name));
+  console.log('✅ 필라테스 운동 추천:', recommended.length, '개');
+  if (recommended.length > 0) {
+    console.log('  -', recommended.map(e => e.exercise_ko || e.exercise_en || e.name).join(', '));
+  }
   window.PilatesRecommendations = recommended;
   return recommended;
 }
@@ -9937,9 +9982,48 @@ async function analyzeWithDB(metrics) {
       }
       
       // CSV 구조 (기존 호환성)
-      const dbCode = String(r['지표코드'] || '').toUpperCase();
-      const dbAbnormal = String(r['이상유형'] || '');
-      return dbCode === code.toUpperCase() && dbAbnormal.includes(abnormal);
+      // Index_Code와 Metric_Code 모두 확인
+      const indexCode = String(r.Index_Code || r['지표코드'] || '').toUpperCase();
+      const metricCode = String(r.Metric_Code || r.metric_code || '').toUpperCase();
+      const dbCode = indexCode || metricCode;
+      const deviationLabel = String(r.Deviation_Label || r['이상유형'] || '').trim();
+      const dbAbnormal = deviationLabel || abnormal;
+      
+      // Index_Code가 {CODE}_{LABEL} 형식인 경우 (예: CVA_LOW, PTA_ANT)
+      if (indexCode && indexCode.includes('_')) {
+        const [codePart, labelPart] = indexCode.split('_');
+        if (codePart === code.toUpperCase()) {
+          // Deviation_Label과 abnormal 매칭
+          if (deviationLabel && (deviationLabel.includes(abnormal) || abnormal.includes(deviationLabel))) {
+            return true;
+          }
+          // Index_Code의 label 부분과 abnormal 매칭
+          const labelMap = {
+            'LOW': '낮음',
+            'HIGH': '높음',
+            'ANT': '전방경사',
+            'POST': '후방경사',
+            'VARUS': '내반',
+            'VALGUS': '외반',
+            'FORWARD': '전방',
+            'BACKWARD': '후방',
+            'LEFT': '좌',
+            'RIGHT': '우',
+            'IMBALANCE': '불균형'
+          };
+          const mappedLabel = labelMap[labelPart] || labelPart.toLowerCase();
+          if (abnormal.includes(mappedLabel) || mappedLabel.includes(abnormal)) {
+            return true;
+          }
+        }
+      }
+      
+      // Metric_Code와 Deviation_Label 매칭
+      if (dbCode === code.toUpperCase() && dbAbnormal && (dbAbnormal.includes(abnormal) || abnormal.includes(dbAbnormal))) {
+        return true;
+      }
+      
+      return false;
     });
 
     // 3) 누적(근육/운동) + 점수
@@ -10017,8 +10101,12 @@ async function analyzeWithDB(metrics) {
         abnormal: abnormal,
         posture_key: postureKey,
         posture_ko: r.posture_ko || name,
-        tight: tightStr,
-        weak: weakStr,
+        tight: tightArray, // 배열로 전달
+        weak: weakArray,   // 배열로 전달
+        tightMuscles: tightArray, // 추가: linkPilatesDB에서 사용
+        weakMuscles: weakArray,   // 추가: linkPilatesDB에서 사용
+        tightStr: tightStr, // 문자열 버전도 유지 (하위 호환성)
+        weakStr: weakStr,   // 문자열 버전도 유지 (하위 호환성)
         region: r.region || r['부위'] || ''
       };
       
