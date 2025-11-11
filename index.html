@@ -8413,11 +8413,14 @@ function renderExerciseDetailsList(entries, options = {}) {
     .map(normalizeExerciseEntry)
     .filter(Boolean);
   if (!list.length) return '';
-  const unlimited = options.limit === Infinity;
+  // limitPerTool도 확인 (renderPilatesEquipmentSections에서 전달됨)
+  const effectiveLimit = options.limit !== undefined ? options.limit : 
+                         (options.limitPerTool !== undefined ? options.limitPerTool : undefined);
+  const unlimited = effectiveLimit === Infinity;
   const limit =
     unlimited
       ? list.length
-      : options.limit ||
+      : effectiveLimit ||
         (options.context === 'pdf' ? Math.min(8, list.length) : 2);
   return list.slice(0, limit).map(entry => renderExerciseDetailHTML(entry, options)).join('');
 }
