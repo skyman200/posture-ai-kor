@@ -13552,7 +13552,7 @@ function getPelvicTiltDescription(PTA) {
 // 3️⃣ AI 분석 자동 연결 (computeAll 함수에서 호출)
 function analyzePelvicTiltAuto() {
   try {
-    const S = sessions[cur];
+    const S = window.sessions[cur];
     if (!S || !S.sidePoints) return;
 
     // ASIS와 PSIS 좌표 가져오기
