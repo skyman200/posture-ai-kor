@@ -12452,62 +12452,38 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
-    // MediaPipe keypoints: 11=환자 왼쪽 어깨, 12=환자 오른쪽 어깨
-    // 중요: MediaPipe는 항상 환자 관점에서 좌우를 인식합니다
-    const mpLeftShoulder = keypoints[11];  // MediaPipe: 환자 왼쪽 어깨
-    const mpRightShoulder = keypoints[12]; // MediaPipe: 환자 오른쪽 어깨
-    const mpLeftHip = keypoints[23];       // MediaPipe: 환자 왼쪽 골반
-    const mpRightHip = keypoints[24];      // MediaPipe: 환자 오른쪽 골반
-    const mpLeftKnee = keypoints[25];      // MediaPipe: 환자 왼쪽 무릎
-    const mpRightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
-    const mpLeftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
-    const mpRightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
+    // 중요: MediaPipe keypoints는 화면 좌표 기준입니다
+    // keypoints[11] = 화면 왼쪽 어깨 → 환자의 오른쪽 어깨 → R_acromion
+    // keypoints[12] = 화면 오른쪽 어깨 → 환자의 왼쪽 어깨 → L_acromion
+    const mpScreenLeft = keypoints[11];   // 화면 왼쪽 어깨 (환자 오른쪽)
+    const mpScreenRight = keypoints[12]; // 화면 오른쪽 어깨 (환자 왼쪽)
+    const mpScreenLeftHip = keypoints[23];   // 화면 왼쪽 골반 (환자 오른쪽)
+    const mpScreenRightHip = keypoints[24]; // 화면 오른쪽 골반 (환자 왼쪽)
+    const mpScreenLeftKnee = keypoints[25];   // 화면 왼쪽 무릎 (환자 오른쪽)
+    const mpScreenRightKnee = keypoints[26]; // 화면 오른쪽 무릎 (환자 왼쪽)
+    const mpScreenLeftAnkle = keypoints[27];   // 화면 왼쪽 발목 (환자 오른쪽)
+    const mpScreenRightAnkle = keypoints[28]; // 화면 오른쪽 발목 (환자 왼쪽)
     
-    // 화면 좌표계에서 환자 방향 확인
-    // MediaPipe의 환자 왼쪽이 화면 오른쪽에 있으면 (x 값이 더 큼) 미러링 필요
-    const collectAvg = (indices) => {
-      const samples = [];
-      indices.forEach(idx => {
-        const kp = keypoints[idx];
-        if (getKeypointConfidence(kp) >= 0.2) samples.push(kp.x);
-      });
-      if (!samples.length) return null;
-      return samples.reduce((a, b) => a + b, 0) / samples.length;
-    };
-    const mpLeftAvg = collectAvg([11, 23, 25, 27]);  // MediaPipe 환자 왼쪽 평균 x
-    const mpRightAvg = collectAvg([12, 24, 26, 28]); // MediaPipe 환자 오른쪽 평균 x
-    
-    // 환자 왼쪽이 화면 오른쪽에 있으면 (mpLeftAvg > mpRightAvg) 미러링 필요
-    const needsMirror = mpLeftAvg != null && mpRightAvg != null && mpLeftAvg > mpRightAvg;
-    
-    console.log('정면 환자 방향 감지:', {
-      mpLeftAvg,
-      mpRightAvg,
-      needsMirror: needsMirror ? '미러링 필요 (환자 왼쪽이 화면 오른쪽)' : '정상 (환자 왼쪽이 화면 왼쪽)'
-    });
-    
-    // 좌표 변환 함수: 화면 좌표를 환자 기준 좌표로 변환
+    // 좌표 변환 함수: 화면 좌표를 그대로 사용 (환자 기준으로 매핑만 반대로)
     const makePoint = (kp) => {
       const confidence = getKeypointConfidence(kp);
       if (!kp || confidence < 0.2) return null;
-      // 미러링이 필요하면 x 좌표 반전 (1 - x)
-      const finalX = needsMirror ? 1 - kp.x : kp.x;
-      return { x: finalX, y: kp.y, score: confidence || 0.5 };
+      return { x: kp.x, y: kp.y, score: confidence || 0.5 };
     };
     
-    // 환자 기준으로 올바르게 매핑: 환자 왼쪽 → L_*, 환자 오른쪽 → R_*
-    // 중요: MediaPipe는 환자 관점에서 좌우를 인식하므로, 화면 좌표와 반대일 수 있음
-    // 미러링 후에도 환자 기준은 유지: keypoints[11] = 환자 왼쪽 → L_acromion
-    const leftShoulderPoint = makePoint(mpLeftShoulder);
-    if (leftShoulderPoint) {
-      keypointMap['L_acromion'] = leftShoulderPoint;
-      console.log('L_acromion 매핑:', { x: leftShoulderPoint.x, y: leftShoulderPoint.y, needsMirror });
-    }
-    
-    const rightShoulderPoint = makePoint(mpRightShoulder);
+    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
+    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 오른쪽 어깨 → R_acromion
+    const rightShoulderPoint = makePoint(mpScreenLeft);
     if (rightShoulderPoint) {
       keypointMap['R_acromion'] = rightShoulderPoint;
-      console.log('R_acromion 매핑:', { x: rightShoulderPoint.x, y: rightShoulderPoint.y, needsMirror });
+      console.log('R_acromion 매핑 (화면 왼쪽 → 환자 오른쪽):', { x: rightShoulderPoint.x, y: rightShoulderPoint.y });
+    }
+    
+    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 왼쪽 어깨 → L_acromion
+    const leftShoulderPoint = makePoint(mpScreenRight);
+    if (leftShoulderPoint) {
+      keypointMap['L_acromion'] = leftShoulderPoint;
+      console.log('L_acromion 매핑 (화면 오른쪽 → 환자 왼쪽):', { x: leftShoulderPoint.x, y: leftShoulderPoint.y });
     }
     
     // c7: 양쪽 어깨 중간 (목 아래)
@@ -12531,24 +12507,24 @@ function mapPoseToKeypoints(pose, orientation) {
       };
     }
     
-    // 환자 기준으로 올바르게 매핑
-    const leftHipPoint = makePoint(mpLeftHip);
-    if (leftHipPoint) keypointMap['L_asis'] = leftHipPoint;
-    
-    const rightHipPoint = makePoint(mpRightHip);
+    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
+    const rightHipPoint = makePoint(mpScreenLeftHip);
     if (rightHipPoint) keypointMap['R_asis'] = rightHipPoint;
     
-    const leftKneePoint = makePoint(mpLeftKnee);
-    if (leftKneePoint) keypointMap['L_knee'] = leftKneePoint;
+    const leftHipPoint = makePoint(mpScreenRightHip);
+    if (leftHipPoint) keypointMap['L_asis'] = leftHipPoint;
     
-    const rightKneePoint = makePoint(mpRightKnee);
+    const rightKneePoint = makePoint(mpScreenLeftKnee);
     if (rightKneePoint) keypointMap['R_knee'] = rightKneePoint;
     
-    const leftAnklePoint = makePoint(mpLeftAnkle);
-    if (leftAnklePoint) keypointMap['L_ankle'] = leftAnklePoint;
+    const leftKneePoint = makePoint(mpScreenRightKnee);
+    if (leftKneePoint) keypointMap['L_knee'] = leftKneePoint;
     
-    const rightAnklePoint = makePoint(mpRightAnkle);
+    const rightAnklePoint = makePoint(mpScreenLeftAnkle);
     if (rightAnklePoint) keypointMap['R_ankle'] = rightAnklePoint;
+    
+    const leftAnklePoint = makePoint(mpScreenRightAnkle);
+    if (leftAnklePoint) keypointMap['L_ankle'] = leftAnklePoint;
 
     console.log('정면 랜드마크 매핑 (환자 기준):', Object.keys(keypointMap));
   }
@@ -12624,26 +12600,58 @@ async function applyPoseDetection(img, sessionName) {
     }
     
     for(const [key, value] of Object.entries(keypointMap)) {
-      if(value && value.x !== undefined && value.y !== undefined && value.score >= 0.2) {
-        // MediaPipe는 정규화된 좌표(0-1)를 제공하므로 픽셀 좌표로 변환
-        // 이미지 크기에 맞게 좌표 변환
-        const imgX = value.x * img.naturalWidth;
-        const imgY = value.y * img.naturalHeight;
-        
-        // 캔버스 크기에 맞게 스케일링
-        const scaleX = originalCanvasSize.width / img.naturalWidth;
-        const scaleY = originalCanvasSize.height / img.naturalHeight;
-        
-        const finalX = imgX * scaleX;
-        const finalY = imgY * scaleY;
-        
-        map.set(key, {
-          x: finalX,
-          y: finalY
-        });
-        
-        console.log(`✅ ${key} 매핑: 원본(${value.x.toFixed(3)}, ${value.y.toFixed(3)}) → 이미지픽셀(${imgX.toFixed(1)}, ${imgY.toFixed(1)}) → 캔버스(${finalX.toFixed(1)}, ${finalY.toFixed(1)}) [confidence: ${value.score.toFixed(2)}]`);
+      if(!value || value.x === undefined || value.y === undefined) {
+        continue;
       }
+      
+      // score 체크 (score가 없거나 낮아도 저장)
+      const confidence = value.score || value.visibility || 0.5;
+      if(confidence < 0.1) {
+        console.warn(`⚠️ ${key} confidence가 너무 낮음: ${confidence.toFixed(2)}, 스킵`);
+        continue;
+      }
+      
+      // MediaPipe는 정규화된 좌표(0-1)를 제공하므로 픽셀 좌표로 변환
+      // value.x가 이미 1보다 크면 이미 픽셀 좌표이므로 그대로 사용
+      let imgX, imgY;
+      if(value.x > 1 || value.y > 1) {
+        // 이미 픽셀 좌표인 경우
+        imgX = value.x;
+        imgY = value.y;
+      } else {
+        // 정규화된 좌표(0-1)인 경우
+        imgX = value.x * img.naturalWidth;
+        imgY = value.y * img.naturalHeight;
+      }
+      
+      // 캔버스 크기에 맞게 스케일링
+      const scaleX = originalCanvasSize.width / img.naturalWidth;
+      const scaleY = originalCanvasSize.height / img.naturalHeight;
+      
+      const finalX = imgX * scaleX;
+      const finalY = imgY * scaleY;
+      
+      // 유효한 좌표인지 확인
+      if(isNaN(finalX) || isNaN(finalY) || !isFinite(finalX) || !isFinite(finalY)) {
+        console.warn(`⚠️ ${key} 좌표가 유효하지 않음: (${finalX}, ${finalY}), 스킵`);
+        continue;
+      }
+      
+      map.set(key, {
+        x: finalX,
+        y: finalY
+      });
+      
+      console.log(`✅ ${key} 매핑: 원본(${value.x.toFixed(3)}, ${value.y.toFixed(3)}) → 이미지픽셀(${imgX.toFixed(1)}, ${imgY.toFixed(1)}) → 캔버스(${finalX.toFixed(1)}, ${finalY.toFixed(1)}) [confidence: ${confidence.toFixed(2)}]`);
+    }
+    
+    // 저장된 랜드마크 개수 확인
+    const savedCount = map.size;
+    console.log(`✅ ${sessionName} 랜드마크 저장 완료: ${savedCount}개 (${activeOrientation === "side" ? "옆모습" : "정면"})`);
+    
+    // 저장 후 즉시 다시 그리기
+    if(savedCount > 0) {
+      draw();
     }
     
     console.log(`✅ ${sessionName} 포즈 감지 및 좌표 적용 완료 (${activeOrientation === "side" ? "옆모습" : "정면"})`);
