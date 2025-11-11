@@ -757,35 +757,8 @@ const keypointsFront = [
 let keypoints = keypointsSide; // 기본값
 
 // sessions를 전역으로 노출
-const sessions = {
-  Before: { 
-    imgSide:null, 
-    imgFront:null, 
-    sidePoints:new Map(),  // 측면 키포인트 (tragus, c7, acromion, asis, psis, hip, knee, ankle)
-    frontPoints:new Map(), // 정면 키포인트 (L_acromion, R_acromion, L_asis, R_asis, L_knee, R_knee, L_ankle, R_ankle)
-    metrics:{}, 
-    score:null, 
-    analysis:null 
-  },
-  After: { 
-    imgSide:null, 
-    imgFront:null, 
-    sidePoints:new Map(),
-    frontPoints:new Map(),
-    metrics:{}, 
-    score:null, 
-    analysis:null 
-  }
-};
-
-// sessions를 window에 명시적으로 할당 (전역 접근 가능하도록)
-if(typeof window !== 'undefined') {
-  window.sessions = sessions;
-  console.log("✅ sessions 객체가 window.sessions에 할당되었습니다.", { 
-    hasBefore: !!window.sessions.Before, 
-    hasAfter: !!window.sessions.After 
-  });
-}
+// ✅ sessions는 모듈(src/core/sessions.js)에서 정의되므로 여기서는 제거
+// 모듈이 로드되면 window.sessions에 자동으로 할당됨
 
 let cur = "Before";
 
@@ -2442,7 +2415,7 @@ class LivePostureAnalyzer {
   
   // 현재 세션의 키포인트로 실시간 분석
   analyzeCurrentSession() {
-    const S = sessions[cur];
+    const S = window.sessions?.[cur];
     const pxPerCm = S.pxPerCm || 50.0;
     
     // 측면 및 정면 키포인트 변환
@@ -3265,7 +3238,7 @@ function updateCoordSelectOptions() {
   const selectEl = document.getElementById("coordSelectPoint");
   if(!selectEl) return;
   
-  const orientation = sessions[cur].poseData?.orientation || "side";
+  const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
   const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
   const currentValue = selectEl.value;
   
@@ -3541,7 +3514,7 @@ function getPts(session) {
 
 // 현재 orientation에 맞는 키포인트 반환
 function getKeypoints() {
-  const orientation = sessions[cur].poseData?.orientation || "side";
+  const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
   return orientation === "front" ? keypointsFront : keypointsSide;
 }
 
@@ -5774,7 +5747,7 @@ if(btnEditCoords && coordEditPanel) {
       originalCanvasSize.styleWidth = 0;
       originalCanvasSize.styleHeight = 0;
       // 원본 크기로 복원
-      const S = sessions[cur];
+      const S = window.sessions?.[cur];
       const orientation = S.poseData?.orientation || "side";
       const img = orientation === "front" ? S.imgFront : S.imgSide;
       if(img) {
@@ -5901,7 +5874,7 @@ if(coordApply) {
     // 좌표는 항상 원본 크기 기준으로 저장
     const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
     const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-    const orientation = sessions[cur].poseData?.orientation || "side";
+    const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
     const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     const clampedX = clamp(x, 0, originalW);
     const clampedY = clamp(y, 0, originalH);
@@ -5954,7 +5927,7 @@ if(coordApply) {
       if(selectEl) selectEl.value = "";
       
       // 원본 크기로 복원 (orientation에 따라 올바른 이미지 사용)
-      const S = sessions[cur];
+      const S = window.sessions?.[cur];
       const orientation = S.poseData?.orientation || "side";
       const img = orientation === "front" ? S.imgFront : S.imgSide;
       
@@ -6056,7 +6029,7 @@ function adjustCoordinate(coordField, delta) {
       // 좌표는 항상 원본 크기 기준으로 저장
       const originalW = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
       const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
-      const orientation = sessions[cur].poseData?.orientation || "side";
+      const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
       const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
       const clampedX = clamp(x, 0, originalW);
       const clampedY = clamp(y, 0, originalH);
@@ -6459,7 +6432,7 @@ function doDrag(e) {
     const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
     const x = clamp(pos.x, 0, originalW);
     const y = clamp(pos.y, 0, originalH);
-    const orientation = sessions[cur].poseData?.orientation || "side";
+    const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
     const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     const p = map.get(dragKey);
     
@@ -6643,7 +6616,7 @@ window.addEventListener('mousemove', (e) => {
     const originalH = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
     const x = clamp(pos.x, 0, originalW);
     const y = clamp(pos.y, 0, originalH);
-    const orientation = sessions[cur].poseData?.orientation || "side";
+    const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
     const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     const p = map.get(autoFollowKey);
     
@@ -7142,7 +7115,7 @@ function setupResetButton() {
     return;
   }
   addMobileTouchSupport(btnReset, () => {
-    const orientation = sessions[cur].poseData?.orientation || "side";
+    const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
     const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
     currentPoints.clear();
     draw();
@@ -7168,7 +7141,7 @@ function setupCalibrateButton() {
   addMobileTouchSupport(btnCalibrate, () => {
     calibrationMode = !calibrationMode;
     const panel = document.getElementById("calibrationPanel");
-    const S = sessions[cur];
+    const S = window.sessions?.[cur];
     
     if(calibrationMode) {
       panel.style.display = "block";
@@ -7253,7 +7226,7 @@ function setupCalibrationButtons() {
   
   if(btnConfirm) {
     addMobileTouchSupport(btnConfirm, () => {
-      const S = sessions[cur];
+      const S = window.sessions?.[cur];
       if(!S.calibrationPoint1 || !S.calibrationPoint2) {
         alert("두 점을 모두 선택해주세요.");
         return;
@@ -7286,7 +7259,7 @@ function setupCalibrationButtons() {
     addMobileTouchSupport(btnCancel, () => {
       calibrationMode = false;
       document.getElementById("calibrationPanel").style.display = "none";
-      const S = sessions[cur];
+      const S = window.sessions?.[cur];
       S.calibrationPoint1 = null;
       S.calibrationPoint2 = null;
       cv.style.cursor = "default";
@@ -7299,7 +7272,7 @@ function setupCalibrationButtons() {
       // 저장 전에 AI 분석 실행
       computeAll();
       
-      const orientation = sessions[cur].poseData?.orientation || "side";
+      const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
       const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
       const obj = Object.fromEntries(map);
       const json = JSON.stringify(obj, null, 2);
@@ -7329,7 +7302,7 @@ function setupCalibrationButtons() {
         r.onload = () => {
           try {
             const obj = JSON.parse(r.result);
-            const orientation = sessions[cur].poseData?.orientation || "side";
+            const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
             const map = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
             map.clear();
             for(const k of Object.keys(obj)) map.set(k, obj[k]);
@@ -12269,7 +12242,7 @@ function setupPDFButton() {
       checkLibraries();
       
       // 세션 데이터 확인
-      const S = sessions[cur];
+      const S = window.sessions?.[cur];
       const hasSidePoints = S.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
       const hasFrontPoints = S.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
       if (!S || (!hasSidePoints && !hasFrontPoints)) {
@@ -12540,21 +12513,13 @@ if (btnShare) {
 //   console.log("실시간 분석 결과:", result);
 // });
 
-// 초기화
-resizeCanvasFor(null);
-draw();
-computeMetricsOnly(); // 초기화 시에는 AI 분석 안 함
-updateCompare();
-
-// 초기 실시간 분석 실행
-setTimeout(() => {
-  if(typeof liveAnalyzer !== 'undefined') {
-    liveAnalyzer.analyzeCurrentSession();
-  }
-}, 500);
+// ✅ 초기화는 모듈(src/core/initApp.js)에서 처리하므로 여기서는 실행하지 않음
 </script>
 
-<!-- ✅ Pose Detection Libraries -->
+<!-- ✅ 모듈 진입점 (모든 초기화는 여기서 시작) -->
+<script type="module" src="./src/index.js"></script>
+
+<!-- ✅ Pose Detection Libraries (모듈 로드 후) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
@@ -12563,138 +12528,8 @@ setTimeout(() => {
 // 포즈 감지 모델 관리
 let detectors = { front: null, side: null };
 
-// 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
-// DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
-function initializeApp() {
-  console.log("🚀 initializeApp 실행됨");
-  
-  const sessions = window.sessions;
-  if (!sessions) {
-    console.error("🚨 window.sessions 없음 → 지금 코드 구조 망가진 거임");
-    return;
-  }
-  
-  console.log("📦 sessions 상태:", sessions);
-  
-  // sessions.Before와 sessions.After가 초기화되었는지 확인
-  if(!sessions.Before || !sessions.After) {
-    console.error("🚨 sessions.Before 또는 sessions.After가 없음");
-    return;
-  }
-  
-  // 파일 업로드 설정 (가장 먼저)
-  if(typeof setupFileUploads === 'function') {
-    setupFileUploads();
-  } else {
-    console.error("setupFileUploads 함수를 찾을 수 없습니다.");
-  }
-  
-  // Reset 버튼 설정
-  if(typeof setupResetButton === 'function') {
-    setupResetButton();
-  } else {
-    console.error("setupResetButton 함수를 찾을 수 없습니다.");
-  }
-  
-  // 캘리브레이션 버튼들 설정
-  if(typeof setupCalibrateButton === 'function') {
-    setupCalibrateButton();
-  } else {
-    console.error("setupCalibrateButton 함수를 찾을 수 없습니다.");
-  }
-  
-  if(typeof setupCalibrationButtons === 'function') {
-    setupCalibrationButtons();
-  } else {
-    console.error("setupCalibrationButtons 함수를 찾을 수 없습니다.");
-  }
-  
-  // PDF 및 이미지 저장 버튼 초기화
-  if(typeof setupPDFButton === 'function') {
-    setupPDFButton();
-  } else {
-    console.error("setupPDFButton 함수를 찾을 수 없습니다.");
-  }
-  
-  if(typeof setupImageButton === 'function') {
-    setupImageButton();
-  } else {
-    console.error("setupImageButton 함수를 찾을 수 없습니다.");
-  }
-  
-  // AI 분석 버튼 초기화
-  const btnAIAnalysis = document.getElementById("btnAIAnalysis");
-  if (btnAIAnalysis) {
-    btnAIAnalysis.addEventListener('click', async () => {
-      try {
-        const originalText = btnAIAnalysis.textContent;
-        btnAIAnalysis.textContent = "⏳ AI 분석 중...";
-        btnAIAnalysis.disabled = true;
-        
-        // 현재 세션 데이터 확인
-        const S = window.sessions[cur];
-        if (!S || (!S.sidePoints || S.sidePoints.size === 0) && (!S.frontPoints || S.frontPoints.size === 0)) {
-          alert("먼저 이미지를 업로드하고 좌표를 설정해주세요.");
-          btnAIAnalysis.textContent = originalText;
-          btnAIAnalysis.disabled = false;
-          return;
-        }
-        
-        // 전체 분석 실행
-        await computeAll();
-        
-        // 분석 결과 표시 영역 업데이트
-        const S2 = window.sessions[cur];
-        if (S2.analysis && S2.score) {
-          updateScoreAndAnalysis(S2.score.score, S2.metrics?.cva, S2.metrics?.pelvic, S2.metrics?.knee, S2.analysis);
-        }
-        
-        btnAIAnalysis.textContent = "✅ 분석 완료";
-        setTimeout(() => {
-          btnAIAnalysis.textContent = originalText;
-          btnAIAnalysis.disabled = false;
-        }, 2000);
-      } catch (error) {
-        console.error("AI 분석 실패:", error);
-        alert("AI 분석에 실패했습니다: " + (error.message || '알 수 없는 오류'));
-        const btn = document.getElementById("btnAIAnalysis");
-        if (btn) {
-          btn.textContent = "🤖 AI 분석";
-          btn.disabled = false;
-        }
-      }
-    });
-  }
-
-  // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
-  // sessions 객체에 orientation과 landmarks 정보 추가
-  // 이미 위에서 확인했으므로 여기서는 안전하게 초기화만 수행
-  if(!sessions.Before.poseData) {
-    sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
-  }
-  if(!sessions.After.poseData) {
-    sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
-  }
-
-  // 버튼 이벤트 핸들러 초기화
-  initSessionButtons();
-  
-  // orientation 버튼 상태 설정
-  const orientation = sessions[cur].poseData?.orientation || "side";
-  const btnSide = document.getElementById("btnOrientationSide");
-  const btnFront = document.getElementById("btnOrientationFront");
-  
-  if(btnSide && btnFront) {
-    btnSide.classList.toggle("active", orientation === "side");
-    btnFront.classList.toggle("active", orientation === "front");
-    console.log("Orientation 버튼 초기 상태 설정 완료:", orientation);
-  }
-  
-  // 좌표 선택 드롭다운 초기화
-  updateCoordSelectOptions();
-  
-  console.log("=== 초기화 완료 ===");
-}
+// ✅ initializeApp은 모듈(src/core/initApp.js)에서 정의되므로 여기서는 제거
+// 기존 initializeApp 함수는 모듈로 이동됨
 
 // ✅ 모델 로드 상태 추적
 let modelsLoading = { front: false, side: false };
@@ -13357,18 +13192,8 @@ if (typeof window !== 'undefined') {
     window.loadPostureDB = loadPostureDB; // DB 로더도 노출
   }
   
-  // 모든 함수가 정의된 후 initializeApp 호출
-  // 함수들이 모두 로드되도록 충분한 지연 시간 제공
-  // DOMContentLoaded에서 바로 initializeApp 실행
-  // sessions는 이미 위에서 window.sessions로 할당되었으므로 바로 사용 가능
-  if(document.readyState === 'loading') {
-    document.addEventListener("DOMContentLoaded", () => {
-      initializeApp();
-    });
-  } else {
-    // 이미 로드 완료된 경우 바로 실행
-    initializeApp();
-  }
+  // ✅ 모듈에서 initializeApp을 실행하므로 여기서는 호출하지 않음
+  // 모듈: src/core/initApp.js에서 DOMContentLoaded로 initializeApp 실행
 }
 
 /**********************
