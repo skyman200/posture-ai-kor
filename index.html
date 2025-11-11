@@ -3847,6 +3847,8 @@ function computeAll() {
       frontMetrics: frontMetrics.status !== "not_available" ? frontMetrics : null  // 정면 분석 결과 별도 저장
     };
     
+    window.fullMetrics = mergedMetrics;
+    
     const score = computeScore(cva, pelvic, knee);
     S.score = score;
     
@@ -3875,6 +3877,7 @@ function computeAll() {
       orientation: "front",
       frontMetrics: frontMetrics
     };
+    window.fullMetrics = mergedMetrics;
     S.score = null;
     S.analysis = { 
       fullMetrics: mergedMetrics,
@@ -5152,7 +5155,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   // 전체 분석 항목 표시
   const S = sessions[cur];
   // ✅ 안전 가드: fullMetrics를 여러 소스에서 가져오기
-  const fullMetrics = S.metrics?.fullMetrics || window.fullMetrics || {};
+  const fullMetrics = S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
   if(allMetricsList && fullMetrics) {
     // 측면 항목 (파란색 #7c9cff)
     const sideMetricsOrder = [
@@ -5298,7 +5301,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     const postureTypeContent = document.getElementById("postureTypeContent");
     if(postureTypeContent) {
       // fullMetrics가 없으면 세션에서 가져오기
-      const metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || {};
+      const metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
       if(metricsForAnalysis && Object.keys(metricsForAnalysis).length > 0) {
         let postureType = analyzePostureType(metricsForAnalysis);
         postureTypeContent.innerHTML = postureType;
@@ -7833,7 +7836,7 @@ const PILATES_PATTERN_DB = {
 
 function buildPilatesTextFromAnalysis(pilatesItems) {
   if (!Array.isArray(pilatesItems) || pilatesItems.length === 0) return '';
-  return pilatesItems.map((item, idx) => renderPilatesItemCard(item, { context:'pdf', index: idx, limitPerTool: 3 })).join('');
+  return pilatesItems.map((item, idx) => renderPilatesItemCard(item, { context:'pdf', index: idx, limitPerTool: Infinity })).join('');
 }
 
 // 필라테스 추천 텍스트 생성
@@ -8249,7 +8252,12 @@ function renderExerciseDetailsList(entries, options = {}) {
     .map(normalizeExerciseEntry)
     .filter(Boolean);
   if (!list.length) return '';
-  const limit = options.limit || (options.context === 'pdf' ? 3 : 2);
+  const unlimited = options.limit === Infinity;
+  const limit =
+    unlimited
+      ? list.length
+      : options.limit ||
+        (options.context === 'pdf' ? Math.min(8, list.length) : 2);
   return list.slice(0, limit).map(entry => renderExerciseDetailHTML(entry, options)).join('');
 }
 
@@ -8645,18 +8653,15 @@ document.body.appendChild(page1Container);
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
 const isMobile = isMobileDevice();
 const html2canvasOptions = {
-  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
+  scale: isMobile ? 1.35 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
   backgroundColor: "#ffffff",
   useCORS: true,
-  allowTaint: true,
+  allowTaint: false,
   logging: false,
-  // 모바일에서 메모리 최적화
-  ...(isMobile ? {
-    removeContainer: true, // 캡처 후 컨테이너 제거
-    imageTimeout: 15000, // 이미지 로딩 타임아웃
-    maxWidth: 800, // 최대 너비 제한
-    maxHeight: 1200 // 최대 높이 제한
-  } : {})
+  scrollX: 0,
+  scrollY: -window.scrollY,
+  imageTimeout: 20000,
+  removeContainer: isMobile
 };
 
 // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지, 모바일 최적화)
@@ -9170,7 +9175,11 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const canvas4 = await html2canvas(page4Container, html2canvasOptions);
+const canvas4 = await html2canvas(page4Container, {
+  ...html2canvasOptions,
+  windowWidth: page4Container.scrollWidth,
+  windowHeight: page4Container.scrollHeight
+});
 
 if (document.body.contains(page4Container)) {
   document.body.removeChild(page4Container);
@@ -9331,7 +9340,11 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const canvas7 = await html2canvas(page7Container, html2canvasOptions);
+const canvas7 = await html2canvas(page7Container, {
+  ...html2canvasOptions,
+  windowWidth: page7Container.scrollWidth,
+  windowHeight: page7Container.scrollHeight
+});
 
 if (document.body.contains(page7Container)) {
   document.body.removeChild(page7Container);
@@ -9369,7 +9382,9 @@ function combineCanvasesVertical(canvasList, gap = 40) {
     throw new Error("캔버스 너비를 확인할 수 없습니다.");
   }
   const scaledHeights = canvasList.map(canvas => {
-    const scale = maxWidth / canvas.width;
+    if (!canvas.width) return 0;
+    const shouldScaleDown = canvas.width > maxWidth;
+    const scale = shouldScaleDown ? maxWidth / canvas.width : 1;
     return Math.round(canvas.height * scale);
   });
   const totalHeight = scaledHeights.reduce((sum, h) => sum + h, 0) + gap * (canvasList.length - 1);
@@ -9382,7 +9397,13 @@ function combineCanvasesVertical(canvasList, gap = 40) {
   let offsetY = 0;
   canvasList.forEach((canvas, idx) => {
     const height = scaledHeights[idx];
-    ctx.drawImage(canvas, 0, offsetY, maxWidth, height);
+    if (!canvas.width || !canvas.height) return;
+    const shouldScaleDown = canvas.width > maxWidth;
+    const drawWidth = shouldScaleDown ? maxWidth : canvas.width;
+    const scale = drawWidth / canvas.width;
+    const drawHeight = canvas.height * scale;
+    const offsetX = (maxWidth - drawWidth) / 2;
+    ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, offsetX, offsetY, drawWidth, drawHeight);
     offsetY += height;
     if (idx < canvasList.length - 1) {
       offsetY += gap;
@@ -11249,48 +11270,77 @@ function exportAsPdf(options = {}) {
     const conclusionCanvas = canvases.conclusion;
     
     // 첫 페이지: 제목과 이미지
-    const img1H = coverCanvas.height * (imgW / coverCanvas.width);
-    const maxImg1H = pageH - (margin * 2);
-    if(img1H <= maxImg1H) {
-      pdf.addImage(coverCanvas.toDataURL("image/png"), "PNG", margin, margin, imgW, img1H);
-    } else {
-      // 이미지가 크면 자르기
-      pdf.addImage(coverCanvas.toDataURL("image/png"), "PNG", margin, margin, imgW, maxImg1H);
-    }
+    const coverTargetW = Math.min(imgW, coverCanvas.width);
+    const coverScale = coverTargetW / coverCanvas.width;
+    const img1H = coverCanvas.height * coverScale;
+    const maxImg1H = pageH - margin * 2;
+    const coverX = margin + (imgW - coverTargetW) / 2;
+    const coverH = Math.min(img1H, maxImg1H);
+    pdf.addImage(
+      coverCanvas.toDataURL("image/png"),
+      "PNG",
+      coverX,
+      margin,
+      coverTargetW,
+      coverH
+    );
     
     // 페이지 2-6 추가 (간단한 추가 함수)
     const addPageToPdf = (canvas) => {
       if (!canvas) return;
-      const maxImgH = pageH - (margin * 2);
-      const scaleRatio = imgW / canvas.width;
-      const imgH = canvas.height * scaleRatio;
-      const maxSliceHeightPx = Math.max(100, Math.floor(maxImgH / scaleRatio));
-      const overlapPx = Math.max(12, Math.floor(24 / scaleRatio));
+      const maxImgH = pageH - margin * 2;
+      const targetWidth = Math.min(imgW, canvas.width);
+      const scaleRatio = targetWidth / canvas.width;
+      const pageHeightPx = Math.max(140, Math.floor(maxImgH / (scaleRatio || 1)));
+      const overlapPx = Math.max(40, Math.floor(80 / (scaleRatio || 1)));
+      const pageX = margin + (imgW - targetWidth) / 2;
 
-      const addSlice = (sliceCanvas, renderedHeight) => {
+      const renderSlice = (sliceCanvas, sliceHeightPx) => {
+        const renderedHeight = Math.min(
+          maxImgH,
+          Math.round(sliceHeightPx * scaleRatio)
+        );
         pdf.addPage();
-        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, margin, imgW, renderedHeight);
+        pdf.addImage(
+          sliceCanvas.toDataURL("image/png"),
+          "PNG",
+          pageX,
+          margin,
+          targetWidth,
+          renderedHeight
+        );
       };
-      
-      if (imgH <= maxImgH) {
-        addSlice(canvas, imgH);
+
+      if (canvas.height <= pageHeightPx) {
+        renderSlice(canvas, canvas.height);
         return;
       }
 
       let offsetY = 0;
       while (offsetY < canvas.height) {
-        const sliceHeightPx = Math.min(maxSliceHeightPx, canvas.height - offsetY);
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceHeightPx;
-        const pctx = pageCanvas.getContext("2d");
-        pctx.drawImage(canvas, 0, offsetY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
-        addSlice(pageCanvas, sliceHeightPx * scaleRatio);
+        const currentHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = currentHeight;
+        const ctx = sliceCanvas.getContext("2d");
+        ctx.drawImage(
+          canvas,
+          0,
+          offsetY,
+          canvas.width,
+          currentHeight,
+          0,
+          0,
+          canvas.width,
+          currentHeight
+        );
+        renderSlice(sliceCanvas, currentHeight);
 
-        if (offsetY + sliceHeightPx >= canvas.height) {
+        if (offsetY + currentHeight >= canvas.height) {
           break;
         }
-        offsetY += Math.max(1, sliceHeightPx - overlapPx);
+        const advance = currentHeight - overlapPx;
+        offsetY += advance > 0 ? advance : currentHeight;
       }
     };
     
