@@ -253,3 +253,4 @@ struct ExerciseCard: View {
 
 
 
+
