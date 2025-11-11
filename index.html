@@ -8784,8 +8784,10 @@ document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
 const isMobile = isMobileDevice();
+const PDF_MAX_CANVAS_EDGE = isMobile ? 1100 : 1400;
+const baseCanvasScale = isMobile ? 1.1 : 1.25;
 const html2canvasOptions = {
-  scale: isMobile ? 1.35 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
+  scale: baseCanvasScale,
   backgroundColor: "#ffffff",
   useCORS: true,
   allowTaint: false,
@@ -8901,7 +8903,6 @@ if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   }
   canvas2 = await html2canvas(page2Container, {
     ...html2canvasOptions,
-    scale: isMobile ? 1.5 : 3,
     windowWidth: page2Container.scrollWidth,
     windowHeight: page2Container.scrollHeight
   });
@@ -9087,7 +9088,6 @@ document.body.appendChild(page3Container);
 
 const canvas3 = await html2canvas(page3Container, {
   ...html2canvasOptions,
-  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
   windowWidth: page3Container.scrollWidth,
   windowHeight: page3Container.scrollHeight
 });
@@ -9271,7 +9271,6 @@ if (isMobile) {
 
 const canvas5 = await html2canvas(page5Container, {
   ...html2canvasOptions,
-  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
   windowWidth: page5Container.scrollWidth,
   windowHeight: page5Container.scrollHeight
 });
@@ -9330,7 +9329,6 @@ if (isMobile) {
 
 const canvas6 = await html2canvas(page6Container, {
   ...html2canvasOptions,
-  scale: isMobile ? 1.5 : 2, // 모바일에서는 scale 낮춰서 메모리 절약
   windowWidth: page6Container.scrollWidth,
   windowHeight: page6Container.scrollHeight
 });
@@ -10971,14 +10969,28 @@ function waitForChartRender(chart, timeout = 2000) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             // 최종 확인: Canvas에 실제로 그려졌는지 확인
-            const ctx = chart.canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, Math.min(chart.canvas.width, 10), Math.min(chart.canvas.height, 10));
-            const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // 알파 채널 제외하고 픽셀 데이터 확인
-            
-            if (hasContent || chart.canvas.width > 0) {
-              resolve(chart);
-            } else {
-              // 내용이 없어도 타임아웃 후 진행
+            try {
+              const ctx = chart.canvas.getContext('2d');
+              // 캔버스 크기 확인 (0이면 오류 발생)
+              if (chart.canvas.width > 0 && chart.canvas.height > 0) {
+                const sampleWidth = Math.min(chart.canvas.width, 10);
+                const sampleHeight = Math.min(chart.canvas.height, 10);
+                const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+                const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // 알파 채널 제외하고 픽셀 데이터 확인
+                
+                if (hasContent || chart.canvas.width > 0) {
+                  resolve(chart);
+                } else {
+                  // 내용이 없어도 타임아웃 후 진행
+                  setTimeout(() => resolve(chart), 100);
+                }
+              } else {
+                // 캔버스 크기가 0이면 타임아웃 후 진행
+                setTimeout(() => resolve(chart), 100);
+              }
+            } catch (err) {
+              // getImageData 오류 발생 시에도 진행
+              console.warn('Chart 캔버스 확인 중 오류 (무시됨):', err);
               setTimeout(() => resolve(chart), 100);
             }
           });
@@ -11314,21 +11326,57 @@ function exportAsPdf(options = {}) {
     const aiDeepCanvas = canvases.aiDeep;
     const conclusionCanvas = canvases.conclusion;
     
-    // 첫 페이지: 제목과 이미지
-    const coverTargetW = Math.min(imgW, coverCanvas.width);
-    const coverScale = coverTargetW / coverCanvas.width;
-    const img1H = coverCanvas.height * coverScale;
+    // 첫 페이지: 제목과 이미지 (압축 적용)
+    const compressCanvasForPDF = (canvas, maxSize = PDF_MAX_CANVAS_EDGE) => {
+      if (!canvas || canvas.width === 0 || canvas.height === 0) return canvas;
+      if (canvas.width > maxSize || canvas.height > maxSize) {
+        const ratio = Math.min(maxSize / canvas.width, maxSize / canvas.height);
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = Math.floor(canvas.width * ratio);
+        newCanvas.height = Math.floor(canvas.height * ratio);
+        const ctx = newCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, 0, newCanvas.width, newCanvas.height);
+        return newCanvas;
+      }
+      return canvas;
+    };
+    
+    const compressedCover = compressCanvasForPDF(coverCanvas, PDF_MAX_CANVAS_EDGE);
+    const coverTargetW = Math.min(imgW, compressedCover.width);
+    const coverScale = coverTargetW / compressedCover.width;
+    const img1H = compressedCover.height * coverScale;
     const maxImg1H = pageH - margin * 2;
     const coverX = margin + (imgW - coverTargetW) / 2;
     const coverH = Math.min(img1H, maxImg1H);
-    pdf.addImage(
-      coverCanvas.toDataURL("image/png"),
-      "PNG",
-      coverX,
-      margin,
-      coverTargetW,
-      coverH
-    );
+    
+    try {
+      // JPEG로 변환하여 크기 줄이기
+      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.85);
+      pdf.addImage(
+        coverImageData,
+        "JPEG",
+        coverX,
+        margin,
+        coverTargetW,
+        coverH
+      );
+    } catch (err) {
+      console.warn('표지 이미지 추가 실패, PNG로 재시도:', err);
+      try {
+        const coverImageData = compressedCover.toDataURL("image/png");
+        pdf.addImage(
+          coverImageData,
+          "PNG",
+          coverX,
+          margin,
+          coverTargetW,
+          coverH
+        );
+      } catch (err2) {
+        console.error('표지 이미지 추가 완전 실패:', err2);
+        throw new Error('표지 이미지를 PDF에 추가할 수 없습니다.');
+      }
+    }
     
     // 페이지 2-6 추가 (간단한 추가 함수)
     const addPageToPdf = (canvas) => {
@@ -11339,22 +11387,84 @@ function exportAsPdf(options = {}) {
       const pageHeightPx = Math.max(160, Math.floor(maxImgH / (scaleRatio || 1)));
       const overlapPx = Math.max(pageHeightPx * 0.45, 220);
 
+      // 이미지 압축 함수 (크기 제한 및 품질 조정)
+      const compressCanvas = (canvas, maxSize = PDF_MAX_CANVAS_EDGE) => {
+        if (!canvas || canvas.width === 0 || canvas.height === 0) return canvas;
+        
+        // 이미지가 너무 크면 리사이즈
+        if (canvas.width > maxSize || canvas.height > maxSize) {
+          const ratio = Math.min(maxSize / canvas.width, maxSize / canvas.height);
+          const newCanvas = document.createElement('canvas');
+          newCanvas.width = Math.floor(canvas.width * ratio);
+          newCanvas.height = Math.floor(canvas.height * ratio);
+          const ctx = newCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, 0, newCanvas.width, newCanvas.height);
+          return newCanvas;
+        }
+        return canvas;
+      };
+
       const renderSlice = (sliceCanvas, sliceHeightPx) => {
-        if (!sliceCanvas) return;
-        const renderWidth = targetWidth;
-        const renderHeight = Math.min(maxImgH, sliceHeightPx * scaleRatio);
-        const pageX = margin + (imgW - renderWidth) / 2;
-        pdf.addPage();
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, pageW, pageH, "F");
-        pdf.addImage(
-          sliceCanvas.toDataURL("image/png"),
-          "PNG",
-          pageX,
-          margin,
-          renderWidth,
-          renderHeight
-        );
+        if (!sliceCanvas || sliceCanvas.width === 0 || sliceCanvas.height === 0) return;
+        
+        try {
+          // 캔버스 압축 (너무 큰 이미지 방지)
+          const compressedCanvas = compressCanvas(sliceCanvas, 2000);
+          
+          const renderWidth = targetWidth;
+          const renderHeight = Math.min(maxImgH, sliceHeightPx * scaleRatio);
+          const pageX = margin + (imgW - renderWidth) / 2;
+          
+          // 이미지 데이터를 JPEG로 변환하여 크기 줄이기 (PNG보다 작음)
+          let imageData;
+          let imageFormat = "JPEG";
+          try {
+            // JPEG로 변환 시도 (품질 낮춰 메모리 절약)
+            imageData = compressedCanvas.toDataURL("image/jpeg", 0.72);
+            imageFormat = "JPEG";
+          } catch (e) {
+            // JPEG 실패 시 PNG 시도
+            try {
+              imageData = compressedCanvas.toDataURL("image/png");
+              imageFormat = "PNG";
+            } catch (e2) {
+              console.warn('이미지 변환 실패, 스킵:', e2);
+              return;
+            }
+          }
+          
+          // 이미지 데이터가 너무 크면 추가 압축 (동기적으로 처리)
+          if (imageData.length > 1500000) { // 약 1.5MB 제한
+            const quality = 0.6;
+            const scaleDown = 0.75;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = Math.floor(compressedCanvas.width * scaleDown);
+            tempCanvas.height = Math.floor(compressedCanvas.height * scaleDown);
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(compressedCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+            try {
+              imageData = tempCanvas.toDataURL("image/jpeg", quality);
+              imageFormat = "JPEG";
+            } catch (e3) {
+              // 추가 압축 실패 시 원본 사용
+              console.warn('추가 압축 실패, 원본 사용:', e3);
+            }
+          }
+          
+          pdf.addPage();
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(0, 0, pageW, pageH, "F");
+          pdf.addImage(
+            imageData,
+            imageFormat,
+            pageX,
+            margin,
+            renderWidth,
+            renderHeight
+          );
+        } catch (err) {
+          console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
+        }
       };
 
       if (canvas.height <= pageHeightPx) {
@@ -11403,12 +11513,14 @@ function exportAsPdf(options = {}) {
     
     // PDF 다운로드 (모바일 안정화)
     let pdfSaved = false;
+    const isMobile = isMobileDevice();
+    
     try {
       // 모바일에서는 직접 save 메서드 우선 사용 (가장 안정적)
-      if (isMobileDevice()) {
+      if (isMobile) {
         try {
-          // 작은 지연으로 UI 블로킹 방지
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // 작은 지연으로 UI 블로킹 방지 및 메모리 정리
+          await new Promise(resolve => setTimeout(resolve, 300));
           pdf.save(finalFileName);
           console.log('✅ PDF 저장 성공 (직접 save)');
           pdfSaved = true;
@@ -11422,31 +11534,79 @@ function exportAsPdf(options = {}) {
       if (!pdfSaved) {
         let pdfBlob;
         try {
+          // 모바일에서 메모리 절약을 위해 추가 지연
+          if (isMobile) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+          
           pdfBlob = pdf.output('blob');
           if (!pdfBlob || pdfBlob.size === 0) {
             throw new Error('PDF Blob 생성 실패');
           }
+          
+          // 모바일에서 Blob 크기가 너무 크면 경고
+          if (isMobile && pdfBlob.size > 50 * 1024 * 1024) { // 50MB
+            console.warn('⚠️ PDF 크기가 큽니다:', (pdfBlob.size / 1024 / 1024).toFixed(2), 'MB');
+          }
         } catch (blobErr) {
           console.error('❌ Blob 생성 실패:', blobErr);
-          // 최종 폴백: data URI
-          try {
-            const dataUri = pdf.output('datauristring');
-            const link = document.createElement('a');
-            link.href = dataUri;
-            link.download = finalFileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            requestAnimationFrame(() => {
-              link.click();
-              setTimeout(() => {
-                if (document.body.contains(link)) {
-                  document.body.removeChild(link);
+          
+          // 모바일에서는 data URI 방식 시도 (더 안정적)
+          if (isMobile) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              const dataUri = pdf.output('datauristring');
+              const link = document.createElement('a');
+              link.href = dataUri;
+              link.download = finalFileName;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              
+              // 모바일에서 더 긴 지연 후 클릭
+              await new Promise(resolve => setTimeout(resolve, 300));
+              requestAnimationFrame(() => {
+                try {
+                  link.click();
+                } catch (e) {
+                  const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  });
+                  link.dispatchEvent(clickEvent);
                 }
-              }, 1000);
-            });
-            pdfSaved = true;
-          } catch (finalErr) {
-            throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
+                setTimeout(() => {
+                  if (document.body.contains(link)) {
+                    document.body.removeChild(link);
+                  }
+                }, 2000);
+              });
+              pdfSaved = true;
+            } catch (finalErr) {
+              console.error('❌ Data URI 방식도 실패:', finalErr);
+              throw new Error('PDF 저장에 실패했습니다: ' + (finalErr.message || '알 수 없는 오류'));
+            }
+          } else {
+            // 데스크톱에서는 data URI 폴백
+            try {
+              const dataUri = pdf.output('datauristring');
+              const link = document.createElement('a');
+              link.href = dataUri;
+              link.download = finalFileName;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              requestAnimationFrame(() => {
+                link.click();
+                setTimeout(() => {
+                  if (document.body.contains(link)) {
+                    document.body.removeChild(link);
+                  }
+                }, 1000);
+              });
+              pdfSaved = true;
+            } catch (finalErr) {
+              throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
+            }
           }
         }
         
@@ -11458,6 +11618,10 @@ function exportAsPdf(options = {}) {
           link.download = finalFileName;
           link.style.display = 'none';
           document.body.appendChild(link);
+          
+          // 모바일에서 더 긴 지연
+          const delay = isMobile ? 400 : 0;
+          await new Promise(resolve => setTimeout(resolve, delay));
           
           requestAnimationFrame(() => {
             try {
@@ -11481,13 +11645,16 @@ function exportAsPdf(options = {}) {
             } catch (e) {
               console.warn('정리 중 오류:', e);
             }
-          }, 3000);
+          }, isMobile ? 5000 : 3000);
           pdfSaved = true;
         }
       }
     } catch (err) {
       console.error('❌ PDF 다운로드 오류:', err);
-      alert('PDF 저장에 실패했습니다: ' + (err.message || '알 수 없는 오류'));
+      const errorMsg = isMobile 
+        ? 'PDF 저장에 실패했습니다. 파일 크기가 너무 클 수 있습니다. 페이지를 새로고침하고 다시 시도해주세요.'
+        : 'PDF 저장에 실패했습니다: ' + (err.message || '알 수 없는 오류');
+      alert(errorMsg);
       reject(err);
       return;
     }
@@ -11641,7 +11808,18 @@ function setupImageButton() {
         throw new Error("저장할 페이지가 없습니다.");
       }
       const combinedCanvas = combineCanvasesVertical(orderedCanvases);
-      await downloadCanvasAsImage(combinedCanvas, `DIT_자세_분석_${cur}_${new Date().toISOString().split('T')[0]}.png`, btn, originalText);
+      
+      // PDF와 동일한 파일명 형식 사용
+      let imageFileName;
+      const centerNameForFile = centerNameDisplay || '';
+      const memberNameForFile = memberNameDisplay || '회원';
+      if(centerNameForFile && memberNameForFile) {
+        imageFileName = `${centerNameForFile}_${memberNameForFile}_자세분석리포트_${new Date().toISOString().split('T')[0]}.png`;
+      } else {
+        imageFileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+      }
+      
+      await downloadCanvasAsImage(combinedCanvas, imageFileName, btn, originalText);
     } catch (error) {
       console.error("전체 이미지 생성 실패:", error);
       alert("이미지 생성 중 오류가 발생했습니다: " + (error?.message || "알 수 없는 오류"));
@@ -12095,64 +12273,69 @@ function mapPoseToKeypoints(pose, orientation) {
       const leftScore = (leftShoulder.visibility || 0) + (leftHip?.visibility || 0) + (leftKnee?.visibility || 0);
       const rightScore = (rightShoulder.visibility || 0) + (rightHip?.visibility || 0) + (rightKnee?.visibility || 0);
       useLeft = leftScore >= rightScore;
+    } else if(leftShoulder) {
+      useLeft = true;
+    } else if(rightShoulder) {
+      useLeft = false;
     }
     
     console.log('옆모습 감지:', useLeft ? '왼쪽 사용' : '오른쪽 사용');
     
+    // visibility 임계값을 낮춰서 더 많은 랜드마크를 매핑 (0.3 -> 0.2)
+    const minVisibility = 0.2;
+    
     // tragus: ear (더 보이는 쪽) - Flutter 1:1 매칭
     const ear = useLeft ? leftEar : rightEar;
-    if(ear && ear.visibility >= 0.3) {
-      keypointMap['tragus'] = { x: ear.x, y: ear.y, score: ear.visibility };
-    } else if(!ear || ear.visibility < 0.3) {
+    if(ear && (ear.visibility || 0) >= minVisibility) {
+      keypointMap['tragus'] = { x: ear.x, y: ear.y, score: ear.visibility || 0.5 };
+    } else if(nose && (nose.visibility || 0) >= minVisibility) {
       // ear가 안 보이면 nose 사용
-      if(nose && nose.visibility >= 0.3) {
-        keypointMap['tragus'] = { x: nose.x, y: nose.y + 0.03, score: nose.visibility * 0.8 };
-      }
+      keypointMap['tragus'] = { x: nose.x, y: nose.y + 0.03, score: (nose.visibility || 0.5) * 0.8 };
     }
     
     // acromion: 어깨 (더 보이는 쪽) - Flutter 1:1 매칭
     const shoulder = useLeft ? leftShoulder : rightShoulder;
-    if(shoulder && shoulder.visibility >= 0.3) {
-      keypointMap['acromion'] = { x: shoulder.x, y: shoulder.y, score: shoulder.visibility };
+    if(shoulder && (shoulder.visibility || 0) >= minVisibility) {
+      keypointMap['acromion'] = { x: shoulder.x, y: shoulder.y, score: shoulder.visibility || 0.5 };
       
       // c7: 어깨보다 약간 위/뒤 - Flutter 1:1 매칭
       keypointMap['c7'] = { 
         x: shoulder.x - 0.02, // 어깨보다 약간 뒤
         y: shoulder.y - 0.03, // 어깨보다 약간 위
-        score: shoulder.visibility * 0.9
+        score: (shoulder.visibility || 0.5) * 0.9
       };
     }
     
     // hip: 골반 (더 보이는 쪽) - Flutter 1:1 매칭
     const hip = useLeft ? leftHip : rightHip;
-    if(hip && hip.visibility >= 0.3) {
-      keypointMap['hip'] = { x: hip.x, y: hip.y, score: hip.visibility };
+    if(hip && (hip.visibility || 0) >= minVisibility) {
+      keypointMap['hip'] = { x: hip.x, y: hip.y, score: hip.visibility || 0.5 };
       
       // asis: hip보다 약간 앞/위 - Flutter 1:1 매칭
       keypointMap['asis'] = { 
         x: hip.x + 0.03, // 앞쪽
         y: hip.y - 0.01, // 약간 위
-        score: hip.visibility * 0.85 
+        score: (hip.visibility || 0.5) * 0.85 
       };
       
       // psis: hip보다 약간 뒤 - Flutter 1:1 매칭
       keypointMap['psis'] = { 
         x: hip.x - 0.03, // 뒤쪽
         y: hip.y - 0.01, // 약간 위
-        score: hip.visibility * 0.85 
+        score: (hip.visibility || 0.5) * 0.85 
       };
     }
     
     // knee: 무릎 (더 보이는 쪽) - Flutter 1:1 매칭
     const knee = useLeft ? leftKnee : rightKnee;
-    if(knee && knee.visibility >= 0.3) {
-      keypointMap['knee'] = { x: knee.x, y: knee.y, score: knee.visibility };
+    if(knee && (knee.visibility || 0) >= minVisibility) {
+      keypointMap['knee'] = { x: knee.x, y: knee.y, score: knee.visibility || 0.5 };
     }
     
     // ankle: 발목 (더 보이는 쪽) - Flutter 1:1 매칭
     const ankle = useLeft ? leftAnkle : rightAnkle;
-    if(ankle && ankle.visibility >= 0.3) {
-      keypointMap['ankle'] = { x: ankle.x, y: ankle.y, score: ankle.visibility };
+    if(ankle && (ankle.visibility || 0) >= minVisibility) {
+      keypointMap['ankle'] = { x: ankle.x, y: ankle.y, score: ankle.visibility || 0.5 };
     }
     
     console.log('옆모습 랜드마크 매핑:', Object.keys(keypointMap));
@@ -12168,9 +12351,23 @@ function mapPoseToKeypoints(pose, orientation) {
     const rightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
     const leftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
     const rightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
+    const collectAvg = (indices) => {
+      const samples = [];
+      indices.forEach(idx => {
+        const kp = keypoints[idx];
+        if (kp && kp.visibility >= 0.3) samples.push(kp.x);
+      });
+      if (!samples.length) return null;
+      return samples.reduce((a, b) => a + b, 0) / samples.length;
+    };
+    const leftAvg = collectAvg([11, 23, 25, 27]);
+    const rightAvg = collectAvg([12, 24, 26, 28]);
+    // 환자 기준 좌/우를 화면 좌/우로 뒤집어야 하는 경우 감지 (환자 왼쪽이 화면 오른쪽에 위치하면 미러링)
+    const shouldMirrorFront = leftAvg != null && rightAvg != null && leftAvg > rightAvg;
     const makePoint = (kp) => {
       if (!kp || kp.visibility < 0.3) return null;
-      return { x: kp.x, y: kp.y, score: kp.visibility };
+      const mirroredX = shouldMirrorFront ? 1 - kp.x : kp.x;
+      return { x: mirroredX, y: kp.y, score: kp.visibility };
     };
     const assignPoint = (kp, targetKey) => {
       const point = makePoint(kp);
@@ -12182,23 +12379,23 @@ function mapPoseToKeypoints(pose, orientation) {
     assignPoint(rightShoulder, 'R_acromion');
     
     // c7: 양쪽 어깨 중간 (목 아래) - Flutter 1:1 매칭
-    if(keypointMap['L_acromion'] && keypointMap['R_acromion']) {
+    if(keypointMap['R_acromion'] && keypointMap['L_acromion']) {
       keypointMap['c7'] = {
-        x: (keypointMap['L_acromion'].x + keypointMap['R_acromion'].x) / 2,
-        y: Math.min(keypointMap['L_acromion'].y, keypointMap['R_acromion'].y) - 0.04,
-        score: Math.min(keypointMap['L_acromion'].score, keypointMap['R_acromion'].score)
-      };
-    } else if(keypointMap['L_acromion']) {
-      keypointMap['c7'] = {
-        x: keypointMap['L_acromion'].x,
-        y: keypointMap['L_acromion'].y - 0.04,
-        score: keypointMap['L_acromion'].score * 0.8
+        x: (keypointMap['R_acromion'].x + keypointMap['L_acromion'].x) / 2,
+        y: Math.min(keypointMap['R_acromion'].y, keypointMap['L_acromion'].y) - 0.04,
+        score: Math.min(keypointMap['R_acromion'].score, keypointMap['L_acromion'].score)
       };
     } else if(keypointMap['R_acromion']) {
       keypointMap['c7'] = {
         x: keypointMap['R_acromion'].x,
         y: keypointMap['R_acromion'].y - 0.04,
         score: keypointMap['R_acromion'].score * 0.8
+      };
+    } else if(keypointMap['L_acromion']) {
+      keypointMap['c7'] = {
+        x: keypointMap['L_acromion'].x,
+        y: keypointMap['L_acromion'].y - 0.04,
+        score: keypointMap['L_acromion'].score * 0.8
       };
     }
     
