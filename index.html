@@ -12642,7 +12642,7 @@ function initializeApp() {
         btnAIAnalysis.disabled = true;
         
         // 현재 세션 데이터 확인
-        const S = sessions[cur];
+        const S = window.sessions[cur];
         if (!S || (!S.sidePoints || S.sidePoints.size === 0) && (!S.frontPoints || S.frontPoints.size === 0)) {
           alert("먼저 이미지를 업로드하고 좌표를 설정해주세요.");
           btnAIAnalysis.textContent = originalText;
@@ -12654,7 +12654,7 @@ function initializeApp() {
         await computeAll();
         
         // 분석 결과 표시 영역 업데이트
-        const S2 = sessions[cur];
+        const S2 = window.sessions[cur];
         if (S2.analysis && S2.score) {
           updateScoreAndAnalysis(S2.score.score, S2.metrics?.cva, S2.metrics?.pelvic, S2.metrics?.knee, S2.analysis);
         }
