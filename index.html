@@ -12660,16 +12660,26 @@ function mapPoseToKeypoints(pose, orientation) {
     const mpScreenLeftAnkle = keypoints[27];   // 화면 왼쪽 발목 (환자 왼쪽)
     const mpScreenRightAnkle = keypoints[28]; // 화면 오른쪽 발목 (환자 오른쪽)
     
+    // 디버깅: keypoints 배열 상태 확인
+    console.log(`🔍 정면 keypoints 디버깅: 총 ${keypoints.length}개`);
+    console.log(`🔍 keypoints[23] (leftHip):`, mpScreenLeftHip ? `존재 (x=${mpScreenLeftHip.x?.toFixed(3)}, y=${mpScreenLeftHip.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[24] (rightHip):`, mpScreenRightHip ? `존재 (x=${mpScreenRightHip.x?.toFixed(3)}, y=${mpScreenRightHip.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[25] (leftKnee):`, mpScreenLeftKnee ? `존재 (x=${mpScreenLeftKnee.x?.toFixed(3)}, y=${mpScreenLeftKnee.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[26] (rightKnee):`, mpScreenRightKnee ? `존재 (x=${mpScreenRightKnee.x?.toFixed(3)}, y=${mpScreenRightKnee.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[27] (leftAnkle):`, mpScreenLeftAnkle ? `존재 (x=${mpScreenLeftAnkle.x?.toFixed(3)}, y=${mpScreenLeftAnkle.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[28] (rightAnkle):`, mpScreenRightAnkle ? `존재 (x=${mpScreenRightAnkle.x?.toFixed(3)}, y=${mpScreenRightAnkle.y?.toFixed(3)})` : 'null');
+    
     // 좌표 변환 함수: 화면 좌표를 그대로 사용 (환자 기준으로 매핑)
-    // confidence 임계값을 더 낮춰서 더 많은 랜드마크를 매핑 (0.15 -> 0.1)
+    // confidence 임계값을 매우 낮춰서 더 많은 랜드마크를 매핑 (0.1 -> 0.01)
     const makePoint = (kp, label = '') => {
       if (!kp) {
         console.warn(`⚠️ ${label}: keypoint이 null입니다`);
         return null;
       }
       const confidence = getKeypointConfidence(kp);
-      if (confidence < 0.1) {
-        console.warn(`⚠️ ${label}: confidence가 너무 낮음 (${confidence.toFixed(2)})`);
+      console.log(`🔍 ${label} 디버깅: confidence=${confidence.toFixed(3)}, x=${kp.x?.toFixed(3)}, y=${kp.y?.toFixed(3)}`);
+      if (confidence < 0.01) {
+        console.warn(`⚠️ ${label}: confidence가 너무 낮음 (${confidence.toFixed(3)})`);
         return null;
       }
       return { x: kp.x, y: kp.y, score: confidence || 0.5 };
