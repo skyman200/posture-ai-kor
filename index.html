@@ -3185,7 +3185,7 @@ function initSessionButtons() {
   if(btnOrientationSide) {
     addMobileTouchSupport(btnOrientationSide, () => {
       console.log("옆모습 버튼 클릭됨");
-      setOrientation("side");
+      setOrientation("side", { manual: true });
     });
   } else {
     console.error("btnOrientationSide를 찾을 수 없습니다");
@@ -3194,7 +3194,7 @@ function initSessionButtons() {
   if(btnOrientationFront) {
     addMobileTouchSupport(btnOrientationFront, () => {
       console.log("정면 버튼 클릭됨");
-      setOrientation("front");
+      setOrientation("front", { manual: true });
     });
   } else {
     console.error("btnOrientationFront를 찾을 수 없습니다");
@@ -3251,11 +3251,33 @@ function updateCoordSelectOptions() {
   }
 }
 
-function setOrientation(orientation) {
-  if(!sessions[cur].poseData) {
-    sessions[cur].poseData = { orientation: orientation, landmarks: null };
+function setOrientation(orientation, options = {}) {
+  const sessionName = options.sessionName || cur;
+  const manual = !!options.manual;
+  const unlock = !!options.unlock;
+  const session = sessions[sessionName];
+  if(!session) return;
+  
+  if(!session.poseData) {
+    session.poseData = { 
+      orientation, 
+      landmarks: null,
+      orientationMode: manual ? "manual" : "auto"
+    };
   } else {
-    sessions[cur].poseData.orientation = orientation;
+    session.poseData.orientation = orientation;
+    if(manual) {
+      session.poseData.orientationMode = "manual";
+    } else if(unlock) {
+      session.poseData.orientationMode = "auto";
+    } else if(!session.poseData.orientationMode) {
+      session.poseData.orientationMode = "auto";
+    }
+  }
+  
+  const isCurrent = sessionName === cur;
+  if(!isCurrent) {
+    return;
   }
   
   const btnSide = document.getElementById("btnOrientationSide");
@@ -3263,7 +3285,7 @@ function setOrientation(orientation) {
   if(btnSide) btnSide.classList.toggle("active", orientation === "side");
   if(btnFront) btnFront.classList.toggle("active", orientation === "front");
   
-  console.log(`${cur} 세션의 방향을 ${orientation === "side" ? "옆모습" : "정면"}으로 설정`);
+  console.log(`${sessionName} 세션의 방향을 ${orientation === "side" ? "옆모습" : "정면"}으로 설정`);
   
   // 좌표 선택 드롭다운 업데이트
   updateCoordSelectOptions();
@@ -3275,14 +3297,14 @@ function setOrientation(orientation) {
   originalCanvasSize.styleHeight = 0;
   
   // orientation 변경 시 캔버스 다시 그리기
-  const currentImg = orientation === "front" ? sessions[cur].imgFront : sessions[cur].imgSide;
+  const currentImg = orientation === "front" ? session.imgFront : session.imgSide;
   if(currentImg && currentImg.complete && currentImg.naturalWidth > 0) {
     resizeCanvasFor(currentImg);
     draw();
   } else {
     // 이미지가 없거나 로드 중이면 기본 크기로 설정하고 그리기
     resizeCanvasFor(null);
-  draw();
+    draw();
   }
 }
 
@@ -6768,9 +6790,22 @@ window.handleFileUpload = function handleFileUpload(e) {
     return;
   }
   
-  // 현재 선택된 orientation은 힌트로만 사용 (실제 저장은 AI 추론 결과에 따름)
-  const guessedOrientation = targetSession.poseData?.orientation || "side";
+  // 현재 선택된 버튼(정면/옆모습) 확인 - 사용자가 선택한 orientation 우선 사용
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  const currentButtonOrientation = btnFront?.classList.contains("active") ? "front" 
+    : (btnSide?.classList.contains("active") ? "side" : null);
+  
+  // 현재 선택된 버튼의 orientation을 우선 사용, 없으면 세션의 orientation, 그것도 없으면 기본값 "side"
+  const guessedOrientation = currentButtonOrientation || targetSession.poseData?.orientation || "side";
+  if(!targetSession.poseData) {
+    targetSession.poseData = { orientation: guessedOrientation, landmarks: null, orientationMode: currentButtonOrientation ? "manual" : "auto" };
+  } else if(!targetSession.poseData.orientationMode) {
+    targetSession.poseData.orientationMode = currentButtonOrientation ? "manual" : "auto";
+  }
   let imgKey = guessedOrientation === "front" ? "imgFront" : "imgSide";
+  
+  console.log("파일 업로드 - 현재 선택된 orientation:", guessedOrientation, "(버튼:", currentButtonOrientation, ", 세션:", targetSession.poseData?.orientation, ")");
   
   const img = new Image();
   img.onerror = (e) => {
@@ -6819,11 +6854,23 @@ window.handleFileUpload = function handleFileUpload(e) {
       }
     }, 100);
     
-    // 포즈 감지 자동 실행 (선택된 orientation 사용)
+    // 포즈 감지 자동 실행 (사용자가 선택한 orientation 우선 사용)
     const prevOrientation = targetSession.poseData?.orientation || guessedOrientation;
     let detectedOrientation = null;
+    
+    // 사용자가 명시적으로 버튼을 선택한 경우, 그 orientation을 우선 사용
+    const userSelectedOrientation = currentButtonOrientation;
+    
     if(typeof applyPoseDetection === 'function') {
       try {
+        // 사용자가 선택한 orientation을 세션에 먼저 설정 (AI 감지 전에)
+        if(userSelectedOrientation && !targetSession.poseData) {
+          targetSession.poseData = { orientation: userSelectedOrientation, landmarks: null, orientationMode: "manual" };
+        } else if(userSelectedOrientation && targetSession.poseData) {
+          targetSession.poseData.orientation = userSelectedOrientation;
+          targetSession.poseData.orientationMode = "manual";
+        }
+        
         const detectionResult = await applyPoseDetection(img, targetSessionName);
         detectedOrientation = detectionResult?.orientation || null;
       } catch(err) {
@@ -6831,8 +6878,11 @@ window.handleFileUpload = function handleFileUpload(e) {
       }
     }
 
-    if(detectedOrientation) {
-      const desiredKey = detectedOrientation === "front" ? "imgFront" : "imgSide";
+    // 사용자가 명시적으로 선택한 orientation이 있으면 그것을 우선 사용
+    const finalOrientation = userSelectedOrientation || detectedOrientation || guessedOrientation;
+    
+    if(finalOrientation) {
+      const desiredKey = finalOrientation === "front" ? "imgFront" : "imgSide";
       if(desiredKey !== imgKey) {
         const prevImg = targetSession[desiredKey];
         if(prevImg && prevImg !== img && prevImg.src && prevImg.src.startsWith('blob:')) {
@@ -6846,13 +6896,14 @@ window.handleFileUpload = function handleFileUpload(e) {
       }
       
       if(!targetSession.poseData) {
-        targetSession.poseData = { orientation: detectedOrientation, landmarks: null };
+        targetSession.poseData = { orientation: finalOrientation, landmarks: null, orientationMode: userSelectedOrientation ? "manual" : "auto" };
       }
-      targetSession.poseData.orientation = detectedOrientation;
+      targetSession.poseData.orientation = finalOrientation;
+      targetSession.poseData.orientationMode = userSelectedOrientation ? "manual" : "auto";
       
       if(targetSessionName === cur) {
-        if(prevOrientation !== detectedOrientation) {
-          setOrientation(detectedOrientation);
+        if(prevOrientation !== finalOrientation) {
+          setOrientation(finalOrientation);
         } else {
           draw();
         }
@@ -11871,10 +11922,10 @@ function initializeApp() {
   }
   
   if(!sessions.Before.poseData) {
-    sessions.Before.poseData = { orientation: "side", landmarks: null };
+    sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
   if(!sessions.After.poseData) {
-    sessions.After.poseData = { orientation: "side", landmarks: null };
+    sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
 
   // 버튼 이벤트 핸들러 초기화
@@ -11990,16 +12041,23 @@ function inferOrientationFromPose(pose) {
     [27, 28], // ankles
     [13, 14]  // elbows
   ];
-  let score = 0;
+  let frontScore = 0;
+  let visiblePairs = 0;
   pairs.forEach(([l, r]) => {
     const L = keypoints[l];
     const R = keypoints[r];
-    if (L?.visibility >= 0.35 && R?.visibility >= 0.35) {
+    if (L?.visibility >= 0.3 && R?.visibility >= 0.3) {
+      visiblePairs++;
       const diff = Math.abs(L.x - R.x);
-      if (diff > 0.06) score++;
+      if (diff >= 0.03) {
+        frontScore++;
+      }
     }
   });
-  return score >= 2 ? "front" : "side";
+  if (frontScore >= 2 || (frontScore >= 1 && visiblePairs >= 3)) {
+    return "front";
+  }
+  return "side";
 }
 
 function mapPoseToKeypoints(pose, orientation) {
@@ -12175,18 +12233,28 @@ async function applyPoseDetection(img, sessionName) {
   
   // 세션의 orientation 사용 (기본값: side)
   if(!session.poseData) {
-    session.poseData = { orientation: "side", landmarks: null };
+    session.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
   const orientation = session.poseData.orientation || "side";
+  const isManualOrientation = session.poseData.orientationMode === "manual";
   
   console.log(`${sessionName} 세션: ${orientation === "side" ? "옆모습" : "정면"} 포즈 감지 시작`);
   
   let pose = await detectPose(img, orientation);
   if(!pose) return null;
   
-  let activeOrientation = orientation;
+  // 사용자가 명시적으로 선택한 orientation이 있으면 그것을 우선 사용 (AI 자동 감지 무시)
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  const userSelectedOrientation = btnFront?.classList.contains("active") ? "front" 
+    : (btnSide?.classList.contains("active") ? "side" : null);
+  
+  let activeOrientation = userSelectedOrientation || orientation;
+  
+  // 사용자가 명시적으로 선택하지 않은 경우에만 AI 자동 감지 사용
+  if(!userSelectedOrientation) {
   const inferredOrientation = inferOrientationFromPose(pose);
-  if (inferredOrientation && inferredOrientation !== orientation) {
+  if (!isManualOrientation && inferredOrientation && inferredOrientation !== orientation) {
     const retryPose = await detectPose(img, inferredOrientation);
     if (retryPose) {
       pose = retryPose;
@@ -12194,10 +12262,17 @@ async function applyPoseDetection(img, sessionName) {
     console.log(`자동 orientation 감지: ${orientation} → ${inferredOrientation}`);
     activeOrientation = inferredOrientation;
   }
+  } else {
+    console.log(`사용자가 선택한 orientation 사용: ${activeOrientation} (AI 자동 감지 무시)`);
+  }
   
   // 포즈 정보 저장
   session.poseData.landmarks = pose.keypoints;
   session.poseData.detectedOrientation = activeOrientation;
+  if(!isManualOrientation) {
+    session.poseData.orientation = activeOrientation;
+    session.poseData.orientationMode = "auto";
+  }
   
   // 기존 점 시스템에 매핑 (선택적)
   const keypointMap = mapPoseToKeypoints(pose, activeOrientation);
