@@ -1544,13 +1544,35 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   
   // 7️⃣ Q-Angle: ASIS → KNEE → tibial tuberosity
   // (정면에서만 측정 가능, ASIS-KNEE-Tibial tub 세 점 사용)
+  // Q-Angle은 ASIS에서 무릎을 거쳐 경골 결절까지의 각도 (정상 10-20°)
   const L_tibial_tub = p("L_tibial_tub") || p("L_Tibial_Tub");
   const R_tibial_tub = p("R_tibial_tub") || p("R_Tibial_Tub");
   
   // 좌측 Q-Angle 계산: ASIS → KNEE → Tibial tub
   if (L_asis && L_knee && L_tibial_tub) {
     // Q-Angle: ASIS → KNEE → tibial tuberosity 각도
-    const qAngleL = angleAt(L_knee, L_asis, L_tibial_tub);
+    // angleAt(vertex, point1, point2)는 vertex에서 point1과 point2 사이의 각도를 계산
+    let qAngleL = angleAt(L_knee, L_asis, L_tibial_tub);
+    
+    // 각도가 90도보다 크면 보완각을 사용 (Q-Angle은 보통 예각)
+    if (qAngleL > 90) {
+      qAngleL = 180 - qAngleL;
+    }
+    
+    // 각도가 여전히 비정상적으로 크면 (예: 170도 이상), 점들의 순서가 잘못되었을 수 있음
+    // ASIS가 무릎보다 위에 있어야 하므로 y 좌표 확인
+    if (qAngleL > 90 && L_asis.y < L_knee.y && L_knee.y < L_tibial_tub.y) {
+      // 점들이 거의 일직선에 있으면 각도를 재계산
+      const dx1 = L_asis.x - L_knee.x;
+      const dy1 = L_asis.y - L_knee.y;
+      const dx2 = L_tibial_tub.x - L_knee.x;
+      const dy2 = L_tibial_tub.y - L_knee.y;
+      const angle1 = Math.atan2(dy1, dx1) * 180 / Math.PI;
+      const angle2 = Math.atan2(dy2, dx2) * 180 / Math.PI;
+      qAngleL = Math.abs(angle1 - angle2);
+      if (qAngleL > 90) qAngleL = 180 - qAngleL;
+    }
+    
     result.Q_Angle_L = {
       value: qAngleL,
       value_deg: qAngleL,
@@ -1570,7 +1592,25 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
   
   // 우측 Q-Angle 계산: ASIS → KNEE → Tibial tub
   if (R_asis && R_knee && R_tibial_tub) {
-    const qAngleR = angleAt(R_knee, R_asis, R_tibial_tub);
+    let qAngleR = angleAt(R_knee, R_asis, R_tibial_tub);
+    
+    // 각도가 90도보다 크면 보완각을 사용
+    if (qAngleR > 90) {
+      qAngleR = 180 - qAngleR;
+    }
+    
+    // 각도가 여전히 비정상적으로 크면 재계산
+    if (qAngleR > 90 && R_asis.y < R_knee.y && R_knee.y < R_tibial_tub.y) {
+      const dx1 = R_asis.x - R_knee.x;
+      const dy1 = R_asis.y - R_knee.y;
+      const dx2 = R_tibial_tub.x - R_knee.x;
+      const dy2 = R_tibial_tub.y - R_knee.y;
+      const angle1 = Math.atan2(dy1, dx1) * 180 / Math.PI;
+      const angle2 = Math.atan2(dy2, dx2) * 180 / Math.PI;
+      qAngleR = Math.abs(angle1 - angle2);
+      if (qAngleR > 90) qAngleR = 180 - qAngleR;
+    }
+    
     result.Q_Angle_R = {
       value: qAngleR,
       value_deg: qAngleR,
@@ -4076,7 +4116,11 @@ function computeScoreFromFullMetrics(fullMetrics) {
   
   // 9. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°)
   const qAngle = fullMetrics.Q_Angle?.value;
-  if(qAngle != null) {
+  if(qAngle != null && !isNaN(qAngle) && isFinite(qAngle)) {
+    // Q-Angle이 비정상적으로 크면 (예: 90도 이상) 계산 오류로 간주하고 스킵
+    if(qAngle > 90) {
+      console.warn(`⚠️ Q-Angle이 비정상적으로 큼: ${qAngle.toFixed(1)}°, 점수 계산에서 제외`);
+    } else {
     if(qAngle < 10) {
       const delta = 10 - qAngle;
       const penalty = Math.min(15, delta * 1.5);
@@ -4087,6 +4131,7 @@ function computeScoreFromFullMetrics(fullMetrics) {
       const penalty = Math.min(20, delta * 2);
       penalties += penalty;
       reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
   }
   
