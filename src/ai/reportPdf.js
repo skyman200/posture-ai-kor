@@ -219,54 +219,111 @@ export async function exportDetailedPDF({
       
       const line1 = `${secTag} ${r.name} (${r.metric})  →  ${r.value}${r.unit} | 정상:${r.normalText || '-'} | 상태:${r.status}`;
       const line1Wrapped = pdf.splitTextToSize(line1, 180);
-      pdf.text(line1Wrapped, 14, y);
-      y += 6 * line1Wrapped.length;
+      line1Wrapped.forEach(line => {
+        if (y > 270) { 
+          pdf.addPage(); 
+          header('지표별 상세 해석(계속)'); 
+          y = 52; 
+        }
+        pdf.text(line, 14, y);
+        y += 6;
+      });
 
       if (r.pattern) {
         const patternWrapped = pdf.splitTextToSize(`• 패턴: ${r.pattern}`, 180);
-        pdf.text(patternWrapped, 18, y);
-        y += 6 * patternWrapped.length;
+        patternWrapped.forEach(line => {
+          if (y > 270) { 
+            pdf.addPage(); 
+            header('지표별 상세 해석(계속)'); 
+            y = 52; 
+          }
+          pdf.text(line, 18, y);
+          y += 6;
+        });
       }
 
       if (r.tight && r.tight.length > 0) {
         const tightText = Array.isArray(r.tight) ? r.tight.join(', ') : r.tight;
         const tightWrapped = pdf.splitTextToSize(`• 긴장근: ${tightText}`, 180);
-        pdf.text(tightWrapped, 18, y);
-        y += 6 * tightWrapped.length;
+        tightWrapped.forEach(line => {
+          if (y > 270) { 
+            pdf.addPage(); 
+            header('지표별 상세 해석(계속)'); 
+            y = 52; 
+          }
+          pdf.text(line, 18, y);
+          y += 6;
+        });
       }
 
       if (r.weak && r.weak.length > 0) {
         const weakText = Array.isArray(r.weak) ? r.weak.join(', ') : r.weak;
         const weakWrapped = pdf.splitTextToSize(`• 약화근: ${weakText}`, 180);
-        pdf.text(weakWrapped, 18, y);
-        y += 6 * weakWrapped.length;
+        weakWrapped.forEach(line => {
+          if (y > 270) { 
+            pdf.addPage(); 
+            header('지표별 상세 해석(계속)'); 
+            y = 52; 
+          }
+          pdf.text(line, 18, y);
+          y += 6;
+        });
       }
 
       if (r.exerciseGuide) {
         const guideWrapped = pdf.splitTextToSize(`• 가이드: ${r.exerciseGuide}`, 180);
-        pdf.text(guideWrapped, 18, y);
-        y += 6 * guideWrapped.length;
+        guideWrapped.forEach(line => {
+          if (y > 270) { 
+            pdf.addPage(); 
+            header('지표별 상세 해석(계속)'); 
+            y = 52; 
+          }
+          pdf.text(line, 18, y);
+          y += 6;
+        });
       }
 
       if (r.pilates && r.pilates.length > 0) {
+        if (y > 270) { 
+          pdf.addPage(); 
+          header('지표별 상세 해석(계속)'); 
+          y = 52; 
+        }
         pdf.text('• 필라테스 추천:', 18, y);
         y += 6;
         
         r.pilates.forEach(p => {
           const pText = `  - ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
           const pWrapped = pdf.splitTextToSize(pText, 176);
-          pdf.text(pWrapped, 22, y);
-          y += 6 * pWrapped.length;
+          pWrapped.forEach(line => {
+            if (y > 270) { 
+              pdf.addPage(); 
+              header('지표별 상세 해석(계속)'); 
+              y = 52; 
+            }
+            pdf.text(line, 22, y);
+            y += 6;
+          });
+          
+          // 운동 설명 추가
+          const howToDo = p.how_to_do || p.how || p.instructions || '';
+          if (howToDo) {
+            const howText = `    운동 설명: ${howToDo}`;
+            const howWrapped = pdf.splitTextToSize(howText, 172);
+            howWrapped.forEach(line => {
+              if (y > 270) { 
+                pdf.addPage(); 
+                header('지표별 상세 해석(계속)'); 
+                y = 52; 
+              }
+              pdf.text(line, 22, y);
+              y += 6;
+            });
+          }
         });
       }
 
       y += 4; // 항목 간 간격
-
-      if (y > 270) { 
-        pdf.addPage(); 
-        header('지표별 상세 해석(계속)'); 
-        y = 52; 
-      }
     }
   } else {
     pdf.text('분석 결과가 없습니다.', 14, y);
@@ -281,15 +338,29 @@ export async function exportDetailedPDF({
     ? analysis.tightAll.join(', ') 
     : '-';
   const tightWrapped = pdf.splitTextToSize(`긴장된 근육(통합): ${tightAllText}`, 180);
-  pdf.text(tightWrapped, 14, y);
-  y += 6 * tightWrapped.length;
+  tightWrapped.forEach(line => {
+    if (y > 270) { 
+      pdf.addPage(); 
+      header('종합 근육/운동 요약(계속)'); 
+      y = 52; 
+    }
+    pdf.text(line, 14, y);
+    y += 6;
+  });
 
   const weakAllText = (analysis.weakAll && analysis.weakAll.length > 0)
     ? analysis.weakAll.join(', ')
     : '-';
   const weakWrapped = pdf.splitTextToSize(`약화된 근육(통합): ${weakAllText}`, 180);
-  pdf.text(weakWrapped, 14, y);
-  y += 6 * weakWrapped.length;
+  weakWrapped.forEach(line => {
+    if (y > 270) { 
+      pdf.addPage(); 
+      header('종합 근육/운동 요약(계속)'); 
+      y = 52; 
+    }
+    pdf.text(line, 14, y);
+    y += 6;
+  });
 
   pdf.text('필라테스 세션(통합):', 14, y);
   y += 6;
@@ -298,14 +369,33 @@ export async function exportDetailedPDF({
     analysis.pilatesAll.forEach(p => {
       const pText = `- ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
       const pWrapped = pdf.splitTextToSize(pText, 180);
-      pdf.text(pWrapped, 18, y);
-      y += 6 * pWrapped.length;
+      pWrapped.forEach(line => {
+        if (y > 270) { 
+          pdf.addPage(); 
+          header('필라테스 세션(계속)'); 
+          y = 52; 
+        }
+        pdf.text(line, 18, y);
+        y += 6;
+      });
       
-      if (y > 270) { 
-        pdf.addPage(); 
-        header('필라테스 세션(계속)'); 
-        y = 52; 
+      // 운동 설명 추가
+      const howToDo = p.how_to_do || p.how || p.instructions || '';
+      if (howToDo) {
+        const howText = `  운동 설명: ${howToDo}`;
+        const howWrapped = pdf.splitTextToSize(howText, 176);
+        howWrapped.forEach(line => {
+          if (y > 270) { 
+            pdf.addPage(); 
+            header('필라테스 세션(계속)'); 
+            y = 52; 
+          }
+          pdf.text(line, 18, y);
+          y += 6;
+        });
       }
+      
+      y += 2; // 항목 간 간격
     });
   } else {
     pdf.text('- 추천 세션이 없습니다.', 18, y);

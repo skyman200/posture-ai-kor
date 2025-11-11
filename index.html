@@ -5465,8 +5465,8 @@ function showExerciseModal(exerciseEn = '', exerciseKo = '', purpose = '') {
     
     if(detail.how_to_do) {
       contentHTML += `<div style="margin-bottom:20px;">
-        <h4 style="color:#2ec4b6; font-size:15px; margin-bottom:10px; border-bottom:2px solid #2ec4b6; padding-bottom:5px;">수행 방법</h4>
-        <p style="margin-bottom:15px; line-height:1.8;">${formatMultilineText(detail.how_to_do)}</p>
+        <h4 style="color:#2ec4b6; font-size:15px; margin-bottom:10px; border-bottom:2px solid #2ec4b6; padding-bottom:5px;">운동 설명</h4>
+        <div style="margin-bottom:15px; line-height:1.8; white-space:pre-wrap;">${formatMultilineText(detail.how_to_do)}</div>
       </div>`;
     }
     
@@ -8226,7 +8226,7 @@ function renderExerciseDetailHTML(entry, options = {}) {
     html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">목적</strong><br>${formatMultilineText(info.purpose)}</div>`;
   }
   if (info.how) {
-    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">방법</strong><br>${formatMultilineText(info.how)}</div>`;
+    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">운동 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
   }
   if (info.cues) {
     html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">핵심 큐</strong><br>${formatMultilineText(info.cues)}</div>`;
@@ -9633,7 +9633,16 @@ function mapPilatesExerciseRow(row, equipmentKo) {
     purpose: strengthenStr
       ? `강화: ${strengthenStr}${stretchStr ? ` / 스트레칭: ${stretchStr}` : ''}`
       : '',
-    how_to_do: row.How_to_Perform_Step_by_Step_FULL_CLASSICAL || row.How_to_Perform_EASY_FOR_BEGINNERS || row.How_to_Perform_Step_by_Step || row.How_to_Perform || '',
+    how_to_do: row['How_to_Perform_Step_by_Step_FULL_CLASSICAL'] || 
+               row['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] || 
+               row['How_to_Perform_EASY_FOR_BEGINNERS'] || 
+               row['How_to_Perform_Step_by_Step (상세 동작 설명)'] || 
+               row['How_to_Perform_Step_by_Step'] || 
+               row['How_to_Perform'] || 
+               row.How_to_Perform_Step_by_Step_FULL_CLASSICAL || 
+               row.How_to_Perform_EASY_FOR_BEGINNERS || 
+               row.How_to_Perform_Step_by_Step || 
+               row.How_to_Perform || '',
     key_cues: row.Classical_Cues_by_Jay_Grimes_Romana || row.Breathing_Pattern || row.Breathing || '',
     sets_reps: row.Reps || '',
     spring: row.Spring_Traditional || row.Spring || '',

@@ -758,19 +758,53 @@ export async function generateFullPDFReport(
           }
         }
 
-        // 이미지 추가
-        const imgWidth = 80;
-        const imgHeight = 100;
+        // 이미지 추가 - 실제 이미지 비율 유지
+        const maxImgWidth = 80;
+        const maxImgHeight = 100;
         const startY = 30;
+        const spacing = 10;
+
+        const getImageProps = (dataUrl: string) => {
+          const img = new Image();
+          return new Promise<{ width: number; height: number }>((resolve) => {
+            img.onload = () => {
+              resolve({ width: img.width, height: img.height });
+            };
+            img.onerror = () => {
+              resolve({ width: maxImgWidth, height: maxImgHeight });
+            };
+            img.src = dataUrl;
+          });
+        };
 
         if (beforeDataUrl && beforeDataUrl !== 'data:,') {
+          const imgProps = await getImageProps(beforeDataUrl);
+          const aspectRatio = imgProps.width / imgProps.height;
+          let imgWidth = maxImgWidth;
+          let imgHeight = maxImgWidth / aspectRatio;
+          
+          if (imgHeight > maxImgHeight) {
+            imgHeight = maxImgHeight;
+            imgWidth = maxImgHeight * aspectRatio;
+          }
+
           pdf.addImage(beforeDataUrl, 'PNG', 20, startY, imgWidth, imgHeight);
           pdf.setFontSize(10);
           pdf.text('Before', 20 + imgWidth / 2, startY + imgHeight + 5, { align: 'center' });
         }
 
         if (afterDataUrl && afterDataUrl !== 'data:,') {
-          const afterX = beforeDataUrl ? 110 : 20;
+          const imgProps = await getImageProps(afterDataUrl);
+          const aspectRatio = imgProps.width / imgProps.height;
+          let imgWidth = maxImgWidth;
+          let imgHeight = maxImgWidth / aspectRatio;
+          
+          if (imgHeight > maxImgHeight) {
+            imgHeight = maxImgHeight;
+            imgWidth = maxImgHeight * aspectRatio;
+          }
+
+          const afterX = beforeDataUrl ? 20 + maxImgWidth + spacing : 20;
           pdf.addImage(afterDataUrl, 'PNG', afterX, startY, imgWidth, imgHeight);
           pdf.setFontSize(10);
           pdf.text('After', afterX + imgWidth / 2, startY + imgHeight + 5, { align: 'center' });
@@ -877,13 +911,14 @@ export async function generateFullPDFReport(
       const patternDesc = p.pattern_name || p.type || '';
       const text = `${idx + 1}. ${patternName}${patternDesc ? ` — ${patternDesc}` : ''}`;
       const lines = pdf.splitTextToSize(text, pageWidth - 40);
-      pdf.text(lines, 20, y);
-      y += lines.length * 6;
-
-      if (y > pageHeight - 30) {
-        pdf.addPage();
-        y = 20;
-      }
+      lines.forEach((line: string) => {
+        if (y > pageHeight - 30) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(line, 20, y);
+        y += 6;
+      });
     });
   } else {
     pdf.text('분석된 문제 패턴이 없습니다.', 20, y);
@@ -904,14 +939,43 @@ export async function generateFullPDFReport(
 
       const title = `${idx + 1}. ${exName}${equipment ? ` (${equipment})` : ''}`;
       const titleLines = pdf.splitTextToSize(title, pageWidth - 40);
-      pdf.text(titleLines, 20, y);
-      y += titleLines.length * 6;
+      titleLines.forEach((line: string) => {
+        if (y > pageHeight - 30) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(line, 20, y);
+        y += 6;
+      });
 
       if (purpose) {
         const purposeText = `  목적: ${purpose}`;
         const purposeLines = pdf.splitTextToSize(purposeText, pageWidth - 45);
-        pdf.text(purposeLines, 25, y);
-        y += purposeLines.length * 6;
+        purposeLines.forEach((line: string) => {
+          if (y > pageHeight - 30) {
+            pdf.addPage();
+            y = 20;
+          }
+          pdf.text(line, 25, y);
+          y += 6;
+        });
+        y += 2;
+      }
+
+      // 운동 설명 추가
+      const howToDo = (ex as any).how_to_do || (ex as any).how || (ex as any).instructions || '';
+      if (howToDo) {
+        const howText = `  운동 설명: ${howToDo}`;
+        const howLines = pdf.splitTextToSize(howText, pageWidth - 45);
+        howLines.forEach((line: string) => {
+          if (y > pageHeight - 30) {
+            pdf.addPage();
+            y = 20;
+          }
+          pdf.text(line, 25, y);
+          y += 6;
+        });
+        y += 2;
       }
 
       y += 4; // 항목 간 간격
@@ -957,7 +1021,14 @@ export async function generateFullPDFReport(
     pdf.text('추가 메모:', 20, y);
     y += 6;
     const noteLines = pdf.splitTextToSize(options.additionalNotes, pageWidth - 40);
-    pdf.text(noteLines, 20, y);
+    noteLines.forEach((line: string) => {
+      if (y > pageHeight - 30) {
+        pdf.addPage();
+        y = 20;
+      }
+      pdf.text(line, 20, y);
+      y += 6;
+    });
   }
 
   // ========== 저장 ==========
