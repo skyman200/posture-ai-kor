@@ -9561,7 +9561,11 @@ if (isMobile) {
     canvases: {
       cover: canvas1,
       heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
-      chartCanvas: chartCanvas?.chartInstance?.canvas || null // 그래프만 캡처
+      chartCanvas: chartCanvas?.chartInstance?.canvas || null, // 그래프만 캡처
+      aiSummary: canvas4 || null, // AI 해석 요약 페이지
+      pilates: canvas5 || null, // 필라테스 추천 페이지
+      aiDeep: canvas6 || null, // AI 심층 분석 페이지
+      conclusion: canvas7 || null // 결론 페이지
     },
     textData: {
       comparison,
@@ -11504,6 +11508,10 @@ function exportAsPdf(options = {}) {
     }
     const heatmapCanvas = canvases.heatmap;
     const chartCanvasElement = canvases.chartCanvas;
+    const aiSummaryCanvas = canvases.aiSummary; // AI 해석 요약 캔버스
+    const pilatesCanvas = canvases.pilates; // 필라테스 추천 캔버스
+    const aiDeepCanvas = canvases.aiDeep; // AI 심층 분석 캔버스
+    const conclusionCanvas = canvases.conclusion; // 결론 캔버스
     
     // 텍스트 데이터
     const { comparison, analysis, dbAnalysis, scoreResult, planTexts, pilatesHtml, deepAnalysisText, beforeAfterSummaryHtml, fullPlanHtml, combinedMetrics, afterMetricsForDB, memberNameForPDF1 } = textData || {};
@@ -11511,6 +11519,7 @@ function exportAsPdf(options = {}) {
     console.log('📊 comparison:', comparison);
     console.log('📊 analysis:', analysis);
     console.log('📊 chartCanvas:', chartCanvasElement);
+    console.log('📊 aiSummaryCanvas:', aiSummaryCanvas);
     
     const maxImg1H = pageH - margin * 2;
     
