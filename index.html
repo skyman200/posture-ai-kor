@@ -8165,7 +8165,17 @@ function normalizeExerciseEntry(entry) {
   if (typeof entry === 'string') {
     return { name: entry };
   }
-  return entry;
+  const normalized = { ...entry };
+  if (!normalized.name) {
+    normalized.name = normalized.exercise_ko || normalized.exercise_en || normalized.en || normalized.ko || '';
+  }
+  if (!normalized.en && normalized.exercise_en) normalized.en = normalized.exercise_en;
+  if (!normalized.ko && normalized.exercise_ko) normalized.ko = normalized.exercise_ko;
+  if (!normalized.how && normalized.how_to_do) normalized.how = normalized.how_to_do;
+  if (!normalized.purpose && normalized.description) normalized.purpose = normalized.description;
+  if (!normalized.sets_reps && normalized.reps) normalized.sets_reps = normalized.reps;
+  if (!normalized.precaution && normalized.warning) normalized.precaution = normalized.warning;
+  return normalized;
 }
 
 function getExerciseDetailInfo(entry) {
@@ -8182,10 +8192,16 @@ function getExerciseDetailInfo(entry) {
     title = `${title} (${titleKo})`;
   }
   const purpose = detail?.purpose || normalized.purpose || '';
-  const how = detail?.how_to_do || detail?.instructions || normalized.how || '';
-  const cues = detail?.key_cues || normalized.key_cues || '';
-  const sets = detail?.sets_reps || normalized.sets_reps || '';
-  const precaution = detail?.precaution || normalized.precaution || '';
+  const how =
+    detail?.how_to_do ||
+    detail?.instructions ||
+    normalized.how ||
+    normalized.how_to_do ||
+    normalized.instructions ||
+    '';
+  const cues = detail?.key_cues || normalized.key_cues || normalized.cues || '';
+  const sets = detail?.sets_reps || normalized.sets_reps || normalized.reps || '';
+  const precaution = detail?.precaution || normalized.precaution || normalized.warning || '';
   return { title, purpose, how, cues, sets, precaution, enKey: detail?.exercise_en || en, koKey: titleKo || ko };
 }
 
