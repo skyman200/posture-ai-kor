@@ -9412,11 +9412,18 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
-// 필라테스 추천 카드 HTML 생성
-const pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
+// 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로)
+let pilatesHtml = '';
+if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
+  // 앱에서 사용하는 것과 동일한 방식으로 렌더링 (context: 'ui', limitPerTool: Infinity로 모든 운동 표시)
+  pilatesHtml = analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'ui', index: idx, limitPerTool: Infinity })).join('');
+} else {
+  // 폴백: generatePilatesSessionText 사용
+  pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
+}
 
 page5Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 추천 루틴 (쉬운 따라하기)</h2>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 세션 추천</h2>
   <div style="margin-top:20px; line-height:1.6;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
