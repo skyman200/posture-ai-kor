@@ -12566,44 +12566,21 @@ let detectors = { front: null, side: null };
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 // DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
 function initializeApp() {
-  console.log("=== DOMContentLoaded 이벤트 발생 ===");
+  console.log("🚀 initializeApp 실행됨");
   
-  // sessions가 정의되어 있는지 확인 (window.sessions 사용)
-  // window.sessions가 null이 아닌지 확인 (초기화 시 null로 설정되므로)
-  if(typeof window.sessions === 'undefined' || window.sessions === null || !window.sessions) {
-    console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.", { 
-      sessionsType: typeof window.sessions, 
-      sessionsValue: window.sessions 
-    });
-    // 재시도 로직 추가
-    const retryCount = initializeApp.retryCount || 0;
-    if (retryCount < 20) { // 재시도 횟수 증가
-      initializeApp.retryCount = retryCount + 1;
-      setTimeout(initializeApp, 300);
-    } else {
-      console.error("sessions 초기화 실패: 최대 재시도 횟수 초과");
-    }
+  const sessions = window.sessions;
+  if (!sessions) {
+    console.error("🚨 window.sessions 없음 → 지금 코드 구조 망가진 거임");
     return;
   }
+  
+  console.log("📦 sessions 상태:", sessions);
   
   // sessions.Before와 sessions.After가 초기화되었는지 확인
-  if(!window.sessions.Before || !window.sessions.After) {
-    console.warn("sessions.Before 또는 sessions.After가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.", {
-      hasBefore: !!window.sessions.Before,
-      hasAfter: !!window.sessions.After
-    });
-    const retryCount = initializeApp.retryCount || 0;
-    if (retryCount < 20) { // 재시도 횟수 증가
-      initializeApp.retryCount = retryCount + 1;
-      setTimeout(initializeApp, 300);
-    } else {
-      console.error("sessions.Before/After 초기화 실패: 최대 재시도 횟수 초과");
-    }
+  if(!sessions.Before || !sessions.After) {
+    console.error("🚨 sessions.Before 또는 sessions.After가 없음");
     return;
   }
-  
-  // 재시도 카운터 리셋
-  initializeApp.retryCount = 0;
   
   // 파일 업로드 설정 (가장 먼저)
   if(typeof setupFileUploads === 'function') {
@@ -12692,18 +12669,18 @@ function initializeApp() {
   // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
   // sessions 객체에 orientation과 landmarks 정보 추가
   // 이미 위에서 확인했으므로 여기서는 안전하게 초기화만 수행
-  if(!window.sessions.Before.poseData) {
-    window.sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
+  if(!sessions.Before.poseData) {
+    sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
-  if(!window.sessions.After.poseData) {
-    window.sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
+  if(!sessions.After.poseData) {
+    sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
 
   // 버튼 이벤트 핸들러 초기화
   initSessionButtons();
   
   // orientation 버튼 상태 설정
-  const orientation = window.sessions[cur].poseData?.orientation || "side";
+  const orientation = sessions[cur].poseData?.orientation || "side";
   const btnSide = document.getElementById("btnOrientationSide");
   const btnFront = document.getElementById("btnOrientationFront");
   
@@ -13382,67 +13359,15 @@ if (typeof window !== 'undefined') {
   
   // 모든 함수가 정의된 후 initializeApp 호출
   // 함수들이 모두 로드되도록 충분한 지연 시간 제공
-  const initAppWhenReady = () => {
-    // 필수 함수들이 모두 정의되었는지 확인
-    const requiredFunctions = ['setupResetButton', 'setupCalibrateButton', 'setupCalibrationButtons', 'setupPDFButton', 'setupImageButton'];
-    let allDefined = true;
-    try {
-      allDefined = requiredFunctions.every(fn => {
-        try {
-          return typeof eval(fn) === 'function';
-        } catch {
-          return false;
-        }
-      });
-    } catch {
-      allDefined = false;
-    }
-    
-    // sessions 객체가 정의되었는지 확인 (window.sessions 사용)
-    // window.sessions가 null이 아닌지 확인 (초기화 시 null로 설정되므로)
-    const sessionsReady = typeof window.sessions !== 'undefined' && 
-                          window.sessions !== null && 
-                          window.sessions && 
-                          window.sessions.Before && 
-                          window.sessions.After;
-    
-    if (allDefined && sessionsReady) {
-      initializeApp();
-    } else {
-      // 아직 준비되지 않았으면 다시 시도 (최대 20번, 총 4초)
-      const retryCount = initAppWhenReady.retryCount || 0;
-      if (retryCount < 20) {
-        initAppWhenReady.retryCount = retryCount + 1;
-        // 디버깅을 위한 로그
-        if (retryCount % 5 === 0) {
-          console.log(`⏳ 초기화 대기 중... (${retryCount}/20)`, {
-            allDefined,
-            sessionsReady,
-            windowSessions: typeof window.sessions,
-            windowSessionsValue: window.sessions
-          });
-        }
-        setTimeout(initAppWhenReady, 200);
-      } else {
-        console.warn('⚠️ 일부 함수가 로드되지 않았지만 initializeApp을 실행합니다.', {
-          allDefined,
-          sessionsReady,
-          windowSessions: typeof window.sessions,
-          windowSessionsValue: window.sessions
-        });
-        initializeApp();
-      }
-    }
-  };
-  
+  // DOMContentLoaded에서 바로 initializeApp 실행
+  // sessions는 이미 위에서 window.sessions로 할당되었으므로 바로 사용 가능
   if(document.readyState === 'loading') {
     document.addEventListener("DOMContentLoaded", () => {
-      // 함수들이 모두 정의되도록 충분한 지연
-      setTimeout(initAppWhenReady, 500);
+      initializeApp();
     });
   } else {
-    // 이미 로드 완료된 경우 약간의 지연 후 실행 (함수들이 모두 정의되도록)
-    setTimeout(initAppWhenReady, 500);
+    // 이미 로드 완료된 경우 바로 실행
+    initializeApp();
   }
 }
 
