@@ -9420,20 +9420,26 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
-// 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로 - 모든 운동 상세 정보 포함)
+// 필라테스 추천 카드 HTML 생성 (앱과 완전히 동일한 형식으로)
 let pilatesHtml = '';
 if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
-  // 앱과 동일하게 렌더링하되, PDF에서는 모든 운동을 표시 (limitPerTool: Infinity)
-  // context는 'ui'를 사용하되, PDF 배경에 맞게 조정
+  // 앱에서 사용하는 것과 완전히 동일한 방식으로 렌더링
+  // 앱에서는 context: 'dark', limitPerTool: 2를 사용하지만
+  // PDF에서는 모든 운동을 표시하기 위해 limitPerTool: Infinity 사용
+  // context는 'ui'를 사용 (PDF 배경이 흰색이므로)
   pilatesHtml = analysis.pilates.map((item, idx) => {
-    return renderPilatesItemCard(item, { 
-      context: 'ui', 
+    // 앱과 동일한 데이터 구조로 렌더링
+    const cardHtml = renderPilatesItemCard(item, { 
+      context: 'ui',  // PDF는 흰 배경이므로 'ui' 사용
       index: idx, 
-      limitPerTool: Infinity,  // 모든 운동 표시
-      compact: false  // 상세 정보 모두 표시
+      limitPerTool: Infinity  // PDF에서는 모든 운동 상세 정보 표시
     });
+    console.log(`📋 필라테스 카드 ${idx + 1}:`, item.name || item.issue, 'pilatesData:', item.pilates ? Object.keys(item.pilates) : '없음');
+    return cardHtml;
   }).join('');
+  console.log('✅ 필라테스 HTML 생성 완료, 길이:', pilatesHtml.length);
 } else {
+  console.warn('⚠️ 필라테스 데이터 없음, 폴백 사용');
   // 폴백: generatePilatesSessionText 사용
   pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
 }
