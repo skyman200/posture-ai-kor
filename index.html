@@ -3288,7 +3288,7 @@ function setOrientation(orientation, options = {}) {
     }
   }
   
-  const isCurrent = sessionName === cur;
+  const isCurrent = sessionName === (window.cur || cur);
   if(!isCurrent) {
     return;
   }
