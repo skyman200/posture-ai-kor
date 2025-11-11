@@ -11412,13 +11412,19 @@ function exportAsPdf(options = {}) {
   
   return new Promise(async (resolve, reject) => {
     try {
+      console.log("🔍 PDF 생성 시작 - 라이브러리 확인 중...");
+      
       // 라이브러리 확인
       if (!window.jspdf || !window.jspdf.jsPDF) {
-        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다.");
+        console.error("❌ jsPDF 라이브러리 없음:", { jspdf: window.jspdf });
+        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
       }
       if (typeof html2canvas === 'undefined') {
-        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다.");
+        console.error("❌ html2canvas 라이브러리 없음");
+        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
       }
+      
+      console.log("✅ 라이브러리 확인 완료");
       
       const { jsPDF } = window.jspdf;
       const {
@@ -12044,8 +12050,25 @@ function setupPDFButton() {
         alert("PDF가 저장되었습니다!");
       }
     } catch(error) {
-      console.error("PDF 생성 실패:", error);
-      alert("PDF 생성에 실패했습니다: " + error.message);
+      console.error("❌ PDF 생성 실패:", error);
+      console.error("❌ 에러 스택:", error.stack);
+      console.error("❌ 에러 상세:", {
+        name: error.name,
+        message: error.message,
+        cause: error.cause
+      });
+      
+      // 더 자세한 에러 메시지
+      let errorMsg = "PDF 생성에 실패했습니다.\n\n";
+      errorMsg += `에러: ${error.message || '알 수 없는 오류'}\n\n`;
+      errorMsg += "가능한 원인:\n";
+      errorMsg += "1. 라이브러리 로드 실패 (jsPDF, html2canvas)\n";
+      errorMsg += "2. 이미지/캔버스 생성 실패\n";
+      errorMsg += "3. 메모리 부족\n";
+      errorMsg += "4. 브라우저 호환성 문제\n\n";
+      errorMsg += "콘솔을 확인하여 자세한 에러 정보를 확인하세요.";
+      
+      alert(errorMsg);
       const btn = document.getElementById("btnPDF");
       if (btn) {
         btn.textContent = "📄 PDF 저장";
