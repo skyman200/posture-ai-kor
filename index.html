@@ -12005,110 +12005,54 @@ function exportAsPdf(options = {}) {
       addPageToPdf(pilatesCanvas);
     }
     
-    // 페이지 6: AI 심층 분석 (텍스트로 직접 렌더링 + 비교 그래프)
-    if (deepAnalysisText) {
-      pdf.addPage();
-      let y = margin + 10;
+    // 페이지 6: AI 심층 분석 (canvas 사용 - 한글 깨짐 방지)
+    // AI 심층 분석은 한글이 많아서 html2canvas로 캡처한 이미지를 사용
+    if (aiDeepCanvas) {
+      addPageToPdf(aiDeepCanvas);
       
-      // 제목
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('🤖 AI 자세 심층 분석', margin, y);
-      y += 30;
-      
-      // AI 심층 분석 텍스트 파싱 및 렌더링
-      const lines = deepAnalysisText.split('\n');
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(50, 50, 50);
-      
-      lines.forEach((line, idx) => {
-        if (y > pageH - 150) {
-          pdf.addPage();
-          y = margin + 20;
-        }
-        
-        if (line.trim() === '') {
-          y += 8; // 빈 줄
-          return;
-        }
-        
-        if (line.startsWith('▶')) {
-          // 섹션 제목
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(12);
-          pdf.setTextColor(44, 62, 80); // #2c3e50
-          pdf.text(line.replace('▶', '').trim(), margin, y);
-          y += 18;
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(9);
-          pdf.setTextColor(50, 50, 50);
-        } else if (line.startsWith('📍')) {
-          // 부제목
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(10);
-          pdf.setTextColor(99, 102, 241); // #6366f1
-          pdf.text(line.replace('📍', '').trim(), margin + 10, y);
-          y += 14;
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(9);
-          pdf.setTextColor(50, 50, 50);
-        } else if (line.startsWith('- ')) {
-          // 주요 항목
-          const text = line.replace('- ', '').trim();
-          const textLines = pdf.splitTextToSize(text, imgW - 30);
-          pdf.text(textLines, margin + 10, y);
-          y += textLines.length * 11 + 5;
-        } else if (line.startsWith('  ·')) {
-          // 하위 항목
-          const text = line.replace('  ·', '').trim();
-          const textLines = pdf.splitTextToSize(text, imgW - 50);
-          pdf.text(textLines, margin + 25, y);
-          y += textLines.length * 10 + 3;
-        } else {
-          // 일반 텍스트
-          const textLines = pdf.splitTextToSize(line, imgW - 20);
-          pdf.text(textLines, margin, y);
-          y += textLines.length * 11 + 4;
-        }
-      });
-      
-      // 사전/사후 비교 그래프 추가
+      // 사전/사후 비교 그래프를 별도 페이지로 추가
       if (chartCanvasElement) {
-        y += 15;
-        if (y > pageH - 350) {
-          pdf.addPage();
-          y = margin + 20;
-        }
+        pdf.addPage();
+        let y = margin + 10;
         
         try {
           pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(12);
-          pdf.setTextColor(44, 62, 80);
-          pdf.text('📈 Before-After 비교 그래프', margin, y);
-          y += 20;
+          pdf.setFontSize(16);
+          pdf.setTextColor(0, 0, 0);
+          pdf.text('Before-After Comparison Graph', margin, y);
+          y += 25;
           
           const chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
           const chartW = Math.min(imgW, 700);
           const chartH = (chartCanvasElement.height / chartCanvasElement.width) * chartW;
           const chartX = margin + (imgW - chartW) / 2;
           
-          pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, 300));
-          y += Math.min(chartH, 300) + 20;
+          pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, pageH - y - 40));
         } catch (err) {
           console.warn('차트 이미지 추가 실패:', err);
         }
+        
+        // 페이지 번호
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        const graphPageNum = (pageIndexMap.aiDeep || 5) + 1;
+        pdf.text(`Page ${graphPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
       }
+    } else if (deepAnalysisText) {
+      // canvas가 없으면 텍스트로 폴백 (영문만)
+      pdf.addPage();
+      let y = margin + 10;
       
-      // 페이지 번호
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      const aiDeepPageNum = pageIndexMap.aiDeep || 5;
-      pdf.text(`Page ${aiDeepPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
-    } else if (aiDeepCanvas) {
-      // 텍스트가 없으면 기존 canvas 사용
-      addPageToPdf(aiDeepCanvas);
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('AI Posture Deep Analysis', margin, y);
+      y += 30;
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(50, 50, 50);
+      pdf.text('Deep analysis content is available in the canvas version.', margin, y);
     }
     
     // 페이지 7: 결론
