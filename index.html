@@ -12567,13 +12567,19 @@ function initializeApp() {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
   
   // sessions가 정의되어 있는지 확인 (window.sessions 사용)
-  if(typeof window.sessions === 'undefined' || !window.sessions) {
-    console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.");
+  // window.sessions가 null이 아닌지 확인 (초기화 시 null로 설정되므로)
+  if(typeof window.sessions === 'undefined' || window.sessions === null || !window.sessions) {
+    console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.", { 
+      sessionsType: typeof window.sessions, 
+      sessionsValue: window.sessions 
+    });
     // 재시도 로직 추가
     const retryCount = initializeApp.retryCount || 0;
-    if (retryCount < 10) {
+    if (retryCount < 20) { // 재시도 횟수 증가
       initializeApp.retryCount = retryCount + 1;
       setTimeout(initializeApp, 300);
+    } else {
+      console.error("sessions 초기화 실패: 최대 재시도 횟수 초과");
     }
     return;
   }
@@ -13386,7 +13392,12 @@ if (typeof window !== 'undefined') {
     }
     
     // sessions 객체가 정의되었는지 확인 (window.sessions 사용)
-    const sessionsReady = typeof window.sessions !== 'undefined' && window.sessions && window.sessions.Before && window.sessions.After;
+    // window.sessions가 null이 아닌지 확인 (초기화 시 null로 설정되므로)
+    const sessionsReady = typeof window.sessions !== 'undefined' && 
+                          window.sessions !== null && 
+                          window.sessions && 
+                          window.sessions.Before && 
+                          window.sessions.After;
     
     if (allDefined && sessionsReady) {
       initializeApp();
