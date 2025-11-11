@@ -11300,23 +11300,29 @@ function exportAsPdf(options = {}) {
       const maxImgH = pageH - margin * 2;
       const targetWidth = Math.min(imgW, canvas.width);
       const scaleRatio = targetWidth / canvas.width;
-      const pageHeightPx = Math.max(140, Math.floor(maxImgH / (scaleRatio || 1)));
-      const overlapPx = Math.max(40, Math.floor(80 / (scaleRatio || 1)));
-      const pageX = margin + (imgW - targetWidth) / 2;
+      const pageHeightPx = Math.max(180, Math.floor(maxImgH / (scaleRatio || 1)));
+      const overlapPx = Math.max(80, Math.floor(120 / (scaleRatio || 1)));
 
       const renderSlice = (sliceCanvas, sliceHeightPx) => {
-        const renderedHeight = Math.min(
-          maxImgH,
-          Math.round(sliceHeightPx * scaleRatio)
-        );
+        if (!sliceCanvas) return;
+        let renderWidth = targetWidth;
+        let renderHeight = sliceHeightPx * scaleRatio;
+        if (renderHeight > maxImgH) {
+          const shrink = maxImgH / renderHeight;
+          renderHeight = maxImgH;
+          renderWidth = targetWidth * shrink;
+        }
+        const pageX = margin + (imgW - renderWidth) / 2;
         pdf.addPage();
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pageW, pageH, "F");
         pdf.addImage(
           sliceCanvas.toDataURL("image/png"),
           "PNG",
           pageX,
           margin,
-          targetWidth,
-          renderedHeight
+          renderWidth,
+          renderHeight
         );
       };
 
@@ -11327,7 +11333,8 @@ function exportAsPdf(options = {}) {
 
       let offsetY = 0;
       while (offsetY < canvas.height) {
-        const currentHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+        const remaining = canvas.height - offsetY;
+        const currentHeight = Math.min(pageHeightPx, remaining);
         const sliceCanvas = document.createElement("canvas");
         sliceCanvas.width = canvas.width;
         sliceCanvas.height = currentHeight;
