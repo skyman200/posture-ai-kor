@@ -1542,17 +1542,15 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 7️⃣ Q-Angle: ASIS → patella 중심 → tibial tuberosity
-  // (정면에서만 측정 가능)
-  const L_patella = p("L_patella") || p("L_Patella");
-  const R_patella = p("R_patella") || p("R_Patella");
+  // 7️⃣ Q-Angle: ASIS → KNEE → tibial tuberosity
+  // (정면에서만 측정 가능, ASIS-KNEE-Tibial tub 세 점 사용)
   const L_tibial_tub = p("L_tibial_tub") || p("L_Tibial_Tub");
   const R_tibial_tub = p("R_tibial_tub") || p("R_Tibial_Tub");
   
-  // 좌측 Q-Angle 계산
-  if (L_asis && L_patella && L_tibial_tub) {
-    // Q-Angle: ASIS → patella 중심 → tibial tuberosity 각도
-    const qAngleL = angleAt(L_patella, L_asis, L_tibial_tub);
+  // 좌측 Q-Angle 계산: ASIS → KNEE → Tibial tub
+  if (L_asis && L_knee && L_tibial_tub) {
+    // Q-Angle: ASIS → KNEE → tibial tuberosity 각도
+    const qAngleL = angleAt(L_knee, L_asis, L_tibial_tub);
     result.Q_Angle_L = {
       value: qAngleL,
       value_deg: qAngleL,
@@ -1570,9 +1568,9 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     };
   }
   
-  // 우측 Q-Angle 계산
-  if (R_asis && R_patella && R_tibial_tub) {
-    const qAngleR = angleAt(R_patella, R_asis, R_tibial_tub);
+  // 우측 Q-Angle 계산: ASIS → KNEE → Tibial tub
+  if (R_asis && R_knee && R_tibial_tub) {
+    const qAngleR = angleAt(R_knee, R_asis, R_tibial_tub);
     result.Q_Angle_R = {
       value: qAngleR,
       value_deg: qAngleR,
@@ -8520,7 +8518,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
       <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
         ${overlayImg ? `
         <div style="flex:1; min-width:280px; max-width:400px;">
-          <div style="text-align:center;">
+      <div style="text-align:center;">
             <img src="${overlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색(Before) | 주황색(After)</div>
           </div>
@@ -8676,24 +8674,24 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   // Before-After 오버레이 이미지 생성 (측면 + 정면 모두)
   let overlayImg = null; // 측면 overlay
   let frontOverlayImg = null; // 정면 overlay
-  
-  // Map을 일반 객체로 변환 (소문자 키로 통일)
-  const getPointsObject = (pointsMap) => {
-    if(!pointsMap) return null;
-    const obj = {};
-    if(pointsMap instanceof Map) {
-      pointsMap.forEach((value, key) => {
-        const lowerKey = key.toLowerCase();
-        obj[lowerKey] = value;
-      });
-    } else if(typeof pointsMap === 'object') {
-      Object.keys(pointsMap).forEach(key => {
-        const lowerKey = key.toLowerCase();
-        obj[lowerKey] = pointsMap[key];
-      });
-    }
-    return obj;
-  };
+
+      // Map을 일반 객체로 변환 (소문자 키로 통일)
+      const getPointsObject = (pointsMap) => {
+        if(!pointsMap) return null;
+        const obj = {};
+        if(pointsMap instanceof Map) {
+          pointsMap.forEach((value, key) => {
+            const lowerKey = key.toLowerCase();
+            obj[lowerKey] = value;
+          });
+        } else if(typeof pointsMap === 'object') {
+          Object.keys(pointsMap).forEach(key => {
+            const lowerKey = key.toLowerCase();
+            obj[lowerKey] = pointsMap[key];
+          });
+        }
+        return obj;
+      };
 
   // 측면 overlay 생성
   if(beforeViews.side && afterViews.side) {
@@ -11103,18 +11101,18 @@ function waitForChartRender(chart, timeout = 2000) {
           requestAnimationFrame(() => {
             // 최종 확인: Canvas에 실제로 그려졌는지 확인
             try {
-              const ctx = chart.canvas.getContext('2d');
+            const ctx = chart.canvas.getContext('2d');
               // 캔버스 크기 확인 (0이면 오류 발생)
               if (chart.canvas.width > 0 && chart.canvas.height > 0) {
                 const sampleWidth = Math.min(chart.canvas.width, 10);
                 const sampleHeight = Math.min(chart.canvas.height, 10);
                 const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
-                const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // 알파 채널 제외하고 픽셀 데이터 확인
-                
-                if (hasContent || chart.canvas.width > 0) {
-                  resolve(chart);
-                } else {
-                  // 내용이 없어도 타임아웃 후 진행
+            const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // 알파 채널 제외하고 픽셀 데이터 확인
+            
+            if (hasContent || chart.canvas.width > 0) {
+              resolve(chart);
+            } else {
+              // 내용이 없어도 타임아웃 후 진행
                   setTimeout(() => resolve(chart), 100);
                 }
               } else {
@@ -11483,14 +11481,14 @@ function exportAsPdf(options = {}) {
       
       const finalCoverX = margin + (imgW - finalCoverW) / 2;
       
-      pdf.addImage(
+    pdf.addImage(
         coverImageData,
-        "PNG",
+      "PNG",
         finalCoverX,
-        margin,
+      margin,
         finalCoverW,
         finalCoverH
-      );
+    );
     } catch (err) {
       console.error('표지 이미지 추가 실패:', err);
       throw new Error('표지 이미지를 PDF에 추가할 수 없습니다.');
@@ -11525,17 +11523,17 @@ function exportAsPdf(options = {}) {
           
           const finalPageX = margin + (imgW - finalRenderWidth) / 2;
           
-          pdf.addPage();
-          pdf.setFillColor(255, 255, 255);
-          pdf.rect(0, 0, pageW, pageH, "F");
-          pdf.addImage(
+        pdf.addPage();
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pageW, pageH, "F");
+        pdf.addImage(
             imageData,
-            "PNG",
+          "PNG",
             finalPageX,
-            margin,
+          margin,
             finalRenderWidth,
             finalRenderHeight
-          );
+        );
         } catch (err) {
           console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
         }
@@ -11840,18 +11838,18 @@ function exportAsPdf(options = {}) {
           
           // 모바일에서는 data URI 방식 시도 (더 안정적)
           if (isMobile) {
-            try {
+          try {
               await new Promise(resolve => setTimeout(resolve, 200));
-              const dataUri = pdf.output('datauristring');
-              const link = document.createElement('a');
-              link.href = dataUri;
-              link.download = finalFileName;
-              link.style.display = 'none';
-              document.body.appendChild(link);
+            const dataUri = pdf.output('datauristring');
+            const link = document.createElement('a');
+            link.href = dataUri;
+            link.download = finalFileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
               
               // 모바일에서 더 긴 지연 후 클릭
               await new Promise(resolve => setTimeout(resolve, 300));
-              requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
                 try {
                   link.click();
                 } catch (e) {
@@ -11883,16 +11881,16 @@ function exportAsPdf(options = {}) {
               link.style.display = 'none';
               document.body.appendChild(link);
               requestAnimationFrame(() => {
-                link.click();
-                setTimeout(() => {
-                  if (document.body.contains(link)) {
-                    document.body.removeChild(link);
-                  }
-                }, 1000);
-              });
-              pdfSaved = true;
-            } catch (finalErr) {
-              throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
+              link.click();
+              setTimeout(() => {
+                if (document.body.contains(link)) {
+                  document.body.removeChild(link);
+                }
+              }, 1000);
+            });
+            pdfSaved = true;
+          } catch (finalErr) {
+            throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
             }
           }
         }
@@ -12651,7 +12649,7 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
-    // 중요: MediaPipe keypoints는 화면 좌표 기준입니다
+    // 중요: MediaPipe keypoints는 정규화된 좌표(0-1) 또는 픽셀 좌표를 반환합니다
     // keypoints[11] = 화면 왼쪽 어깨 → 환자의 왼쪽 어깨 → L_acromion
     // keypoints[12] = 화면 오른쪽 어깨 → 환자의 오른쪽 어깨 → R_acromion
     const mpScreenLeft = keypoints[11];   // 화면 왼쪽 어깨 (환자 왼쪽)
@@ -12672,8 +12670,9 @@ function mapPoseToKeypoints(pose, orientation) {
     console.log(`🔍 keypoints[27] (leftAnkle):`, mpScreenLeftAnkle ? `존재 (x=${mpScreenLeftAnkle.x?.toFixed(3)}, y=${mpScreenLeftAnkle.y?.toFixed(3)})` : 'null');
     console.log(`🔍 keypoints[28] (rightAnkle):`, mpScreenRightAnkle ? `존재 (x=${mpScreenRightAnkle.x?.toFixed(3)}, y=${mpScreenRightAnkle.y?.toFixed(3)})` : 'null');
     
-    // 좌표 변환 함수: 화면 좌표를 그대로 사용 (환자 기준으로 매핑)
-    // confidence 임계값을 완전히 제거하여 모든 랜드마크를 매핑
+    // 좌표 변환 함수: MediaPipe 좌표를 이미지 픽셀 좌표로 변환 (정규화된 좌표인 경우)
+    // applyPoseDetection에서 이미지 크기를 알 수 있으므로, 여기서는 좌표를 그대로 반환하고
+    // applyPoseDetection에서 변환하도록 함
     const makePoint = (kp, label = '') => {
       if (!kp || kp.x === undefined || kp.y === undefined) {
         console.warn(`⚠️ ${label}: keypoint이 null이거나 좌표가 없습니다`);
@@ -12685,6 +12684,7 @@ function mapPoseToKeypoints(pose, orientation) {
       // confidence가 아무리 낮아도 좌표가 있으면 매핑 (임계값 제거)
       // 최소 confidence를 0.1로 설정하여 너무 낮은 값은 기본값 사용
       const finalConfidence = confidence > 0 ? Math.max(confidence, 0.1) : 0.1;
+      // 좌표는 그대로 반환 (applyPoseDetection에서 이미지 크기 기준으로 변환)
       return { x: kp.x, y: kp.y, score: finalConfidence };
     };
     
@@ -12887,6 +12887,27 @@ function mapPoseToKeypoints(pose, orientation) {
       };
       console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     }
+    
+    // tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용)
+    // 좌측 tibial tub
+    if (keypointMap['L_knee']) {
+      keypointMap['L_tibial_tub'] = {
+        x: keypointMap['L_knee'].x,
+        y: keypointMap['L_knee'].y + (keypointMap['L_ankle'] ? (keypointMap['L_ankle'].y - keypointMap['L_knee'].y) * 0.15 : 50), // 무릎 아래 약 15% 또는 50px
+        score: keypointMap['L_knee'].score * 0.9
+      };
+      console.log(`✅ L_tibial_tub 매핑 (L_knee 기준): (${keypointMap['L_tibial_tub'].x.toFixed(3)}, ${keypointMap['L_tibial_tub'].y.toFixed(3)})`);
+    }
+    
+    // 우측 tibial tub
+    if (keypointMap['R_knee']) {
+      keypointMap['R_tibial_tub'] = {
+        x: keypointMap['R_knee'].x,
+        y: keypointMap['R_knee'].y + (keypointMap['R_ankle'] ? (keypointMap['R_ankle'].y - keypointMap['R_knee'].y) * 0.15 : 50), // 무릎 아래 약 15% 또는 50px
+        score: keypointMap['R_knee'].score * 0.9
+      };
+      console.log(`✅ R_tibial_tub 매핑 (R_knee 기준): (${keypointMap['R_tibial_tub'].x.toFixed(3)}, ${keypointMap['R_tibial_tub'].y.toFixed(3)})`);
+    }
 
     console.log(`✅ 정면 랜드마크 매핑 완료 (환자 기준): ${Object.keys(keypointMap).length}개 - [${Object.keys(keypointMap).join(', ')}]`);
   }
@@ -12973,7 +12994,7 @@ async function applyPoseDetection(img, sessionName) {
         continue;
       }
       
-      // MediaPipe는 정규화된 좌표(0-1)를 제공하므로 픽셀 좌표로 변환
+        // MediaPipe는 정규화된 좌표(0-1)를 제공하므로 픽셀 좌표로 변환
       // value.x가 이미 1보다 크면 이미 픽셀 좌표이므로 그대로 사용
       let imgX, imgY;
       if(value.x > 1 || value.y > 1) {
@@ -12985,25 +13006,25 @@ async function applyPoseDetection(img, sessionName) {
         imgX = value.x * img.naturalWidth;
         imgY = value.y * img.naturalHeight;
       }
-      
-      // 캔버스 크기에 맞게 스케일링
-      const scaleX = originalCanvasSize.width / img.naturalWidth;
-      const scaleY = originalCanvasSize.height / img.naturalHeight;
-      
-      const finalX = imgX * scaleX;
-      const finalY = imgY * scaleY;
+        
+        // 캔버스 크기에 맞게 스케일링
+        const scaleX = originalCanvasSize.width / img.naturalWidth;
+        const scaleY = originalCanvasSize.height / img.naturalHeight;
+        
+        const finalX = imgX * scaleX;
+        const finalY = imgY * scaleY;
       
       // 유효한 좌표인지 확인
       if(isNaN(finalX) || isNaN(finalY) || !isFinite(finalX) || !isFinite(finalY)) {
         console.warn(`⚠️ ${key} 좌표가 유효하지 않음: (${finalX}, ${finalY}), 스킵`);
         continue;
       }
-      
-      map.set(key, {
-        x: finalX,
-        y: finalY
-      });
-      
+        
+        map.set(key, {
+          x: finalX,
+          y: finalY
+        });
+        
       console.log(`✅ ${key} 매핑: 원본(${value.x.toFixed(3)}, ${value.y.toFixed(3)}) → 이미지픽셀(${imgX.toFixed(1)}, ${imgY.toFixed(1)}) → 캔버스(${finalX.toFixed(1)}, ${finalY.toFixed(1)}) [confidence: ${confidence.toFixed(2)}]`);
     }
     
