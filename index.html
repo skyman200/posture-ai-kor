@@ -761,6 +761,7 @@ let keypoints = keypointsSide; // 기본값
 // 모듈이 로드되면 window.sessions에 자동으로 할당됨
 
 let cur = "Before";
+window.cur = cur; // 전역으로도 설정
 
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
 const rad2deg = r => r * 180 / Math.PI;
