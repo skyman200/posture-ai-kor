@@ -12389,14 +12389,14 @@ function setupImageButton() {
 // 공유하기 (Web Share API 사용)
 const btnShare = document.getElementById("btnShare");
 if (btnShare) {
-  btnShare.onclick = async () => {
+    btnShare.onclick = async () => {
     try {
       const btn = document.getElementById("btnShare");
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ 준비 중...";
-    btn.disabled = true;
-    
-    const S = sessions[cur];
+      const originalText = btn.textContent;
+      btn.textContent = "⏳ 준비 중...";
+      btn.disabled = true;
+      
+      const S = window.sessions[cur];
     const M = S.metrics || {};
     const scoreData = S.score || {};
     const analysis = S.analysis || {};
