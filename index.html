@@ -3265,10 +3265,10 @@ function updateCoordSelectOptions() {
 }
 
 function setOrientation(orientation, options = {}) {
-  const sessionName = options.sessionName || cur;
+  const sessionName = options.sessionName || window.cur || cur;
   const manual = !!options.manual;
   const unlock = !!options.unlock;
-  const session = sessions[sessionName];
+  const session = (window.sessions || sessions)[sessionName];
   if(!session) return;
   
   if(!session.poseData) {
@@ -3323,6 +3323,7 @@ function setOrientation(orientation, options = {}) {
 
 function switchSession(s) {
   cur = s;
+  window.cur = s; // 전역으로도 설정
   
   const btnBefore = document.getElementById("btnBefore");
   const btnAfter = document.getElementById("btnAfter");
@@ -3333,7 +3334,8 @@ function switchSession(s) {
   if(currentSessionEl) currentSessionEl.textContent = s;
   
   // 세션 전환 시 orientation 버튼 업데이트
-  const orientation = sessions[s].poseData?.orientation || "side";
+  const currentSessions = window.sessions || sessions;
+  const orientation = currentSessions[s]?.poseData?.orientation || "side";
   const btnSide = document.getElementById("btnOrientationSide");
   const btnFront = document.getElementById("btnOrientationFront");
   if(btnSide) btnSide.classList.toggle("active", orientation === "side");
@@ -3349,7 +3351,8 @@ function switchSession(s) {
   originalCanvasSize.styleHeight = 0;
   
   // 세션의 이미지로 캔버스 크기 조정
-  const img = orientation === "front" ? sessions[s].imgFront : sessions[s].imgSide;
+  const currentSessions = window.sessions || sessions;
+  const img = orientation === "front" ? currentSessions[s]?.imgFront : currentSessions[s]?.imgSide;
   if(img && img.complete && img.naturalWidth > 0) {
     resizeCanvasFor(img);
   draw();
@@ -3360,11 +3363,12 @@ function switchSession(s) {
   }
   
   // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
-  if(sessions[s].analysis) {
+  const currentSessions = window.sessions || sessions;
+  if(currentSessions[s]?.analysis) {
     // 기존 분석이 있으면 전체 업데이트
-    const score = sessions[s].score;
-    const metrics = sessions[s].metrics;
-    const analysis = sessions[s].analysis;
+    const score = currentSessions[s].score;
+    const metrics = currentSessions[s].metrics;
+    const analysis = currentSessions[s].analysis;
     updateScoreAndAnalysis(score, metrics.cva, metrics.pelvic, metrics.knee, analysis);
   } else {
     computeMetricsOnly(); // 분석이 없으면 metrics만 계산
