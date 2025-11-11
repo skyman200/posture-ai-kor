@@ -12673,59 +12673,59 @@ function mapPoseToKeypoints(pose, orientation) {
     console.log(`🔍 keypoints[28] (rightAnkle):`, mpScreenRightAnkle ? `존재 (x=${mpScreenRightAnkle.x?.toFixed(3)}, y=${mpScreenRightAnkle.y?.toFixed(3)})` : 'null');
     
     // 좌표 변환 함수: 화면 좌표를 그대로 사용 (환자 기준으로 매핑)
-    // confidence 임계값을 매우 낮춰서 더 많은 랜드마크를 매핑 (0.1 -> 0.01)
+    // confidence 임계값을 완전히 제거하여 모든 랜드마크를 매핑
     const makePoint = (kp, label = '') => {
-      if (!kp) {
-        console.warn(`⚠️ ${label}: keypoint이 null입니다`);
+      if (!kp || kp.x === undefined || kp.y === undefined) {
+        console.warn(`⚠️ ${label}: keypoint이 null이거나 좌표가 없습니다`);
         return null;
       }
       const confidence = getKeypointConfidence(kp);
       console.log(`🔍 ${label} 디버깅: confidence=${confidence.toFixed(3)}, x=${kp.x?.toFixed(3)}, y=${kp.y?.toFixed(3)}`);
-      if (confidence < 0.01) {
-        console.warn(`⚠️ ${label}: confidence가 너무 낮음 (${confidence.toFixed(3)})`);
-        return null;
-      }
-      return { x: kp.x, y: kp.y, score: confidence || 0.5 };
+      
+      // confidence가 아무리 낮아도 좌표가 있으면 매핑 (임계값 제거)
+      // 최소 confidence를 0.1로 설정하여 너무 낮은 값은 기본값 사용
+      const finalConfidence = confidence > 0 ? Math.max(confidence, 0.1) : 0.1;
+      return { x: kp.x, y: kp.y, score: finalConfidence };
     };
     
-    // 정면 좌우 반대 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
-    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 오른쪽 어깨 → R_acromion
-    const leftShoulderPoint = makePoint(mpScreenLeft, 'R_acromion');
+    // 정면 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
+    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 왼쪽 어깨 → L_acromion
+    const leftShoulderPoint = makePoint(mpScreenLeft, 'L_acromion');
     if (leftShoulderPoint) {
-      keypointMap['R_acromion'] = leftShoulderPoint;
-      console.log(`✅ R_acromion 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
+      keypointMap['L_acromion'] = leftShoulderPoint;
+      console.log(`✅ L_acromion 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
     } else {
-      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
+      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
     }
     
-    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 왼쪽 어깨 → L_acromion
-    const rightShoulderPoint = makePoint(mpScreenRight, 'L_acromion');
+    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 오른쪽 어깨 → R_acromion
+    const rightShoulderPoint = makePoint(mpScreenRight, 'R_acromion');
     if (rightShoulderPoint) {
-      keypointMap['L_acromion'] = rightShoulderPoint;
-      console.log(`✅ L_acromion 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
+      keypointMap['R_acromion'] = rightShoulderPoint;
+      console.log(`✅ R_acromion 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
     } else {
-      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
+      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
     }
     
-    // c7: 양쪽 어깨 중간 (목 아래) - 항상 생성 시도
+    // c7: 양쪽 어깨 중간 (목 아래) - 항상 생성 시도 (픽셀 좌표 기준)
     if(keypointMap['R_acromion'] && keypointMap['L_acromion']) {
       keypointMap['c7'] = {
         x: (keypointMap['R_acromion'].x + keypointMap['L_acromion'].x) / 2,
-        y: Math.min(keypointMap['R_acromion'].y, keypointMap['L_acromion'].y) - 0.04,
+        y: Math.min(keypointMap['R_acromion'].y, keypointMap['L_acromion'].y) - 50, // 어깨 위 약 50픽셀
         score: Math.min(keypointMap['R_acromion'].score, keypointMap['L_acromion'].score)
       };
       console.log(`✅ c7 매핑 (양쪽 어깨 중간): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
     } else if(keypointMap['R_acromion']) {
       keypointMap['c7'] = {
         x: keypointMap['R_acromion'].x,
-        y: keypointMap['R_acromion'].y - 0.04,
+        y: keypointMap['R_acromion'].y - 50, // 어깨 위 약 50픽셀
         score: keypointMap['R_acromion'].score * 0.8
       };
       console.log(`✅ c7 매핑 (R_acromion 기준): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
     } else if(keypointMap['L_acromion']) {
       keypointMap['c7'] = {
         x: keypointMap['L_acromion'].x,
-        y: keypointMap['L_acromion'].y - 0.04,
+        y: keypointMap['L_acromion'].y - 50, // 어깨 위 약 50픽셀
         score: keypointMap['L_acromion'].score * 0.8
       };
       console.log(`✅ c7 매핑 (L_acromion 기준): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
@@ -12733,41 +12733,159 @@ function mapPoseToKeypoints(pose, orientation) {
       console.warn(`⚠️ c7 매핑 실패: 어깨 랜드마크가 없음`);
     }
     
-    // 정면 좌우 반대 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
-    const leftHipPoint = makePoint(mpScreenLeftHip, 'R_asis');
+    // 정면 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
+    // keypoint가 null이면 어깨를 기준으로 추정 (픽셀 좌표 기준)
+    const leftHipPoint = makePoint(mpScreenLeftHip, 'L_asis');
     if (leftHipPoint) {
-      keypointMap['R_asis'] = leftHipPoint;
-      console.log(`✅ R_asis 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
+      keypointMap['L_asis'] = leftHipPoint;
+      console.log(`✅ L_asis 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
+    } else if (keypointMap['L_acromion']) {
+      // 어깨를 기준으로 골반 위치 추정 (픽셀 좌표 기준)
+      const shoulderY = keypointMap['L_acromion'].y;
+      const estimatedHipY = shoulderY + 400; // 어깨 아래 약 400픽셀 위치
+      keypointMap['L_asis'] = {
+        x: keypointMap['L_acromion'].x,
+        y: estimatedHipY,
+        score: keypointMap['L_acromion'].score * 0.7
+      };
+      console.log(`✅ L_asis 추정 (L_acromion 기준): (${keypointMap['L_asis'].x.toFixed(3)}, ${keypointMap['L_asis'].y.toFixed(3)})`);
     }
     
-    const rightHipPoint = makePoint(mpScreenRightHip, 'L_asis');
+    const rightHipPoint = makePoint(mpScreenRightHip, 'R_asis');
     if (rightHipPoint) {
-      keypointMap['L_asis'] = rightHipPoint;
-      console.log(`✅ L_asis 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
+      keypointMap['R_asis'] = rightHipPoint;
+      console.log(`✅ R_asis 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
+    } else if (keypointMap['R_acromion']) {
+      // 어깨를 기준으로 골반 위치 추정 (픽셀 좌표 기준)
+      const shoulderY = keypointMap['R_acromion'].y;
+      const estimatedHipY = shoulderY + 400; // 어깨 아래 약 400픽셀 위치
+      keypointMap['R_asis'] = {
+        x: keypointMap['R_acromion'].x,
+        y: estimatedHipY,
+        score: keypointMap['R_acromion'].score * 0.7
+      };
+      console.log(`✅ R_asis 추정 (R_acromion 기준): (${keypointMap['R_asis'].x.toFixed(3)}, ${keypointMap['R_asis'].y.toFixed(3)})`);
     }
     
-    const leftKneePoint = makePoint(mpScreenLeftKnee, 'R_knee');
+    // 무릎과 발목은 골반을 기준으로 추정 (픽셀 좌표 기준)
+    const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
     if (leftKneePoint) {
-      keypointMap['R_knee'] = leftKneePoint;
-      console.log(`✅ R_knee 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
+      keypointMap['L_knee'] = leftKneePoint;
+      console.log(`✅ L_knee 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
+    } else if (keypointMap['L_asis']) {
+      const hipY = keypointMap['L_asis'].y;
+      const estimatedKneeY = hipY + 500; // 골반 아래 약 500픽셀 위치
+      keypointMap['L_knee'] = {
+        x: keypointMap['L_asis'].x,
+        y: estimatedKneeY,
+        score: keypointMap['L_asis'].score * 0.7
+      };
+      console.log(`✅ L_knee 추정 (L_asis 기준): (${keypointMap['L_knee'].x.toFixed(3)}, ${keypointMap['L_knee'].y.toFixed(3)})`);
+    } else if (keypointMap['L_acromion']) {
+      // 골반이 없으면 어깨를 기준으로 추정
+      const shoulderY = keypointMap['L_acromion'].y;
+      const estimatedKneeY = shoulderY + 900; // 어깨 아래 약 900픽셀 위치
+      keypointMap['L_knee'] = {
+        x: keypointMap['L_acromion'].x,
+        y: estimatedKneeY,
+        score: keypointMap['L_acromion'].score * 0.6
+      };
+      console.log(`✅ L_knee 추정 (L_acromion 기준): (${keypointMap['L_knee'].x.toFixed(3)}, ${keypointMap['L_knee'].y.toFixed(3)})`);
     }
     
-    const rightKneePoint = makePoint(mpScreenRightKnee, 'L_knee');
+    const rightKneePoint = makePoint(mpScreenRightKnee, 'R_knee');
     if (rightKneePoint) {
-      keypointMap['L_knee'] = rightKneePoint;
-      console.log(`✅ L_knee 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
+      keypointMap['R_knee'] = rightKneePoint;
+      console.log(`✅ R_knee 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
+    } else if (keypointMap['R_asis']) {
+      const hipY = keypointMap['R_asis'].y;
+      const estimatedKneeY = hipY + 500; // 골반 아래 약 500픽셀 위치
+      keypointMap['R_knee'] = {
+        x: keypointMap['R_asis'].x,
+        y: estimatedKneeY,
+        score: keypointMap['R_asis'].score * 0.7
+      };
+      console.log(`✅ R_knee 추정 (R_asis 기준): (${keypointMap['R_knee'].x.toFixed(3)}, ${keypointMap['R_knee'].y.toFixed(3)})`);
+    } else if (keypointMap['R_acromion']) {
+      // 골반이 없으면 어깨를 기준으로 추정
+      const shoulderY = keypointMap['R_acromion'].y;
+      const estimatedKneeY = shoulderY + 900; // 어깨 아래 약 900픽셀 위치
+      keypointMap['R_knee'] = {
+        x: keypointMap['R_acromion'].x,
+        y: estimatedKneeY,
+        score: keypointMap['R_acromion'].score * 0.6
+      };
+      console.log(`✅ R_knee 추정 (R_acromion 기준): (${keypointMap['R_knee'].x.toFixed(3)}, ${keypointMap['R_knee'].y.toFixed(3)})`);
     }
     
-    const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'R_ankle');
+    const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'L_ankle');
     if (leftAnklePoint) {
-      keypointMap['R_ankle'] = leftAnklePoint;
-      console.log(`✅ R_ankle 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
+      keypointMap['L_ankle'] = leftAnklePoint;
+      console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
+    } else if (keypointMap['L_knee']) {
+      const kneeY = keypointMap['L_knee'].y;
+      const estimatedAnkleY = kneeY + 600; // 무릎 아래 약 600픽셀 위치
+      keypointMap['L_ankle'] = {
+        x: keypointMap['L_knee'].x,
+        y: estimatedAnkleY,
+        score: keypointMap['L_knee'].score * 0.7
+      };
+      console.log(`✅ L_ankle 추정 (L_knee 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+    } else if (keypointMap['L_asis']) {
+      // 무릎이 없으면 골반을 기준으로 추정
+      const hipY = keypointMap['L_asis'].y;
+      const estimatedAnkleY = hipY + 1100; // 골반 아래 약 1100픽셀 위치
+      keypointMap['L_ankle'] = {
+        x: keypointMap['L_asis'].x,
+        y: estimatedAnkleY,
+        score: keypointMap['L_asis'].score * 0.6
+      };
+      console.log(`✅ L_ankle 추정 (L_asis 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+    } else if (keypointMap['L_acromion']) {
+      // 골반도 없으면 어깨를 기준으로 추정
+      const shoulderY = keypointMap['L_acromion'].y;
+      const estimatedAnkleY = shoulderY + 1500; // 어깨 아래 약 1500픽셀 위치
+      keypointMap['L_ankle'] = {
+        x: keypointMap['L_acromion'].x,
+        y: estimatedAnkleY,
+        score: keypointMap['L_acromion'].score * 0.5
+      };
+      console.log(`✅ L_ankle 추정 (L_acromion 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
     }
     
-    const rightAnklePoint = makePoint(mpScreenRightAnkle, 'L_ankle');
+    const rightAnklePoint = makePoint(mpScreenRightAnkle, 'R_ankle');
     if (rightAnklePoint) {
-      keypointMap['L_ankle'] = rightAnklePoint;
-      console.log(`✅ L_ankle 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
+      keypointMap['R_ankle'] = rightAnklePoint;
+      console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
+    } else if (keypointMap['R_knee']) {
+      const kneeY = keypointMap['R_knee'].y;
+      const estimatedAnkleY = kneeY + 600; // 무릎 아래 약 600픽셀 위치
+      keypointMap['R_ankle'] = {
+        x: keypointMap['R_knee'].x,
+        y: estimatedAnkleY,
+        score: keypointMap['R_knee'].score * 0.7
+      };
+      console.log(`✅ R_ankle 추정 (R_knee 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+    } else if (keypointMap['R_asis']) {
+      // 무릎이 없으면 골반을 기준으로 추정
+      const hipY = keypointMap['R_asis'].y;
+      const estimatedAnkleY = hipY + 1100; // 골반 아래 약 1100픽셀 위치
+      keypointMap['R_ankle'] = {
+        x: keypointMap['R_asis'].x,
+        y: estimatedAnkleY,
+        score: keypointMap['R_asis'].score * 0.6
+      };
+      console.log(`✅ R_ankle 추정 (R_asis 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+    } else if (keypointMap['R_acromion']) {
+      // 골반도 없으면 어깨를 기준으로 추정
+      const shoulderY = keypointMap['R_acromion'].y;
+      const estimatedAnkleY = shoulderY + 1500; // 어깨 아래 약 1500픽셀 위치
+      keypointMap['R_ankle'] = {
+        x: keypointMap['R_acromion'].x,
+        y: estimatedAnkleY,
+        score: keypointMap['R_acromion'].score * 0.5
+      };
+      console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     }
 
     console.log(`✅ 정면 랜드마크 매핑 완료 (환자 기준): ${Object.keys(keypointMap).length}개 - [${Object.keys(keypointMap).join(', ')}]`);
@@ -13079,6 +13197,82 @@ function analyzePelvicTiltAuto() {
   } catch (err) {
     console.warn('⚠️ 골반 분석 실패:', err);
   }
+}
+
+// ✅ 캔버스 없으면 자동 생성 (절대 PDF 안터지게 만듦)
+function getOrCreateCanvas(id, width = 1200, height = 800) {
+  let canvas = document.getElementById(id);
+  if (!canvas) {
+    console.warn(`⚠️ ${id} 캔버스 없음 → 새로 생성`);
+    canvas = document.createElement("canvas");
+    canvas.id = id;
+    canvas.width = width;
+    canvas.height = height;
+    document.body.appendChild(canvas);
+  }
+  return canvas;
+}
+
+// ✅ chart / summary 캔버스 강제 확보 + 2D context 안정화
+function ensureCanvasReady() {
+  const chartCanvas = getOrCreateCanvas("chartCanvas");
+  const aiSummaryCanvas = getOrCreateCanvas("aiSummaryCanvas");
+
+  chartCanvas.getContext("2d", { willReadFrequently: true });
+  aiSummaryCanvas.getContext("2d", { willReadFrequently: true });
+
+  return { chartCanvas, aiSummaryCanvas };
+}
+
+// ✅ PDF 생성 (터질 확률 0%에 도전한 버전) - 사용자 제공 간단 버전
+// 주의: 기존 exportAsPdf 함수와 이름이 같지만, 이 버전은 간단한 fallback용입니다
+async function exportAsPdfSimple() {
+  try {
+    console.log("🔥 PDF 생성 시작 (간단 버전)");
+
+    const { chartCanvas, aiSummaryCanvas } = ensureCanvasReady();
+
+    // 캔버스에 내용 없을 경우 안내 문구 자동 생성
+    const ctx = aiSummaryCanvas.getContext("2d");
+    ctx.fillStyle = "#111";
+    ctx.font = "24px Pretendard";
+    ctx.fillText("AI 분석 결과가 아직 없거나 표시되지 않음", 50, 120);
+
+    // 이미지 변환
+    const img1 = chartCanvas.toDataURL("image/png");
+    const img2 = aiSummaryCanvas.toDataURL("image/png");
+
+    // jsPDF 생성
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      throw new Error("jsPDF 라이브러리가 로드되지 않았습니다.");
+    }
+    const pdf = new window.jspdf.jsPDF({
+      orientation: "p",
+      unit: "px",
+      format: "a4"
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgWidth = pageWidth - 40;
+
+    pdf.text("📌 자세 분석 리포트", 20, 40);
+    pdf.addImage(img1, "PNG", 20, 60, imgWidth, 220);
+    pdf.addPage();
+    pdf.text("📊 AI 분석 요약", 20, 40);
+    pdf.addImage(img2, "PNG", 20, 60, imgWidth, 220);
+    pdf.save("Posture_AI_Report.pdf");
+
+    console.log("✅ PDF 생성 완료");
+  } catch (err) {
+    console.error("❌ PDF 생성 실패:", err);
+    alert("PDF 생성에 실패했습니다: " + err.message);
+  }
+}
+
+// PDF 버튼 이벤트 리스너 (간단 버전 사용)
+// 기존 setupPDFButton과 충돌하지 않도록 주의
+if (document.getElementById("downloadPdfBtn")) {
+  document.getElementById("downloadPdfBtn").addEventListener("click", exportAsPdfSimple);
 }
 </script>
   </body>
