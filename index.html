@@ -619,10 +619,8 @@ canvas {
 <!-- ✅ 전역 충돌 방어 및 강제 등록 (최우선 실행) -->
 <script>
 // ---- 전역 충돌 방어 ----
-// sessions는 나중에 객체로 정의되므로 여기서는 undefined 체크만
-if (typeof window.sessions === 'undefined') {
-  window.sessions = null; // 임시로 null, 나중에 실제 객체로 교체됨
-}
+// sessions는 나중에 객체로 정의되므로 여기서는 undefined로 두고 나중에 할당됨
+// window.sessions는 785번 라인에서 sessions 객체로 할당됨
 window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
   console.log("✅ analyzePostureAI 강제 바인딩 실행됨", { before, after });
   // 실제 함수가 나중에 정의되면 덮어씌워짐
