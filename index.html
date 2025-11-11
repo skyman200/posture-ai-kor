@@ -12512,23 +12512,23 @@ function mapPoseToKeypoints(pose, orientation) {
       keypointMap['hip'] = { x: hip.x, y: hip.y, score: hipConf };
       console.log(`✅ hip 매핑: (${hip.x.toFixed(3)}, ${hip.y.toFixed(3)}), score: ${hipConf.toFixed(2)}`);
       
-      // asis: hip보다 약간 앞/위 - Flutter 1:1 매칭
+      // asis: hip보다 약간 앞/위 - 독립적으로 표시
       const asisScore = hipConf * 0.85;
       keypointMap['asis'] = { 
         x: hip.x + 0.03, // 앞쪽
         y: hip.y - 0.01, // 약간 위
         score: asisScore
       };
-      console.log(`✅ asis 매핑: (${keypointMap['asis'].x.toFixed(3)}, ${keypointMap['asis'].y.toFixed(3)}), score: ${asisScore.toFixed(2)}`);
+      console.log(`✅ asis 매핑 (독립): (${keypointMap['asis'].x.toFixed(3)}, ${keypointMap['asis'].y.toFixed(3)}), score: ${asisScore.toFixed(2)}`);
       
-      // psis: hip보다 약간 뒤 - Flutter 1:1 매칭
+      // psis: hip보다 약간 뒤 - 독립적으로 표시
       const psisScore = hipConf * 0.85;
       keypointMap['psis'] = { 
         x: hip.x - 0.03, // 뒤쪽
         y: hip.y - 0.01, // 약간 위
         score: psisScore
       };
-      console.log(`✅ psis 매핑: (${keypointMap['psis'].x.toFixed(3)}, ${keypointMap['psis'].y.toFixed(3)}), score: ${psisScore.toFixed(2)}`);
+      console.log(`✅ psis 매핑 (독립): (${keypointMap['psis'].x.toFixed(3)}, ${keypointMap['psis'].y.toFixed(3)}), score: ${psisScore.toFixed(2)}`);
     } else {
       console.warn(`⚠️ hip 감지 실패: useLeft=${useLeft}, leftHipConf=${getKeypointConfidence(leftHip).toFixed(2)}, rightHipConf=${getKeypointConfidence(rightHip).toFixed(2)}`);
     }
@@ -12577,23 +12577,23 @@ function mapPoseToKeypoints(pose, orientation) {
       return { x: kp.x, y: kp.y, score: confidence || 0.5 };
     };
     
-    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
-    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 왼쪽 어깨 → L_acromion
-    const leftShoulderPoint = makePoint(mpScreenLeft, 'L_acromion');
+    // 정면 좌우 반대 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
+    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 오른쪽 어깨 → R_acromion
+    const leftShoulderPoint = makePoint(mpScreenLeft, 'R_acromion');
     if (leftShoulderPoint) {
-      keypointMap['L_acromion'] = leftShoulderPoint;
-      console.log(`✅ L_acromion 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
+      keypointMap['R_acromion'] = leftShoulderPoint;
+      console.log(`✅ R_acromion 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
     } else {
-      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
+      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
     }
     
-    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 오른쪽 어깨 → R_acromion
-    const rightShoulderPoint = makePoint(mpScreenRight, 'R_acromion');
+    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 왼쪽 어깨 → L_acromion
+    const rightShoulderPoint = makePoint(mpScreenRight, 'L_acromion');
     if (rightShoulderPoint) {
-      keypointMap['R_acromion'] = rightShoulderPoint;
-      console.log(`✅ R_acromion 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
+      keypointMap['L_acromion'] = rightShoulderPoint;
+      console.log(`✅ L_acromion 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
     } else {
-      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
+      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
     }
     
     // c7: 양쪽 어깨 중간 (목 아래) - 항상 생성 시도
@@ -12622,41 +12622,41 @@ function mapPoseToKeypoints(pose, orientation) {
       console.warn(`⚠️ c7 매핑 실패: 어깨 랜드마크가 없음`);
     }
     
-    // 환자 기준으로 올바르게 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
-    const leftHipPoint = makePoint(mpScreenLeftHip, 'L_asis');
+    // 정면 좌우 반대 매핑: 화면 왼쪽 → 환자 오른쪽 → R_*, 화면 오른쪽 → 환자 왼쪽 → L_*
+    const leftHipPoint = makePoint(mpScreenLeftHip, 'R_asis');
     if (leftHipPoint) {
-      keypointMap['L_asis'] = leftHipPoint;
-      console.log(`✅ L_asis 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
+      keypointMap['R_asis'] = leftHipPoint;
+      console.log(`✅ R_asis 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
     }
     
-    const rightHipPoint = makePoint(mpScreenRightHip, 'R_asis');
+    const rightHipPoint = makePoint(mpScreenRightHip, 'L_asis');
     if (rightHipPoint) {
-      keypointMap['R_asis'] = rightHipPoint;
-      console.log(`✅ R_asis 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
+      keypointMap['L_asis'] = rightHipPoint;
+      console.log(`✅ L_asis 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
     }
     
-    const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
+    const leftKneePoint = makePoint(mpScreenLeftKnee, 'R_knee');
     if (leftKneePoint) {
-      keypointMap['L_knee'] = leftKneePoint;
-      console.log(`✅ L_knee 매핑: (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
+      keypointMap['R_knee'] = leftKneePoint;
+      console.log(`✅ R_knee 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
     }
     
-    const rightKneePoint = makePoint(mpScreenRightKnee, 'R_knee');
+    const rightKneePoint = makePoint(mpScreenRightKnee, 'L_knee');
     if (rightKneePoint) {
-      keypointMap['R_knee'] = rightKneePoint;
-      console.log(`✅ R_knee 매핑: (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
+      keypointMap['L_knee'] = rightKneePoint;
+      console.log(`✅ L_knee 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
     }
     
-    const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'L_ankle');
+    const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'R_ankle');
     if (leftAnklePoint) {
-      keypointMap['L_ankle'] = leftAnklePoint;
-      console.log(`✅ L_ankle 매핑: (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
+      keypointMap['R_ankle'] = leftAnklePoint;
+      console.log(`✅ R_ankle 매핑 (화면 왼쪽 → 환자 오른쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
     }
     
-    const rightAnklePoint = makePoint(mpScreenRightAnkle, 'R_ankle');
+    const rightAnklePoint = makePoint(mpScreenRightAnkle, 'L_ankle');
     if (rightAnklePoint) {
-      keypointMap['R_ankle'] = rightAnklePoint;
-      console.log(`✅ R_ankle 매핑: (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
+      keypointMap['L_ankle'] = rightAnklePoint;
+      console.log(`✅ L_ankle 매핑 (화면 오른쪽 → 환자 왼쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
     }
 
     console.log(`✅ 정면 랜드마크 매핑 완료 (환자 기준): ${Object.keys(keypointMap).length}개 - [${Object.keys(keypointMap).join(', ')}]`);
