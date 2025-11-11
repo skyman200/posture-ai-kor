@@ -12586,11 +12586,16 @@ function initializeApp() {
   
   // sessions.Before와 sessions.After가 초기화되었는지 확인
   if(!window.sessions.Before || !window.sessions.After) {
-    console.warn("sessions.Before 또는 sessions.After가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.");
+    console.warn("sessions.Before 또는 sessions.After가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.", {
+      hasBefore: !!window.sessions.Before,
+      hasAfter: !!window.sessions.After
+    });
     const retryCount = initializeApp.retryCount || 0;
-    if (retryCount < 10) {
+    if (retryCount < 20) { // 재시도 횟수 증가
       initializeApp.retryCount = retryCount + 1;
       setTimeout(initializeApp, 300);
+    } else {
+      console.error("sessions.Before/After 초기화 실패: 최대 재시도 횟수 초과");
     }
     return;
   }
