@@ -9515,11 +9515,21 @@ if (isMobile) {
     canvases: {
       cover: canvas1,
       heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
-      metrics: canvas3,
-      aiSummary: canvas4,
-      pilates: canvas5,
-      aiDeep: canvas6,
-      conclusion: canvas7
+      chartCanvas: chartCanvas?.chartInstance?.canvas || null // 그래프만 캡처
+    },
+    textData: {
+      comparison,
+      analysis,
+      dbAnalysis,
+      scoreResult,
+      planTexts,
+      pilatesHtml,
+      deepAnalysisText,
+      beforeAfterSummaryHtml,
+      fullPlanHtml,
+      combinedMetrics,
+      afterMetricsForDB,
+      memberNameForPDF1
     },
     includeHeatmapPage,
     totalPages,
@@ -11412,6 +11422,7 @@ function exportAsPdf(options = {}) {
       const { jsPDF } = window.jspdf;
       const {
         canvases,
+        textData,
         includeHeatmapPage,
         totalPages,
         pageIndexMap
@@ -11445,11 +11456,10 @@ function exportAsPdf(options = {}) {
       throw new Error("표지 캔버스를 생성하지 못했습니다.");
     }
     const heatmapCanvas = canvases.heatmap;
-    const metricsCanvas = canvases.metrics;
-    const aiSummaryCanvas = canvases.aiSummary;
-    const pilatesCanvas = canvases.pilates;
-    const aiDeepCanvas = canvases.aiDeep;
-    const conclusionCanvas = canvases.conclusion;
+    const chartCanvas = canvases.chartCanvas;
+    
+    // 텍스트 데이터
+    const { comparison, analysis, dbAnalysis, scoreResult, planTexts, pilatesHtml, deepAnalysisText, beforeAfterSummaryHtml, fullPlanHtml, combinedMetrics, afterMetricsForDB, memberNameForPDF1 } = textData || {};
     
     // 첫 페이지: 제목과 이미지 (압축 적용)
     const compressCanvasForPDF = (canvas, maxSize = PDF_MAX_CANVAS_EDGE) => {
@@ -11477,11 +11487,19 @@ function exportAsPdf(options = {}) {
     try {
       // JPEG로 변환 (화질 대폭 개선: 0.85 -> 0.95)
       const coverImageData = compressedCover.toDataURL("image/jpeg", 0.95);
-      // 이미지 비율 유지: 원본 비율에 맞춰 높이 계산
+      // 이미지 비율 유지: 원본 비율에 맞춰 정확히 계산
       const coverAspectRatio = compressedCover.width / compressedCover.height;
-      const finalCoverH = coverTargetW / coverAspectRatio;
-      const finalCoverH_clamped = Math.min(finalCoverH, maxImg1H);
-      const finalCoverW = finalCoverH_clamped * coverAspectRatio;
+      
+      // 너비 기준으로 높이 계산
+      let finalCoverW = Math.min(imgW, compressedCover.width);
+      let finalCoverH = finalCoverW / coverAspectRatio;
+      
+      // 높이가 페이지를 넘으면 높이 기준으로 재계산
+      if (finalCoverH > maxImg1H) {
+        finalCoverH = maxImg1H;
+        finalCoverW = finalCoverH * coverAspectRatio;
+      }
+      
       const finalCoverX = margin + (imgW - finalCoverW) / 2;
       
       pdf.addImage(
@@ -11490,17 +11508,25 @@ function exportAsPdf(options = {}) {
         finalCoverX,
         margin,
         finalCoverW,
-        finalCoverH_clamped
+        finalCoverH
       );
     } catch (err) {
       console.warn('표지 이미지 추가 실패, PNG로 재시도:', err);
       try {
         const coverImageData = compressedCover.toDataURL("image/png");
-        // 이미지 비율 유지
+        // 이미지 비율 유지: 원본 비율에 맞춰 정확히 계산
         const coverAspectRatio = compressedCover.width / compressedCover.height;
-        const finalCoverH = coverTargetW / coverAspectRatio;
-        const finalCoverH_clamped = Math.min(finalCoverH, maxImg1H);
-        const finalCoverW = finalCoverH_clamped * coverAspectRatio;
+        
+        // 너비 기준으로 높이 계산
+        let finalCoverW = Math.min(imgW, compressedCover.width);
+        let finalCoverH = finalCoverW / coverAspectRatio;
+        
+        // 높이가 페이지를 넘으면 높이 기준으로 재계산
+        if (finalCoverH > maxImg1H) {
+          finalCoverH = maxImg1H;
+          finalCoverW = finalCoverH * coverAspectRatio;
+        }
+        
         const finalCoverX = margin + (imgW - finalCoverW) / 2;
         
         pdf.addImage(
@@ -11509,7 +11535,7 @@ function exportAsPdf(options = {}) {
           finalCoverX,
           margin,
           finalCoverW,
-          finalCoverH_clamped
+          finalCoverH
         );
       } catch (err2) {
         console.error('표지 이미지 추가 완전 실패:', err2);
@@ -11596,13 +11622,20 @@ function exportAsPdf(options = {}) {
             }
           }
           
-          // 이미지 비율 유지: 원본 캔버스 비율에 맞춰 높이 계산
+          // 이미지 비율 유지: 원본 캔버스 비율에 정확히 맞춰 계산
           const canvasAspectRatio = compressedCanvas.width / compressedCanvas.height;
-          const finalRenderWidth = Math.min(renderWidth, imgW);
-          const finalRenderHeight = finalRenderWidth / canvasAspectRatio;
-          const finalRenderHeight_clamped = Math.min(finalRenderHeight, maxImgH);
-          const finalRenderWidth_adjusted = finalRenderHeight_clamped * canvasAspectRatio;
-          const finalPageX = margin + (imgW - finalRenderWidth_adjusted) / 2;
+          
+          // 너비 기준으로 높이 계산
+          let finalRenderWidth = Math.min(renderWidth, imgW);
+          let finalRenderHeight = finalRenderWidth / canvasAspectRatio;
+          
+          // 높이가 페이지를 넘으면 높이 기준으로 재계산
+          if (finalRenderHeight > maxImgH) {
+            finalRenderHeight = maxImgH;
+            finalRenderWidth = finalRenderHeight * canvasAspectRatio;
+          }
+          
+          const finalPageX = margin + (imgW - finalRenderWidth) / 2;
           
           pdf.addPage();
           pdf.setFillColor(255, 255, 255);
@@ -11612,8 +11645,8 @@ function exportAsPdf(options = {}) {
             imageFormat,
             finalPageX,
             margin,
-            finalRenderWidth_adjusted,
-            finalRenderHeight_clamped
+            finalRenderWidth,
+            finalRenderHeight
           );
         } catch (err) {
           console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
