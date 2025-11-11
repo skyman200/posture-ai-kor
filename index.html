@@ -8427,7 +8427,12 @@ function renderPilatesEquipmentSections(pilatesObj, options = {}) {
   let html = '';
   PILATES_EQUIPMENT_LIST.forEach(tool => {
     const exercises = pilatesObj[tool];
-    const details = renderExerciseDetailsList(exercises, options);
+    // limitPerTool을 limit으로 변환하여 전달
+    const exerciseOptions = {
+      ...options,
+      limit: options.limitPerTool !== undefined ? options.limitPerTool : options.limit
+    };
+    const details = renderExerciseDetailsList(exercises, exerciseOptions);
     if (details) {
       html += `<div style="margin-top:8px;">
         <div style="font-weight:600; font-size:11px; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:4px;">${tool}</div>
@@ -9412,11 +9417,19 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
-// 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로)
+// 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로 - 모든 운동 상세 정보 포함)
 let pilatesHtml = '';
 if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
-  // 앱에서 사용하는 것과 동일한 방식으로 렌더링 (context: 'ui', limitPerTool: Infinity로 모든 운동 표시)
-  pilatesHtml = analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'ui', index: idx, limitPerTool: Infinity })).join('');
+  // 앱과 동일하게 렌더링하되, PDF에서는 모든 운동을 표시 (limitPerTool: Infinity)
+  // context는 'ui'를 사용하되, PDF 배경에 맞게 조정
+  pilatesHtml = analysis.pilates.map((item, idx) => {
+    return renderPilatesItemCard(item, { 
+      context: 'ui', 
+      index: idx, 
+      limitPerTool: Infinity,  // 모든 운동 표시
+      compact: false  // 상세 정보 모두 표시
+    });
+  }).join('');
 } else {
   // 폴백: generatePilatesSessionText 사용
   pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
