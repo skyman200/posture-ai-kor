@@ -8783,9 +8783,10 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
+// 4개 사진 처리 시 메모리 절약을 위해 scale과 크기 제한을 더 낮춤
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = isMobile ? 1100 : 1400;
-const baseCanvasScale = isMobile ? 1.1 : 1.25;
+const PDF_MAX_CANVAS_EDGE = isMobile ? 900 : 1200; // 더 낮춤 (1100/1400 → 900/1200)
+const baseCanvasScale = isMobile ? 1.0 : 1.1; // 더 낮춤 (1.1/1.25 → 1.0/1.1)
 const html2canvasOptions = {
   scale: baseCanvasScale,
   backgroundColor: "#ffffff",
@@ -8795,7 +8796,27 @@ const html2canvasOptions = {
   scrollX: 0,
   scrollY: -window.scrollY,
   imageTimeout: 20000,
-  removeContainer: isMobile
+  removeContainer: isMobile,
+  // 메모리 절약 옵션 추가
+  onclone: (clonedDoc) => {
+    // 복제된 문서에서 불필요한 요소 제거
+    const images = clonedDoc.querySelectorAll('img');
+    images.forEach(img => {
+      if (img.src && img.src.startsWith('data:')) {
+        // 큰 data URI 이미지는 제거하거나 리사이즈
+        try {
+          const imgElement = new Image();
+          imgElement.src = img.src;
+          if (imgElement.width > 2000 || imgElement.height > 2000) {
+            img.style.maxWidth = '800px';
+            img.style.maxHeight = '800px';
+          }
+        } catch (e) {
+          // 무시
+        }
+      }
+    });
+  }
 };
 
 // 첫 페이지 캡처 (useCORS로 폰트 디코딩 오류 방지, 모바일 최적화)
@@ -8816,15 +8837,17 @@ try {
     throw new Error('첫 페이지 캔버스 생성 실패');
   }
 
-  // 모바일에서 메모리 정리
-  if (isMobile && (canvas1.width > 2000 || canvas1.height > 2000)) {
-    const maxCanvasSize = 2000;
+  // 모든 경우에 캔버스 크기 제한 (4개 사진 처리 시 메모리 절약)
+  const maxCanvasSize = PDF_MAX_CANVAS_EDGE;
+  if (canvas1.width > maxCanvasSize || canvas1.height > maxCanvasSize) {
     const ratio = Math.min(maxCanvasSize / canvas1.width, maxCanvasSize / canvas1.height);
     const newCanvas = document.createElement('canvas');
     newCanvas.width = Math.floor(canvas1.width * ratio);
     newCanvas.height = Math.floor(canvas1.height * ratio);
     const ctx = newCanvas.getContext('2d');
     ctx.drawImage(canvas1, 0, 0, newCanvas.width, newCanvas.height);
+    // 원본 캔버스 메모리 해제
+    canvas1 = null;
     canvas1 = newCanvas;
   }
 } catch (canvasErr) {
@@ -8909,6 +8932,18 @@ if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   if (document.body.contains(page2Container)) {
     document.body.removeChild(page2Container);
   }
+  
+  // 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+  if (canvas2 && (canvas2.width > PDF_MAX_CANVAS_EDGE || canvas2.height > PDF_MAX_CANVAS_EDGE)) {
+    const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas2.width, PDF_MAX_CANVAS_EDGE / canvas2.height);
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = Math.floor(canvas2.width * ratio);
+    newCanvas.height = Math.floor(canvas2.height * ratio);
+    const ctx = newCanvas.getContext('2d');
+    ctx.drawImage(canvas2, 0, 0, newCanvas.width, newCanvas.height);
+    canvas2 = newCanvas;
+  }
+  
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
@@ -9086,7 +9121,7 @@ if(chartSectionPlaceholder) {
 
 document.body.appendChild(page3Container);
 
-const canvas3 = await html2canvas(page3Container, {
+let canvas3 = await html2canvas(page3Container, {
   ...html2canvasOptions,
   windowWidth: page3Container.scrollWidth,
   windowHeight: page3Container.scrollHeight
@@ -9094,6 +9129,17 @@ const canvas3 = await html2canvas(page3Container, {
 
 if (document.body.contains(page3Container)) {
   document.body.removeChild(page3Container);
+}
+
+// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+if (canvas3 && (canvas3.width > PDF_MAX_CANVAS_EDGE || canvas3.height > PDF_MAX_CANVAS_EDGE)) {
+  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas3.width, PDF_MAX_CANVAS_EDGE / canvas3.height);
+  const newCanvas = document.createElement('canvas');
+  newCanvas.width = Math.floor(canvas3.width * ratio);
+  newCanvas.height = Math.floor(canvas3.height * ratio);
+  const ctx = newCanvas.getContext('2d');
+  ctx.drawImage(canvas3, 0, 0, newCanvas.width, newCanvas.height);
+  canvas3 = newCanvas;
 }
 
 if (isMobile) {
@@ -9211,7 +9257,7 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const canvas4 = await html2canvas(page4Container, {
+let canvas4 = await html2canvas(page4Container, {
   ...html2canvasOptions,
   windowWidth: page4Container.scrollWidth,
   windowHeight: page4Container.scrollHeight
@@ -9219,6 +9265,17 @@ const canvas4 = await html2canvas(page4Container, {
 
 if (document.body.contains(page4Container)) {
   document.body.removeChild(page4Container);
+}
+
+// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+if (canvas4 && (canvas4.width > PDF_MAX_CANVAS_EDGE || canvas4.height > PDF_MAX_CANVAS_EDGE)) {
+  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas4.width, PDF_MAX_CANVAS_EDGE / canvas4.height);
+  const newCanvas = document.createElement('canvas');
+  newCanvas.width = Math.floor(canvas4.width * ratio);
+  newCanvas.height = Math.floor(canvas4.height * ratio);
+  const ctx = newCanvas.getContext('2d');
+  ctx.drawImage(canvas4, 0, 0, newCanvas.width, newCanvas.height);
+  canvas4 = newCanvas;
 }
 
 if (isMobile) {
@@ -9269,7 +9326,7 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const canvas5 = await html2canvas(page5Container, {
+let canvas5 = await html2canvas(page5Container, {
   ...html2canvasOptions,
   windowWidth: page5Container.scrollWidth,
   windowHeight: page5Container.scrollHeight
@@ -9277,6 +9334,17 @@ const canvas5 = await html2canvas(page5Container, {
 
 if (document.body.contains(page5Container)) {
   document.body.removeChild(page5Container);
+}
+
+// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+if (canvas5 && (canvas5.width > PDF_MAX_CANVAS_EDGE || canvas5.height > PDF_MAX_CANVAS_EDGE)) {
+  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas5.width, PDF_MAX_CANVAS_EDGE / canvas5.height);
+  const newCanvas = document.createElement('canvas');
+  newCanvas.width = Math.floor(canvas5.width * ratio);
+  newCanvas.height = Math.floor(canvas5.height * ratio);
+  const ctx = newCanvas.getContext('2d');
+  ctx.drawImage(canvas5, 0, 0, newCanvas.width, newCanvas.height);
+  canvas5 = newCanvas;
 }
 
 if (isMobile) {
@@ -9327,7 +9395,7 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const canvas6 = await html2canvas(page6Container, {
+let canvas6 = await html2canvas(page6Container, {
   ...html2canvasOptions,
   windowWidth: page6Container.scrollWidth,
   windowHeight: page6Container.scrollHeight
@@ -9335,6 +9403,17 @@ const canvas6 = await html2canvas(page6Container, {
 
 if (document.body.contains(page6Container)) {
   document.body.removeChild(page6Container);
+}
+
+// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+if (canvas6 && (canvas6.width > PDF_MAX_CANVAS_EDGE || canvas6.height > PDF_MAX_CANVAS_EDGE)) {
+  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas6.width, PDF_MAX_CANVAS_EDGE / canvas6.height);
+  const newCanvas = document.createElement('canvas');
+  newCanvas.width = Math.floor(canvas6.width * ratio);
+  newCanvas.height = Math.floor(canvas6.height * ratio);
+  const ctx = newCanvas.getContext('2d');
+  ctx.drawImage(canvas6, 0, 0, newCanvas.width, newCanvas.height);
+  canvas6 = newCanvas;
 }
 
 if (isMobile) {
@@ -9374,7 +9453,7 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const canvas7 = await html2canvas(page7Container, {
+let canvas7 = await html2canvas(page7Container, {
   ...html2canvasOptions,
   windowWidth: page7Container.scrollWidth,
   windowHeight: page7Container.scrollHeight
@@ -9382,6 +9461,17 @@ const canvas7 = await html2canvas(page7Container, {
 
 if (document.body.contains(page7Container)) {
   document.body.removeChild(page7Container);
+}
+
+// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+if (canvas7 && (canvas7.width > PDF_MAX_CANVAS_EDGE || canvas7.height > PDF_MAX_CANVAS_EDGE)) {
+  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas7.width, PDF_MAX_CANVAS_EDGE / canvas7.height);
+  const newCanvas = document.createElement('canvas');
+  newCanvas.width = Math.floor(canvas7.width * ratio);
+  newCanvas.height = Math.floor(canvas7.height * ratio);
+  const ctx = newCanvas.getContext('2d');
+  ctx.drawImage(canvas7, 0, 0, newCanvas.width, newCanvas.height);
+  canvas7 = newCanvas;
 }
 
 if (isMobile) {
@@ -11316,8 +11406,9 @@ function exportAsPdf(options = {}) {
     const imgW = pageW - (margin * 2);
     
     // PDF 생성용 캔버스 크기 제한 (모바일/데스크톱 구분)
+    // 4개 사진 처리 시 메모리 절약을 위해 더 낮춤
     const isMobileForPDF = isMobileDevice();
-    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 1100 : 1400;
+    const PDF_MAX_CANVAS_EDGE = isMobileForPDF ? 900 : 1200;
     
     const coverCanvas = canvases.cover;
     if (!coverCanvas) {
@@ -11354,8 +11445,8 @@ function exportAsPdf(options = {}) {
     const coverH = Math.min(img1H, maxImg1H);
     
     try {
-      // JPEG로 변환하여 크기 줄이기
-      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.85);
+      // JPEG로 변환하여 크기 줄이기 (4개 사진 처리 시 품질 낮춤)
+      const coverImageData = compressedCover.toDataURL("image/jpeg", 0.7);
       pdf.addImage(
         coverImageData,
         "JPEG",
@@ -11412,19 +11503,22 @@ function exportAsPdf(options = {}) {
         if (!sliceCanvas || sliceCanvas.width === 0 || sliceCanvas.height === 0) return;
         
         try {
-          // 캔버스 압축 (너무 큰 이미지 방지)
-          const compressedCanvas = compressCanvas(sliceCanvas, 2000);
+          // 캔버스 압축 (너무 큰 이미지 방지) - PDF_MAX_CANVAS_EDGE 사용
+          const compressedCanvas = compressCanvas(sliceCanvas, PDF_MAX_CANVAS_EDGE);
           
           const renderWidth = targetWidth;
           const renderHeight = Math.min(maxImgH, sliceHeightPx * scaleRatio);
           const pageX = margin + (imgW - renderWidth) / 2;
           
           // 이미지 데이터를 JPEG로 변환하여 크기 줄이기 (PNG보다 작음)
+          // 4개 사진 처리 시 메모리 절약을 위해 품질을 더 낮춤
           let imageData;
           let imageFormat = "JPEG";
+          let quality = 0.65; // 더 낮춤 (0.72 → 0.65)
+          
           try {
             // JPEG로 변환 시도 (품질 낮춰 메모리 절약)
-            imageData = compressedCanvas.toDataURL("image/jpeg", 0.72);
+            imageData = compressedCanvas.toDataURL("image/jpeg", quality);
             imageFormat = "JPEG";
           } catch (e) {
             // JPEG 실패 시 PNG 시도
@@ -11438,9 +11532,10 @@ function exportAsPdf(options = {}) {
           }
           
           // 이미지 데이터가 너무 크면 추가 압축 (동기적으로 처리)
-          if (imageData.length > 1500000) { // 약 1.5MB 제한
-            const quality = 0.6;
-            const scaleDown = 0.75;
+          // 4개 사진 처리 시 더 엄격한 제한 (1.5MB → 1MB)
+          if (imageData.length > 1000000) { // 약 1MB 제한
+            quality = 0.55; // 더 낮춤
+            const scaleDown = 0.7; // 더 많이 축소 (0.75 → 0.7)
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = Math.floor(compressedCanvas.width * scaleDown);
             tempCanvas.height = Math.floor(compressedCanvas.height * scaleDown);
@@ -11449,6 +11544,9 @@ function exportAsPdf(options = {}) {
             try {
               imageData = tempCanvas.toDataURL("image/jpeg", quality);
               imageFormat = "JPEG";
+              // 임시 캔버스 메모리 해제
+              tempCanvas.width = 0;
+              tempCanvas.height = 0;
             } catch (e3) {
               // 추가 압축 실패 시 원본 사용
               console.warn('추가 압축 실패, 원본 사용:', e3);
@@ -12216,6 +12314,13 @@ async function detectPose(img, orientation) {
 }
 
 // ✅ 포즈 좌표를 기존 점 시스템에 매핑 (MediaPipe Pose 랜드마크 인덱스 기반)
+function getKeypointConfidence(kp) {
+  if (!kp) return 0;
+  if (typeof kp.score === 'number' && !Number.isNaN(kp.score)) return kp.score;
+  if (typeof kp.visibility === 'number' && !Number.isNaN(kp.visibility)) return kp.visibility;
+  return 0;
+}
+
 function inferOrientationFromPose(pose) {
   if (!pose || !pose.keypoints) return "side";
   const keypoints = pose.keypoints;
@@ -12231,7 +12336,7 @@ function inferOrientationFromPose(pose) {
   pairs.forEach(([l, r]) => {
     const L = keypoints[l];
     const R = keypoints[r];
-    if (L?.visibility >= 0.3 && R?.visibility >= 0.3) {
+    if (getKeypointConfidence(L) >= 0.3 && getKeypointConfidence(R) >= 0.3) {
       visiblePairs++;
       const diff = Math.abs(L.x - R.x);
       if (diff >= 0.03) {
@@ -12274,8 +12379,8 @@ function mapPoseToKeypoints(pose, orientation) {
     let useLeft = true;
     if(leftShoulder && rightShoulder) {
       // 어깨의 x 차이로 판단 (옆모습에서는 한쪽이 더 앞에 나와 있음)
-      const leftScore = (leftShoulder.visibility || 0) + (leftHip?.visibility || 0) + (leftKnee?.visibility || 0);
-      const rightScore = (rightShoulder.visibility || 0) + (rightHip?.visibility || 0) + (rightKnee?.visibility || 0);
+    const leftScore = getKeypointConfidence(leftShoulder) + getKeypointConfidence(leftHip) + getKeypointConfidence(leftKnee);
+    const rightScore = getKeypointConfidence(rightShoulder) + getKeypointConfidence(rightHip) + getKeypointConfidence(rightKnee);
       useLeft = leftScore >= rightScore;
     } else if(leftShoulder) {
       useLeft = true;
@@ -12290,56 +12395,56 @@ function mapPoseToKeypoints(pose, orientation) {
     
     // tragus: ear (더 보이는 쪽) - Flutter 1:1 매칭
     const ear = useLeft ? leftEar : rightEar;
-    if(ear && (ear.visibility || 0) >= minVisibility) {
-      keypointMap['tragus'] = { x: ear.x, y: ear.y, score: ear.visibility || 0.5 };
-    } else if(nose && (nose.visibility || 0) >= minVisibility) {
+    if(ear && getKeypointConfidence(ear) >= minVisibility) {
+      keypointMap['tragus'] = { x: ear.x, y: ear.y, score: getKeypointConfidence(ear) || 0.5 };
+    } else if(nose && getKeypointConfidence(nose) >= minVisibility) {
       // ear가 안 보이면 nose 사용
-      keypointMap['tragus'] = { x: nose.x, y: nose.y + 0.03, score: (nose.visibility || 0.5) * 0.8 };
+      keypointMap['tragus'] = { x: nose.x, y: nose.y + 0.03, score: (getKeypointConfidence(nose) || 0.5) * 0.8 };
     }
     
     // acromion: 어깨 (더 보이는 쪽) - Flutter 1:1 매칭
     const shoulder = useLeft ? leftShoulder : rightShoulder;
-    if(shoulder && (shoulder.visibility || 0) >= minVisibility) {
-      keypointMap['acromion'] = { x: shoulder.x, y: shoulder.y, score: shoulder.visibility || 0.5 };
+    if(shoulder && getKeypointConfidence(shoulder) >= minVisibility) {
+      keypointMap['acromion'] = { x: shoulder.x, y: shoulder.y, score: getKeypointConfidence(shoulder) || 0.5 };
       
       // c7: 어깨보다 약간 위/뒤 - Flutter 1:1 매칭
       keypointMap['c7'] = { 
         x: shoulder.x - 0.02, // 어깨보다 약간 뒤
         y: shoulder.y - 0.03, // 어깨보다 약간 위
-        score: (shoulder.visibility || 0.5) * 0.9
+        score: (getKeypointConfidence(shoulder) || 0.5) * 0.9
       };
     }
     
     // hip: 골반 (더 보이는 쪽) - Flutter 1:1 매칭
     const hip = useLeft ? leftHip : rightHip;
-    if(hip && (hip.visibility || 0) >= minVisibility) {
-      keypointMap['hip'] = { x: hip.x, y: hip.y, score: hip.visibility || 0.5 };
+    if(hip && getKeypointConfidence(hip) >= minVisibility) {
+      keypointMap['hip'] = { x: hip.x, y: hip.y, score: getKeypointConfidence(hip) || 0.5 };
       
       // asis: hip보다 약간 앞/위 - Flutter 1:1 매칭
       keypointMap['asis'] = { 
         x: hip.x + 0.03, // 앞쪽
         y: hip.y - 0.01, // 약간 위
-        score: (hip.visibility || 0.5) * 0.85 
+        score: (getKeypointConfidence(hip) || 0.5) * 0.85 
       };
       
       // psis: hip보다 약간 뒤 - Flutter 1:1 매칭
       keypointMap['psis'] = { 
         x: hip.x - 0.03, // 뒤쪽
         y: hip.y - 0.01, // 약간 위
-        score: (hip.visibility || 0.5) * 0.85 
+        score: (getKeypointConfidence(hip) || 0.5) * 0.85 
       };
     }
     
     // knee: 무릎 (더 보이는 쪽) - Flutter 1:1 매칭
     const knee = useLeft ? leftKnee : rightKnee;
-    if(knee && (knee.visibility || 0) >= minVisibility) {
-      keypointMap['knee'] = { x: knee.x, y: knee.y, score: knee.visibility || 0.5 };
+    if(knee && getKeypointConfidence(knee) >= minVisibility) {
+      keypointMap['knee'] = { x: knee.x, y: knee.y, score: getKeypointConfidence(knee) || 0.5 };
     }
     
     // ankle: 발목 (더 보이는 쪽) - Flutter 1:1 매칭
     const ankle = useLeft ? leftAnkle : rightAnkle;
-    if(ankle && (ankle.visibility || 0) >= minVisibility) {
-      keypointMap['ankle'] = { x: ankle.x, y: ankle.y, score: ankle.visibility || 0.5 };
+    if(ankle && getKeypointConfidence(ankle) >= minVisibility) {
+      keypointMap['ankle'] = { x: ankle.x, y: ankle.y, score: getKeypointConfidence(ankle) || 0.5 };
     }
     
     console.log('옆모습 랜드마크 매핑:', Object.keys(keypointMap));
@@ -12347,42 +12452,65 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
-    const leftShoulder = keypoints[11];  // MediaPipe: 환자 왼쪽 어깨
-    const rightShoulder = keypoints[12]; // MediaPipe: 환자 오른쪽 어깨
-    const leftHip = keypoints[23];       // MediaPipe: 환자 왼쪽 골반
-    const rightHip = keypoints[24];      // MediaPipe: 환자 오른쪽 골반
-    const leftKnee = keypoints[25];      // MediaPipe: 환자 왼쪽 무릎
-    const rightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
-    const leftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
-    const rightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
+    // MediaPipe keypoints: 11=환자 왼쪽 어깨, 12=환자 오른쪽 어깨
+    // 중요: MediaPipe는 항상 환자 관점에서 좌우를 인식합니다
+    const mpLeftShoulder = keypoints[11];  // MediaPipe: 환자 왼쪽 어깨
+    const mpRightShoulder = keypoints[12]; // MediaPipe: 환자 오른쪽 어깨
+    const mpLeftHip = keypoints[23];       // MediaPipe: 환자 왼쪽 골반
+    const mpRightHip = keypoints[24];      // MediaPipe: 환자 오른쪽 골반
+    const mpLeftKnee = keypoints[25];      // MediaPipe: 환자 왼쪽 무릎
+    const mpRightKnee = keypoints[26];    // MediaPipe: 환자 오른쪽 무릎
+    const mpLeftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
+    const mpRightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
+    
+    // 화면 좌표계에서 환자 방향 확인
+    // MediaPipe의 환자 왼쪽이 화면 오른쪽에 있으면 (x 값이 더 큼) 미러링 필요
     const collectAvg = (indices) => {
       const samples = [];
       indices.forEach(idx => {
         const kp = keypoints[idx];
-        if (kp && kp.visibility >= 0.3) samples.push(kp.x);
+        if (getKeypointConfidence(kp) >= 0.2) samples.push(kp.x);
       });
       if (!samples.length) return null;
       return samples.reduce((a, b) => a + b, 0) / samples.length;
     };
-    const leftAvg = collectAvg([11, 23, 25, 27]);
-    const rightAvg = collectAvg([12, 24, 26, 28]);
-    // 환자 기준 좌/우를 화면 좌/우로 뒤집어야 하는 경우 감지 (환자 왼쪽이 화면 오른쪽에 위치하면 미러링)
-    const shouldMirrorFront = leftAvg != null && rightAvg != null && leftAvg > rightAvg;
-    const makePoint = (kp) => {
-      if (!kp || kp.visibility < 0.3) return null;
-      const mirroredX = shouldMirrorFront ? 1 - kp.x : kp.x;
-      return { x: mirroredX, y: kp.y, score: kp.visibility };
-    };
-    const assignPoint = (kp, targetKey) => {
-      const point = makePoint(kp);
-      if (!point) return;
-      keypointMap[targetKey] = point;
-    };
-
-    assignPoint(leftShoulder, 'L_acromion');
-    assignPoint(rightShoulder, 'R_acromion');
+    const mpLeftAvg = collectAvg([11, 23, 25, 27]);  // MediaPipe 환자 왼쪽 평균 x
+    const mpRightAvg = collectAvg([12, 24, 26, 28]); // MediaPipe 환자 오른쪽 평균 x
     
-    // c7: 양쪽 어깨 중간 (목 아래) - Flutter 1:1 매칭
+    // 환자 왼쪽이 화면 오른쪽에 있으면 (mpLeftAvg > mpRightAvg) 미러링 필요
+    const needsMirror = mpLeftAvg != null && mpRightAvg != null && mpLeftAvg > mpRightAvg;
+    
+    console.log('정면 환자 방향 감지:', {
+      mpLeftAvg,
+      mpRightAvg,
+      needsMirror: needsMirror ? '미러링 필요 (환자 왼쪽이 화면 오른쪽)' : '정상 (환자 왼쪽이 화면 왼쪽)'
+    });
+    
+    // 좌표 변환 함수: 화면 좌표를 환자 기준 좌표로 변환
+    const makePoint = (kp) => {
+      const confidence = getKeypointConfidence(kp);
+      if (!kp || confidence < 0.2) return null;
+      // 미러링이 필요하면 x 좌표 반전 (1 - x)
+      const finalX = needsMirror ? 1 - kp.x : kp.x;
+      return { x: finalX, y: kp.y, score: confidence || 0.5 };
+    };
+    
+    // 환자 기준으로 올바르게 매핑: 환자 왼쪽 → L_*, 환자 오른쪽 → R_*
+    // 중요: MediaPipe는 환자 관점에서 좌우를 인식하므로, 화면 좌표와 반대일 수 있음
+    // 미러링 후에도 환자 기준은 유지: keypoints[11] = 환자 왼쪽 → L_acromion
+    const leftShoulderPoint = makePoint(mpLeftShoulder);
+    if (leftShoulderPoint) {
+      keypointMap['L_acromion'] = leftShoulderPoint;
+      console.log('L_acromion 매핑:', { x: leftShoulderPoint.x, y: leftShoulderPoint.y, needsMirror });
+    }
+    
+    const rightShoulderPoint = makePoint(mpRightShoulder);
+    if (rightShoulderPoint) {
+      keypointMap['R_acromion'] = rightShoulderPoint;
+      console.log('R_acromion 매핑:', { x: rightShoulderPoint.x, y: rightShoulderPoint.y, needsMirror });
+    }
+    
+    // c7: 양쪽 어깨 중간 (목 아래)
     if(keypointMap['R_acromion'] && keypointMap['L_acromion']) {
       keypointMap['c7'] = {
         x: (keypointMap['R_acromion'].x + keypointMap['L_acromion'].x) / 2,
@@ -12403,14 +12531,26 @@ function mapPoseToKeypoints(pose, orientation) {
       };
     }
     
-    assignPoint(leftHip, 'L_asis');
-    assignPoint(rightHip, 'R_asis');
-    assignPoint(leftKnee, 'L_knee');
-    assignPoint(rightKnee, 'R_knee');
-    assignPoint(leftAnkle, 'L_ankle');
-    assignPoint(rightAnkle, 'R_ankle');
+    // 환자 기준으로 올바르게 매핑
+    const leftHipPoint = makePoint(mpLeftHip);
+    if (leftHipPoint) keypointMap['L_asis'] = leftHipPoint;
+    
+    const rightHipPoint = makePoint(mpRightHip);
+    if (rightHipPoint) keypointMap['R_asis'] = rightHipPoint;
+    
+    const leftKneePoint = makePoint(mpLeftKnee);
+    if (leftKneePoint) keypointMap['L_knee'] = leftKneePoint;
+    
+    const rightKneePoint = makePoint(mpRightKnee);
+    if (rightKneePoint) keypointMap['R_knee'] = rightKneePoint;
+    
+    const leftAnklePoint = makePoint(mpLeftAnkle);
+    if (leftAnklePoint) keypointMap['L_ankle'] = leftAnklePoint;
+    
+    const rightAnklePoint = makePoint(mpRightAnkle);
+    if (rightAnklePoint) keypointMap['R_ankle'] = rightAnklePoint;
 
-    console.log('정면 랜드마크 매핑 (이미지 좌표 기준):', Object.keys(keypointMap));
+    console.log('정면 랜드마크 매핑 (환자 기준):', Object.keys(keypointMap));
   }
   
   return keypointMap;
