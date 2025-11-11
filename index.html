@@ -13363,7 +13363,18 @@ if (typeof window !== 'undefined') {
   const initAppWhenReady = () => {
     // 필수 함수들이 모두 정의되었는지 확인
     const requiredFunctions = ['setupResetButton', 'setupCalibrateButton', 'setupCalibrationButtons', 'setupPDFButton', 'setupImageButton'];
-    const allDefined = requiredFunctions.every(fn => typeof window[fn] === 'function' || typeof eval(fn) === 'function');
+    let allDefined = true;
+    try {
+      allDefined = requiredFunctions.every(fn => {
+        try {
+          return typeof eval(fn) === 'function';
+        } catch {
+          return false;
+        }
+      });
+    } catch {
+      allDefined = false;
+    }
     
     // sessions 객체가 정의되었는지 확인
     const sessionsReady = typeof sessions !== 'undefined' && sessions && sessions.Before && sessions.After;
@@ -13371,8 +13382,15 @@ if (typeof window !== 'undefined') {
     if (allDefined && sessionsReady) {
       initializeApp();
     } else {
-      // 아직 준비되지 않았으면 다시 시도
-      setTimeout(initAppWhenReady, 200);
+      // 아직 준비되지 않았으면 다시 시도 (최대 10번, 총 2초)
+      const retryCount = initAppWhenReady.retryCount || 0;
+      if (retryCount < 10) {
+        initAppWhenReady.retryCount = retryCount + 1;
+        setTimeout(initAppWhenReady, 200);
+      } else {
+        console.warn('⚠️ 일부 함수가 로드되지 않았지만 initializeApp을 실행합니다.');
+        initializeApp();
+      }
     }
   };
   
