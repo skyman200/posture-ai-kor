@@ -12567,8 +12567,15 @@ function initializeApp() {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
   
   // sessions가 정의되어 있는지 확인
-  if(typeof sessions === 'undefined') {
+  if(typeof sessions === 'undefined' || !sessions) {
     console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.");
+    return;
+  }
+  
+  // sessions.Before와 sessions.After가 초기화되었는지 확인
+  if(!sessions.Before || !sessions.After) {
+    console.warn("sessions.Before 또는 sessions.After가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.");
+    setTimeout(initializeApp, 300);
     return;
   }
   
@@ -13353,14 +13360,30 @@ if (typeof window !== 'undefined') {
   
   // 모든 함수가 정의된 후 initializeApp 호출
   // 함수들이 모두 로드되도록 충분한 지연 시간 제공
+  const initAppWhenReady = () => {
+    // 필수 함수들이 모두 정의되었는지 확인
+    const requiredFunctions = ['setupResetButton', 'setupCalibrateButton', 'setupCalibrationButtons', 'setupPDFButton', 'setupImageButton'];
+    const allDefined = requiredFunctions.every(fn => typeof window[fn] === 'function' || typeof eval(fn) === 'function');
+    
+    // sessions 객체가 정의되었는지 확인
+    const sessionsReady = typeof sessions !== 'undefined' && sessions && sessions.Before && sessions.After;
+    
+    if (allDefined && sessionsReady) {
+      initializeApp();
+    } else {
+      // 아직 준비되지 않았으면 다시 시도
+      setTimeout(initAppWhenReady, 200);
+    }
+  };
+  
   if(document.readyState === 'loading') {
     document.addEventListener("DOMContentLoaded", () => {
-      // 함수들이 모두 정의되도록 약간의 지연
-      setTimeout(initializeApp, 100);
+      // 함수들이 모두 정의되도록 충분한 지연
+      setTimeout(initAppWhenReady, 500);
     });
   } else {
     // 이미 로드 완료된 경우 약간의 지연 후 실행 (함수들이 모두 정의되도록)
-    setTimeout(initializeApp, 100);
+    setTimeout(initAppWhenReady, 500);
   }
 }
 
