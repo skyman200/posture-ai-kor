@@ -9011,6 +9011,9 @@ try {
 const page3Container = document.createElement("div");
 setPageContainerStyle(page3Container);
 
+// chartCanvas 변수를 함수 스코프 상단에서 선언
+let chartCanvas = null;
+
 let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
 
 if(comparison && comparison.results.length > 0) {
@@ -9064,7 +9067,7 @@ if(chartSectionPlaceholder) {
     </div>
   `;
   const graphShell = section.querySelector('div:nth-child(2)');
-  const chartCanvas = document.createElement('canvas');
+  chartCanvas = document.createElement('canvas');
   chartCanvas.width = 800;
   chartCanvas.height = 400;
   chartCanvas.style.width = '100%';
