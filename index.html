@@ -12678,23 +12678,19 @@ function initializeApp() {
 
   // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
   // sessions 객체에 orientation과 landmarks 정보 추가
-  if(!sessions || !sessions.Before || !sessions.After) {
-    console.error("sessions 객체가 아직 초기화되지 않았습니다.");
-    return;
+  // 이미 위에서 확인했으므로 여기서는 안전하게 초기화만 수행
+  if(!window.sessions.Before.poseData) {
+    window.sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
-  
-  if(!sessions.Before.poseData) {
-    sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
-  }
-  if(!sessions.After.poseData) {
-    sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
+  if(!window.sessions.After.poseData) {
+    window.sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
 
   // 버튼 이벤트 핸들러 초기화
   initSessionButtons();
   
   // orientation 버튼 상태 설정
-  const orientation = sessions[cur].poseData?.orientation || "side";
+  const orientation = window.sessions[cur].poseData?.orientation || "side";
   const btnSide = document.getElementById("btnOrientationSide");
   const btnFront = document.getElementById("btnOrientationFront");
   
