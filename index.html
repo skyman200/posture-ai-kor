@@ -9141,10 +9141,11 @@ const setPageContainerStyle = (container) => {
 // ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) - Before/After 모두 있을 때만 생성 ==========
 let canvas3 = null;
 let chartCanvas = null;
+let comparison = null; // 함수 스코프에서 선언
 
 // Before/After 모두 있을 때만 페이지 3 생성
 if (hasBeforeAfter) {
-  const comparison = analyzeBeforeAfterComparison();
+  comparison = analyzeBeforeAfterComparison();
   try {
     await ensureChartLibrary();
   } catch (chartErr) {
