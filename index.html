@@ -12033,19 +12033,25 @@ function mapPoseToKeypoints(pose, orientation) {
     const leftAnkle = keypoints[27];     // MediaPipe: 환자 왼쪽 발목
     const rightAnkle = keypoints[28];    // MediaPipe: 환자 오른쪽 발목
     
-    // ✅ 환자 기준으로 수정: MediaPipe left/right는 이미 환자 기준
-    // MediaPipe leftShoulder = 환자 왼쪽 → L_acromion
-    // MediaPipe rightShoulder = 환자 오른쪽 → R_acromion
-    if(leftShoulder && leftShoulder.visibility >= 0.3 && rightShoulder && rightShoulder.visibility >= 0.3) {
-      keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
-      keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
-    } else if(leftShoulder && leftShoulder.visibility >= 0.3) {
-      // MediaPipe left만 있으면 → L_acromion (환자 왼쪽)
-      keypointMap['L_acromion'] = { x: leftShoulder.x, y: leftShoulder.y, score: leftShoulder.visibility };
-    } else if(rightShoulder && rightShoulder.visibility >= 0.3) {
-      // MediaPipe right만 있으면 → R_acromion (환자 오른쪽)
-      keypointMap['R_acromion'] = { x: rightShoulder.x, y: rightShoulder.y, score: rightShoulder.visibility };
-    }
+    const assignFrontBilateral = (mpLeft, mpRight, leftKey, rightKey) => {
+      const leftValid = mpLeft && mpLeft.visibility >= 0.3;
+      const rightValid = mpRight && mpRight.visibility >= 0.3;
+      const assign = (kp, targetKey) => {
+        if (!kp) return;
+        keypointMap[targetKey] = { x: kp.x, y: kp.y, score: kp.visibility };
+      };
+      if (leftValid && rightValid) {
+        // MediaPipe 좌표계: left = 화면 왼쪽(환자 오른쪽), right = 화면 오른쪽(환자 왼쪽)
+        assign(mpRight, leftKey);
+        assign(mpLeft, rightKey);
+      } else if (rightValid) {
+        assign(mpRight, leftKey);
+      } else if (leftValid) {
+        assign(mpLeft, rightKey);
+      }
+    };
+
+    assignFrontBilateral(leftShoulder, rightShoulder, 'L_acromion', 'R_acromion');
     
     // c7: 양쪽 어깨 중간 (목 아래) - Flutter 1:1 매칭
     if(keypointMap['L_acromion'] && keypointMap['R_acromion']) {
@@ -12068,47 +12074,9 @@ function mapPoseToKeypoints(pose, orientation) {
       };
     }
     
-    // ✅ 환자 기준으로 수정: 골반 (ASIS)
-    // MediaPipe leftHip = 환자 왼쪽 → L_asis
-    // MediaPipe rightHip = 환자 오른쪽 → R_asis
-    if(leftHip && leftHip.visibility >= 0.3 && rightHip && rightHip.visibility >= 0.3) {
-      keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
-      keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
-    } else if(leftHip && leftHip.visibility >= 0.3) {
-      // MediaPipe left만 있으면 → L_asis (환자 왼쪽)
-      keypointMap['L_asis'] = { x: leftHip.x, y: leftHip.y, score: leftHip.visibility };
-    } else if(rightHip && rightHip.visibility >= 0.3) {
-      // MediaPipe right만 있으면 → R_asis (환자 오른쪽)
-      keypointMap['R_asis'] = { x: rightHip.x, y: rightHip.y, score: rightHip.visibility };
-    }
-    
-    // ✅ 환자 기준으로 수정: 무릎
-    // MediaPipe leftKnee = 환자 왼쪽 → L_knee
-    // MediaPipe rightKnee = 환자 오른쪽 → R_knee
-    if(leftKnee && leftKnee.visibility >= 0.3 && rightKnee && rightKnee.visibility >= 0.3) {
-      keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
-      keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
-    } else if(leftKnee && leftKnee.visibility >= 0.3) {
-      // MediaPipe left만 있으면 → L_knee (환자 왼쪽)
-      keypointMap['L_knee'] = { x: leftKnee.x, y: leftKnee.y, score: leftKnee.visibility };
-    } else if(rightKnee && rightKnee.visibility >= 0.3) {
-      // MediaPipe right만 있으면 → R_knee (환자 오른쪽)
-      keypointMap['R_knee'] = { x: rightKnee.x, y: rightKnee.y, score: rightKnee.visibility };
-    }
-    
-    // ✅ 환자 기준으로 수정: 발목
-    // MediaPipe leftAnkle = 환자 왼쪽 → L_ankle
-    // MediaPipe rightAnkle = 환자 오른쪽 → R_ankle
-    if(leftAnkle && leftAnkle.visibility >= 0.3 && rightAnkle && rightAnkle.visibility >= 0.3) {
-      keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
-      keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
-    } else if(leftAnkle && leftAnkle.visibility >= 0.3) {
-      // MediaPipe left만 있으면 → L_ankle (환자 왼쪽)
-      keypointMap['L_ankle'] = { x: leftAnkle.x, y: leftAnkle.y, score: leftAnkle.visibility };
-    } else if(rightAnkle && rightAnkle.visibility >= 0.3) {
-      // MediaPipe right만 있으면 → R_ankle (환자 오른쪽)
-      keypointMap['R_ankle'] = { x: rightAnkle.x, y: rightAnkle.y, score: rightAnkle.visibility };
-    }
+    assignFrontBilateral(leftHip, rightHip, 'L_asis', 'R_asis');
+    assignFrontBilateral(leftKnee, rightKnee, 'L_knee', 'R_knee');
+    assignFrontBilateral(leftAnkle, rightAnkle, 'L_ankle', 'R_ankle');
     
     console.log('정면 랜드마크 매핑 (이미지 좌표 기준):', Object.keys(keypointMap));
   }
