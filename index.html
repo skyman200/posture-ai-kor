@@ -12566,18 +12566,31 @@ let detectors = { front: null, side: null };
 function initializeApp() {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
   
-  // sessions가 정의되어 있는지 확인
-  if(typeof sessions === 'undefined' || !sessions) {
+  // sessions가 정의되어 있는지 확인 (window.sessions 사용)
+  if(typeof window.sessions === 'undefined' || !window.sessions) {
     console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.");
+    // 재시도 로직 추가
+    const retryCount = initializeApp.retryCount || 0;
+    if (retryCount < 10) {
+      initializeApp.retryCount = retryCount + 1;
+      setTimeout(initializeApp, 300);
+    }
     return;
   }
   
   // sessions.Before와 sessions.After가 초기화되었는지 확인
-  if(!sessions.Before || !sessions.After) {
+  if(!window.sessions.Before || !window.sessions.After) {
     console.warn("sessions.Before 또는 sessions.After가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.");
-    setTimeout(initializeApp, 300);
+    const retryCount = initializeApp.retryCount || 0;
+    if (retryCount < 10) {
+      initializeApp.retryCount = retryCount + 1;
+      setTimeout(initializeApp, 300);
+    }
     return;
   }
+  
+  // 재시도 카운터 리셋
+  initializeApp.retryCount = 0;
   
   // 파일 업로드 설정 (가장 먼저)
   if(typeof setupFileUploads === 'function') {
@@ -13376,8 +13389,8 @@ if (typeof window !== 'undefined') {
       allDefined = false;
     }
     
-    // sessions 객체가 정의되었는지 확인
-    const sessionsReady = typeof sessions !== 'undefined' && sessions && sessions.Before && sessions.After;
+    // sessions 객체가 정의되었는지 확인 (window.sessions 사용)
+    const sessionsReady = typeof window.sessions !== 'undefined' && window.sessions && window.sessions.Before && window.sessions.After;
     
     if (allDefined && sessionsReady) {
       initializeApp();
