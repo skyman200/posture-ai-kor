@@ -2869,190 +2869,87 @@ const pilatesExerciseDescriptions = {
   }
 };
 
-// 하위 호환성을 위한 기존 pilatesData 유지
-const pilatesData = {
-  '목 신전근 긴장': {
-    매트: ['Roll-Up', 'Spine Stretch Forward'],
-    리포머: ['Neck Stretch on Box'],
-    캐딜락: ['Tower - Arm Springs'],
-    체어: ['Tricep Dips'],
-    바렐: ['Chest Stretch']
-  },
-  '상부승모근 과긴장': {
-    매트: ['Arm Circles', 'Swimming Prep'],
-    리포머: ['Rowing - From Chest'],
-    캐딜락: ['Arm Springs - Chest Expansion'],
-    체어: ['Tricep Press'],
-    바렐: ['Side Stretch Over']
-  },
-  '전방어깨자세': {
-    매트: ['Swan Dive', 'T-Raise'],
-    리포머: ['Backstroke', 'Pulling Straps'],
-    캐딜락: ['Push Through Bar'],
-    체어: ['Push Down - Front'],
-    바렐: ['Chest Expansion']
-  },
-  '어깨안정근 약화': {
-    매트: ['Plank to Pike', 'Side Plank'],
-    리포머: ['Long Stretch Series'],
-    캐딜락: ['Arm Springs - Bug'],
-    체어: ['Mountain Climber'],
-    바렐: ['Side Arm Work']
-  },
-  '회전근개 불균형': {
-    매트: ['Side Lying Arm Series'],
-    리포머: ['Arm Work - Salute'],
-    캐딜락: ['Tower - Rotation'],
-    체어: ['Seated Rotation'],
-    바렐: ['Spiral Stretch']
-  },
-  '복직근 약화': {
-    매트: ['The Hundred', 'Teaser'],
-    리포머: ['Stomach Series - Hundred'],
-    캐딜락: ['Roll Down Bar'],
-    체어: ['Teaser Prep'],
-    바렐: ['Sit Up Series']
-  },
-  '복사근 불균형': {
-    매트: ['Criss Cross', 'Saw'],
-    리포머: ['Short Box - Twist'],
-    캐딜락: ['Twist & Reach'],
-    체어: ['Side Bend'],
-    바렐: ['Twist on Barrel']
-  },
-  '깊은코어 약화': {
-    매트: ['Dead Bug', 'Modified Hundred'],
-    리포머: ['Footwork - Parallel'],
-    캐딜락: ['Breathing with Springs'],
-    체어: ['Seated Balance'],
-    바렐: ['Core Integration']
-  },
-  '흉추 과후만': {
-    매트: ['Swan', 'Extension Series'],
-    리포머: ['Short Box - Arch'],
-    캐딜락: ['Monkey Stretch'],
-    체어: ['Back Extension'],
-    바렐: ['Chest Opening']
-  },
-  '요추 과전만': {
-    매트: ['Pelvic Curl', 'Imprint & Release'],
-    리포머: ['Pelvic Press', 'Knee Stretches'],
-    캐딜락: ['Tower - Hip Work'],
-    체어: ['Hip Flexor Stretch'],
-    바렐: ['Hip Opening']
-  },
-  '척추기립근 약화': {
-    매트: ['Swimming', 'Rocking'],
-    리포머: ['Long Back Stretch'],
-    캐딜락: ['Back Extension Springs'],
-    체어: ['Swan on Chair'],
-    바렐: ['Round Back']
-  },
-  '고관절 굴곡근 단축': {
-    매트: ['Hip Flexor Stretch', 'Lunge'],
-    리포머: ['Lunge Series', 'Runner Stretch'],
-    캐딜락: ['Tower - Hip Stretch'],
-    체어: ['Standing Lunge'],
-    바렐: ['Hip Flexor Series']
-  },
-  '둔근 약화': {
-    매트: ['Bridge Series', 'Clam'],
-    리포머: ['Footwork - Relevé', 'Leg Press'],
-    캐딜락: ['Leg Springs - Circles'],
-    체어: ['Glute Press Back'],
-    바렐: ['Hip Extension']
-  },
-  '골반 불안정': {
-    매트: ['Single Leg Bridge', 'Single Leg Stretch'],
-    리포머: ['Single Leg Work'],
-    캐딜락: ['Leg Springs - Adduction'],
-    체어: ['Standing Balance'],
-    바렐: ['Stability Challenge']
-  },
-  '대퇴사두근 약화': {
-    매트: ['Wall Squat', 'Single Leg Squat'],
-    리포머: ['Footwork - Heels', 'Squats'],
-    캐딜락: ['Leg Press Springs'],
-    체어: ['Standing Press Down'],
-    바렐: ['Leg Strengthening']
-  },
-  '햄스트링 단축': {
-    매트: ['Leg Pull Front', 'Roll Over'],
-    리포머: ['Hamstring Stretch', 'Tendon Stretch'],
-    캐딜락: ['Tower - Leg Stretch'],
-    체어: ['Leg Pull Back'],
-    바렐: ['Hip Flexor Stretch']
-  },
-  '종아리 근육 긴장': {
-    매트: ['Calf Stretch', 'Ankle Circles'],
-    리포머: ['Calf Raises', 'Tendon Stretch'],
-    캐딜락: ['Foot Corrector Work'],
-    체어: ['Heel Raises'],
-    바렐: ['Ankle Mobility']
+// ✅ 하드코딩된 pilatesData 제거됨 - CSV DB 사용
+// ✅ mapMuscleToPilatesIssue 함수 제거됨 - DB 기반 매칭 사용
+
+// ✅ 필라테스 동작 추천 함수 (DB 기반)
+async function recommendPilates(tight, weak) {
+  const pilatesDB = window.PilatesDB || PILATES_EXERCISE_DB || (await loadPilatesDB());
+  if (!pilatesDB || pilatesDB.length === 0) {
+    console.warn('⚠️ 필라테스 DB가 로드되지 않았습니다.');
+    return [];
   }
-};
 
-// 근육 이름을 필라테스 문제로 매핑
-function mapMuscleToPilatesIssue(muscleName) {
-  const mapping = {
-    '상부승모근': '상부승모근 과긴장',
-    '견갑거근': '상부승모근 과긴장',
-    'SCM': '상부승모근 과긴장',
-    '흉쇄유돌근': '상부승모근 과긴장',
-    '심부경부굴근': '목 굴곡근 약화',
-    '전거근': '목 굴곡근 약화',
-    '하부승모근': '전방어깨자세',
-    '장요근': '고관절 굴곡근 단축',
-    '요추기립근': '요추 과전만',
-    '대퇴직근': '고관절 굴곡근 단축',
-    '흉요근막': '요추 과전만',
-    '복횡근': '깊은코어 약화',
-    '둔근': '둔근 약화',
-    '대둔근': '둔근 약화',
-    '중둔근': '둔근 약화',
-    '하둔근': '둔근 약화',
-    '복직근': '복직근 약화',
-    '대퇴사두근': '대퇴사두근 약화',
-    '햄스트링': '햄스트링 단축',
-    '비복근': '종아리 근육 긴장',
-    '가자미근': '종아리 근육 긴장',
-    '슬와근': '햄스트링 단축'
+  // 근육 배열 정규화
+  const tightArray = Array.isArray(tight) ? tight : (tight ? [tight] : []);
+  const weakArray = Array.isArray(weak) ? weak : (weak ? [weak] : []);
+
+  // 근육 이름 정규화된 Set 생성
+  const tightSet = new Set(
+    tightArray
+      .map(normalizeMuscleName)
+      .filter(Boolean)
+  );
+  const weakSet = new Set(
+    weakArray
+      .map(normalizeMuscleName)
+      .filter(Boolean)
+  );
+
+  // DB에서 매칭된 운동 찾기
+  const matchedExercises = pilatesDB.filter((ex) => {
+    // 긴장 근육을 스트레칭하는 운동 찾기
+    if (tightSet.size > 0) {
+      const stretchTargets = ex.stretch_targets || ex.stretchMuscles || 
+        (ex.Main_Stretch_Muscles ? splitMuscleList(ex.Main_Stretch_Muscles) : []);
+      const hasStretchMatch = stretchTargets.some((target) => {
+        const normalized = normalizeMuscleName(target);
+        return tightSet.has(normalized) || 
+          Array.from(tightSet).some(t => normalized.includes(t) || t.includes(normalized));
+      });
+      if (hasStretchMatch) return true;
+    }
+
+    // 약화 근육을 강화하는 운동 찾기
+    if (weakSet.size > 0) {
+      const strengthenTargets = ex.strengthen_targets || ex.strengthenMuscles ||
+        (ex.Main_Strengthen_Muscles ? splitMuscleList(ex.Main_Strengthen_Muscles) : []);
+      const hasStrengthenMatch = strengthenTargets.some((target) => {
+        const normalized = normalizeMuscleName(target);
+        return weakSet.has(normalized) ||
+          Array.from(weakSet).some(w => normalized.includes(w) || w.includes(normalized));
+      });
+      if (hasStrengthenMatch) return true;
+    }
+
+    return false;
+  });
+
+  // 기구별로 그룹화 (기존 형식과 호환)
+  const groupedByEquipment = {};
+  matchedExercises.forEach(ex => {
+    const equipment = ex.equipment_ko || ex.equipment || '기타';
+    if (!groupedByEquipment[equipment]) {
+      groupedByEquipment[equipment] = [];
+    }
+    // 기존 형식과 호환되도록 문자열 배열로 저장
+    const exerciseName = ex.exercise_ko || ex.exercise_en || ex.name || '';
+    if (exerciseName && !groupedByEquipment[equipment].includes(exerciseName)) {
+      groupedByEquipment[equipment].push(exerciseName);
+    }
+  });
+
+  // 기존 형식과 호환되도록 변환
+  // 기존: { issue: '...', type: '...', muscles: [...], pilates: { 매트: [...], 리포머: [...] } }
+  // 새 형식: { issue: '근육 기반', type: 'DB 매칭', muscles: [...], pilates: { 매트: [...], 리포머: [...] } }
+  const result = {
+    issue: '근육 기반 매칭',
+    type: 'DB 기반',
+    muscles: [...new Set([...tightArray, ...weakArray])],
+    pilates: groupedByEquipment
   };
-  return mapping[muscleName] || null;
-}
 
-// 필라테스 동작 추천 함수
-function recommendPilates(tight, weak) {
-  const pilatesIssues = new Map();
-  
-  // 긴장된 근육에 대한 필라테스
-  tight.forEach(muscle => {
-    const issue = mapMuscleToPilatesIssue(muscle);
-    if(issue && pilatesData[issue]) {
-      if(!pilatesIssues.has(issue)) {
-        pilatesIssues.set(issue, { type: '긴장', muscles: [], pilates: pilatesData[issue] });
-      }
-      pilatesIssues.get(issue).muscles.push(muscle);
-    }
-  });
-  
-  // 약화된 근육에 대한 필라테스
-  weak.forEach(muscle => {
-    const issue = mapMuscleToPilatesIssue(muscle);
-    if(issue && pilatesData[issue]) {
-      if(!pilatesIssues.has(issue)) {
-        pilatesIssues.set(issue, { type: '약화', muscles: [], pilates: pilatesData[issue] });
-      }
-      pilatesIssues.get(issue).muscles.push(muscle);
-    }
-  });
-  
-  return Array.from(pilatesIssues.entries()).map(([issue, data]) => ({
-    issue,
-    type: data.type,
-    muscles: [...new Set(data.muscles)],
-    pilates: data.pilates
-  }));
+  return [result];
 }
 const internalAngle = (a,b,c) => {
   const ab = Math.atan2(a.y - b.y, a.x - b.x);
@@ -3856,9 +3753,9 @@ function computeAll() {
       updateDisplay();
       updateCompare();
       updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
-    }).catch(err => {
+    }).catch(async err => {
       console.warn('DB 기반 분석 실패, 기존 방식 사용:', err);
-      const analysis = analyzeMuscles(cva, pelvic, knee, mergedMetrics);
+      const analysis = await analyzeMuscles(cva, pelvic, knee, mergedMetrics);
       S.analysis = analysis;
       updateDisplay();
       updateCompare();
@@ -4221,7 +4118,7 @@ function computeScore(cva, pelvic, knee) {
 // 데이터베이스 기반 근육 분석 함수
 async function analyzeMusclesWithDB(fullMetrics = null) {
   if (!fullMetrics) {
-    return analyzeMuscles(null, null, null, null);
+    return await analyzeMuscles(null, null, null, null);
   }
   
   try {
@@ -4250,7 +4147,7 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
       }
     }
     if (Object.keys(flatMetrics).length === 0) {
-      return analyzeMuscles(null, null, null, fullMetrics);
+      return await analyzeMuscles(null, null, null, fullMetrics);
     }
     
     // DB 기반 분석 실행
@@ -4414,12 +4311,12 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
   } catch (err) {
     console.error('DB 기반 분석 실패:', err);
     // 폴백: 기존 방식 사용
-    return analyzeMuscles(null, null, null, fullMetrics);
+    return await analyzeMuscles(null, null, null, fullMetrics);
   }
 }
 
-// 기존 함수 (하위 호환성 유지)
-function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
+// 기존 함수 (하위 호환성 유지) - DB 기반 필라테스 추천을 위해 async로 변경
+async function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
   const tight = [];
   const weak = [];
   const comments = [];
@@ -4793,10 +4690,16 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
     }
   }
   
-  // 패턴 기반 추천이 없으면 기존 방식 사용
+  // 패턴 기반 추천이 없으면 DB 기반 방식 사용
   if(pilates.length === 0) {
-    const oldPilates = recommendPilates([...new Set(tight)], [...new Set(weak)]);
-    pilates.push(...oldPilates);
+    try {
+      const oldPilates = await recommendPilates([...new Set(tight)], [...new Set(weak)]);
+      if (oldPilates && oldPilates.length > 0) {
+        pilates.push(...oldPilates);
+      }
+    } catch (err) {
+      console.warn('⚠️ 필라테스 추천 실패:', err);
+    }
   }
   
   return { 
