@@ -174,10 +174,12 @@ canvas {
   flex-shrink: 0;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
-  user-select: none;
+  -moz-user-select: none;
+       user-select: none;
   -webkit-user-select: none;
 }
 </style>
+    <script type="module" crossorigin src="/posture-ai-kor/assets/main-Bcpwq-bp.js"></script>
   </head>
   <body>
 <aside class="panel sidebar" style="order: 1;">
@@ -12545,7 +12547,6 @@ if (btnShare) {
 </script>
 
 <!-- ✅ 모듈 진입점 (모든 초기화는 여기서 시작) -->
-<script type="module" src="./src/index.js"></script>
 
 <!-- ✅ Pose Detection Libraries (모듈 로드 후) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
