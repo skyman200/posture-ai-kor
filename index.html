@@ -11065,9 +11065,8 @@ async function generatePosturePDF(centerName, memberName, before, after) {
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     
-    // 한글 폰트 로드 시도
-    await loadKoreanFontForPDF(pdf);
-    
+    // NotoSansKR 폰트 사용 (base64 JS 파일에서 자동 로드됨)
+    pdf.setFont("NotoSansKR", "normal");
     pdf.setFontSize(20);
     pdfAddKoreanText(pdf, 'AI 자세 분석 리포트', 105, 20, { fontSize: 20, fontStyle: 'bold', align: 'center' });
     pdf.setFontSize(12);
@@ -11382,30 +11381,25 @@ function pdfAddKoreanText(pdf, text, x, y, options = {}) {
     align = 'left'
   } = options;
   
-  // 한글 폰트가 로드되어 있으면 사용
-  if (koreanFontLoaded && koreanFontBase64) {
-    try {
-      pdf.setFont('NotoSansCJKkr', fontStyle);
-      pdf.setFontSize(fontSize);
-      if (align === 'center' || align === 'right') {
-        pdf.text(text, x, y, { align });
-      } else {
-        pdf.text(text, x, y);
-      }
-      return;
-    } catch (err) {
-      console.warn('한글 폰트 사용 실패, 기본 폰트로 폴백:', err);
+  // NotoSansKR 폰트 사용 (base64 JS 파일에서 자동 로드됨)
+  try {
+    pdf.setFont("NotoSansKR", fontStyle === 'bold' ? 'bold' : 'normal');
+    pdf.setFontSize(fontSize);
+    if (align === 'center' || align === 'right') {
+      pdf.text(text, x, y, { align });
+    } else {
+      pdf.text(text, x, y);
     }
-  }
-  
-  // 폴백: 기본 폰트 사용 (한글 폰트가 없을 때)
-  // 주의: 기본 폰트는 한글을 제대로 표시하지 못할 수 있음
-  pdf.setFont('helvetica', fontStyle);
-  pdf.setFontSize(fontSize);
-  if (align === 'center' || align === 'right') {
-    pdf.text(text, x, y, { align });
-  } else {
-    pdf.text(text, x, y);
+    return;
+  } catch (err) {
+    console.warn('NotoSansKR 폰트 사용 실패, 기본 폰트로 폴백:', err);
+    pdf.setFont('helvetica', fontStyle);
+    pdf.setFontSize(fontSize);
+    if (align === 'center' || align === 'right') {
+      pdf.text(text, x, y, { align });
+    } else {
+      pdf.text(text, x, y);
+    }
   }
 }
 
@@ -11573,22 +11567,13 @@ function exportAsPdf(options = {}) {
         logoUrl
       });
       
-    // PDF 생성 (마진 24px = 약 0.6cm, 폰트 안전화)
+    // PDF 생성 (마진 24px = 약 0.6cm)
     const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
-    // 한글 폰트 로드 시도
-    await loadKoreanFontForPDF(pdf);
-    // 폰트 안전화: helvetica만 사용 (폰트 오류 방지)
-    try {
-      if (!koreanFontLoaded || !koreanFontBase64) {
-        pdf.setFont('helvetica', 'normal');
-      }
-    } catch(err) {
-      console.warn('폰트 설정 실패, 기본 폰트 사용:', err);
-    }
+    // NotoSansKR 폰트 사용 (base64 JS 파일에서 자동 로드됨)
+    pdf.setFont("NotoSansKR", "normal");
     
     // 전역 함수로 노출 (다른 파일에서 사용)
     window.pdfAddKoreanText = pdfAddKoreanText;
-    window.koreanFontLoaded = koreanFontLoaded;
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
@@ -13790,7 +13775,8 @@ async function exportAsPdfSimple() {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const imgWidth = pageWidth - 40;
 
-    await loadKoreanFontForPDF(pdf);
+    // NotoSansKR 폰트 사용 (base64 JS 파일에서 자동 로드됨)
+    pdf.setFont("NotoSansKR", "normal");
     pdfAddKoreanText(pdf, "📌 자세 분석 리포트", 20, 40, { fontSize: 16, fontStyle: 'bold' });
     pdf.addImage(img1, "PNG", 20, 60, imgWidth, 220);
     pdf.addPage();
@@ -13813,15 +13799,15 @@ if (document.getElementById("downloadPdfBtn")) {
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="/public/fonts/NotoSansKR-Regular-base64.js"></script>
-<script src="/public/fonts/NotoSansKR-Bold-base64.js"></script>
+<script src="https://skyman200.github.io/posture-ai-kor/fonts/NotoSansKR-Regular-base64.js"></script>
+<script src="https://skyman200.github.io/posture-ai-kor/fonts/NotoSansKR-Bold-base64.js"></script>
 <script>
+  // 혹시 jspdf보다 먼저 로드되었을 경우 안전 등록
   if (window._pdfFonts && window.jspdf?.API?.addFileToVFS) {
     window._pdfFonts.forEach(f => {
       window.jspdf.API.addFileToVFS(f.ttfName, f.fontData);
       window.jspdf.API.addFont(f.ttfName, f.family, f.style);
     });
-    console.log("✅ Queued fonts registered");
   }
 </script>
 
