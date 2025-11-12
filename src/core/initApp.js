@@ -1,7 +1,7 @@
 import { sessions } from "./sessions.js";
 import { resizeCanvasFor, draw, updateCompare } from "./utils.js";
 import { computeMetricsOnly, liveAnalyzer } from "../ai/analyzer.js";
-import { loadModels } from "../ai/modelLoader.js";
+import { ModelLoader } from "../ai/modelLoader.js";
 
 let initialized = false;
 
@@ -466,12 +466,25 @@ async function initializeApp() {
     updateCoordSelectOptions();
   }
   
+  // ✅ UI 비활성화 (모델 로딩 전까지)
+  disableUI();
+  
   if (window.resizeCanvasFor) window.resizeCanvasFor(null);
   if (window.draw) window.draw();
   if (window.computeMetricsOnly) window.computeMetricsOnly();
   if (window.updateCompare) window.updateCompare();
   
-  await loadModels();
+  // ✅ 모델 로딩 (싱글톤 패턴으로 1회만 실행)
+  try {
+    await ModelLoader.loadModels();
+    console.log("✅ 모델 로딩 완료");
+  } catch (err) {
+    console.error("❌ 모델 로딩 실패:", err);
+    // 모델 로딩 실패해도 UI는 활성화 (폴백 모드)
+  }
+  
+  // ✅ UI 활성화 (모델 로딩 완료 후)
+  enableUI();
   
   // liveAnalyzer를 window에 노출
   window.liveAnalyzer = liveAnalyzer;
@@ -486,6 +499,34 @@ async function initializeApp() {
   bindFileInput();
   
   console.log("=== 초기화 완료 ===");
+}
+
+// ✅ UI 비활성화 함수
+function disableUI() {
+  const buttons = document.querySelectorAll('button, .btn');
+  buttons.forEach(btn => {
+    if (!btn.disabled) {
+      btn.dataset.wasEnabled = 'true';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+    }
+  });
+  console.log("🔒 UI 비활성화 (모델 로딩 중)");
+}
+
+// ✅ UI 활성화 함수
+function enableUI() {
+  const buttons = document.querySelectorAll('button, .btn');
+  buttons.forEach(btn => {
+    if (btn.dataset.wasEnabled === 'true') {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      delete btn.dataset.wasEnabled;
+    }
+  });
+  console.log("🔓 UI 활성화 (모델 로딩 완료)");
 }
 
 // ✅ 파일 업로드 핸들러

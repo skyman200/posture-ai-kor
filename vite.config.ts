@@ -3,8 +3,15 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/posture-ai-kor/',
   
+  resolve: {
+    alias: {
+      '@tensorflow/tfjs': '@tensorflow/tfjs/dist/tf.min.js'
+    }
+  },
+  
   optimizeDeps: {
-    exclude: ['@mediapipe/pose'] // CDN으로 직접 로드하므로 번들에서 제외
+    exclude: ['@mediapipe/pose'], // CDN으로 직접 로드하므로 번들에서 제외
+    include: ['@tensorflow/tfjs'] // TensorFlow.js는 번들에 포함
   },
   
   build: {

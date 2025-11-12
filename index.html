@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DIT 자세 분석 AI (최종 통합버전)</title>
+<!-- ✅ TensorFlow.js 중복 로딩 차단 (최우선 실행) -->
+<script>
+  if (!window.__TF_LOADED__) {
+    window.__TF_LOADED__ = true;
+  } else {
+    console.warn("🚨 TensorFlow.js 중복 로딩 차단됨");
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js"></script>
 <!-- ✅ 3. favicon.ico 404 오류 해결 (선택사항) -->
 <link rel="icon" type="image/png" href="/posture-ai-kor/pwa-192x192.png">
 <style>
@@ -12548,7 +12557,7 @@ if (btnShare) {
 <script type="module" src="./src/index.js"></script>
 
 <!-- ✅ Pose Detection Libraries (모듈 로드 후) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+<!-- TensorFlow.js는 이미 head에서 로드됨 (중복 방지) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 <!-- MediaPipe는 이미 위에서 로드됨 -->
 
