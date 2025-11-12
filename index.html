@@ -3169,7 +3169,7 @@ function addMobileTouchSupport(element, handler) {
 }
 
 // Before/After 세션 전환 버튼 (DOM 로드 후 안전하게 연결)
-function initSessionButtons() {
+window.initSessionButtons = window.initSessionButtons || function initSessionButtons() {
   console.log("initSessionButtons 호출됨, readyState:", document.readyState);
   const btnBefore = document.getElementById("btnBefore");
   const btnAfter = document.getElementById("btnAfter");
