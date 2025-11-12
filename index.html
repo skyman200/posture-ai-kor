@@ -4082,15 +4082,6 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`Knee Dev ${kneeDev.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 11. LLD (Leg Length Discrepancy) - 정상 ≤1cm
-  const lld = fullMetrics.LLD?.value;
-  if(lld != null && lld > 1) {
-    const delta = lld - 1;
-    const penalty = Math.min(25, delta * 10);
-    penalties += penalty;
-    reasons.push(`LLD ${lld.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
   // 12. GSB (Global Sagittal Balance) - 정상 ≤2cm
   const gsb = fullMetrics.GSB?.value;
   if(gsb != null && gsb > 2) {
