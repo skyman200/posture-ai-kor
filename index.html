@@ -676,6 +676,7 @@ if (document.readyState === 'loading') {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="/fonts/NotoSansKR-Bold-normal.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <!-- AI 자동 분석 모듈 통합 -->
@@ -1160,6 +1161,9 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
   // Q-Angle, Knee_Deviation, LLD는 정면 분석에서만 측정 (측면 분석에서는 제거)
   
   // 1️⃣6️⃣ PDS (Postural Deviation Score): 모든 지표 합산지수
+  // ⚠️ 주의: 이 PDS는 computeScoreFromFullMetrics의 100점 만점 체계로 대체됨
+  // analyzeFullPosture에서 계산된 PDS는 mergedMetrics에서 제거되고,
+  // computeScoreFromFullMetrics의 결과가 최종 PDS로 사용됨
   let pdsScore = 0;
   const statusMap = { "normal": 0, "mild": 1, "moderate": 2, "severe": 3, "abnormal": 2, "neutral": 0, "kyphotic": 2, "flat": 2 };
   Object.keys(result).forEach(key => {
@@ -1168,11 +1172,12 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     }
   });
   
+  // 이 PDS는 임시값이며, computeScoreFromFullMetrics의 결과로 덮어쓰여짐
   result.PDS = {
     value: pdsScore,
     status: pdsScore <= 10 ? "normal" : pdsScore <= 15 ? "mild" : "moderate",
     unit: "score",
-    desc: "Postural Deviation Score (0–10: normal, 10↑: 불균형)"
+    desc: "Postural Deviation Score (임시값, computeScoreFromFullMetrics 결과로 대체됨)"
   };
   // 하위 호환성
   result.PDS.meaning = result.PDS.desc;
@@ -3646,21 +3651,35 @@ function computeMetricsOnly() {
     frontMetrics = analyzeFrontPosture(frontPoints, pxPerCm);
   }
   
-  // 측면 + 정면 통합
+  // 측면 + 정면 통합 (PDS는 제외 - computeScoreFromFullMetrics에서 계산)
   const mergedMetrics = { ...sideMetrics, ...frontMetrics };
+  // analyzeFullPosture에서 계산된 PDS 제거 (computeScoreFromFullMetrics 결과 사용)
+  delete mergedMetrics.PDS;
   
-  // PDS 점수 계산 (fullMetrics 기반)
+  // PDS 점수 계산 (fullMetrics 기반) - 100점 만점 체계
   if(Object.keys(mergedMetrics).length > 0) {
     const scoreResult = computeScoreFromFullMetrics(mergedMetrics);
     const pdsValue = scoreResult.score != null ? scoreResult.score : null;
     
-    // PDS를 fullMetrics에 추가
+    // PDS를 fullMetrics에 추가 (100점 만점 체계)
     if(pdsValue != null) {
+      // 심각도 판정: 85점 이상 normal, 70-84 mild, 50-69 moderate, 50 미만 severe
+      let pdsStatus;
+      if(pdsValue >= 85) {
+        pdsStatus = 'normal';
+      } else if(pdsValue >= 70) {
+        pdsStatus = 'mild';
+      } else if(pdsValue >= 50) {
+        pdsStatus = 'moderate';
+      } else {
+        pdsStatus = 'severe';
+      }
+      
       mergedMetrics.PDS = {
         value: pdsValue,
-        status: pdsValue >= 85 ? 'normal' : pdsValue >= 70 ? 'mild' : pdsValue >= 50 ? 'moderate' : 'severe',
+        status: pdsStatus,
         unit: 'score',
-        desc: 'Postural Deviation Score'
+        desc: 'Postural Deviation Score (100점 만점)'
       };
     }
     
@@ -4695,7 +4714,7 @@ async function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
     try {
       const oldPilates = await recommendPilates([...new Set(tight)], [...new Set(weak)]);
       if (oldPilates && oldPilates.length > 0) {
-        pilates.push(...oldPilates);
+    pilates.push(...oldPilates);
       }
     } catch (err) {
       console.warn('⚠️ 필라테스 추천 실패:', err);
@@ -5125,10 +5144,49 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   }
   
   // 전체 분석 항목 기준으로 점수 재계산 (fullMetrics가 있으면)
+  // PDS는 제외하고 계산 (PDS는 computeScoreFromFullMetrics의 결과로 설정됨)
   if(fullMetrics && Object.keys(fullMetrics).length > 0) {
+    // PDS를 임시로 제거하여 점수 계산
+    const pdsBackup = fullMetrics.PDS;
+    delete fullMetrics.PDS;
+    
     const scoreResult = computeScoreFromFullMetrics(fullMetrics);
+    
+    // PDS 복원 및 업데이트
     if(scoreResult.score != null) {
       scoreData = scoreResult;
+      
+      // PDS를 fullMetrics에 업데이트 (100점 만점 체계)
+      const pdsValue = scoreResult.score;
+      let pdsStatus;
+      if(pdsValue >= 85) {
+        pdsStatus = 'normal';
+      } else if(pdsValue >= 70) {
+        pdsStatus = 'mild';
+      } else if(pdsValue >= 50) {
+        pdsStatus = 'moderate';
+      } else {
+        pdsStatus = 'severe';
+      }
+      
+      fullMetrics.PDS = {
+        value: pdsValue,
+        status: pdsStatus,
+        unit: 'score',
+        desc: 'Postural Deviation Score (100점 만점)'
+      };
+      
+      // PDS 표시 업데이트
+      if(pdsValueEl) {
+        const pdsColor = pdsStatus === 'normal' ? '#2ec4b6' : pdsStatus === 'mild' ? '#ffd166' : '#ff6b6b';
+        pdsValueEl.textContent = `${pdsValue.toFixed(1)} (${pdsStatus})`;
+        pdsValueEl.style.color = pdsColor;
+      }
+    } else {
+      // 점수 계산 실패 시 원래 PDS 복원
+      if(pdsBackup) {
+        fullMetrics.PDS = pdsBackup;
+      }
     }
   }
   
@@ -7157,9 +7215,9 @@ if(document.readyState === 'loading') {
 function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
-  ctx.lineWidth = 4; // 선명도 향상을 위해 두께 증가
-  ctx.globalAlpha = isDashed ? 0.95 : 0.9; // 선명도 향상
-  ctx.setLineDash(isDashed ? [8, 5] : []);
+  ctx.lineWidth = 2; // 선 두께 감소 (4 -> 2)
+  ctx.globalAlpha = isDashed ? 0.7 : 0.75; // 투명도 조정
+  ctx.setLineDash(isDashed ? [6, 4] : []);
   
   // 키포인트 순서 정의 (측면)
   const keyOrder = ['tragus', 'c7', 'acromion', 'hip', 'knee', 'ankle'];
@@ -7194,22 +7252,22 @@ function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
     const p = points[key];
     if(!p || p.x == null || p.y == null) return;
     
-    // 점 그리기 (더 크고 선명하게)
+    // 점 그리기 (크기 감소)
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); // 크기 증가 (6 -> 8)
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); // 크기 감소 (8 -> 4)
     ctx.fill();
-    // 점 외곽선 추가로 더 선명하게
+    // 점 외곽선
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.stroke();
     
-    // 라벨 그리기 (더 크고 선명하게)
-    ctx.font = 'bold 15px Arial'; // 폰트 크기 증가 및 볼드
+    // 라벨 그리기 (크기 감소)
+    ctx.font = 'bold 10px Arial'; // 폰트 크기 감소 (15 -> 10)
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3; // 외곽선 두께 증가
-    ctx.strokeText(`${labelPrefix}:${key}`, p.x + 15, p.y);
-    ctx.fillText(`${labelPrefix}:${key}`, p.x + 15, p.y);
+    ctx.lineWidth = 1.5; // 외곽선 두께 감소 (3 -> 1.5)
+    ctx.strokeText(`${labelPrefix}:${key}`, p.x + 10, p.y);
+    ctx.fillText(`${labelPrefix}:${key}`, p.x + 10, p.y);
   });
   
   ctx.globalAlpha = 1.0;
@@ -8550,22 +8608,18 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
       <div style="font-size:12px; font-weight:600; margin-bottom:8px;">📐 포즈 분석 오버레이 (스켈레톤)</div>
       <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; align-items:center;">
         ${sideSkeletonImg ? `
-        <div style="flex:1; min-width:400px; max-width:1500px; display:flex; justify-content:center; align-items:center;">
-          <div style="text-align:center; padding:60px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:visible;">
-            <div style="width:100%; display:flex; justify-content:center; align-items:center; transform:scale(3); transform-origin:center center;">
-              <img src="${sideSkeletonImg}" style="width:auto; height:auto; max-width:800px; max-height:800px; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; margin:0 auto;" />
-            </div>
-            <div style="margin-top:24px; font-size:10px; color:#666;">측면: 파란색 점선(Before) | 주황색 실선(After)</div>
+        <div style="flex:1; min-width:300px; max-width:800px; display:flex; justify-content:center; align-items:center;">
+          <div style="text-align:center; padding:12px; background:#fff; border-radius:8px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <img src="${sideSkeletonImg}" style="width:100%; height:auto; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; max-height:400px; max-width:100%;" />
+            <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
         ` : ''}
         ${frontSkeletonImg ? `
-        <div style="flex:1; min-width:400px; max-width:1500px; display:flex; justify-content:center; align-items:center;">
-          <div style="text-align:center; padding:60px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:visible;">
-            <div style="width:100%; display:flex; justify-content:center; align-items:center; transform:scale(3); transform-origin:center center;">
-              <img src="${frontSkeletonImg}" style="width:auto; height:auto; max-width:800px; max-height:800px; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; margin:0 auto;" />
-            </div>
-            <div style="margin-top:24px; font-size:10px; color:#666;">정면: 파란색 점선(Before) | 주황색 실선(After)</div>
+        <div style="flex:1; min-width:300px; max-width:800px; display:flex; justify-content:center; align-items:center;">
+          <div style="text-align:center; padding:12px; background:#fff; border-radius:8px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <img src="${frontSkeletonImg}" style="width:100%; height:auto; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; max-height:400px; max-width:100%;" />
+            <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
         ` : ''}
@@ -8619,17 +8673,46 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     analysis = mergeAnalysisData(analysisResultFallback, analysis);
   }
 
-  // ✅ 필라테스 데이터 보강: analysis.pilates가 없거나 비어있으면 재생성
-  if ((!analysis.pilates || !Array.isArray(analysis.pilates) || analysis.pilates.length === 0) && S.metrics?.fullMetrics) {
-    try {
-      const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
-      if (refreshedAnalysis && refreshedAnalysis.pilates && Array.isArray(refreshedAnalysis.pilates) && refreshedAnalysis.pilates.length > 0) {
-        analysis = mergeAnalysisData(refreshedAnalysis, analysis);
-        S.analysis = analysis;
-        console.log('✅ PDF 생성: 필라테스 데이터 보강 완료', analysis.pilates.length, '개 항목');
+  // ✅ 모든 분석 데이터 보강: analysis가 비어있거나 필라테스/근육 데이터가 없으면 재생성
+  if (S.metrics?.fullMetrics) {
+    const needsRefresh = !analysis || 
+                         !analysis.pilates || !Array.isArray(analysis.pilates) || analysis.pilates.length === 0 ||
+                         !analysis.tight || !Array.isArray(analysis.tight) || analysis.tight.length === 0 ||
+                         !analysis.weak || !Array.isArray(analysis.weak) || analysis.weak.length === 0;
+    
+    if (needsRefresh) {
+      try {
+        console.log('⚠️ PDF 생성: 분석 데이터 재생성 시도...');
+        const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
+        if (refreshedAnalysis) {
+          // 필라테스 데이터 보강
+          if (refreshedAnalysis.pilates && Array.isArray(refreshedAnalysis.pilates) && refreshedAnalysis.pilates.length > 0) {
+            analysis = mergeAnalysisData(refreshedAnalysis, analysis);
+            console.log('✅ PDF 생성: 필라테스 데이터 보강 완료', analysis.pilates.length, '개 항목');
+          }
+          // 근육 상태 데이터 보강
+          if (refreshedAnalysis.tight && Array.isArray(refreshedAnalysis.tight) && refreshedAnalysis.tight.length > 0) {
+            if (!analysis.tight || !Array.isArray(analysis.tight) || analysis.tight.length === 0) {
+              analysis.tight = refreshedAnalysis.tight;
+            }
+          }
+          if (refreshedAnalysis.weak && Array.isArray(refreshedAnalysis.weak) && refreshedAnalysis.weak.length > 0) {
+            if (!analysis.weak || !Array.isArray(analysis.weak) || analysis.weak.length === 0) {
+              analysis.weak = refreshedAnalysis.weak;
+            }
+          }
+          // 코멘트 데이터 보강
+          if (refreshedAnalysis.comments && Array.isArray(refreshedAnalysis.comments) && refreshedAnalysis.comments.length > 0) {
+            if (!analysis.comments || !Array.isArray(analysis.comments) || analysis.comments.length === 0) {
+              analysis.comments = refreshedAnalysis.comments;
+            }
+          }
+          S.analysis = analysis;
+          console.log('✅ PDF 생성: 전체 분석 데이터 보강 완료');
+        }
+      } catch (recalcErr) {
+        console.warn('PDF 생성 중 분석 데이터 보강 실패:', recalcErr);
       }
-    } catch (recalcErr) {
-      console.warn('PDF 생성 중 필라테스 데이터 보강 실패:', recalcErr);
     }
   }
 
@@ -8994,76 +9077,7 @@ const pageIndexMap = {
 };
 let planTexts = { quickHtml: '', fullText: '' };
 
-let canvas2 = null;
-if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
-  const page2Container = document.createElement("div");
-  setPageContainerStyle(page2Container);
-  page2Container.classList.add('pdf-safe');
-
-  page2Container.innerHTML = `
-    <div style="margin-bottom:20px;">
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:8px;">🔥 AI Confidence Heatmap</h2>
-      <div style="font-size:11px; color:#666; margin-bottom:20px;">각 관절의 AI 신뢰도를 색상으로 시각화합니다. 빨강(높음) → 노랑(중간) → 파랑(낮음)</div>
-
-      ${beforeHeatmap ? `
-      <div style="margin-bottom:25px;">
-        <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#6366f1;">Before Confidence Heatmap</div>
-        <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(beforeAvgConfidence * 100).toFixed(1)}%</div>
-        <img src="${beforeHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
-      </div>
-      ` : ''}
-
-      ${afterHeatmap ? `
-      <div style="margin-bottom:25px;">
-        <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:#10b981;">After Confidence Heatmap</div>
-        <div style="font-size:10px; color:#666; margin-bottom:5px;">AI 평균 신뢰도: ${(afterAvgConfidence * 100).toFixed(1)}%</div>
-        <img src="${afterHeatmap}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:400px; object-fit:contain;" />
-      </div>
-      ` : ''}
-
-      ${!beforeHeatmap && !afterHeatmap ? `
-      <div style="padding:40px; text-align:center; color:#999; font-size:12px;">
-        Confidence 데이터가 없습니다. AI 포즈 감지를 실행해주세요.
-      </div>
-      ` : ''}
-    </div>
-
-    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
-        <span>Page 2/${totalPages}</span>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(page2Container);
-  if (isMobile) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  canvas2 = await html2canvas(page2Container, {
-    ...html2canvasOptions,
-    windowWidth: page2Container.scrollWidth,
-    windowHeight: page2Container.scrollHeight
-  });
-  if (document.body.contains(page2Container)) {
-    document.body.removeChild(page2Container);
-  }
-  
-  // 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
-  if (canvas2 && (canvas2.width > PDF_MAX_CANVAS_EDGE || canvas2.height > PDF_MAX_CANVAS_EDGE)) {
-    const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas2.width, PDF_MAX_CANVAS_EDGE / canvas2.height);
-    const newCanvas = document.createElement('canvas');
-    newCanvas.width = Math.floor(canvas2.width * ratio);
-    newCanvas.height = Math.floor(canvas2.height * ratio);
-    const ctx = newCanvas.getContext('2d');
-    ctx.drawImage(canvas2, 0, 0, newCanvas.width, newCanvas.height);
-    canvas2 = newCanvas;
-  }
-  
-  if (isMobile) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-}
+// ✅ 페이지 2 (AI Confidence Heatmap) 제거됨
 
 // 공통 페이지 스타일 설정 함수 (안전 폰트 사용, 글자 가독성 개선)
 const setPageContainerStyle = (container) => {
@@ -9324,10 +9338,27 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
-// 필라테스 추천 카드 HTML 생성 (앱과 동일하게 renderPilatesItemCard 사용)
-const pilatesHtml = analysis && analysis.pilates && analysis.pilates.length > 0
-  ? analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context:'pdf', index: idx, limitPerTool: Infinity })).join('')
-  : '<div style="font-size:12px; color:#333; padding:12px;">추천 세션이 없습니다.</div>';
+// ✅ 필라테스 추천 카드 HTML 생성 (앱과 동일하게 renderPilatesItemCard 사용)
+// 필라테스 데이터 최종 보강 (필요시 재생성)
+let finalPilatesData = analysis?.pilates || [];
+if ((!finalPilatesData || !Array.isArray(finalPilatesData) || finalPilatesData.length === 0) && S.metrics?.fullMetrics) {
+  try {
+    console.log('⚠️ PDF 생성: 필라테스 데이터 재생성 시도...');
+    const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
+    if (refreshedAnalysis && refreshedAnalysis.pilates && Array.isArray(refreshedAnalysis.pilates) && refreshedAnalysis.pilates.length > 0) {
+      finalPilatesData = refreshedAnalysis.pilates;
+      analysis.pilates = finalPilatesData;
+      S.analysis = analysis;
+      console.log('✅ PDF 생성: 필라테스 데이터 최종 보강 완료', finalPilatesData.length, '개 항목');
+    }
+  } catch (recalcErr) {
+    console.warn('PDF 생성 중 필라테스 데이터 최종 보강 실패:', recalcErr);
+  }
+}
+
+const pilatesHtml = finalPilatesData && finalPilatesData.length > 0
+  ? finalPilatesData.map((item, idx) => renderPilatesItemCard(item, { context:'pdf', index: idx, limitPerTool: Infinity })).join('')
+  : '<div style="font-size:12px; color:#666; padding:20px; text-align:center; background:#f9fafb; border-radius:8px; border:1px dashed #d1d5db;">필라테스 추천 데이터를 생성할 수 없습니다. 측정 데이터를 확인해주세요.</div>';
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 운동 추천</h2>
@@ -11417,22 +11448,37 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
   return uniqueRecommendations;
 }
 
-// ✅ 한글 폰트 로드 및 설정 (jsPDF)
+// ✅ 한글 폰트 로드 및 설정 (jsPDF) - NotoSansKR-Bold 사용
 let koreanFontLoaded = false;
 let koreanFontBase64 = null;
 
 /**
- * 한글 폰트를 로드하고 jsPDF에 추가
+ * 한글 폰트를 로드하고 jsPDF에 추가 (NotoSansKR-Bold)
  * @param {object} pdf - jsPDF 인스턴스
  * @returns {Promise<boolean>} 폰트 로드 성공 여부
  */
 async function loadKoreanFontForPDF(pdf) {
+  // 1. 전역 변수에서 폰트 데이터 확인 (NotoSansKR-Bold-normal.js에서 로드됨)
+  if (typeof NotoSansKR_Bold_normal !== 'undefined' && NotoSansKR_Bold_normal) {
+    try {
+      pdf.addFileToVFS('NotoSansKR-Bold.ttf', NotoSansKR_Bold_normal);
+      pdf.addFont('NotoSansKR-Bold.ttf', 'NotoSansKR-Bold', 'normal');
+      pdf.setFont('NotoSansKR-Bold', 'normal');
+      koreanFontBase64 = NotoSansKR_Bold_normal;
+      koreanFontLoaded = true;
+      console.log('✅ 한글 폰트 로드 완료 (NotoSansKR-Bold)');
+      return true;
+    } catch (err) {
+      console.warn('NotoSansKR-Bold 폰트 설정 실패:', err);
+    }
+  }
+  
+  // 2. 이미 로드된 폰트 데이터 재사용
   if (koreanFontLoaded && koreanFontBase64) {
     try {
-      pdf.addFileToVFS('NotoSansCJKkr-Regular.ttf', koreanFontBase64);
-      pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'normal');
-      pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'bold');
-      pdf.setFont('NotoSansCJKkr', 'normal');
+      pdf.addFileToVFS('NotoSansKR-Bold.ttf', koreanFontBase64);
+      pdf.addFont('NotoSansKR-Bold.ttf', 'NotoSansKR-Bold', 'normal');
+      pdf.setFont('NotoSansKR-Bold', 'normal');
       return true;
     } catch (err) {
       console.warn('폰트 설정 실패:', err);
@@ -11440,85 +11486,81 @@ async function loadKoreanFontForPDF(pdf) {
     }
   }
   
-  // 폰트가 아직 로드되지 않았으면 GitHub에서 로드 시도
+  // 3. 로컬 파일에서 로드 시도 (빌드/배포 경로 대응)
   try {
-    // GitHub raw URL에서 폰트 파일 로드 시도
-    const fontUrls = [
-      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/js/fonts/NotoSansCJKkr-Regular.ttf',
-      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/js/fonts/NotoSansCJKkr-Regular.js',
-      './js/fonts/NotoSansCJKkr-Regular.js'
+    const localFontUrls = [
+      '/fonts/NotoSansKR-Bold-normal.js',
+      './fonts/NotoSansKR-Bold-normal.js',
+      'fonts/NotoSansKR-Bold-normal.js'
     ];
     
-    let fontLoaded = false;
-    
-    // 먼저 Base64 변환된 JS 파일 시도
-    for (const url of fontUrls.slice(1)) {
+    for (const url of localFontUrls) {
       try {
         const response = await fetch(url);
         if (response.ok) {
           const jsContent = await response.text();
-          // export const NotoSansCJKkr_Regular_Base64 = "..." 형식 파싱
-          const match = jsContent.match(/export\s+const\s+\w+_Base64\s*=\s*["']([^"']+)["']/);
+          // var NotoSansKR_Bold_normal = "..." 형식 파싱
+          const match = jsContent.match(/var\s+NotoSansKR_Bold_normal\s*=\s*["']([^"']+)["']/);
           if (match && match[1]) {
             koreanFontBase64 = match[1];
             koreanFontLoaded = true;
-            pdf.addFileToVFS('NotoSansCJKkr-Regular.ttf', koreanFontBase64);
-            pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'normal');
-            pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'bold');
-            pdf.setFont('NotoSansCJKkr', 'normal');
-            console.log('✅ 한글 폰트 로드 완료 (GitHub)');
-            fontLoaded = true;
-            break;
+            pdf.addFileToVFS('NotoSansKR-Bold.ttf', koreanFontBase64);
+            pdf.addFont('NotoSansKR-Bold.ttf', 'NotoSansKR-Bold', 'normal');
+            pdf.setFont('NotoSansKR-Bold', 'normal');
+            console.log('✅ 한글 폰트 로드 완료 (로컬 파일)');
+            return true;
           }
         }
       } catch (err) {
-        // 다음 URL 시도
         continue;
       }
     }
+  } catch (err) {
+    console.warn('로컬 폰트 파일 로드 실패:', err);
+  }
+  
+  // 4. 폴백: GitHub에서 로드 시도 (하위 호환성)
+  try {
+    const fontUrls = [
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/fonts/NotoSansKR-Bold-normal.js',
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/fonts/NotoSansKR-Bold-normal.js'
+    ];
     
-    // JS 파일이 없으면 TTF 파일 직접 로드 시도 (큰 파일이므로 청크 단위로 처리)
-    if (!fontLoaded) {
+    for (const url of fontUrls) {
       try {
-        const response = await fetch(fontUrls[0]);
+        const response = await fetch(url);
         if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          // 큰 파일을 안전하게 Base64 변환
-          let binaryString = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < uint8Array.length; i += chunkSize) {
-            const chunk = uint8Array.subarray(i, i + chunkSize);
-            binaryString += String.fromCharCode.apply(null, chunk);
+          const jsContent = await response.text();
+          const match = jsContent.match(/var\s+NotoSansKR_Bold_normal\s*=\s*["']([^"']+)["']/);
+          if (match && match[1]) {
+            koreanFontBase64 = match[1];
+            koreanFontLoaded = true;
+            pdf.addFileToVFS('NotoSansKR-Bold.ttf', koreanFontBase64);
+            pdf.addFont('NotoSansKR-Bold.ttf', 'NotoSansKR-Bold', 'normal');
+            pdf.setFont('NotoSansKR-Bold', 'normal');
+            console.log('✅ 한글 폰트 로드 완료 (GitHub)');
+            return true;
           }
-          const base64String = btoa(binaryString);
-          koreanFontBase64 = base64String;
-          koreanFontLoaded = true;
-          pdf.addFileToVFS('NotoSansCJKkr-Regular.ttf', koreanFontBase64);
-          pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'normal');
-          pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'bold');
-          pdf.setFont('NotoSansCJKkr', 'normal');
-          console.log('✅ 한글 폰트 로드 완료 (GitHub TTF)');
-          fontLoaded = true;
         }
       } catch (err) {
-        console.warn('TTF 파일 로드 실패:', err);
+        continue;
       }
     }
-    
-    if (!fontLoaded) {
-      console.warn('⚠️ 한글 폰트가 로드되지 않았습니다. 기본 폰트를 사용합니다.');
-      console.warn('💡 한글 폰트를 사용하려면:');
-      console.warn('   1. NotoSansCJKkr-Regular.ttf 파일을 js/fonts/에 추가');
-      console.warn('   2. js/fonts/convertFont.js 스크립트로 Base64 변환');
-      console.warn('   3. 변환된 파일을 GitHub에 커밋');
-    }
-    
-    return fontLoaded;
   } catch (err) {
-    console.error('폰트 로드 실패:', err);
+    console.warn('GitHub 폰트 로드 실패:', err);
+  }
+  
+  // 폰트 로드 실패 시 경고
+  if (!koreanFontLoaded) {
+    console.warn('⚠️ 한글 폰트가 로드되지 않았습니다. 기본 폰트를 사용합니다.');
+    console.warn('💡 한글 폰트를 사용하려면:');
+    console.warn('   1. /fonts/NotoSansKR-Bold-normal.js 파일이 public/fonts/에 있는지 확인');
+    console.warn('   2. index.html에 <script src="/fonts/NotoSansKR-Bold-normal.js"></script> 추가 확인');
+    console.warn('   3. 변환된 파일을 GitHub에 커밋');
     return false;
   }
+  
+  return koreanFontLoaded;
 }
 
 /**
