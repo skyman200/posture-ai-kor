@@ -627,6 +627,56 @@ window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
   return { results: [], findings: [], muscles: { tight: [], weak: [] } };
 };
 
+// ---- 파일 업로드 핸들러 먼저 정의 ----
+window.handleFileUpload = window.handleFileUpload || function handleFileUpload(e) {
+  const f = e.target.files[0];
+  if(!f) return;
+  const targetSessionName = window.cur || cur;
+  const targetSession = window.sessions[targetSessionName];
+  if(!targetSession) {
+    console.warn("세션 정보를 찾을 수 없습니다.");
+    return;
+  }
+  
+  // 현재 선택된 버튼(정면/옆모습) 확인
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  const currentButtonOrientation = btnFront?.classList.contains("active") ? "front" 
+    : (btnSide?.classList.contains("active") ? "side" : null);
+  
+  const guessedOrientation = currentButtonOrientation || targetSession.poseData?.orientation || "side";
+  if(!targetSession.poseData) {
+    targetSession.poseData = { orientation: guessedOrientation, landmarks: null, orientationMode: currentButtonOrientation ? "manual" : "auto" };
+  } else if(!targetSession.poseData.orientationMode) {
+    targetSession.poseData.orientationMode = currentButtonOrientation ? "manual" : "auto";
+  }
+  let imgKey = guessedOrientation === "front" ? "imgFront" : "imgSide";
+  
+  console.log("파일 업로드 - 현재 선택된 orientation:", guessedOrientation);
+  
+  const img = new Image();
+  img.onerror = (e) => {
+    console.error("이미지 로드 실패:", e);
+    alert("이미지를 불러올 수 없습니다. 파일 형식을 확인해주세요.");
+  };
+  
+  img.onload = async () => {
+    targetSession[imgKey] = img;
+    if(window.resizeCanvasFor) window.resizeCanvasFor(img);
+    if(window.draw) window.draw();
+    
+    // 포즈 분석 실행
+    if(window.liveAnalyzer && window.liveAnalyzer.analyzeCurrentSession) {
+      setTimeout(() => {
+        window.liveAnalyzer.analyzeCurrentSession();
+      }, 500);
+    }
+  };
+  
+  img.src = URL.createObjectURL(f);
+  e.target.value = '';
+};
+
 // ---- 파일 업로드 강제 등록 ----
 window.setupFileUploads = window.setupFileUploads || function() {
   console.log("📌 setupFileUploads 강제 활성화");
@@ -639,25 +689,11 @@ window.setupFileUploads = window.setupFileUploads || function() {
     
     newInput.addEventListener("change", (e) => {
       console.log("📁 파일 선택됨:", e.target.files);
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      // 실제 파일 업로드 핸들러가 있으면 호출 (함수가 정의될 때까지 최대 5초 대기)
-      let retryCount = 0;
-      const maxRetries = 50; // 5초 (100ms * 50)
-      const tryHandleFileUpload = () => {
-        if (typeof window.handleFileUpload === 'function') {
-          window.handleFileUpload(e);
-        } else if (typeof handleFileUpload === 'function') {
-          handleFileUpload(e);
-        } else if (retryCount < maxRetries) {
-          retryCount++;
-          setTimeout(tryHandleFileUpload, 100);
-        } else {
-          console.error("❌ handleFileUpload 함수를 찾을 수 없습니다.");
-        }
-      };
-      tryHandleFileUpload();
+      if (typeof window.handleFileUpload === 'function') {
+        window.handleFileUpload(e);
+      } else {
+        console.error("❌ handleFileUpload 함수를 찾을 수 없습니다.");
+      }
     });
   });
 };
@@ -6821,151 +6857,7 @@ window.addEventListener('touchcancel', (e) => {
   endDrag(e);
 });
 
-// 파일 업로드 핸들러 (공통 함수) - 전역으로 등록
-window.handleFileUpload = function handleFileUpload(e) {
-  const f = e.target.files[0];
-  if(!f) return;
-  const targetSessionName = cur;
-  const targetSession = sessions[targetSessionName];
-  if(!targetSession) {
-    console.warn("세션 정보를 찾을 수 없습니다.");
-    return;
-  }
-  
-  // 현재 선택된 버튼(정면/옆모습) 확인 - 사용자가 선택한 orientation 우선 사용
-  const btnSide = document.getElementById("btnOrientationSide");
-  const btnFront = document.getElementById("btnOrientationFront");
-  const currentButtonOrientation = btnFront?.classList.contains("active") ? "front" 
-    : (btnSide?.classList.contains("active") ? "side" : null);
-  
-  // 현재 선택된 버튼의 orientation을 우선 사용, 없으면 세션의 orientation, 그것도 없으면 기본값 "side"
-  const guessedOrientation = currentButtonOrientation || targetSession.poseData?.orientation || "side";
-  if(!targetSession.poseData) {
-    targetSession.poseData = { orientation: guessedOrientation, landmarks: null, orientationMode: currentButtonOrientation ? "manual" : "auto" };
-  } else if(!targetSession.poseData.orientationMode) {
-    targetSession.poseData.orientationMode = currentButtonOrientation ? "manual" : "auto";
-  }
-  let imgKey = guessedOrientation === "front" ? "imgFront" : "imgSide";
-  
-  console.log("파일 업로드 - 현재 선택된 orientation:", guessedOrientation, "(버튼:", currentButtonOrientation, ", 세션:", targetSession.poseData?.orientation, ")");
-  
-  const img = new Image();
-  img.onerror = (e) => {
-    console.error("이미지 로드 실패:", e);
-    alert("이미지를 불러올 수 없습니다. 파일 형식을 확인해주세요.");
-  };
-  
-  img.onload = async () => {
-    console.log("이미지 로드 완료:", imgKey, "naturalWidth:", img.naturalWidth, "naturalHeight:", img.naturalHeight);
-    
-    // 기존 이미지가 있으면 메모리 정리 (orientation별로)
-    const existingImg = targetSession[imgKey];
-    if(existingImg && existingImg.src && existingImg.src.startsWith('blob:')) {
-      URL.revokeObjectURL(existingImg.src);
-    }
-    
-    // 새 이미지로 교체 (orientation별로 저장)
-    targetSession[imgKey] = img;
-    
-    // 원본 크기 초기화 (새 이미지를 로드하므로 다시 계산)
-    originalCanvasSize.width = 0;
-    originalCanvasSize.height = 0;
-    originalCanvasSize.styleWidth = 0;
-    originalCanvasSize.styleHeight = 0;
-    
-    // 캔버스 크기 조정
-    resizeCanvasFor(img);
-    
-    // 이미지 그리기 (약간의 지연을 두어 캔버스가 준비될 때까지 대기)
-    setTimeout(() => {
-      try {
-        draw();
-        computeMetricsOnly(); // 이미지 업로드 시에는 AI 분석 안 함
-        console.log("이미지 그리기 완료");
-      } catch(err) {
-        console.error("이미지 그리기 실패:", err);
-        // 재시도
-        setTimeout(() => {
-          try {
-            draw();
-            computeMetricsOnly();
-          } catch(err2) {
-            console.error("이미지 그리기 재시도 실패:", err2);
-          }
-        }, 200);
-      }
-    }, 100);
-    
-    // 포즈 감지 자동 실행 (사용자가 선택한 orientation 우선 사용)
-    const prevOrientation = targetSession.poseData?.orientation || guessedOrientation;
-    let detectedOrientation = null;
-    
-    // 사용자가 명시적으로 버튼을 선택한 경우, 그 orientation을 우선 사용
-    const userSelectedOrientation = currentButtonOrientation;
-    
-    if(typeof applyPoseDetection === 'function') {
-      try {
-        // 사용자가 선택한 orientation을 세션에 먼저 설정 (AI 감지 전에)
-        if(userSelectedOrientation && !targetSession.poseData) {
-          targetSession.poseData = { orientation: userSelectedOrientation, landmarks: null, orientationMode: "manual" };
-        } else if(userSelectedOrientation && targetSession.poseData) {
-          targetSession.poseData.orientation = userSelectedOrientation;
-          targetSession.poseData.orientationMode = "manual";
-        }
-        
-        const detectionResult = await applyPoseDetection(img, targetSessionName);
-        detectedOrientation = detectionResult?.orientation || null;
-      } catch(err) {
-        console.error("포즈 감지 실패:", err);
-      }
-    }
-
-    // 사용자가 명시적으로 선택한 orientation이 있으면 그것을 우선 사용
-    const finalOrientation = userSelectedOrientation || detectedOrientation || guessedOrientation;
-    
-    if(finalOrientation) {
-      const desiredKey = finalOrientation === "front" ? "imgFront" : "imgSide";
-      if(desiredKey !== imgKey) {
-        const prevImg = targetSession[desiredKey];
-        if(prevImg && prevImg !== img && prevImg.src && prevImg.src.startsWith('blob:')) {
-          URL.revokeObjectURL(prevImg.src);
-        }
-        targetSession[desiredKey] = img;
-        if(targetSession[imgKey] === img) {
-          targetSession[imgKey] = null;
-        }
-        imgKey = desiredKey;
-      }
-      
-      if(!targetSession.poseData) {
-        targetSession.poseData = { orientation: finalOrientation, landmarks: null, orientationMode: userSelectedOrientation ? "manual" : "auto" };
-      }
-      targetSession.poseData.orientation = finalOrientation;
-      targetSession.poseData.orientationMode = userSelectedOrientation ? "manual" : "auto";
-      
-      if(targetSessionName === cur) {
-        if(prevOrientation !== finalOrientation) {
-          setOrientation(finalOrientation);
-        } else {
-          draw();
-        }
-        try {
-          computeAll();
-        } catch(errCompute) {
-          console.warn("computeAll 실행 실패, 기본 지표만 갱신:", errCompute);
-          computeMetricsOnly();
-        }
-      }
-    }
-  };
-  
-  img.crossOrigin = "anonymous";
-  const blobUrl = URL.createObjectURL(f);
-  img.src = blobUrl;
-  
-  // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
-  e.target.value = '';
-}
+// 파일 업로드 핸들러는 이미 631번 라인에 정의됨 (중복 제거됨)
 
 // 업로드 (Before/After 각각 하나의 사진만 유지) - DOM 준비 후 실행
 function setupFileUploads() {
