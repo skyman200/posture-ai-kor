@@ -826,7 +826,7 @@ if (document.readyState === 'loading') {
   if (window.setupFileUploads) {
     window.setupFileUploads();
   }
-  }
+}
 </script>
 
 <!-- ✅ modelManager: front/side 모델 분리 로드 및 UI 잠금/해제 -->
@@ -855,13 +855,14 @@ if (document.readyState === 'loading') {
         `</div>`;
       document.body.appendChild(ov);
     }
+  }
 
-    function unlockUI() {
-      const aiBtn = document.getElementById('btnAIAnalysis');
-      if (aiBtn) aiBtn.disabled = false;
-      const ov = document.getElementById('model-manager-overlay');
-      if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
-    }
+  function unlockUI() {
+    const aiBtn = document.getElementById('btnAIAnalysis');
+    if (aiBtn) aiBtn.disabled = false;
+    const ov = document.getElementById('model-manager-overlay');
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+  }
 
     // 안전한 동적 import를 위한 폴백(브라우저가 importmap을 지원하지 않을 때)
     async function ensureMediapipePoseAvailable() {

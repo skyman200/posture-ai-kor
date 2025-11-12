@@ -25,7 +25,5 @@ export default defineConfig({
         manualChunks: undefined // 수동 청크 분할 비활성화
       }
     }
-  },
-  // HTML 내부 스크립트 파싱 오류 방지를 위한 설정
-  assetsInclude: ['**/*.html']
+  }
 });
