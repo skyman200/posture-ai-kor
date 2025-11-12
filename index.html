@@ -618,9 +618,18 @@ canvas {
 
 <!-- ✅ 전역 충돌 방어 및 강제 등록 (최우선 실행) -->
 <script>
+// ---- 전역 변수 초기화 보호 (중복 선언 방지) ----
+if (typeof window.cur === 'undefined') {
+  window.cur = "Before";
+}
+if (typeof window.sessions === 'undefined') {
+  window.sessions = {};
+}
+if (typeof window.currentSessions === 'undefined') {
+  window.currentSessions = null;
+}
+
 // ---- 전역 충돌 방어 ----
-// sessions는 나중에 객체로 정의되므로 여기서는 undefined로 두고 나중에 할당됨
-// window.sessions는 785번 라인에서 sessions 객체로 할당됨
 window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
   console.log("✅ analyzePostureAI 강제 바인딩 실행됨", { before, after });
   // 실제 함수가 나중에 정의되면 덮어씌워짐
@@ -631,7 +640,7 @@ window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
 window.handleFileUpload = window.handleFileUpload || function handleFileUpload(e) {
   const f = e.target.files[0];
   if(!f) return;
-  const targetSessionName = window.cur || cur;
+  const targetSessionName = window.cur || "Before";
   const targetSession = window.sessions[targetSessionName];
   if(!targetSession) {
     console.warn("세션 정보를 찾을 수 없습니다.");
@@ -666,10 +675,14 @@ window.handleFileUpload = window.handleFileUpload || function handleFileUpload(e
     if(window.draw) window.draw();
     if(window.computeMetricsOnly) window.computeMetricsOnly();
     
-    // 포즈 분석 실행
+    // 포즈 분석 실행 (정면/옆모습 자동 감지)
     if(window.liveAnalyzer && window.liveAnalyzer.analyzeCurrentSession) {
-      setTimeout(() => {
-        window.liveAnalyzer.analyzeCurrentSession();
+      setTimeout(async () => {
+        try {
+          await window.liveAnalyzer.analyzeCurrentSession();
+        } catch (err) {
+          console.error("❌ 포즈 분석 실패:", err);
+        }
       }, 500);
     }
   };
@@ -719,7 +732,7 @@ if (document.readyState === 'loading') {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+<!-- @mediapipe/pose 제거됨 - CDN으로 직접 로드하지 않음 -->
 <!-- AI 자동 분석 모듈 통합 -->
 <!-- PRO 통합 버전 (기존 + DB 기반 분석): main_pro_compatible.js -->
 <!-- <script type="module" src="./js/main_pro_compatible.js"></script> -->
@@ -812,10 +825,15 @@ const sessions = {
     poseData: null
   }
 };
-window.sessions = sessions;
+// sessions는 이미 위에서 초기화됨 (중복 방지)
+if (!window.sessions || !window.sessions.Before || !window.sessions.After) {
+  window.sessions = sessions;
+}
 
-let cur = "Before";
-window.cur = cur;
+// cur는 이미 위에서 초기화됨 (중복 방지)
+if (typeof window.cur === 'undefined') {
+  window.cur = "Before";
+}
 
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
 const rad2deg = r => r * 180 / Math.PI;
@@ -3366,7 +3384,7 @@ function updateCoordSelectOptions() {
 }
 
 window.setOrientation = window.setOrientation || function setOrientation(orientation, options = {}) {
-  const sessionName = options.sessionName || window.cur || cur;
+  const sessionName = options.sessionName || window.cur || "Before";
   const manual = !!options.manual;
   const unlock = !!options.unlock;
   const session = window.sessions[sessionName];
@@ -3389,7 +3407,7 @@ window.setOrientation = window.setOrientation || function setOrientation(orienta
     }
   }
   
-  const isCurrent = sessionName === (window.cur || cur);
+  const isCurrent = sessionName === (window.cur || "Before");
   if(!isCurrent) {
     return;
   }
@@ -7079,8 +7097,8 @@ window.setupResetButton = window.setupResetButton || function setupResetButton()
     return;
   }
   const handler = () => {
-    const orientation = window.sessions?.[window.cur || cur]?.poseData?.orientation || "side";
-    const currentSession = window.sessions?.[window.cur || cur];
+    const orientation = window.sessions?.[window.cur || "Before"]?.poseData?.orientation || "side";
+    const currentSession = window.sessions?.[window.cur || "Before"];
     if (!currentSession) return;
     const currentPoints = orientation === "front" ? currentSession.frontPoints : currentSession.sidePoints;
     if (currentPoints && currentPoints.clear) currentPoints.clear();

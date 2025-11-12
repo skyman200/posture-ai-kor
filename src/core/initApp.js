@@ -9,10 +9,19 @@ async function initializeApp() {
   console.log("🚀 initializeApp 실행됨");
   console.log("📦 sessions 상태:", sessions);
   
-  // sessions가 window에 할당되었는지 확인
-  if (!window.sessions) {
-    window.sessions = sessions;
-    console.log("✅ sessions를 window.sessions에 할당했습니다.");
+  // 전역 변수 보호: sessions가 window에 할당되었는지 확인
+  if (typeof window !== 'undefined') {
+    if (!window.sessions || !window.sessions.Before || !window.sessions.After) {
+      window.sessions = sessions;
+      console.log("✅ sessions를 window.sessions에 할당했습니다.");
+    } else {
+      console.log("✅ 기존 window.sessions 재사용");
+    }
+    
+    // cur 보호
+    if (typeof window.cur === 'undefined') {
+      window.cur = "Before";
+    }
   }
   
   // 버튼 초기화 함수들 호출 (HTML에 정의된 함수들)
