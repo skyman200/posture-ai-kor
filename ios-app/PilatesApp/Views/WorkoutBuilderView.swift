@@ -154,5 +154,3 @@ struct WorkoutProgramRow: View {
 
 
 
-
-

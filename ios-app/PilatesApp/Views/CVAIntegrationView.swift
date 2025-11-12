@@ -146,5 +146,3 @@ struct ExerciseRecommendationListView: View {
 
 
 
-
-

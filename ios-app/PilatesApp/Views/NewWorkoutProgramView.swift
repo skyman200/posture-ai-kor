@@ -189,5 +189,3 @@ struct ExercisePickerView: View {
 
 
 
-
-

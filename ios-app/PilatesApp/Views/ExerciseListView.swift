@@ -224,5 +224,3 @@ struct ExerciseRow: View {
 
 
 
-
-

@@ -102,5 +102,3 @@ struct FavoritesView: View {
 
 
 
-
-

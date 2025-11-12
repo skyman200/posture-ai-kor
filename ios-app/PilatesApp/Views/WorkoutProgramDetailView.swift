@@ -130,5 +130,3 @@ struct WorkoutExerciseCard: View {
 
 
 
-
-

@@ -35,5 +35,3 @@ struct PilatesApp: App {
 
 
 
-
-

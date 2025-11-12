@@ -146,5 +146,3 @@ struct ExerciseDetailView: View {
 
 
 
-
-
