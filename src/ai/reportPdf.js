@@ -124,7 +124,7 @@ export async function exportDetailedPDF({
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p', 'mm', 'a4');
-  pdf.setFont('helvetica', 'normal');
+  pdf.setFont("NotoSansKR", "normal");
 
   // 공통 헤더 함수
   const header = (title) => {
