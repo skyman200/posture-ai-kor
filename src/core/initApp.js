@@ -71,30 +71,17 @@ async function initializeApp() {
   
   // 버튼 이벤트 핸들러 초기화
   // initSessionButtons는 HTML에 정의된 전역 함수이므로 window를 통해 접근
-  const initSessionButtonsWithRetry = () => {
-    if (typeof window.initSessionButtons === 'function') {
-      window.initSessionButtons();
-      console.log("✅ initSessionButtons 실행 완료");
-    } else if (typeof initSessionButtons === 'function') {
-      initSessionButtons();
-      console.log("✅ initSessionButtons 실행 완료 (로컬)");
-    } else {
-      console.warn("⚠️ initSessionButtons 함수를 찾을 수 없습니다. 재시도...");
-      setTimeout(initSessionButtonsWithRetry, 100);
-    }
-  };
-  
   // 최대 2초 동안 재시도 (20번)
   let retryCount = 0;
   const maxRetries = 20;
   const tryInitSessionButtons = () => {
-    if (typeof window.initSessionButtons === 'function' || typeof initSessionButtons === 'function') {
-      if (typeof window.initSessionButtons === 'function') {
+    if (typeof window.initSessionButtons === 'function') {
+      try {
         window.initSessionButtons();
-      } else {
-        initSessionButtons();
+        console.log("✅ initSessionButtons 실행 완료");
+      } catch (error) {
+        console.error("❌ initSessionButtons 실행 실패:", error);
       }
-      console.log("✅ initSessionButtons 실행 완료");
     } else if (retryCount < maxRetries) {
       retryCount++;
       setTimeout(tryInitSessionButtons, 100);
