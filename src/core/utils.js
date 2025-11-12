@@ -1,18 +1,5 @@
-export function resizeCanvasFor(type) { 
-  console.log("canvas resize:", type); 
-  // TODO: 실제 구현은 기존 코드에서 가져와야 함
-  // 현재는 최소 구현만
-}
-
-export function draw() { 
-  console.log("draw 실행"); 
-  // TODO: 실제 구현은 기존 코드에서 가져와야 함
-  // 현재는 최소 구현만
-}
-
-export function updateCompare() { 
-  console.log("update compare 실행"); 
-  // TODO: 실제 구현은 기존 코드에서 가져와야 함
-  // 현재는 최소 구현만
-}
+// 이 함수들은 index.html에 정의되어 있으므로 window에서 참조
+export const resizeCanvasFor = (...args) => window.resizeCanvasFor?.(...args);
+export const draw = (...args) => window.draw?.(...args);
+export const updateCompare = (...args) => window.updateCompare?.(...args);
 

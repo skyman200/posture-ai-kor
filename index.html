@@ -3393,7 +3393,7 @@ window.switchSession = window.switchSession || function switchSession(s) {
   updateCompare();
 };
 
-function resizeCanvasFor(img) {
+window.resizeCanvasFor = function resizeCanvasFor(img) {
   const canvasWrap = cv.parentElement;
   if(!canvasWrap) {
     console.error("canvasWrap를 찾을 수 없습니다");
@@ -5626,7 +5626,7 @@ function deltaStr(b, a, suf = "") {
   return sign + d.toFixed(1) + (suf || "");
 }
 
-function updateCompare() {
+window.updateCompare = function updateCompare() {
   const B = sessions.Before, A = sessions.After;
   
   // fullMetrics에서 16가지 항목 가져오기
