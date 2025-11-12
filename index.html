@@ -368,33 +368,6 @@ canvas {
         </div>
       </details>
       <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Q-Angle - 대퇴사두근 각도</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> ASIS-슬개골(Patella)-경골조면(Tibial Tuberosity) 세 점이 이루는 각도<br>
-          <strong>의미:</strong> 대퇴사두근의 당김 방향을 평가하여 무릎 정렬을 확인합니다.<br>
-          <strong>정상 범위:</strong> 남성 10-15°, 여성 15-20°<br>
-          <strong>임상적 의미:</strong> &gt;20°는 슬개골 외측 전위 및 슬개대퇴 통증 증후군의 위험 요인입니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Knee Deviation - 무릎 높이 차</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> 좌우 무릎의 높이 차이를 각도로 환산<br>
-          <strong>의미:</strong> 양쪽 무릎의 수평 정렬을 평가하여 골반 기울기를 간접적으로 확인합니다.<br>
-          <strong>정상 범위:</strong> 0-3°<br>
-          <strong>임상적 의미:</strong> 3° 초과 시 골반 회전(Pelvic Rotation) 또는 척추 측만증이 의심됩니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">LLD (Leg Length Discrepancy) - 하지 길이 차</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> 좌우 다리 길이(Hip-Ankle) 차이를 cm 단위로 측정<br>
-          <strong>의미:</strong> 기능적 또는 구조적 다리 길이 차이를 평가합니다.<br>
-          <strong>정상 범위:</strong> ≤1cm<br>
-          <strong>임상적 의미:</strong> 1cm 초과 시 골반 비대칭, 척추 측만, 보행 이상이 발생할 수 있으며 보상 자세로 인한 만성 통증의 원인이 됩니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">GSB (Global Sagittal Balance) - 전후면 균형</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
           <strong>측정 방법:</strong> 귀(Tragus)와 발목(Ankle)의 수평 거리<br>
@@ -441,6 +414,26 @@ canvas {
           <strong>측정 방법:</strong> ① 카메라를 골반 높이에 맞추고 정면에서 촬영. ② 좌·우 ASIS를 인식하고 Δy 계산. ③ 각도 계산: POA = atan(Δy / Δx).<br>
           <strong>정상 범위:</strong> ≤ 3°<br>
           <strong>해석:</strong> ↑ → 골반 좌우 비대칭 / 하지 길이 차 / 요추 측만 가능성.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">Q-Angle - 대퇴사두근 각도</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle(ASIS → Patella → Tibial Tuberosity)<br>
+          <strong>측정 방법:</strong> ① 정면 촬영 시 ASIS, 슬개골(Patella), 경골 결절(Tibial Tuberosity) 좌표 인식. ② 세 점이 이루는 각도 계산.<br>
+          <strong>정상 범위:</strong> 남성 10-15°, 여성 15-20°<br>
+          <strong>해석:</strong> ↑ → 슬개골 외측 전위 및 슬개대퇴 통증 증후군의 위험 요인.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">Knee Deviation - 무릎 높이 차</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 기준:</strong> angle_diff(L_knee, R_knee, horizontal)<br>
+          <strong>측정 방법:</strong> ① 정면 촬영 시 좌우 무릎 좌표 인식. ② 좌우 무릎의 높이 차이를 각도로 환산.<br>
+          <strong>정상 범위:</strong> 0-3°<br>
+          <strong>해석:</strong> ↑ → 골반 회전(Pelvic Rotation) 또는 척추 측만증이 의심됩니다.
         </div>
       </details>
       
@@ -582,14 +575,13 @@ canvas {
         <tr><td>PTA(골반 전후경사각)</td><td id="cmpPtaB">—</td><td id="cmpPtaA">—</td><td id="cmpPtaD">—</td><td>0-15°</td></tr>
         <tr><td>KA(무릎각)</td><td id="cmpKaB">—</td><td id="cmpKaA">—</td><td id="cmpKaD">—</td><td>175-185°</td></tr>
         <tr><td>Tibial(경골경사각)</td><td id="cmpTibialB">—</td><td id="cmpTibialA">—</td><td id="cmpTibialD">—</td><td>0-10°</td></tr>
-        <tr><td>Q-Angle(Q각)</td><td id="cmpQangleB">—</td><td id="cmpQangleA">—</td><td id="cmpQangleD">—</td><td>10-20°</td></tr>
-        <tr><td>Knee Dev(무릎편위)</td><td id="cmpKneedevB">—</td><td id="cmpKneedevA">—</td><td id="cmpKneedevD">—</td><td>0-3°</td></tr>
-        <tr><td>LLD(하지길이차)</td><td id="cmpLldB">—</td><td id="cmpLldA">—</td><td id="cmpLldD">—</td><td>≤1cm</td></tr>
         <tr><td>GSB(중력중심선)</td><td id="cmpGsbB">—</td><td id="cmpGsbA">—</td><td id="cmpGsbD">—</td><td>≤2cm</td></tr>
         <tr><td>HPA(고관절각)</td><td id="cmpHpaB">—</td><td id="cmpHpaA">—</td><td id="cmpHpaD">—</td><td>0-10°</td></tr>
         <tr><td>PDS(자세점수)</td><td id="cmpPdsB">—</td><td id="cmpPdsA">—</td><td id="cmpPdsD">—</td><td>0-10</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">STA(어깨기울기각)</td><td id="cmpStaB">—</td><td id="cmpStaA">—</td><td id="cmpStaD">—</td><td>≤3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">POA(골반기울기각)</td><td id="cmpPoaB">—</td><td id="cmpPoaA">—</td><td id="cmpPoaD">—</td><td>≤3°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">Q-Angle(Q각)</td><td id="cmpQangleB">—</td><td id="cmpQangleA">—</td><td id="cmpQangleD">—</td><td>10-20°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">Knee Dev(무릎편위)</td><td id="cmpKneedevB">—</td><td id="cmpKneedevA">—</td><td id="cmpKneedevD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">LLD(하지길이차)</td><td id="cmpLldfB">—</td><td id="cmpLldfA">—</td><td id="cmpLldfD">—</td><td>≤1cm</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">TD(체간편위)</td><td id="cmpTdB">—</td><td id="cmpTdA">—</td><td id="cmpTdD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">HTA(머리기울기각)</td><td id="cmpHtaB">—</td><td id="cmpHtaA">—</td><td id="cmpHtaD">—</td><td>≤3°</td></tr>
