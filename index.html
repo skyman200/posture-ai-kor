@@ -642,26 +642,22 @@ window.setupFileUploads = window.setupFileUploads || function() {
       const file = e.target.files[0];
       if (!file) return;
       
-      // 실제 파일 업로드 핸들러가 있으면 호출 (약간의 지연을 두어 함수가 정의될 때까지 대기)
-      setTimeout(() => {
+      // 실제 파일 업로드 핸들러가 있으면 호출 (함수가 정의될 때까지 최대 5초 대기)
+      let retryCount = 0;
+      const maxRetries = 50; // 5초 (100ms * 50)
+      const tryHandleFileUpload = () => {
         if (typeof window.handleFileUpload === 'function') {
           window.handleFileUpload(e);
         } else if (typeof handleFileUpload === 'function') {
           handleFileUpload(e);
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(tryHandleFileUpload, 100);
         } else {
-          console.warn("⚠️ handleFileUpload 함수가 아직 정의되지 않았습니다. 잠시 후 다시 시도합니다.");
-          // 200ms 후 다시 시도
-          setTimeout(() => {
-            if (typeof window.handleFileUpload === 'function') {
-              window.handleFileUpload(e);
-            } else if (typeof handleFileUpload === 'function') {
-              handleFileUpload(e);
-            } else {
-              console.error("❌ handleFileUpload 함수를 찾을 수 없습니다.");
-            }
-          }, 200);
+          console.error("❌ handleFileUpload 함수를 찾을 수 없습니다.");
         }
-      }, 100);
+      };
+      tryHandleFileUpload();
     });
   });
 };
@@ -12508,8 +12504,7 @@ if (btnShare) {
     btn.textContent = "📤 공유하기";
     btn.disabled = false;
   }
-  };
-}
+};
 
 // 실시간 분석 리스너 등록 (UI 업데이트)
 // 주석: updateLiveAnalysisUI 함수가 필요할 경우 여기에 구현
@@ -12527,7 +12522,7 @@ if (btnShare) {
 <!-- ✅ Pose Detection Libraries (모듈 로드 후) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+<!-- MediaPipe는 이미 위에서 로드됨 -->
 
 <script>
 // 포즈 감지 모델 관리
