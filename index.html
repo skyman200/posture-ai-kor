@@ -8424,10 +8424,21 @@ function getExerciseDetailInfo(entry) {
     normalized.how_to_do ||
     normalized.instructions ||
     '';
-  const cues = detail?.key_cues || normalized.key_cues || normalized.cues || '';
+  const cues = detail?.key_cues || normalized.key_cues || normalized.cues || normalized.classical_cues || '';
   const sets = detail?.sets_reps || normalized.sets_reps || normalized.reps || '';
-  const precaution = detail?.precaution || normalized.precaution || normalized.warning || '';
-  return { title, purpose, how, cues, sets, precaution, enKey: detail?.exercise_en || en, koKey: titleKo || ko };
+  const precaution = detail?.precaution || normalized.precaution || normalized.warning || normalized.common_mistakes || '';
+  // ✅ DB의 모든 필드 포함
+  const spring = detail?.spring || normalized.spring || normalized.spring_traditional || '';
+  const breathing = detail?.breathing_pattern || normalized.breathing_pattern || normalized.breathing || '';
+  const setup = detail?.setup_position || normalized.setup_position || normalized.setup || '';
+  const mistakes = detail?.common_mistakes || normalized.common_mistakes || normalized.mistakes || '';
+  const classicalCues = detail?.classical_cues || normalized.classical_cues || normalized.classical_cues_by_jay_grimes_romana || '';
+  const references = detail?.references || normalized.references || normalized.reference || '';
+  return { 
+    title, purpose, how, cues, sets, precaution, 
+    spring, breathing, setup, mistakes, classicalCues, references,
+    enKey: detail?.exercise_en || en, koKey: titleKo || ko 
+  };
 }
 
 function renderExerciseDetailHTML(entry, options = {}) {
@@ -8447,17 +8458,44 @@ function renderExerciseDetailHTML(entry, options = {}) {
   if (info.purpose) {
     html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">목적</strong><br>${formatMultilineText(info.purpose)}</div>`;
   }
+  // ✅ Setup Position 추가
+  if (info.setup) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">초기 자세 (Setup Position)</strong><br>${formatMultilineText(info.setup)}</div>`;
+  }
   if (info.how) {
     html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">운동 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
   }
-  if (info.cues) {
+  // ✅ Spring Traditional 추가
+  if (info.spring) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">스프링 설정 (Spring Traditional)</strong> ${formatMultilineText(info.spring)}</div>`;
+  }
+  // ✅ Reps 추가
+  if (info.sets) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">반복 횟수 (Reps)</strong> ${formatMultilineText(info.sets)}</div>`;
+  }
+  // ✅ Breathing Pattern 추가
+  if (info.breathing) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">호흡 패턴 (Breathing Pattern)</strong><br>${formatMultilineText(info.breathing)}</div>`;
+  }
+  // ✅ Classical Cues 추가
+  if (info.classicalCues) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">클래식 큐 (Classical Cues by Jay Grimes/Romana)</strong><br>${formatMultilineText(info.classicalCues)}</div>`;
+  }
+  // ✅ 기존 cues도 표시 (classicalCues가 없을 때)
+  if (info.cues && !info.classicalCues) {
     html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">핵심 큐</strong><br>${formatMultilineText(info.cues)}</div>`;
   }
-  if (info.sets) {
-    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">세트/반복</strong> ${formatMultilineText(info.sets)}</div>`;
+  // ✅ Common Mistakes 추가
+  if (info.mistakes) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:#ff6b6b;">피해야 할 실수 (Common Mistakes to Avoid)</strong><br>${formatMultilineText(info.mistakes)}</div>`;
   }
-  if (info.precaution) {
-    html += `<div style="margin-bottom:0;"><strong style="color:#ff6b6b;">주의</strong><br>${formatMultilineText(info.precaution)}</div>`;
+  // ✅ 기존 precaution도 표시 (mistakes가 없을 때)
+  if (info.precaution && !info.mistakes) {
+    html += `<div style="margin-bottom:4px;"><strong style="color:#ff6b6b;">주의</strong><br>${formatMultilineText(info.precaution)}</div>`;
+  }
+  // ✅ References 추가
+  if (info.references) {
+    html += `<div style="margin-bottom:0; margin-top:6px; padding-top:6px; border-top:1px solid ${theme.hint};"><strong style="color:${theme.hint}; font-size:${parseInt(baseFontSize) - 1}px;">참고 자료 (References)</strong><br><div style="margin-top:4px; font-size:${parseInt(baseFontSize) - 1}px; color:${theme.hint};">${formatMultilineText(info.references)}</div></div>`;
   }
   if (isInteractive) {
     html += `<div style="margin-top:6px; font-size:10px; color:${theme.hint}; display:flex; align-items:center; gap:4px;">
@@ -9969,17 +10007,26 @@ function mapPilatesExerciseRow(row, equipmentKo) {
                row.How_to_Perform_EASY_FOR_BEGINNERS || 
                row.How_to_Perform_Step_by_Step || 
                row.How_to_Perform || '',
+    // ✅ DB의 모든 필드 포함
     key_cues: row.Classical_Cues_by_Jay_Grimes_Romana || row.Breathing_Pattern || row.Breathing || '',
     sets_reps: row.Reps || '',
     spring: row.Spring_Traditional || row.Spring || '',
-    references: row.References || '',
+    spring_traditional: row.Spring_Traditional || row.Spring || '',
+    reps: row.Reps || '',
+    breathing_pattern: row.Breathing_Pattern || row.Breathing || '',
+    setup_position: row.Setup_Position || row.Setup || '',
+    common_mistakes: row.Common_Mistakes_to_Avoid || row.Common_Mistakes || row.Mistakes || '',
+    classical_cues: row.Classical_Cues_by_Jay_Grimes_Romana || row.Classical_Cues || row.Cues || '',
+    references: row.References || row.Reference || '',
     stretch_targets: stretchTargets,
     strengthen_targets: strengthenTargets,
     // CSV 원본 데이터도 저장 (하위 호환성)
     Main_Strengthen_Muscles: strengthenStr,
     Main_Stretch_Muscles: stretchStr,
     stretchMuscles: stretchTargets,
-    strengthenMuscles: strengthenTargets
+    strengthenMuscles: strengthenTargets,
+    // ✅ 원본 CSV 데이터 전체 저장 (모든 필드 접근 가능)
+    _raw: row
   };
 }
 
