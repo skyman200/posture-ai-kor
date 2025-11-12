@@ -132,7 +132,7 @@ const scriptRel = 'modulepreload';const assetsURL = function(dep) { return "/pos
       const tf = await window.loadTfOnce();
       try {
         lockUI('front');
-        const m = await __vitePreload(() => import('./frontModelLoader-ysv65uDw.js'),true?[]:void 0).catch(()=>null);
+        const m = await __vitePreload(() => import('./frontModelLoader-DrYzlThe.js'),true?[]:void 0).catch(()=>null);
         if (m && m.loadFrontModel) {
           this.frontModel = await m.loadFrontModel(tf);
         } else {
@@ -149,7 +149,7 @@ const scriptRel = 'modulepreload';const assetsURL = function(dep) { return "/pos
       const tf = await window.loadTfOnce();
       try {
         lockUI('side');
-        const m = await __vitePreload(() => import('./sideModelLoader-DMpLnjlD.js'),true?[]:void 0).catch(()=>null);
+        const m = await __vitePreload(() => import('./sideModelLoader-B4dl89xp.js'),true?[]:void 0).catch(()=>null);
         if (m && m.loadSideModel) {
           this.sideModel = await m.loadSideModel(tf);
         } else {
@@ -423,12 +423,41 @@ const ModelLoader = (() => {
       console.log("🔥 모델 로딩 시작…");
       
       try {
-        // TensorFlow.js는 이미 전역에 로드되어 있으므로 사용
-        // 동적 import 대신 전역 tf 사용
-        if (typeof window !== 'undefined' && window.tf) {
-          console.log("✅ 전역 TensorFlow.js 사용");
-        } else {
-          console.warn("⚠️ 전역 TensorFlow.js를 찾을 수 없음, 동적 import 시도");
+        // TensorFlow.js 로드 확인 및 대기
+        let tf = null;
+        if (typeof window !== 'undefined') {
+          // 싱글톤 로더 사용
+          if (window.loadTfOnce) {
+            tf = await window.loadTfOnce();
+            // window.tf에도 할당 (호환성)
+            if (!window.tf && tf) {
+              window.tf = tf;
+            }
+            console.log("✅ TensorFlow.js 로드 완료 (싱글톤)");
+          } else if (window.tf) {
+            tf = window.tf;
+            console.log("✅ 전역 TensorFlow.js 사용");
+          } else if (window.tfSingleton && window.tfSingleton.tf) {
+            tf = window.tfSingleton.tf;
+            window.tf = tf; // 호환성
+            console.log("✅ TensorFlow.js 싱글톤에서 가져옴");
+          } else {
+            // 폴백: 직접 로드 시도
+            console.warn("⚠️ TensorFlow.js를 찾을 수 없음, 직접 로드 시도");
+            try {
+              const tfModule = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.esm.min.js'),true?[]:void 0);
+              tf = tfModule.default || tfModule.tf || tfModule;
+              window.tf = tf;
+              console.log("✅ TensorFlow.js 직접 로드 완료");
+            } catch (tfErr) {
+              console.error("❌ TensorFlow.js 로드 실패:", tfErr);
+              throw new Error("TensorFlow.js를 로드할 수 없습니다.");
+            }
+          }
+        }
+        
+        if (!tf) {
+          throw new Error("TensorFlow.js가 로드되지 않았습니다.");
         }
         
         // 모델들 병렬 로드
@@ -542,11 +571,26 @@ async function loadMoveNet() {
   modelLoadingState.move = true;
   
   try {
+    // TensorFlow.js 확인
+    if (!window.tf) {
+      throw new Error("TensorFlow.js가 로드되지 않았습니다.");
+    }
+    
     // @tensorflow-models/pose-detection에서 MoveNet 로드
-    const poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
+    // @mediapipe/pose 의존성 문제를 피하기 위해 직접 CDN 사용
+    let poseDetection;
+    try {
+      poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
+    } catch (importErr) {
+      // ESM 실패 시 UMD 시도
+      console.warn("⚠️ ESM import 실패, UMD 로드 시도:", importErr);
+      throw importErr; // 일단 에러 전파
+    }
     
     // MoveNet 모델 타입 확인
-    const modelType = poseDetection.movenet?.modelType?.SINGLEPOSE_LIGHTNING || 'lightning';
+    const modelType = poseDetection.movenet?.modelType?.SINGLEPOSE_LIGHTNING || 
+                      poseDetection.movenet?.modelType?.SINGLEPOSE_THUNDER ||
+                      'lightning';
     
     frontModels.move = await poseDetection.createDetector(
       poseDetection.SupportedModels.MoveNet,
@@ -563,7 +607,7 @@ async function loadMoveNet() {
     console.warn("⚠️ MoveNet 폴백 모드 사용");
     frontModels.move = {
       estimatePoses: async (img) => {
-        return []; // 빈 결과 반환
+        return [{ keypoints: [] }]; // 빈 결과 반환
       }
     };
     return frontModels.move;
@@ -592,8 +636,19 @@ async function loadPoseNet() {
   modelLoadingState.pose = true;
   
   try {
+    // TensorFlow.js 확인
+    if (!window.tf) {
+      throw new Error("TensorFlow.js가 로드되지 않았습니다.");
+    }
+    
     // @tensorflow-models/pose-detection에서 PoseNet 로드
-    const poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
+    let poseDetection;
+    try {
+      poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
+    } catch (importErr) {
+      console.warn("⚠️ ESM import 실패:", importErr);
+      throw importErr;
+    }
     
     frontModels.pose = await poseDetection.createDetector(
       poseDetection.SupportedModels.PoseNet,
@@ -613,7 +668,7 @@ async function loadPoseNet() {
     console.warn("⚠️ PoseNet 폴백 모드 사용");
     frontModels.pose = {
       estimatePoses: async (img) => {
-        return []; // 빈 결과 반환
+        return [{ keypoints: [] }]; // 빈 결과 반환
       }
     };
     return frontModels.pose;
@@ -628,8 +683,19 @@ async function loadPoseNet() {
  */
 async function loadSideDetector() {
   try {
+    // TensorFlow.js 확인
+    if (!window.tf) {
+      throw new Error("TensorFlow.js가 로드되지 않았습니다.");
+    }
+    
     // @tensorflow-models/pose-detection에서 BlazePose 로드
-    const poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
+    let poseDetection;
+    try {
+      poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
+    } catch (importErr) {
+      console.warn("⚠️ ESM import 실패:", importErr);
+      throw importErr;
+    }
     
     const detector = await poseDetection.createDetector(
       poseDetection.SupportedModels.BlazePose,
@@ -641,9 +707,10 @@ async function loadSideDetector() {
   } catch (err) {
     console.error("❌ BlazePose 로드 실패:", err);
     // 폴백: 빈 디텍터
+    console.warn("⚠️ BlazePose 폴백 모드 사용");
     return {
       estimatePoses: async (img) => {
-        return [];
+        return [{ keypoints: [] }];
       }
     };
   }
