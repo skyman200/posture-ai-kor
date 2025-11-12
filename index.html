@@ -668,7 +668,7 @@ if (document.readyState === 'loading') {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="/fonts/NotoSansKR-Bold-normal.js"></script>
+<script src="./fonts/NotoSansKR-Bold-normal.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <!-- AI 자동 분석 모듈 통합 -->
 <!-- PRO 통합 버전 (기존 + DB 기반 분석): main_pro_compatible.js -->
@@ -11286,9 +11286,14 @@ async function loadKoreanFontForPDF(pdf) {
   
   // 3. 로컬 파일에서 로드 시도 (빌드/배포 경로 대응)
   try {
+    // GitHub Pages 경로 감지
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const basePath = isGitHubPages ? '/posture-ai-kor' : '';
+    
     const localFontUrls = [
-      '/fonts/NotoSansKR-Bold-normal.js',
       './fonts/NotoSansKR-Bold-normal.js',
+      `${basePath}/fonts/NotoSansKR-Bold-normal.js`,
+      '/fonts/NotoSansKR-Bold-normal.js',
       'fonts/NotoSansKR-Bold-normal.js'
     ];
     
@@ -11317,11 +11322,12 @@ async function loadKoreanFontForPDF(pdf) {
     console.warn('로컬 폰트 파일 로드 실패:', err);
   }
   
-  // 4. 폴백: GitHub에서 로드 시도 (하위 호환성)
+  // 5. 폴백: GitHub에서 로드 시도 (하위 호환성)
   try {
     const fontUrls = [
       'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/fonts/NotoSansKR-Bold-normal.js',
-      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/fonts/NotoSansKR-Bold-normal.js'
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/fonts/NotoSansKR-Bold-normal.js',
+      'https://skyman200.github.io/posture-ai-kor/fonts/NotoSansKR-Bold-normal.js'
     ];
     
     for (const url of fontUrls) {
