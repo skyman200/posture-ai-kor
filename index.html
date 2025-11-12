@@ -7373,6 +7373,74 @@ function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
   ctx.globalAlpha = 1.0;
 }
 
+// 스켈레톤만 흰 배경에 그리기 (별도 표시용)
+async function createSkeletonOnWhiteBackground(beforeImgData, afterImgData, beforePoints, afterPoints, orientation = 'side') {
+  return new Promise((resolve, reject) => {
+    try {
+      const beforeImg = new Image();
+      const afterImg = new Image();
+      
+      beforeImg.onload = () => {
+        afterImg.onload = () => {
+          // 캔버스 생성 (흰 배경)
+          const skeletonCanvas = document.createElement('canvas');
+          const skeletonCtx = skeletonCanvas.getContext('2d');
+          
+          // 크기 설정 (더 큰 이미지 기준)
+          const width = Math.max(beforeImg.width, afterImg.width);
+          const height = Math.max(beforeImg.height, afterImg.height);
+          skeletonCanvas.width = width;
+          skeletonCanvas.height = height;
+          
+          // 흰 배경 채우기
+          skeletonCtx.fillStyle = '#ffffff';
+          skeletonCtx.fillRect(0, 0, width, height);
+          
+          // Before 스켈레톤 그리기 (파란색, 점선)
+          if(beforePoints) {
+            const scaleX = width / beforeImg.width;
+            const scaleY = height / beforeImg.height;
+            const scaledBeforePoints = {};
+            Object.keys(beforePoints).forEach(key => {
+              if(beforePoints[key] && beforePoints[key].x != null && beforePoints[key].y != null) {
+                scaledBeforePoints[key] = {
+                  x: beforePoints[key].x * scaleX,
+                  y: beforePoints[key].y * scaleY
+                };
+              }
+            });
+            drawSkeleton(skeletonCtx, scaledBeforePoints, '#2E86C1', 'B', true);
+          }
+          
+          // After 스켈레톤 그리기 (주황색, 실선)
+          if(afterPoints) {
+            const scaleX = width / afterImg.width;
+            const scaleY = height / afterImg.height;
+            const scaledAfterPoints = {};
+            Object.keys(afterPoints).forEach(key => {
+              if(afterPoints[key] && afterPoints[key].x != null && afterPoints[key].y != null) {
+                scaledAfterPoints[key] = {
+                  x: afterPoints[key].x * scaleX,
+                  y: afterPoints[key].y * scaleY
+                };
+              }
+            });
+            drawSkeleton(skeletonCtx, scaledAfterPoints, '#E67E22', 'A', false);
+          }
+          
+          resolve(skeletonCanvas.toDataURL('image/png'));
+        };
+        afterImg.onerror = reject;
+        afterImg.src = afterImgData;
+      };
+      beforeImg.onerror = reject;
+      beforeImg.src = beforeImgData;
+    } catch(err) {
+      reject(err);
+    }
+  });
+}
+
 // Before-After 오버레이 이미지 생성 (스켈레톤 포함)
 async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, beforePoints, afterPoints, alpha = 0.5) {
   return new Promise((resolve, reject) => {
@@ -8544,7 +8612,7 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.minHeight = "1100px";
 }
 
-function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeViews = {}, afterViews = {}, overlayImg, frontOverlayImg }) {
+function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeViews = {}, afterViews = {}, overlayImg, frontOverlayImg, sideSkeletonImg, frontSkeletonImg }) {
   const hasBefore = !!(beforeViews.side || beforeViews.front);
   const hasAfter = !!(afterViews.side || afterViews.front);
   const renderViewColumn = (label, views) => {
@@ -8610,7 +8678,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
       <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
         ${overlayImg ? `
         <div style="flex:1; min-width:280px; max-width:400px;">
-      <div style="text-align:center;">
+          <div style="text-align:center;">
             <img src="${overlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색(Before) | 주황색(After)</div>
           </div>
@@ -8621,6 +8689,30 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
           <div style="text-align:center;">
             <img src="${frontOverlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색(Before) | 주황색(After)</div>
+          </div>
+        </div>
+        ` : ''}
+      </div>
+    </div>
+    ` : ''}
+    
+    ${(sideSkeletonImg || frontSkeletonImg) ? `
+    <div style="margin-top:24px;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:8px;">📐 포즈 분석 오버레이 (스켈레톤)</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        ${sideSkeletonImg ? `
+        <div style="flex:1; min-width:280px; max-width:400px;">
+          <div style="text-align:center;">
+            <img src="${sideSkeletonImg}" style="width:100%; height:auto; border-radius:10px; border:2px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+            <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색 점선(Before) | 주황색 실선(After)</div>
+          </div>
+        </div>
+        ` : ''}
+        ${frontSkeletonImg ? `
+        <div style="flex:1; min-width:280px; max-width:400px;">
+          <div style="text-align:center;">
+            <img src="${frontSkeletonImg}" style="width:100%; height:auto; border-radius:10px; border:2px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+            <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
         ` : ''}
@@ -8772,6 +8864,8 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   // Before-After 오버레이 이미지 생성 (측면 + 정면 모두)
   let overlayImg = null; // 측면 overlay
   let frontOverlayImg = null; // 정면 overlay
+  let sideSkeletonImg = null; // 측면 스켈레톤만 흰 배경에
+  let frontSkeletonImg = null; // 정면 스켈레톤만 흰 배경에
 
       // Map을 일반 객체로 변환 (소문자 키로 통일)
       const getPointsObject = (pointsMap) => {
@@ -8801,6 +8895,12 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 
       if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
         overlayImg = await createOverlayImageWithSkeleton(beforeViews.side, afterViews.side, beforePoints, afterPoints, 0.5);
+        // 스켈레톤만 흰 배경에 그리기
+        try {
+          sideSkeletonImg = await createSkeletonOnWhiteBackground(beforeViews.side, afterViews.side, beforePoints, afterPoints, 'side');
+        } catch(skelErr) {
+          console.warn("측면 스켈레톤 이미지 생성 실패:", skelErr);
+        }
       } else {
         overlayImg = await createOverlayImage(beforeViews.side, afterViews.side, 0.5);
       }
@@ -8824,6 +8924,12 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 
       if(beforePoints && afterPoints && Object.keys(beforePoints).length > 0 && Object.keys(afterPoints).length > 0) {
         frontOverlayImg = await createOverlayImageWithSkeleton(beforeViews.front, afterViews.front, beforePoints, afterPoints, 0.5);
+        // 스켈레톤만 흰 배경에 그리기
+        try {
+          frontSkeletonImg = await createSkeletonOnWhiteBackground(beforeViews.front, afterViews.front, beforePoints, afterPoints, 'front');
+        } catch(skelErr) {
+          console.warn("정면 스켈레톤 이미지 생성 실패:", skelErr);
+        }
       } else {
         frontOverlayImg = await createOverlayImage(beforeViews.front, afterViews.front, 0.5);
       }
@@ -8903,7 +9009,9 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     beforeViews,
     afterViews,
     overlayImg,
-    frontOverlayImg
+    frontOverlayImg,
+    sideSkeletonImg,
+    frontSkeletonImg
   });
 
 document.body.appendChild(page1Container);
@@ -9451,13 +9559,15 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
-// 필라테스 추천 카드 HTML 생성
-const pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
+// 필라테스 추천 카드 HTML 생성 (앱과 동일하게 renderPilatesItemCard 사용)
+const pilatesHtml = analysis && analysis.pilates && analysis.pilates.length > 0
+  ? analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context:'pdf', index: idx, limitPerTool: Infinity })).join('')
+  : '<div style="font-size:12px; color:#333; padding:12px;">추천 세션이 없습니다.</div>';
 
 page5Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 추천 루틴 (쉬운 따라하기)</h2>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 운동 추천</h2>
   <div style="margin-top:20px; line-height:1.6;">
-    ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
+    ${pilatesHtml}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
       <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -11565,20 +11675,81 @@ async function loadKoreanFontForPDF(pdf) {
     }
   }
   
-  // 폰트가 아직 로드되지 않았으면 CDN에서 로드 시도
+  // 폰트가 아직 로드되지 않았으면 GitHub에서 로드 시도
   try {
-    // Noto Sans CJK KR 폰트를 CDN에서 로드 (Google Fonts API 사용)
-    const fontUrl = 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap';
+    // GitHub raw URL에서 폰트 파일 로드 시도
+    const fontUrls = [
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/js/fonts/NotoSansCJKkr-Regular.ttf',
+      'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/js/fonts/NotoSansCJKkr-Regular.js',
+      './js/fonts/NotoSansCJKkr-Regular.js'
+    ];
     
-    // 대안: 직접 폰트 파일을 로드하려면 사용자가 폰트 파일을 제공해야 함
-    // 여기서는 폰트가 로드되지 않았을 때 기본 폰트 사용
-    console.warn('⚠️ 한글 폰트가 로드되지 않았습니다. 기본 폰트를 사용합니다.');
-    console.warn('💡 한글 폰트를 사용하려면:');
-    console.warn('   1. NotoSansCJKkr-Regular.ttf 파일을 다운로드');
-    console.warn('   2. js/fonts/convertFont.js 스크립트로 Base64 변환');
-    console.warn('   3. 변환된 파일을 로드하여 koreanFontBase64 변수에 할당');
+    let fontLoaded = false;
     
-    return false;
+    // 먼저 Base64 변환된 JS 파일 시도
+    for (const url of fontUrls.slice(1)) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const jsContent = await response.text();
+          // export const NotoSansCJKkr_Regular_Base64 = "..." 형식 파싱
+          const match = jsContent.match(/export\s+const\s+\w+_Base64\s*=\s*["']([^"']+)["']/);
+          if (match && match[1]) {
+            koreanFontBase64 = match[1];
+            koreanFontLoaded = true;
+            pdf.addFileToVFS('NotoSansCJKkr-Regular.ttf', koreanFontBase64);
+            pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'normal');
+            pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'bold');
+            pdf.setFont('NotoSansCJKkr', 'normal');
+            console.log('✅ 한글 폰트 로드 완료 (GitHub)');
+            fontLoaded = true;
+            break;
+          }
+        }
+      } catch (err) {
+        // 다음 URL 시도
+        continue;
+      }
+    }
+    
+    // JS 파일이 없으면 TTF 파일 직접 로드 시도 (큰 파일이므로 청크 단위로 처리)
+    if (!fontLoaded) {
+      try {
+        const response = await fetch(fontUrls[0]);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          // 큰 파일을 안전하게 Base64 변환
+          let binaryString = '';
+          const chunkSize = 8192;
+          for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.subarray(i, i + chunkSize);
+            binaryString += String.fromCharCode.apply(null, chunk);
+          }
+          const base64String = btoa(binaryString);
+          koreanFontBase64 = base64String;
+          koreanFontLoaded = true;
+          pdf.addFileToVFS('NotoSansCJKkr-Regular.ttf', koreanFontBase64);
+          pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'normal');
+          pdf.addFont('NotoSansCJKkr-Regular.ttf', 'NotoSansCJKkr', 'bold');
+          pdf.setFont('NotoSansCJKkr', 'normal');
+          console.log('✅ 한글 폰트 로드 완료 (GitHub TTF)');
+          fontLoaded = true;
+        }
+      } catch (err) {
+        console.warn('TTF 파일 로드 실패:', err);
+      }
+    }
+    
+    if (!fontLoaded) {
+      console.warn('⚠️ 한글 폰트가 로드되지 않았습니다. 기본 폰트를 사용합니다.');
+      console.warn('💡 한글 폰트를 사용하려면:');
+      console.warn('   1. NotoSansCJKkr-Regular.ttf 파일을 js/fonts/에 추가');
+      console.warn('   2. js/fonts/convertFont.js 스크립트로 Base64 변환');
+      console.warn('   3. 변환된 파일을 GitHub에 커밋');
+    }
+    
+    return fontLoaded;
   } catch (err) {
     console.error('폰트 로드 실패:', err);
     return false;
@@ -11949,6 +12120,67 @@ function exportAsPdf(options = {}) {
     }
     
     // 페이지 3: 수치표 + 변화 그래프 (텍스트로 작성)
+    // comparison이 없거나 results가 없으면 Before/After 데이터로 직접 생성
+    if (!comparison || !comparison.results || comparison.results.length === 0) {
+      // Before/After 세션이 있으면 comparison 객체 생성
+      const beforeMetrics = sessions.Before?.metrics?.fullMetrics || {};
+      const afterMetrics = sessions.After?.metrics?.fullMetrics || {};
+      const metricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Q_Angle', 'GSB', 'HPA', 'PDS', 'STA', 'POA', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS', 'LLD', 'Knee_Deviation'];
+      
+      comparison = {
+        results: [],
+        summary: { overallComment: '' }
+      };
+      
+      metricKeys.forEach(key => {
+        const beforeVal = beforeMetrics[key]?.value != null ? beforeMetrics[key].value : 
+                         (beforeMetrics[key]?.value_deg != null ? beforeMetrics[key].value_deg : 
+                         (beforeMetrics[key]?.value_cm != null ? beforeMetrics[key].value_cm : null));
+        const afterVal = afterMetrics[key]?.value != null ? afterMetrics[key].value : 
+                        (afterMetrics[key]?.value_deg != null ? afterMetrics[key].value_deg : 
+                        (afterMetrics[key]?.value_cm != null ? afterMetrics[key].value_cm : null));
+        
+        if (beforeVal != null || afterVal != null) {
+          const delta = (afterVal != null && beforeVal != null) ? afterVal - beforeVal : null;
+          const metricName = beforeMetrics[key]?.desc || afterMetrics[key]?.desc || key;
+          const unit = beforeMetrics[key]?.unit || afterMetrics[key]?.unit || '°';
+          
+          let status = 'stable';
+          let comment = '변화 없음';
+          if (delta != null) {
+            if (Math.abs(delta) < 1) {
+              status = 'stable';
+              comment = '안정적으로 유지됨';
+            } else if (delta > 0) {
+              status = 'worsened';
+              comment = `${delta.toFixed(1)}${unit} 증가`;
+            } else {
+              status = 'improved';
+              comment = `${Math.abs(delta).toFixed(1)}${unit} 감소`;
+            }
+          }
+          
+          comparison.results.push({
+            name: metricName,
+            before: beforeVal != null ? beforeVal : 0,
+            after: afterVal != null ? afterVal : 0,
+            delta: delta != null ? delta : 0,
+            unit: unit,
+            status: status,
+            comment: comment
+          });
+        }
+      });
+      
+      // 전체 요약 생성
+      if (comparison.results.length > 0) {
+        const improved = comparison.results.filter(r => r.status === 'improved').length;
+        const worsened = comparison.results.filter(r => r.status === 'worsened').length;
+        const stable = comparison.results.filter(r => r.status === 'stable').length;
+        comparison.summary.overallComment = `전반적인 분석 결과, ${improved}개 항목에서 자세가 개선되었으며 ${stable}개 항목은 안정적으로 유지되었습니다.${worsened > 0 ? ` ${worsened}개 항목에서 악화가 관찰되었습니다.` : ''}`;
+      }
+    }
+    
     if (comparison && comparison.results && comparison.results.length > 0) {
       pdf.addPage();
       let y = margin + 10;
@@ -11996,8 +12228,8 @@ function exportAsPdf(options = {}) {
         
         pdf.setTextColor(0, 0, 0);
         pdfAddKoreanText(pdf, item.name, margin, y, { fontSize: 9 });
-        pdfAddKoreanText(pdf, item.before.toFixed(1) + item.unit, margin + 150, y, { fontSize: 9 });
-        pdfAddKoreanText(pdf, item.after.toFixed(1) + item.unit, margin + 220, y, { fontSize: 9 });
+        pdfAddKoreanText(pdf, (item.before != null ? item.before.toFixed(1) : '—') + item.unit, margin + 150, y, { fontSize: 9 });
+        pdfAddKoreanText(pdf, (item.after != null ? item.after.toFixed(1) : '—') + item.unit, margin + 220, y, { fontSize: 9 });
         
         pdf.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
         pdfAddKoreanText(pdf, deltaStr + item.unit, margin + 280, y, { fontSize: 9 });
@@ -12065,8 +12297,12 @@ function exportAsPdf(options = {}) {
     // 페이지 4: AI 해석 요약 (기존 canvas 사용)
     if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas);
     
-    // 페이지 5: 필라테스 추천 (앱과 동일하게 텍스트로 작성)
-    if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+    // 페이지 5: 필라테스 추천 (앱과 동일한 캔버스 사용)
+    if (pilatesCanvas) {
+      // 앱에서 생성한 필라테스 캔버스를 그대로 사용
+      addPageToPdf(pilatesCanvas);
+    } else {
+      // 캔버스가 없으면 텍스트로 작성 (폴백)
       pdf.addPage();
       let y = margin + 10;
       
@@ -12077,8 +12313,9 @@ function exportAsPdf(options = {}) {
       pdfAddKoreanText(pdf, '🧘 필라테스 운동 추천', margin, y, { fontSize: 20, fontStyle: 'bold' });
       y += 30;
       
-      // 각 추천 항목 (앱의 renderPilatesItemCard와 동일하게)
-      analysis.pilates.forEach((item, idx) => {
+      if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+        // 각 추천 항목 (앱의 renderPilatesItemCard와 동일하게)
+        analysis.pilates.forEach((item, idx) => {
         if (y > pageH - 150) {
           pdf.addPage();
           y = margin + 20;
@@ -12290,14 +12527,19 @@ function exportAsPdf(options = {}) {
         y += 10; // 항목 간 간격
       });
       
+      } else {
+        // 필라테스 데이터가 없을 때
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        pdf.setTextColor(100, 100, 100);
+        pdfAddKoreanText(pdf, '추천 세션이 없습니다.', margin + 20, y, { fontSize: 12 });
+      }
+      
       // 페이지 번호
       pdf.setFontSize(8);
       pdf.setTextColor(150, 150, 150);
       const pilatesPageNum = pageIndexMap.pilates || 4;
       pdf.text(`Page ${pilatesPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
-    } else if (pilatesCanvas) {
-      // 필라테스 데이터가 없으면 기존 canvas 사용
-      addPageToPdf(pilatesCanvas);
     }
     
     // 나머지 페이지 (AI 심층 분석, 결론)
@@ -12306,17 +12548,31 @@ function exportAsPdf(options = {}) {
     
     // PDF 다운로드 (모바일 안정화)
     let pdfSaved = false;
-    const isMobile = isMobileDevice();
+    const isMobile = typeof isMobileDevice === 'function' ? isMobileDevice() : ('ontouchstart' in window || navigator.maxTouchPoints > 0);
     
     try {
       // 모바일에서는 직접 save 메서드 우선 사용 (가장 안정적)
       if (isMobile) {
         try {
           // 작은 지연으로 UI 블로킹 방지 및 메모리 정리
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // 모바일에서 PDF 크기 확인 및 최적화
+          const pdfSize = pdf.output('arraybuffer').byteLength;
+          if (pdfSize > 20 * 1024 * 1024) { // 20MB 이상
+            console.warn('⚠️ PDF 크기가 큽니다:', (pdfSize / 1024 / 1024).toFixed(2), 'MB');
+          }
+          
           pdf.save(finalFileName);
           console.log('✅ PDF 저장 성공 (직접 save)');
           pdfSaved = true;
+          
+          // 모바일에서 저장 완료 알림
+          if (isMobile) {
+            setTimeout(() => {
+              alert('✅ PDF가 저장되었습니다. 다운로드 폴더를 확인하세요.');
+            }, 500);
+          }
         } catch (saveErr) {
           console.warn('⚠️ 직접 save 실패:', saveErr);
           // 폴백으로 진행
@@ -12580,7 +12836,7 @@ function setupPDFButton() {
   });
 }
 
-// 그림으로 저장 (전체 내용 포함)
+// 그림으로 저장 (PDF와 동일한 페이지 구조로 여러 장 저장)
 function setupImageButton() {
   const btnImage = document.getElementById("btnImage");
   if (!btnImage) {
@@ -12599,39 +12855,83 @@ function setupImageButton() {
       }
       const memberNameDisplay = localStorage.getItem('memberName') || window.memberName || '회원';
       const centerNameDisplay = localStorage.getItem('centerName') || window.centerName || '';
+      
+      // PDF와 동일한 캔버스 캡처 함수 사용
       const pageData = await captureReportCanvases({
         centerName: centerNameDisplay,
         memberName: memberNameDisplay,
         appName: 'DIT 자세 분석 AI',
         logoUrl: null
       });
+      
+      // PDF와 동일한 순서로 페이지 구성
       const orderedCanvases = [
-        pageData.canvases.cover,
-        ...(pageData.includeHeatmapPage && pageData.canvases.heatmap ? [pageData.canvases.heatmap] : []),
-        pageData.canvases.metrics,
-        pageData.canvases.aiSummary,
-        pageData.canvases.pilates,
-        pageData.canvases.aiDeep,
-        pageData.canvases.conclusion
-      ].filter(Boolean);
+        { canvas: pageData.canvases.cover, name: '표지', index: 1 },
+        ...(pageData.includeHeatmapPage && pageData.canvases.heatmap ? [{ canvas: pageData.canvases.heatmap, name: '히트맵', index: 2 }] : []),
+        { canvas: pageData.canvases.metrics, name: '수치표', index: pageData.includeHeatmapPage ? 3 : 2 },
+        { canvas: pageData.canvases.aiSummary, name: 'AI요약', index: (pageData.includeHeatmapPage ? 3 : 2) + 1 },
+        { canvas: pageData.canvases.pilates, name: '필라테스', index: (pageData.includeHeatmapPage ? 3 : 2) + 2 },
+        { canvas: pageData.canvases.aiDeep, name: 'AI심층', index: (pageData.includeHeatmapPage ? 3 : 2) + 3 },
+        { canvas: pageData.canvases.conclusion, name: '결론', index: (pageData.includeHeatmapPage ? 3 : 2) + 4 }
+      ].filter(item => item.canvas);
+      
       if (!orderedCanvases.length) {
         throw new Error("저장할 페이지가 없습니다.");
       }
-      const combinedCanvas = combineCanvasesVertical(orderedCanvases);
       
-      // PDF와 동일한 파일명 형식 사용
-      let imageFileName;
+      // 파일명 기본 형식
       const centerNameForFile = centerNameDisplay || '';
       const memberNameForFile = memberNameDisplay || '회원';
-      if(centerNameForFile && memberNameForFile) {
-        imageFileName = `${centerNameForFile}_${memberNameForFile}_자세분석리포트_${new Date().toISOString().split('T')[0]}.png`;
+      const dateStr = new Date().toISOString().split('T')[0];
+      const baseFileName = centerNameForFile && memberNameForFile 
+        ? `${centerNameForFile}_${memberNameForFile}_자세분석리포트_${dateStr}`
+        : `DIT_자세_분석_리포트_${cur}_${dateStr}`;
+      
+      // 모바일에서는 여러 장 저장이 어려울 수 있으므로 ZIP으로 묶거나 순차 저장
+      const isMobile = typeof isMobileDevice === 'function' ? isMobileDevice() : ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+      
+      if (isMobile && orderedCanvases.length > 1) {
+        // 모바일: 첫 번째 이미지만 저장하거나 사용자에게 선택권 제공
+        const firstCanvas = orderedCanvases[0].canvas;
+        const fileName = `${baseFileName}_${orderedCanvases[0].name}.png`;
+        await downloadCanvasAsImage(firstCanvas, fileName, btn, originalText);
+        
+        // 나머지 이미지도 순차적으로 저장 제안
+        if (orderedCanvases.length > 1) {
+          setTimeout(async () => {
+            for (let i = 1; i < orderedCanvases.length; i++) {
+              const item = orderedCanvases[i];
+              if (item.canvas) {
+                const fileName = `${baseFileName}_${item.name}.png`;
+                await new Promise(resolve => setTimeout(resolve, 500)); // 각 이미지 사이 지연
+                await downloadCanvasAsImage(item.canvas, fileName, null, null);
+              }
+            }
+          }, 1000);
+        }
       } else {
-        imageFileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.png`;
+        // 데스크톱: 각 페이지를 개별 이미지로 저장
+        for (let i = 0; i < orderedCanvases.length; i++) {
+          const item = orderedCanvases[i];
+          if (item.canvas) {
+            const fileName = `${baseFileName}_${String(item.index).padStart(2, '0')}_${item.name}.png`;
+            if (i === 0) {
+              // 첫 번째 이미지는 버튼 상태 업데이트
+              await downloadCanvasAsImage(item.canvas, fileName, btn, originalText);
+            } else {
+              // 나머지는 백그라운드에서 저장
+              await new Promise(resolve => setTimeout(resolve, 300)); // 각 이미지 사이 지연
+              await downloadCanvasAsImage(item.canvas, fileName, null, null);
+            }
+          }
+        }
       }
       
-      await downloadCanvasAsImage(combinedCanvas, imageFileName, btn, originalText);
+      if (!isMobile) {
+        alert(`✅ 총 ${orderedCanvases.length}장의 이미지가 저장되었습니다.`);
+      }
     } catch (error) {
-      console.error("전체 이미지 생성 실패:", error);
+      console.error("이미지 생성 실패:", error);
       alert("이미지 생성 중 오류가 발생했습니다: " + (error?.message || "알 수 없는 오류"));
       btn.textContent = originalText || "🖼️ 이미지 저장";
       btn.disabled = false;
