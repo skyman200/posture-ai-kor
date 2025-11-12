@@ -3422,23 +3422,27 @@ window.switchSession = window.switchSession || function switchSession(s) {
   if(btnFront) btnFront.classList.toggle("active", orientation === "front");
   
   // 좌표 선택 드롭다운 업데이트
-  updateCoordSelectOptions();
+  if (typeof updateCoordSelectOptions === 'function') {
+    updateCoordSelectOptions();
+  }
   
   // 원본 크기 초기화 (세션마다 다른 이미지 크기를 가질 수 있음)
-  originalCanvasSize.width = 0;
-  originalCanvasSize.height = 0;
-  originalCanvasSize.styleWidth = 0;
-  originalCanvasSize.styleHeight = 0;
+  if (typeof originalCanvasSize !== 'undefined') {
+    originalCanvasSize.width = 0;
+    originalCanvasSize.height = 0;
+    originalCanvasSize.styleWidth = 0;
+    originalCanvasSize.styleHeight = 0;
+  }
   
   // 세션의 이미지로 캔버스 크기 조정
   const img = orientation === "front" ? currentSessions[s]?.imgFront : currentSessions[s]?.imgSide;
   if(img && img.complete && img.naturalWidth > 0) {
-    resizeCanvasFor(img);
-  draw();
+    if (window.resizeCanvasFor) window.resizeCanvasFor(img);
+    if (window.draw) window.draw();
   } else {
     // 이미지가 없거나 로드 중이면 기본 크기로 설정하고 그리기
-    resizeCanvasFor(null);
-    draw();
+    if (window.resizeCanvasFor) window.resizeCanvasFor(null);
+    if (window.draw) window.draw();
   }
   
   // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
