@@ -3816,30 +3816,67 @@ function computeMetricsOnly() {
   const score = computeScore(cva, pelvic, knee);
   S.score = score;
   
-  // AI 분석은 하지 않음 (저장 버튼 클릭 시에만)
+  // ✅ 실시간 fullMetrics 계산 (AI 분석 없이 메트릭만)
+  const pxPerCm = S.pxPerCm || 50.0;
+  const sidePoints = {};
+  const frontPoints = {};
+  
+  // 측면 키포인트
+  for(const [key, value] of S.sidePoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      sidePoints[key] = { x: value.x, y: value.y };
+    }
+  }
+  
+  // 정면 키포인트
+  for(const [key, value] of S.frontPoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      frontPoints[key] = { x: value.x, y: value.y };
+    }
+  }
+  
+  // 측면 분석 (fullMetrics 계산)
+  let sideMetrics = {};
+  if(Object.keys(sidePoints).length > 0) {
+    const imageWidth = S.imgSide ? (S.imgSide.naturalWidth || S.imgSide.width || 1080) : 1080;
+    sideMetrics = analyzeFullPosture(sidePoints, pxPerCm, imageWidth);
+  }
+  
+  // 정면 분석 (fullMetrics 계산)
+  let frontMetrics = {};
+  if(Object.keys(frontPoints).length > 0) {
+    frontMetrics = analyzeFrontPosture(frontPoints, pxPerCm);
+  }
+  
+  // 측면 + 정면 통합
+  const mergedMetrics = { ...sideMetrics, ...frontMetrics };
+  
+  // PDS 점수 계산 (fullMetrics 기반)
+  if(Object.keys(mergedMetrics).length > 0) {
+    const scoreResult = computeScoreFromFullMetrics(mergedMetrics);
+    const pdsValue = scoreResult.score != null ? scoreResult.score : null;
+    
+    // PDS를 fullMetrics에 추가
+    if(pdsValue != null) {
+      mergedMetrics.PDS = {
+        value: pdsValue,
+        status: pdsValue >= 85 ? 'normal' : pdsValue >= 70 ? 'mild' : pdsValue >= 50 ? 'moderate' : 'severe',
+        unit: 'score',
+        desc: 'Postural Deviation Score'
+      };
+    }
+    
+    // fullMetrics 저장
+    if(!S.metrics) S.metrics = {};
+    S.metrics.fullMetrics = mergedMetrics;
+    window.fullMetrics = mergedMetrics;
+  }
+  
+  // ✅ updateScoreAndAnalysis 호출하여 allMetricsList 업데이트
+  updateScoreAndAnalysis(score, cva, pelvic, knee, { fullMetrics: mergedMetrics });
   
   updateDisplay();
   updateCompare();
-  // 점수만 업데이트 (AI 분석 없음)
-  const scoreEl = document.getElementById("totalScore");
-  const reasonEl = document.getElementById("scoreReason");
-  if(scoreEl && score) {
-    scoreEl.textContent = score.score;
-    if(score >= 85) {
-      scoreEl.style.color = "#2ec4b6";
-    } else if(score >= 70) {
-      scoreEl.style.color = "#ffd166";
-    } else {
-      scoreEl.style.color = "#ff6b6b";
-    }
-  }
-  if(reasonEl && score) {
-    if(score.reasons && score.reasons.length > 0) {
-      reasonEl.textContent = "감점 근거: " + score.reasons.join(", ");
-    } else {
-      reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
-    }
-  }
 }
 
 // 전체 계산 (AI 분석 포함) - 저장 버튼 클릭 시에만 호출
