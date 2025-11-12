@@ -3235,7 +3235,13 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
   if(btnBefore) {
     addMobileTouchSupport(btnBefore, () => {
       console.log("Before 버튼 클릭됨");
-      switchSession("Before");
+      if (typeof window.switchSession === 'function') {
+        window.switchSession("Before");
+      } else if (typeof switchSession === 'function') {
+        switchSession("Before");
+      } else {
+        console.error("switchSession 함수를 찾을 수 없습니다");
+      }
     });
   } else {
     console.error("btnBefore를 찾을 수 없습니다");
@@ -3244,7 +3250,13 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
   if(btnAfter) {
     addMobileTouchSupport(btnAfter, () => {
       console.log("After 버튼 클릭됨");
-      switchSession("After");
+      if (typeof window.switchSession === 'function') {
+        window.switchSession("After");
+      } else if (typeof switchSession === 'function') {
+        switchSession("After");
+      } else {
+        console.error("switchSession 함수를 찾을 수 없습니다");
+      }
     });
   } else {
     console.error("btnAfter를 찾을 수 없습니다");
@@ -3253,7 +3265,13 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
   if(btnOrientationSide) {
     addMobileTouchSupport(btnOrientationSide, () => {
       console.log("옆모습 버튼 클릭됨");
-      setOrientation("side", { manual: true });
+      if (typeof window.setOrientation === 'function') {
+        window.setOrientation("side", { manual: true });
+      } else if (typeof setOrientation === 'function') {
+        setOrientation("side", { manual: true });
+      } else {
+        console.error("setOrientation 함수를 찾을 수 없습니다");
+      }
     });
   } else {
     console.error("btnOrientationSide를 찾을 수 없습니다");
@@ -3262,7 +3280,13 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
   if(btnOrientationFront) {
     addMobileTouchSupport(btnOrientationFront, () => {
       console.log("정면 버튼 클릭됨");
-      setOrientation("front", { manual: true });
+      if (typeof window.setOrientation === 'function') {
+        window.setOrientation("front", { manual: true });
+      } else if (typeof setOrientation === 'function') {
+        setOrientation("front", { manual: true });
+      } else {
+        console.error("setOrientation 함수를 찾을 수 없습니다");
+      }
     });
   } else {
     console.error("btnOrientationFront를 찾을 수 없습니다");

@@ -157,14 +157,21 @@ async function initializeApp() {
     updateCoordSelectOptions();
   }
   
-  resizeCanvasFor(null);
-  draw();
-  computeMetricsOnly();
-  updateCompare();
+  if (window.resizeCanvasFor) window.resizeCanvasFor(null);
+  if (window.draw) window.draw();
+  if (window.computeMetricsOnly) window.computeMetricsOnly();
+  if (window.updateCompare) window.updateCompare();
   
   await loadModels();
   
-  setTimeout(() => liveAnalyzer.analyzeCurrentSession(), 500);
+  // liveAnalyzer를 window에 노출
+  window.liveAnalyzer = liveAnalyzer;
+  
+  setTimeout(() => {
+    if (window.liveAnalyzer && window.liveAnalyzer.analyzeCurrentSession) {
+      window.liveAnalyzer.analyzeCurrentSession();
+    }
+  }, 500);
   
   // ✅ 파일 업로드 강제 연결
   bindFileInput();
