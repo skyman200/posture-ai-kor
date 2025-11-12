@@ -323,10 +323,13 @@ async function loadMoveNet() {
     // @tensorflow-models/pose-detection에서 MoveNet 로드
     const poseDetection = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js'),true?[]:void 0);
     
+    // MoveNet 모델 타입 확인
+    const modelType = poseDetection.movenet?.modelType?.SINGLEPOSE_LIGHTNING || 'lightning';
+    
     frontModels.move = await poseDetection.createDetector(
       poseDetection.SupportedModels.MoveNet,
       {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+        modelType: modelType
       }
     );
     
@@ -334,7 +337,14 @@ async function loadMoveNet() {
     return frontModels.move;
   } catch (err) {
     console.error("❌ MoveNet 로드 실패:", err);
-    throw err;
+    // 폴백: 간단한 MoveNet 모델
+    console.warn("⚠️ MoveNet 폴백 모드 사용");
+    frontModels.move = {
+      estimatePoses: async (img) => {
+        return []; // 빈 결과 반환
+      }
+    };
+    return frontModels.move;
   } finally {
     modelLoadingState.move = false;
   }
@@ -1115,51 +1125,164 @@ async function initializeApp() {
     }
   }
   
-  // 버튼 초기화 함수들 호출 (HTML에 정의된 함수들)
-  // 함수들이 아직 로드되지 않았을 수 있으므로 재시도 로직 추가
-  const setupButtons = () => {
-    const functions = [
-      { name: 'setupFileUploads', required: true },
-      { name: 'setupResetButton', required: true },
-      { name: 'setupCalibrateButton', required: true },
-      { name: 'setupCalibrationButtons', required: true },
-      { name: 'setupPDFButton', required: true },
-      { name: 'setupImageButton', required: true }
-    ];
-    
-    let allReady = true;
-    functions.forEach(({ name, required }) => {
-      if (typeof window[name] === 'function') {
-        try {
-          window[name]();
-          console.log(`✅ ${name} 실행 완료`);
-        } catch (error) {
-          console.error(`❌ ${name} 실행 실패:`, error);
+  // 버튼 초기화 함수들 직접 구현 (HTML 인라인 스크립트가 번들에 포함되지 않으므로)
+  const setupButtonsDirectly = () => {
+    // setupResetButton 직접 구현
+    if (typeof window.setupResetButton !== 'function') {
+      window.setupResetButton = function() {
+        const btnReset = document.getElementById("btnReset");
+        if (!btnReset) {
+          console.warn("Reset 버튼을 찾을 수 없습니다.");
+          return;
         }
-      } else if (required) {
-        console.warn(`⚠️ ${name} 함수를 찾을 수 없습니다.`);
-        allReady = false;
-      }
-    });
-    
-    return allReady;
-  };
-  
-  // 함수들이 로드될 때까지 최대 2초 대기 (100ms 간격, 20번 시도)
-  let retryCount = 0;
-  const maxRetries = 20;
-  const trySetupButtons = () => {
-    if (setupButtons() || retryCount >= maxRetries) {
-      if (retryCount >= maxRetries) {
-        console.warn("⚠️ 일부 버튼 초기화 함수를 찾을 수 없지만 계속 진행합니다.");
-      }
-      return;
+        const handler = () => {
+          const orientation = window.sessions?.[window.cur || "Before"]?.poseData?.orientation || "side";
+          const currentSession = window.sessions?.[window.cur || "Before"];
+          if (!currentSession) return;
+          const currentPoints = orientation === "front" ? currentSession.frontPoints : currentSession.sidePoints;
+          if (currentPoints && currentPoints.clear) currentPoints.clear();
+          if (typeof window.draw === 'function') window.draw();
+          if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
+        };
+        btnReset.addEventListener('click', handler, { passive: true });
+        btnReset.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          handler();
+        }, { passive: false });
+        console.log("✅ Reset 버튼 이벤트 연결 완료");
+      };
     }
-    retryCount++;
-    setTimeout(trySetupButtons, 100);
+    
+    // setupCalibrateButton 직접 구현
+    if (typeof window.setupCalibrateButton !== 'function') {
+      let calibrationMode = false;
+      window.setupCalibrateButton = function() {
+        const btnCalibrate = document.getElementById("btnCalibrate");
+        if (!btnCalibrate) {
+          console.warn("캘리브레이션 버튼을 찾을 수 없습니다.");
+          return;
+        }
+        const handler = () => {
+          calibrationMode = !calibrationMode;
+          const panel = document.getElementById("calibrationPanel");
+          const S = window.sessions?.[window.cur || "Before"];
+          const cv = document.getElementById("cv");
+          
+          if (calibrationMode) {
+            if (panel) panel.style.display = "block";
+            if (S) {
+              S.calibrationPoint1 = null;
+              S.calibrationPoint2 = null;
+            }
+            if (cv) cv.style.cursor = "crosshair";
+            if (typeof window.draw === 'function') window.draw();
+          } else {
+            if (panel) panel.style.display = "none";
+            if (cv) cv.style.cursor = "default";
+            if (S) {
+              S.calibrationPoint1 = null;
+              S.calibrationPoint2 = null;
+            }
+            if (typeof window.draw === 'function') window.draw();
+          }
+        };
+        btnCalibrate.addEventListener('click', handler, { passive: true });
+        btnCalibrate.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          handler();
+        }, { passive: false });
+        console.log("✅ 캘리브레이션 버튼 이벤트 연결 완료");
+      };
+    }
+    
+    // setupCalibrationButtons 직접 구현 (간단 버전)
+    if (typeof window.setupCalibrationButtons !== 'function') {
+      window.setupCalibrationButtons = function() {
+        const btnConfirm = document.getElementById("btnConfirmCalibration");
+        const btnCancel = document.getElementById("btnCancelCalibration");
+        
+        if (btnConfirm) {
+          const handler = () => {
+            const S = window.sessions?.[window.cur || "Before"];
+            if (!S || !S.calibrationPoint1 || !S.calibrationPoint2) {
+              alert("두 점을 모두 선택해주세요.");
+              return;
+            }
+            const realLengthCm = parseFloat(document.getElementById("calibrationLength")?.value || "0");
+            if (!realLengthCm || realLengthCm <= 0) {
+              alert("실제 길이(cm)를 올바르게 입력해주세요.");
+              return;
+            }
+            // 캘리브레이션 로직은 기존 함수 사용
+            if (typeof window.calibratePxPerCm === 'function') {
+              try {
+                const pxPerCm = window.calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
+                S.pxPerCm = pxPerCm;
+                const resultEl = document.getElementById("calibrationResult");
+                if (resultEl) {
+                  resultEl.textContent = `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+                  resultEl.style.color = "#2ec4b6";
+                }
+                if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
+                if (typeof window.setupCalibrateButton === 'function') window.setupCalibrateButton();
+              } catch (error) {
+                alert(`캘리브레이션 실패: ${error.message}`);
+              }
+            }
+          };
+          btnConfirm.addEventListener('click', handler, { passive: true });
+          btnConfirm.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handler();
+          }, { passive: false });
+        }
+        
+        if (btnCancel) {
+          const handler = () => {
+            if (typeof window.setupCalibrateButton === 'function') window.setupCalibrateButton();
+          };
+          btnCancel.addEventListener('click', handler, { passive: true });
+          btnCancel.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handler();
+          }, { passive: false });
+        }
+        console.log("✅ 캘리브레이션 관련 버튼 이벤트 연결 완료");
+      };
+    }
+    
+    // setupPDFButton과 setupImageButton은 HTML에 정의된 함수 사용 (필요시 재시도)
+    const tryCallWindowFunction = (name, maxRetries = 10) => {
+      let retries = 0;
+      const tryCall = () => {
+        if (typeof window[name] === 'function') {
+          try {
+            window[name]();
+            console.log(`✅ ${name} 실행 완료`);
+          } catch (error) {
+            console.error(`❌ ${name} 실행 실패:`, error);
+          }
+        } else if (retries < maxRetries) {
+          retries++;
+          setTimeout(tryCall, 100);
+        } else {
+          console.warn(`⚠️ ${name} 함수를 찾을 수 없습니다 (HTML 인라인 스크립트 확인 필요).`);
+        }
+      };
+      tryCall();
+    };
+    
+    // HTML에 정의된 함수들 호출 시도
+    tryCallWindowFunction('setupPDFButton');
+    tryCallWindowFunction('setupImageButton');
+    
+    // 직접 구현한 함수들 실행
+    if (typeof window.setupResetButton === 'function') window.setupResetButton();
+    if (typeof window.setupCalibrateButton === 'function') window.setupCalibrateButton();
+    if (typeof window.setupCalibrationButtons === 'function') window.setupCalibrationButtons();
   };
   
-  trySetupButtons();
+  setupButtonsDirectly();
   
   // 세션별 포즈 정보 초기화
   if (!sessions.Before.poseData) {

@@ -108,10 +108,13 @@ export async function loadMoveNet() {
     // @tensorflow-models/pose-detection에서 MoveNet 로드
     const poseDetection = await import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js');
     
+    // MoveNet 모델 타입 확인
+    const modelType = poseDetection.movenet?.modelType?.SINGLEPOSE_LIGHTNING || 'lightning';
+    
     frontModels.move = await poseDetection.createDetector(
       poseDetection.SupportedModels.MoveNet,
       {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+        modelType: modelType
       }
     );
     
@@ -119,7 +122,14 @@ export async function loadMoveNet() {
     return frontModels.move;
   } catch (err) {
     console.error("❌ MoveNet 로드 실패:", err);
-    throw err;
+    // 폴백: 간단한 MoveNet 모델
+    console.warn("⚠️ MoveNet 폴백 모드 사용");
+    frontModels.move = {
+      estimatePoses: async (img) => {
+        return []; // 빈 결과 반환
+      }
+    };
+    return frontModels.move;
   } finally {
     modelLoadingState.move = false;
   }

@@ -179,7 +179,7 @@ canvas {
   -webkit-user-select: none;
 }
 </style>
-    <script type="module" crossorigin src="/posture-ai-kor/assets/main-Bcpwq-bp.js"></script>
+    <script type="module" crossorigin src="/posture-ai-kor/assets/main-BGOXEvS-.js"></script>
   </head>
   <body>
 <aside class="panel sidebar" style="order: 1;">
@@ -12267,7 +12267,7 @@ function setupPDFButton() {
       checkLibraries();
       
       // 세션 데이터 확인
-      const S = window.sessions?.[cur];
+      const S = window.sessions?.[window.cur || "Before"];
       const hasSidePoints = S.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
       const hasFrontPoints = S.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
       if (!S || (!hasSidePoints && !hasFrontPoints)) {

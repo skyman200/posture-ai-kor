@@ -12265,7 +12265,7 @@ function setupPDFButton() {
       checkLibraries();
       
       // 세션 데이터 확인
-      const S = window.sessions?.[cur];
+      const S = window.sessions?.[window.cur || "Before"];
       const hasSidePoints = S.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
       const hasFrontPoints = S.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
       if (!S || (!hasSidePoints && !hasFrontPoints)) {
