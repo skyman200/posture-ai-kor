@@ -13811,5 +13811,87 @@ if (document.getElementById("downloadPdfBtn")) {
   document.getElementById("downloadPdfBtn").addEventListener("click", exportAsPdfSimple);
 }
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="./js/NotoSansKR-Regular-normal.js"></script>
+<script src="./js/NotoSansKR-Bold-normal.js"></script>
+
+<script>
+async function saveTextBasedPDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  // ✅ 한글폰트 강제 박아넣기
+  pdf.addFileToVFS("NotoSansKR-Regular.ttf", fontRegular);
+  pdf.addFont("NotoSansKR-Regular.ttf", "NotoSansKR-Regular", "normal");
+
+  pdf.addFileToVFS("NotoSansKR-Bold.ttf", fontBold);
+  pdf.addFont("NotoSansKR-Bold.ttf", "NotoSansKR-Bold", "bold");
+
+  pdf.setFont("NotoSansKR-Regular", "normal");
+  pdf.setFontSize(11);
+
+  let y = 15;
+
+  const newPageIfNeeded = (lineCount = 1) => {
+    if (y + lineCount * 5 > 280) {
+      pdf.addPage();
+      y = 15;
+    }
+  };
+
+  const addTextBlock = (text, size = 11, bold = false) => {
+    pdf.setFontSize(size);
+    pdf.setFont(bold ? "NotoSansKR-Bold" : "NotoSansKR-Regular");
+    const lines = pdf.splitTextToSize(text, 190);
+    newPageIfNeeded(lines.length);
+    pdf.text(lines, 10, y);
+    y += lines.length * 5 + 4;
+  };
+
+  const addImage = (imgEl) => {
+    try {
+      if (!imgEl.src) return;
+      pdf.addImage(imgEl.src, "JPEG", 10, y, 180, 0);
+      y += 60;
+      newPageIfNeeded(10);
+    } catch(e) {
+      console.warn("이미지 처리 중 오류", e);
+    }
+  };
+
+  // ✅ 본문 전체 텍스트 + 이미지 순차 삽입
+  document.body.querySelectorAll("*").forEach(el => {
+    if (el.tagName === "IMG") {
+      addImage(el);
+    } else if (el.innerText?.trim()) {
+      addTextBlock(el.innerText.trim());
+    }
+  });
+
+  // ✅ 마지막 페이지에 백업 JSON 추가
+  pdf.addPage();
+  y = 15;
+  addTextBlock("📦 APP DATA BACKUP (JSON)", 14, true);
+
+  const backupData = {
+    generatedAt: new Date().toISOString(),
+    fullText: document.body.innerText
+  };
+
+  addTextBlock(JSON.stringify(backupData, null, 2), 8);
+
+  pdf.save("Pilates_Full_Report.pdf");
+}
+</script>
+
+<button onclick="saveTextBasedPDF()" style="
+  position:fixed; bottom:20px; right:20px;
+  background:#000; color:#fff; padding:12px 18px;
+  font-size:15px; border-radius:8px; z-index:99999;
+">
+📄 한글 포함 텍스트 PDF 저장
+</button>
+
   </body>
 </html>
