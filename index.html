@@ -1157,50 +1157,7 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     result.HPA.meaning = result.HPA.desc;
   }
   
-  // Q-Angle은 정면 분석에서만 측정 (측면 분석에서는 제거)
-  
-  // 1️⃣4️⃣ Knee_Deviation (무릎 높이 차이): L_knee와 R_knee 수평선 각도
-  const L_knee = p("L_knee") || p("L_Knee");
-  const R_knee = p("R_knee") || p("R_Knee");
-  if (L_knee && R_knee) {
-    const kd = angleToHorizontal(L_knee, R_knee);
-    result.Knee_Deviation = {
-      value: kd,
-      status: classifyRange({
-        v: kd,
-        nMin: 0, nMax: 3,
-        mildMin: 3, mildMax: 6,
-        modMin: 6, modMax: 10,
-        sevMin: 10, sevMax: null,
-        higherIsWorse: true
-      }),
-      unit: "°",
-      desc: "Knee Height Difference"
-    };
-    // 하위 호환성
-    result.Knee_Deviation.value_deg = kd;
-    result.Knee_Deviation.meaning = result.Knee_Deviation.desc;
-  }
-  
-  // 1️⃣5️⃣ LLD (Leg Length Discrepancy): 좌우 다리 길이 차이
-  const L_asis = p("L_asis") || p("L_ASIS");
-  const R_asis = p("R_asis") || p("R_ASIS");
-  const L_ankle = p("L_ankle") || p("L_Ankle");
-  const R_ankle = p("R_ankle") || p("R_Ankle");
-  if (L_asis && L_ankle && R_asis && R_ankle) {
-    const lLen = dist(L_asis, L_ankle);
-    const rLen = dist(R_asis, R_ankle);
-    const lld = pxToCm(Math.abs(lLen - rLen), pxPerCm);
-    result.LLD = {
-      value: lld,
-      status: lld <= 1 ? "normal" : lld <= 2 ? "mild" : "severe",
-      unit: "cm",
-      desc: "Leg Length Discrepancy"
-    };
-    // 하위 호환성
-    result.LLD.value_cm = lld;
-    result.LLD.meaning = result.LLD.desc;
-  }
+  // Q-Angle, Knee_Deviation, LLD는 정면 분석에서만 측정 (측면 분석에서는 제거)
   
   // 1️⃣6️⃣ PDS (Postural Deviation Score): 모든 지표 합산지수
   let pdsScore = 0;
@@ -5196,8 +5153,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', type: 'side'},
       {key: 'KA', name: 'KA(무릎각)', unit: '°', type: 'side'},
       {key: 'Tibial_Angle', name: 'Tibial(경골경사각)', unit: '°', type: 'side'},
-      {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', type: 'side'},
-      {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', type: 'side'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', type: 'side'},
       {key: 'HPA', name: 'HPA(고관절각)', unit: '°', type: 'side'},
       {key: 'PDS', name: 'PDS(자세점수)', unit: 'score', type: 'side'}
@@ -5210,10 +5165,12 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'POA_F', name: 'POA(골반기울기각)', unit: '°', type: 'front'},
       {key: 'POA', name: 'POA(골반기울기각)', unit: '°', type: 'front'}, // 하위 호환성
       {key: 'LLD_F', name: 'LLD(하지길이차)', unit: 'cm', type: 'front'},
+      {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', type: 'front'}, // 하위 호환성
       {key: 'TD', name: 'TD(체간편위)', unit: '°', type: 'front'},
       {key: 'HTA', name: 'HTA(머리기울기각)', unit: '°', type: 'front'},
       {key: 'SPP', name: 'SPP(어깨골반평행도)', unit: '°', type: 'front'},
-      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'front'},  // 정면 분석 항목으로 이동
+      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'front'},  // 정면 분석 항목
+      {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', type: 'front'},  // 정면 분석 항목으로 이동
       {key: 'KAS', name: 'KAS(무릎정렬대칭성)', unit: '°', type: 'front'},
       {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'}
     ];
@@ -5620,19 +5577,18 @@ function updateCompare() {
     {key: 'PTA', id: 'Pta', unit: '°'},
     {key: 'KA', id: 'Ka', unit: '°'},
     {key: 'Tibial_Angle', id: 'Tibial', unit: '°'},
-    {key: 'Knee_Deviation', id: 'Kneedev', unit: '°'},
-    {key: 'LLD', id: 'Lld', unit: 'cm'},
     {key: 'GSB', id: 'Gsb', unit: 'cm'},
     {key: 'HPA', id: 'Hpa', unit: '°'},
     {key: 'PDS', id: 'Pds', unit: ''},
     // 정면 항목
     {key: 'STA_F', altKey: 'STA', id: 'Sta', unit: '°'},
     {key: 'POA_F', altKey: 'POA', id: 'Poa', unit: '°'},
-    {key: 'LLD_F', id: 'Lldf', unit: 'cm'},
+    {key: 'LLD_F', altKey: 'LLD', id: 'Lldf', unit: 'cm'},
     {key: 'TD', id: 'Td', unit: '°'},
     {key: 'HTA', id: 'Hta', unit: '°'},
     {key: 'SPP', id: 'Spp', unit: '°'},
-    {key: 'Q_Angle', id: 'Qangle', unit: '°'},  // 정면 분석 항목으로 이동
+    {key: 'Q_Angle', id: 'Qangle', unit: '°'},  // 정면 분석 항목
+    {key: 'Knee_Deviation', id: 'Kneedev', unit: '°'},  // 정면 분석 항목으로 이동
     {key: 'KAS', id: 'Kas', unit: '°'},
     {key: 'LLAS', id: 'Llas', unit: '°'}
   ];
