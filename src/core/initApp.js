@@ -101,7 +101,63 @@ async function initializeApp() {
   
   setTimeout(() => liveAnalyzer.analyzeCurrentSession(), 500);
   
+  // ✅ 파일 업로드 강제 연결
+  bindFileInput();
+  
   console.log("=== 초기화 완료 ===");
+}
+
+// ✅ 파일 업로드 핸들러
+function handleFileUpload(file) {
+  console.log("📌 업로드 감지:", file.name);
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  img.onload = () => {
+    console.log("✅ 이미지 로드됨", img.width, img.height);
+    // 기존 handleFileUpload 함수가 있으면 이벤트 객체 형태로 호출
+    if (typeof window.handleFileUpload === 'function') {
+      const mockEvent = {
+        target: {
+          files: [file]
+        }
+      };
+      window.handleFileUpload(mockEvent);
+    }
+  };
+  img.onerror = () => {
+    console.error("❌ 이미지 로드 실패");
+    alert("이미지를 불러올 수 없습니다.");
+  };
+}
+
+// ✅ input 연결 강제 바인딩
+function bindFileInput() {
+  const filePicker = document.getElementById("filePicker");
+  const cameraPicker = document.getElementById("cameraPicker");
+  
+  if (!filePicker && !cameraPicker) {
+    console.warn("⚠️ filePicker/cameraPicker 없음 → 0.5초 후 재시도");
+    setTimeout(bindFileInput, 500);
+    return;
+  }
+  
+  if (filePicker) {
+    filePicker.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+    console.log("✅ filePicker 이벤트 연결 완료");
+  }
+  
+  if (cameraPicker) {
+    cameraPicker.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+    console.log("✅ cameraPicker 이벤트 연결 완료");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
