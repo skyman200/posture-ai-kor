@@ -4,15 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DIT 자세 분석 AI (최종 통합버전)</title>
-<!-- ✅ TensorFlow.js 중복 로딩 차단 (최우선 실행) -->
+<!-- ✅ TensorFlow.js 싱글톤 로더 (중복 로딩 완전 차단) -->
 <script>
-  if (!window.__TF_LOADED__) {
-    window.__TF_LOADED__ = true;
-  } else {
-    console.warn("🚨 TensorFlow.js 중복 로딩 차단됨");
-  }
+  // Load TF.js exactly once and export a singleton on window.tfSingleton
+  // Protects against duplicate kernel registration caused by multiple loads.
+  (function(){
+    if (window.tfSingleton && window.tfSingleton._loaded) {
+      console.log('✅ TF singleton already loaded');
+      return;
+    }
+    window.tfSingleton = window.tfSingleton || { _loading: true, _loaded: false };
+    async function loadTfOnce() {
+      if (window.tfSingleton._loaded) return window.tfSingleton.tf;
+      if (window.tfSingleton._loading && window.tfSingleton._promise) return window.tfSingleton._promise;
+      window.tfSingleton._promise = (async () => {
+        try {
+          // prefer ESM bundle to avoid some duplicate kernel issues
+          const mod = await import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.esm.min.js');
+          const tf = (mod && (mod.default || mod.tf)) || mod;
+          window.tfSingleton.tf = tf;
+          window.tfSingleton._loaded = true;
+          window.tfSingleton._loading = false;
+          console.log('✅ TensorFlow.js loaded (singleton, esm)');
+          return tf;
+        } catch (err) {
+          console.warn('⚠️ tf esm import failed, falling back to UMD script load', err);
+          return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js';
+            s.onload = () => {
+              window.tfSingleton.tf = window.tf || (window).tf;
+              window.tfSingleton._loaded = true;
+              window.tfSingleton._loading = false;
+              console.log('✅ TensorFlow.js loaded via UMD fallback (singleton)');
+              resolve(window.tfSingleton.tf);
+            };
+            s.onerror = (e) => reject(e);
+            document.head.appendChild(s);
+          });
+        }
+      })();
+      return window.tfSingleton._promise;
+    }
+    // expose loader globally
+    window.loadTfOnce = loadTfOnce;
+  })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js"></script>
 <!-- ✅ 3. favicon.ico 404 오류 해결 (선택사항) -->
 <link rel="icon" type="image/png" href="/posture-ai-kor/pwa-192x192.png">
 <style>
@@ -188,7 +225,7 @@ canvas {
   -webkit-user-select: none;
 }
 </style>
-    <script type="module" crossorigin src="/posture-ai-kor/assets/main-B4QjbfTj.js"></script>
+    <script type="module" crossorigin src="/posture-ai-kor/assets/main-CHxw9PDl.js"></script>
   </head>
   <body>
 <aside class="panel sidebar" style="order: 1;">
@@ -642,6 +679,9 @@ if (typeof window.currentSessions === 'undefined') {
 
 // ---- 전역 충돌 방어 ----
 window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
+  if (window.modelManager && !window.modelManager.ready) {
+    console.log('modelManager not ready — models may not be loaded yet');
+  }
   console.log("✅ analyzePostureAI 강제 바인딩 실행됨", { before, after });
   // 실제 함수가 나중에 정의되면 덮어씌워짐
   return { results: [], findings: [], muscles: { tight: [], weak: [] } };
@@ -737,8 +777,10 @@ if (document.readyState === 'loading') {
   if (window.setupFileUploads) {
     window.setupFileUploads();
   }
-}
+  }
 </script>
+
+<!-- ✅ modelManager: front/side 모델 분리 로드 및 UI 잠금/해제 -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

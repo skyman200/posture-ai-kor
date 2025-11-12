@@ -4,15 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DIT 자세 분석 AI (최종 통합버전)</title>
-<!-- ✅ TensorFlow.js 중복 로딩 차단 (최우선 실행) -->
+<!-- ✅ TensorFlow.js 싱글톤 로더 (중복 로딩 완전 차단) -->
 <script>
-  if (!window.__TF_LOADED__) {
-    window.__TF_LOADED__ = true;
-  } else {
-    console.warn("🚨 TensorFlow.js 중복 로딩 차단됨");
-  }
+  // Load TF.js exactly once and export a singleton on window.tfSingleton
+  // Protects against duplicate kernel registration caused by multiple loads.
+  (function(){
+    if (window.tfSingleton && window.tfSingleton._loaded) {
+      console.log('✅ TF singleton already loaded');
+      return;
+    }
+    window.tfSingleton = window.tfSingleton || { _loading: true, _loaded: false };
+    async function loadTfOnce() {
+      if (window.tfSingleton._loaded) return window.tfSingleton.tf;
+      if (window.tfSingleton._loading && window.tfSingleton._promise) return window.tfSingleton._promise;
+      window.tfSingleton._promise = (async () => {
+        try {
+          // prefer ESM bundle to avoid some duplicate kernel issues
+          const mod = await import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.esm.min.js');
+          const tf = (mod && (mod.default || mod.tf)) || mod;
+          window.tfSingleton.tf = tf;
+          window.tfSingleton._loaded = true;
+          window.tfSingleton._loading = false;
+          console.log('✅ TensorFlow.js loaded (singleton, esm)');
+          return tf;
+        } catch (err) {
+          console.warn('⚠️ tf esm import failed, falling back to UMD script load', err);
+          return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js';
+            s.onload = () => {
+              window.tfSingleton.tf = window.tf || (window).tf;
+              window.tfSingleton._loaded = true;
+              window.tfSingleton._loading = false;
+              console.log('✅ TensorFlow.js loaded via UMD fallback (singleton)');
+              resolve(window.tfSingleton.tf);
+            };
+            s.onerror = (e) => reject(e);
+            document.head.appendChild(s);
+          });
+        }
+      })();
+      return window.tfSingleton._promise;
+    }
+    // expose loader globally
+    window.loadTfOnce = loadTfOnce;
+  })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js"></script>
 <!-- ✅ 3. favicon.ico 404 오류 해결 (선택사항) -->
 <link rel="icon" type="image/png" href="/posture-ai-kor/pwa-192x192.png">
 <style>
@@ -640,6 +677,9 @@ if (typeof window.currentSessions === 'undefined') {
 
 // ---- 전역 충돌 방어 ----
 window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
+  if (window.modelManager && !window.modelManager.ready) {
+    console.log('modelManager not ready — models may not be loaded yet');
+  }
   console.log("✅ analyzePostureAI 강제 바인딩 실행됨", { before, after });
   // 실제 함수가 나중에 정의되면 덮어씌워짐
   return { results: [], findings: [], muscles: { tight: [], weak: [] } };
@@ -735,7 +775,163 @@ if (document.readyState === 'loading') {
   if (window.setupFileUploads) {
     window.setupFileUploads();
   }
-}
+  }
+</script>
+
+<!-- ✅ modelManager: front/side 모델 분리 로드 및 UI 잠금/해제 -->
+<script type="module">
+  // modelManager: front/side 모델을 분리 로드하고 UI 잠금/해제를 담당
+  function lockUI(reason = 'loading') {
+    const aiBtn = document.getElementById('btnAIAnalysis');
+    const overlayId = 'model-manager-overlay';
+    let ov = document.getElementById(overlayId);
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = overlayId;
+      Object.assign(ov.style, {
+        position: 'fixed', left: 0, top: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.25)', zIndex: 99999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontSize: '18px'
+      });
+      ov.innerText = '모델 로딩 중... 잠시만요';
+      document.body.appendChild(ov);
+    }
+    if (aiBtn) aiBtn.disabled = true;
+  }
+
+  function unlockUI() {
+    const aiBtn = document.getElementById('btnAIAnalysis');
+    const overlay = document.getElementById('model-manager-overlay');
+    if (overlay) overlay.remove();
+    if (aiBtn) aiBtn.disabled = false;
+  }
+
+  window.modelManager = window.modelManager || {
+    ready: false,
+    frontModel: null,
+    sideModel: null,
+    loadFrontModel: async function() {
+      if (this.frontModel) return this.frontModel;
+      const tf = await window.loadTfOnce();
+      try {
+        lockUI('front');
+        const m = await import('./js/model_loaders/frontModelLoader.js').catch(()=>null);
+        if (m && m.loadFrontModel) {
+          this.frontModel = await m.loadFrontModel(tf);
+        } else {
+          console.warn('frontModelLoader not found; returning null');
+          this.frontModel = null;
+        }
+        return this.frontModel;
+      } finally {
+        unlockUI();
+      }
+    },
+    loadSideModel: async function() {
+      if (this.sideModel) return this.sideModel;
+      const tf = await window.loadTfOnce();
+      try {
+        lockUI('side');
+        const m = await import('./js/model_loaders/sideModelLoader.js').catch(()=>null);
+        if (m && m.loadSideModel) {
+          this.sideModel = await m.loadSideModel(tf);
+        } else {
+          console.warn('sideModelLoader not found; returning null');
+          this.sideModel = null;
+        }
+        return this.sideModel;
+      } finally {
+        unlockUI();
+      }
+    },
+    loadAll: async function() {
+      if (this.ready) return;
+      lockUI('all');
+      try {
+        await Promise.all([this.loadFrontModel(), this.loadSideModel()]);
+        this.ready = true;
+        console.log('✅ modelManager: all models loaded');
+      } catch (err) {
+        console.error('❌ modelManager loadAll failed', err);
+      } finally {
+        unlockUI();
+      }
+    }
+  };
+
+  // normalizePose: 다양한 모델 출력 → 프로젝트가 기대하는 PosePoints 형태로 정규화
+  window.normalizePose = function(raw, orientation = 'side') {
+    if (!raw) return {};
+    const p = {};
+    if (Array.isArray(raw)) {
+      raw.forEach(pt => {
+        const name = pt.name || pt.part || pt.key || '';
+        if (!name) return;
+        p[name.toLowerCase()] = { x: pt.x, y: pt.y };
+      });
+    } else if (typeof raw === 'object') {
+      Object.keys(raw).forEach(k => {
+        const v = raw[k];
+        if (v && typeof v.x === 'number' && typeof v.y === 'number') p[k.toLowerCase()] = { x: v.x, y: v.y };
+      });
+    }
+    if (orientation === 'side') {
+      return {
+        tragus: p.tragus || p.ear || p.left_ear || null,
+        c7: p.c7 || p['c7'] || p.base_of_neck || null,
+        acromion: p.acromion || p.shoulder || null,
+        hip: p.hip || p.hips || null,
+        knee: p.knee || null,
+        ankle: p.ankle || null,
+        asis: p.asis || null,
+        psis: p.psis || null
+      };
+    } else {
+      return {
+        c7: p.c7 || null,
+        L_acromion: p.left_shoulder || p.l_shoulder || null,
+        R_acromion: p.right_shoulder || p.r_shoulder || null,
+        L_asis: p.left_asis || p.l_asis || null,
+        R_asis: p.right_asis || p.r_asis || null,
+        L_ankle: p.left_ankle || null,
+        R_ankle: p.right_ankle || null,
+        L_knee: p.left_knee || null,
+        R_knee: p.right_knee || null
+      };
+    }
+  };
+
+  // if liveAnalyzer exists, wrap analyzeCurrentSession to ensure model load by orientation
+  if (window.liveAnalyzer) {
+    const origAnalyze = window.liveAnalyzer.analyzeCurrentSession?.bind(window.liveAnalyzer);
+    window.liveAnalyzer.analyzeCurrentSession = async function() {
+      const cur = window.cur || 'Before';
+      const session = window.sessions?.[cur] || {};
+      const orientation = (session.poseData && session.poseData.orientation) ||
+                          (document.getElementById('btnOrientationFront')?.classList.contains('active') ? 'front' : 'side');
+      if (orientation === 'front') {
+        await window.modelManager.loadFrontModel();
+      } else {
+        await window.modelManager.loadSideModel();
+      }
+      if (typeof origAnalyze === 'function') {
+        return origAnalyze();
+      }
+    };
+  }
+
+  // lazy model load when user clicks AI button
+  document.getElementById('btnAIAnalysis')?.addEventListener('click', async () => {
+    try {
+      await window.modelManager.loadAll();
+      if (window.liveAnalyzer && typeof window.liveAnalyzer.analyzeCurrentSession === 'function') {
+        await window.liveAnalyzer.analyzeCurrentSession();
+      }
+    } catch (err) {
+      console.error('AI button handler failed', err);
+    }
+  });
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>

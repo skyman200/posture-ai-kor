@@ -36,6 +36,219 @@ true&&(function polyfill() {
   }
 }());
 
+const scriptRel = 'modulepreload';const assetsURL = function(dep) { return "/posture-ai-kor/"+dep };const seen = {};const __vitePreload = function preload(baseModule, deps, importerUrl) {
+  let promise = Promise.resolve();
+  if (true && deps && deps.length > 0) {
+    document.getElementsByTagName("link");
+    const cspNonceMeta = document.querySelector(
+      "meta[property=csp-nonce]"
+    );
+    const cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
+    promise = Promise.allSettled(
+      deps.map((dep) => {
+        dep = assetsURL(dep);
+        if (dep in seen) return;
+        seen[dep] = true;
+        const isCss = dep.endsWith(".css");
+        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
+        if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
+          return;
+        }
+        const link = document.createElement("link");
+        link.rel = isCss ? "stylesheet" : scriptRel;
+        if (!isCss) {
+          link.as = "script";
+        }
+        link.crossOrigin = "";
+        link.href = dep;
+        if (cspNonce) {
+          link.setAttribute("nonce", cspNonce);
+        }
+        document.head.appendChild(link);
+        if (isCss) {
+          return new Promise((res, rej) => {
+            link.addEventListener("load", res);
+            link.addEventListener(
+              "error",
+              () => rej(new Error(`Unable to preload CSS for ${dep}`))
+            );
+          });
+        }
+      })
+    );
+  }
+  function handlePreloadError(err) {
+    const e = new Event("vite:preloadError", {
+      cancelable: true
+    });
+    e.payload = err;
+    window.dispatchEvent(e);
+    if (!e.defaultPrevented) {
+      throw err;
+    }
+  }
+  return promise.then((res) => {
+    for (const item of res || []) {
+      if (item.status !== "rejected") continue;
+      handlePreloadError(item.reason);
+    }
+    return baseModule().catch(handlePreloadError);
+  });
+};
+
+// modelManager: front/side 모델을 분리 로드하고 UI 잠금/해제를 담당
+  function lockUI(reason = 'loading') {
+    const aiBtn = document.getElementById('btnAIAnalysis');
+    const overlayId = 'model-manager-overlay';
+    let ov = document.getElementById(overlayId);
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = overlayId;
+      Object.assign(ov.style, {
+        position: 'fixed', left: 0, top: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.25)', zIndex: 99999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontSize: '18px'
+      });
+      ov.innerText = '모델 로딩 중... 잠시만요';
+      document.body.appendChild(ov);
+    }
+    if (aiBtn) aiBtn.disabled = true;
+  }
+
+  function unlockUI() {
+    const aiBtn = document.getElementById('btnAIAnalysis');
+    const overlay = document.getElementById('model-manager-overlay');
+    if (overlay) overlay.remove();
+    if (aiBtn) aiBtn.disabled = false;
+  }
+
+  window.modelManager = window.modelManager || {
+    ready: false,
+    frontModel: null,
+    sideModel: null,
+    loadFrontModel: async function() {
+      if (this.frontModel) return this.frontModel;
+      const tf = await window.loadTfOnce();
+      try {
+        lockUI('front');
+        const m = await __vitePreload(() => import('./frontModelLoader-ysv65uDw.js'),true?[]:void 0).catch(()=>null);
+        if (m && m.loadFrontModel) {
+          this.frontModel = await m.loadFrontModel(tf);
+        } else {
+          console.warn('frontModelLoader not found; returning null');
+          this.frontModel = null;
+        }
+        return this.frontModel;
+      } finally {
+        unlockUI();
+      }
+    },
+    loadSideModel: async function() {
+      if (this.sideModel) return this.sideModel;
+      const tf = await window.loadTfOnce();
+      try {
+        lockUI('side');
+        const m = await __vitePreload(() => import('./sideModelLoader-DMpLnjlD.js'),true?[]:void 0).catch(()=>null);
+        if (m && m.loadSideModel) {
+          this.sideModel = await m.loadSideModel(tf);
+        } else {
+          console.warn('sideModelLoader not found; returning null');
+          this.sideModel = null;
+        }
+        return this.sideModel;
+      } finally {
+        unlockUI();
+      }
+    },
+    loadAll: async function() {
+      if (this.ready) return;
+      lockUI('all');
+      try {
+        await Promise.all([this.loadFrontModel(), this.loadSideModel()]);
+        this.ready = true;
+        console.log('✅ modelManager: all models loaded');
+      } catch (err) {
+        console.error('❌ modelManager loadAll failed', err);
+      } finally {
+        unlockUI();
+      }
+    }
+  };
+
+  // normalizePose: 다양한 모델 출력 → 프로젝트가 기대하는 PosePoints 형태로 정규화
+  window.normalizePose = function(raw, orientation = 'side') {
+    if (!raw) return {};
+    const p = {};
+    if (Array.isArray(raw)) {
+      raw.forEach(pt => {
+        const name = pt.name || pt.part || pt.key || '';
+        if (!name) return;
+        p[name.toLowerCase()] = { x: pt.x, y: pt.y };
+      });
+    } else if (typeof raw === 'object') {
+      Object.keys(raw).forEach(k => {
+        const v = raw[k];
+        if (v && typeof v.x === 'number' && typeof v.y === 'number') p[k.toLowerCase()] = { x: v.x, y: v.y };
+      });
+    }
+    if (orientation === 'side') {
+      return {
+        tragus: p.tragus || p.ear || p.left_ear || null,
+        c7: p.c7 || p['c7'] || p.base_of_neck || null,
+        acromion: p.acromion || p.shoulder || null,
+        hip: p.hip || p.hips || null,
+        knee: p.knee || null,
+        ankle: p.ankle || null,
+        asis: p.asis || null,
+        psis: p.psis || null
+      };
+    } else {
+      return {
+        c7: p.c7 || null,
+        L_acromion: p.left_shoulder || p.l_shoulder || null,
+        R_acromion: p.right_shoulder || p.r_shoulder || null,
+        L_asis: p.left_asis || p.l_asis || null,
+        R_asis: p.right_asis || p.r_asis || null,
+        L_ankle: p.left_ankle || null,
+        R_ankle: p.right_ankle || null,
+        L_knee: p.left_knee || null,
+        R_knee: p.right_knee || null
+      };
+    }
+  };
+
+  // if liveAnalyzer exists, wrap analyzeCurrentSession to ensure model load by orientation
+  if (window.liveAnalyzer) {
+    const origAnalyze = window.liveAnalyzer.analyzeCurrentSession?.bind(window.liveAnalyzer);
+    window.liveAnalyzer.analyzeCurrentSession = async function() {
+      const cur = window.cur || 'Before';
+      const session = window.sessions?.[cur] || {};
+      const orientation = (session.poseData && session.poseData.orientation) ||
+                          (document.getElementById('btnOrientationFront')?.classList.contains('active') ? 'front' : 'side');
+      if (orientation === 'front') {
+        await window.modelManager.loadFrontModel();
+      } else {
+        await window.modelManager.loadSideModel();
+      }
+      if (typeof origAnalyze === 'function') {
+        return origAnalyze();
+      }
+    };
+  }
+
+  // lazy model load when user clicks AI button
+  document.getElementById('btnAIAnalysis')?.addEventListener('click', async () => {
+    try {
+      await window.modelManager.loadAll();
+      if (window.liveAnalyzer && typeof window.liveAnalyzer.analyzeCurrentSession === 'function') {
+        await window.liveAnalyzer.analyzeCurrentSession();
+      }
+    } catch (err) {
+      console.error('AI button handler failed', err);
+    }
+  });
+
 // 전역 변수 보호: 기존 sessions가 있으면 재사용, 없으면 새로 생성
 const createSessions = () => ({
   Before: { 
@@ -154,66 +367,6 @@ function validateKeypoint(point, imgWidth, imgHeight) {
       : 0.5
   };
 }
-
-const scriptRel = 'modulepreload';const assetsURL = function(dep) { return "/posture-ai-kor/"+dep };const seen = {};const __vitePreload = function preload(baseModule, deps, importerUrl) {
-  let promise = Promise.resolve();
-  if (true && deps && deps.length > 0) {
-    document.getElementsByTagName("link");
-    const cspNonceMeta = document.querySelector(
-      "meta[property=csp-nonce]"
-    );
-    const cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
-    promise = Promise.allSettled(
-      deps.map((dep) => {
-        dep = assetsURL(dep);
-        if (dep in seen) return;
-        seen[dep] = true;
-        const isCss = dep.endsWith(".css");
-        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
-        if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
-          return;
-        }
-        const link = document.createElement("link");
-        link.rel = isCss ? "stylesheet" : scriptRel;
-        if (!isCss) {
-          link.as = "script";
-        }
-        link.crossOrigin = "";
-        link.href = dep;
-        if (cspNonce) {
-          link.setAttribute("nonce", cspNonce);
-        }
-        document.head.appendChild(link);
-        if (isCss) {
-          return new Promise((res, rej) => {
-            link.addEventListener("load", res);
-            link.addEventListener(
-              "error",
-              () => rej(new Error(`Unable to preload CSS for ${dep}`))
-            );
-          });
-        }
-      })
-    );
-  }
-  function handlePreloadError(err) {
-    const e = new Event("vite:preloadError", {
-      cancelable: true
-    });
-    e.payload = err;
-    window.dispatchEvent(e);
-    if (!e.defaultPrevented) {
-      throw err;
-    }
-  }
-  return promise.then((res) => {
-    for (const item of res || []) {
-      if (item.status !== "rejected") continue;
-      handlePreloadError(item.reason);
-    }
-    return baseModule().catch(handlePreloadError);
-  });
-};
 
 // 앙상블 가중치
 const ENSEMBLE_WEIGHTS = {
@@ -1742,3 +1895,5 @@ document.addEventListener("DOMContentLoaded", () => {
   initialized = true;
   initializeApp();
 });
+
+export { __vitePreload as _ };
