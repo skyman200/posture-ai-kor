@@ -3539,7 +3539,7 @@ function getKeypoints() {
   return orientation === "front" ? keypointsFront : keypointsSide;
 }
 
-function draw() {
+window.draw = function draw() {
   // 캔버스와 컨텍스트 확인
   if(!cv || !ctx) {
     console.error("draw() 호출 시 캔버스 또는 컨텍스트가 없습니다.");
