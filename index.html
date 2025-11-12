@@ -669,7 +669,6 @@ if (document.readyState === 'loading') {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="/fonts/NotoSansKR-Bold-normal.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <!-- AI 자동 분석 모듈 통합 -->
 <!-- PRO 통합 버전 (기존 + DB 기반 분석): main_pro_compatible.js -->
@@ -10810,91 +10809,7 @@ async function analyzePostureAI(before, after) {
   return { results, error: null };
 }
 
-/**********************
- * Before-After 비교 그래프 생성 (Chart.js)
- **********************/
-function drawComparisonChart(before, after, containerId = null, options = {}) {
-  const canvas = containerId ? document.getElementById(containerId) : document.createElement('canvas');
-  if (!canvas) {
-    console.error('Canvas element not found');
-    return null;
-  }
-  
-  if (!containerId) {
-    canvas.width = 600;
-    canvas.height = 300;
-  }
-  
-  const ctx = canvas.getContext('2d');
-  
-  // 기존 Chart 인스턴스가 있으면 제거
-  if (canvas.chart) {
-    canvas.chart.destroy();
-  }
-  
-  const labels = Object.keys(before);
-  const beforeData = Object.values(before);
-  const afterData = labels.map(key => after[key] || 0);
-  
-  // PDF용으로 사용할 때는 애니메이션 비활성화
-  const disableAnimation = options.disableAnimation !== false; // 기본값 true
-  
-  canvas.chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Before',
-          data: beforeData,
-          backgroundColor: 'rgba(255, 99, 132, 0.6)',
-          borderColor: 'rgba(255, 99, 132, 1)',
-          borderWidth: 1
-        },
-        {
-          label: 'After',
-          data: afterData,
-          backgroundColor: 'rgba(54, 162, 235, 0.6)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        }
-      ]
-    },
-    options: {
-      responsive: !containerId, // containerId가 있으면 false
-      maintainAspectRatio: containerId ? false : true,
-      animation: disableAnimation ? false : {
-        duration: 0 // 애니메이션 비활성화
-      },
-      transitions: {
-        active: {
-          animation: {
-            duration: 0
-          }
-        }
-      },
-      scales: { 
-        y: { beginAtZero: true },
-        x: {
-          ticks: {
-            maxRotation: 45,
-            minRotation: 45
-          }
-        }
-      },
-      plugins: {
-        legend: { position: 'top' },
-        title: { 
-          display: true, 
-          text: 'Before–After 비교 그래프',
-          font: { size: 16, weight: 'bold' }
-        }
-      }
-    }
-  });
-  
-  return canvas;
-}
+// ✅ drawComparisonChart 함수 제거됨 (그래프 삭제 요청)
 
 /**********************
  * 모바일 감지 함수
@@ -11119,102 +11034,10 @@ async function saveImageMobile(canvas, fileName = 'report_image.png') {
   }
 }
 
-/**********************
- * Chart.js 렌더링 완료 대기 함수
- **********************/
-function waitForChartRender(chart, timeout = 2000) {
-  return new Promise((resolve, reject) => {
-    if (!chart || !chart.canvas) {
-      reject(new Error('Chart 인스턴스가 유효하지 않습니다.'));
-      return;
-    }
-    
-    try {
-      // Chart.js의 update 메서드를 호출하여 강제로 렌더링
-      if (typeof chart.update === 'function') {
-        chart.update('none'); // 애니메이션 없이 즉시 업데이트
-      }
-      
-      // 렌더링 완료를 보장하기 위해 여러 프레임 대기
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // 최종 확인: Canvas에 실제로 그려졌는지 확인
-            try {
-            const ctx = chart.canvas.getContext('2d');
-              // 캔버스 크기 확인 (0이면 오류 발생)
-              if (chart.canvas.width > 0 && chart.canvas.height > 0) {
-                const sampleWidth = Math.min(chart.canvas.width, 10);
-                const sampleHeight = Math.min(chart.canvas.height, 10);
-                const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
-            const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // 알파 채널 제외하고 픽셀 데이터 확인
-            
-            if (hasContent || chart.canvas.width > 0) {
-              resolve(chart);
-            } else {
-              // 내용이 없어도 타임아웃 후 진행
-                  setTimeout(() => resolve(chart), 100);
-                }
-              } else {
-                // 캔버스 크기가 0이면 타임아웃 후 진행
-                setTimeout(() => resolve(chart), 100);
-              }
-            } catch (err) {
-              // getImageData 오류 발생 시에도 진행
-              console.warn('Chart 캔버스 확인 중 오류 (무시됨):', err);
-              setTimeout(() => resolve(chart), 100);
-            }
-          });
-        });
-      });
-      
-      // 타임아웃 설정 (안전장치)
-      setTimeout(() => {
-        resolve(chart);
-      }, timeout);
-    } catch (err) {
-      console.warn('Chart 렌더링 대기 중 오류:', err);
-      // 오류가 발생해도 진행 (최소한의 렌더링은 되었을 것)
-      setTimeout(() => resolve(chart), 100);
-    }
-  });
-}
-
-let chartJsReadyPromise = null;
-
-function loadChartJsFromCdn() {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Chart.js CDN 로드 실패'));
-    document.head.appendChild(script);
-  });
-}
-
-function ensureChartLibrary(timeout = 3000) {
-  if (typeof Chart !== 'undefined') {
-    return Promise.resolve();
-  }
-  if (chartJsReadyPromise) {
-    return chartJsReadyPromise;
-  }
-  chartJsReadyPromise = new Promise((resolve, reject) => {
-    const start = Date.now();
-    const poll = () => {
-      if (typeof Chart !== 'undefined') {
-        resolve();
-      } else if (Date.now() - start >= timeout) {
-        loadChartJsFromCdn().then(resolve).catch(reject);
-      } else {
-        setTimeout(poll, 100);
-      }
-    };
-    poll();
-  });
-  return chartJsReadyPromise;
-}
+// ✅ 차트 관련 함수 제거됨 (그래프 삭제 요청)
+// - waitForChartRender
+// - loadChartJsFromCdn
+// - ensureChartLibrary
 
 /**********************
  * 간단한 PDF 생성 함수 (Before-After 비교 중심)
@@ -11252,26 +11075,9 @@ async function generatePosturePDF(centerName, memberName, before, after) {
     pdfAddKoreanText(pdf, `회원명: ${memberName || '미입력'}`, 20, 42, { fontSize: 12 });
     pdfAddKoreanText(pdf, `생성일: ${new Date().toLocaleDateString('ko-KR')}`, 20, 49, { fontSize: 12 });
 
-    try {
-      await ensureChartLibrary();
-    } catch (chartErr) {
-      console.warn('Chart.js 준비 실패:', chartErr);
-    }
-    const chartCanvas = typeof Chart !== 'undefined' ? drawComparisonChart(before, after, null, { disableAnimation: true }) : null;
-    if (chartCanvas && chartCanvas.chart) {
-      await waitForChartRender(chartCanvas.chart);
-      const chartImg = chartCanvas.toDataURL('image/png', 1.0);
-      if (chartImg && chartImg !== 'data:,') {
-        pdf.addImage(chartImg, 'PNG', 10, 60, 180, 80);
-        pdfAddKoreanText(pdf, 'Before–After 변화 시각화', 20, 155, { fontSize: 12 });
-      } else {
-        pdfAddKoreanText(pdf, '⚠️ 그래프 생성 실패', 20, 60, { fontSize: 12 });
-      }
-    } else {
-      pdfAddKoreanText(pdf, '⚠️ 그래프 데이터를 불러오지 못했습니다.', 20, 60, { fontSize: 12 });
-    }
+    // ✅ 차트 제거됨 (그래프 삭제 요청)
 
-    let y = 170;
+    let y = 60;
     const results = Array.isArray(analysis?.results) ? analysis.results : [];
     for (const item of results) {
       if (y > 260) {
@@ -11794,7 +11600,7 @@ function exportAsPdf(options = {}) {
     const conclusionCanvas = canvases.conclusion; // 결론 캔버스
     
     // 텍스트 데이터
-    const { comparison, analysis, dbAnalysis, scoreResult, planTexts, pilatesHtml, deepAnalysisText, beforeAfterSummaryHtml, fullPlanHtml, combinedMetrics, afterMetricsForDB, memberNameForPDF1 } = textData || {};
+    let { comparison, analysis, dbAnalysis, scoreResult, planTexts, pilatesHtml, deepAnalysisText, beforeAfterSummaryHtml, fullPlanHtml, combinedMetrics, afterMetricsForDB, memberNameForPDF1 } = textData || {};
     
     console.log('📊 comparison:', comparison);
     console.log('📊 analysis:', analysis);
@@ -11987,7 +11793,7 @@ function exportAsPdf(options = {}) {
       // 제목
       pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
-      pdfAddKoreanText(pdf, '수치표 + 변화 그래프', margin, y, { fontSize: 20, fontStyle: 'bold' });
+      pdfAddKoreanText(pdf, '수치표', margin, y, { fontSize: 20, fontStyle: 'bold' });
       y += 30;
       
       // 수치표 헤더
@@ -13763,9 +13569,7 @@ if (typeof window !== 'undefined') {
   if(typeof generatePosturePDF === 'function') {
     window.generatePosturePDF = generatePosturePDF;
   }
-  if(typeof drawComparisonChart === 'function') {
-    window.drawComparisonChart = drawComparisonChart;
-  }
+  // ✅ drawComparisonChart 제거됨 (그래프 삭제 요청)
   if(typeof savePDFMobileCompatible === 'function') {
     window.savePDFMobileCompatible = savePDFMobileCompatible;
   }
