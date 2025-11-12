@@ -814,5 +814,123 @@ if (document.readyState === 'loading') {
 
 <!-- ✅ modelManager: front/side 모델 분리 로드 및 UI 잠금/해제 -->
 
+<!-- 🔧 긴급 버튼 수정 스크립트 (번들 무시, 강제 실행) -->
+<script>
+console.log("🔧 긴급 버튼 수정 스크립트 실행");
+
+// DOM 로드 완료 후 실행
+(function() {
+  function setupButtonsEmergency() {
+    console.log("🚨 긴급 버튼 연결 시작");
+    
+    // 세션 초기화
+    if (!window.sessions) {
+      window.sessions = {
+        Before: { 
+          sidePoints: new Map(), 
+          frontPoints: new Map(), 
+          poseData: { orientation: "side" },
+          metrics: {}
+        },
+        After: { 
+          sidePoints: new Map(), 
+          frontPoints: new Map(), 
+          poseData: { orientation: "side" },
+          metrics: {}
+        }
+      };
+      console.log("✅ sessions 긴급 초기화 완료");
+    }
+    
+    if (!window.cur) {
+      window.cur = "Before";
+    }
+    
+    // switchSession 함수 구현
+    if (typeof window.switchSession !== 'function') {
+      window.switchSession = (sessionName) => {
+        console.log(`🔄 세션 전환: ${sessionName}`);
+        window.cur = sessionName;
+        
+        const btnBefore = document.getElementById("btnBefore");
+        const btnAfter = document.getElementById("btnAfter");
+        
+        if (btnBefore) btnBefore.classList.toggle("active", sessionName === "Before");
+        if (btnAfter) btnAfter.classList.toggle("active", sessionName === "After");
+        
+        if (typeof window.draw === 'function') window.draw();
+        if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
+        
+        console.log(`✅ 세션 전환 완료: ${sessionName}`);
+      };
+      console.log("✅ switchSession 함수 생성 완료");
+    }
+    
+    // 버튼 강제 연결
+    const btnBefore = document.getElementById("btnBefore");
+    const btnAfter = document.getElementById("btnAfter");
+    
+    if (btnBefore) {
+      // 기존 이벤트 제거
+      const newBtnBefore = btnBefore.cloneNode(true);
+      btnBefore.parentNode.replaceChild(newBtnBefore, btnBefore);
+      
+      // 새 이벤트 추가
+      newBtnBefore.onclick = () => {
+        console.log("✅ Before 버튼 클릭 (긴급 스크립트)!");
+        window.cur = "Before";
+        newBtnBefore.classList.add("active");
+        if (btnAfter) btnAfter.classList.remove("active");
+        if (typeof window.switchSession === 'function') {
+          window.switchSession("Before");
+        }
+      };
+      console.log("✅ btnBefore 긴급 연결 완료");
+    } else {
+      console.error("❌ btnBefore 없음!");
+    }
+    
+    if (btnAfter) {
+      // 기존 이벤트 제거
+      const newBtnAfter = btnAfter.cloneNode(true);
+      btnAfter.parentNode.replaceChild(newBtnAfter, btnAfter);
+      
+      // 새 이벤트 추가
+      newBtnAfter.onclick = () => {
+        console.log("✅ After 버튼 클릭 (긴급 스크립트)!");
+        window.cur = "After";
+        newBtnAfter.classList.add("active");
+        if (btnBefore) btnBefore.classList.remove("active");
+        if (typeof window.switchSession === 'function') {
+          window.switchSession("After");
+        }
+      };
+      console.log("✅ btnAfter 긴급 연결 완료");
+    } else {
+      console.error("❌ btnAfter 없음!");
+    }
+    
+    // 버튼 상태 초기화
+    if (btnBefore && window.cur === "Before") {
+      btnBefore.classList.add("active");
+    }
+    if (btnAfter && window.cur === "After") {
+      btnAfter.classList.add("active");
+    }
+    
+    console.log("✅ 긴급 버튼 연결 완료");
+  }
+  
+  // 즉시 실행 (DOM이 이미 로드되었을 수 있음)
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(setupButtonsEmergency, 100);
+    });
+  } else {
+    setTimeout(setupButtonsEmergency, 100);
+  }
+})();
+</script>
+
 </body>
 </html>

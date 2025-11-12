@@ -8,6 +8,9 @@ let initialized = false;
 async function initializeApp() {
   console.log("🚀 initializeApp 실행됨");
   console.log("📦 sessions 상태:", sessions);
+  console.log("🔍 DOM 상태:", document.readyState);
+  console.log("🔍 btnBefore 존재:", !!document.getElementById("btnBefore"));
+  console.log("🔍 btnAfter 존재:", !!document.getElementById("btnAfter"));
   
   // 전역 변수 보호: sessions가 window에 할당되었는지 확인
   if (typeof window !== 'undefined') {
@@ -361,11 +364,41 @@ async function initializeApp() {
       return null;
     };
     
+    // ✅ switchSession 함수가 없으면 직접 구현
+    if (typeof window.switchSession !== 'function') {
+      window.switchSession = (sessionName) => {
+        console.log(`🔄 세션 전환: ${sessionName}`);
+        window.cur = sessionName;
+        
+        // 버튼 상태 업데이트
+        if (btnBefore) btnBefore.classList.toggle("active", sessionName === "Before");
+        if (btnAfter) btnAfter.classList.toggle("active", sessionName === "After");
+        
+        // UI 업데이트
+        if (typeof window.draw === 'function') window.draw();
+        if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
+        if (typeof window.updateCompare === 'function') window.updateCompare();
+        
+        console.log(`✅ 세션 전환 완료: ${sessionName}`);
+      };
+    }
+    
     if (btnBefore) {
       const handler = () => {
-        console.log("Before 버튼 클릭됨");
+        console.log("✅ Before 버튼 클릭됨!");
+        window.cur = "Before";
+        
+        // 버튼 상태 업데이트
+        btnBefore.classList.add("active");
+        if (btnAfter) btnAfter.classList.remove("active");
+        
+        // switchSession 호출 (있으면)
         if (typeof window.switchSession === 'function') {
           window.switchSession("Before");
+        } else {
+          // 직접 UI 업데이트
+          if (typeof window.draw === 'function') window.draw();
+          if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
         }
       };
       addClickHandler(btnBefore, handler);
@@ -373,9 +406,20 @@ async function initializeApp() {
     
     if (btnAfter) {
       const handler = () => {
-        console.log("After 버튼 클릭됨");
+        console.log("✅ After 버튼 클릭됨!");
+        window.cur = "After";
+        
+        // 버튼 상태 업데이트
+        btnAfter.classList.add("active");
+        if (btnBefore) btnBefore.classList.remove("active");
+        
+        // switchSession 호출 (있으면)
         if (typeof window.switchSession === 'function') {
           window.switchSession("After");
+        } else {
+          // 직접 UI 업데이트
+          if (typeof window.draw === 'function') window.draw();
+          if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
         }
       };
       addClickHandler(btnAfter, handler);
