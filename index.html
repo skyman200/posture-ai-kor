@@ -4129,16 +4129,13 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 18. LLD_F (Leg Length Discrepancy) - 정상 ≤1cm (측면 LLD와 중복될 수 있으므로 둘 중 하나만 계산)
-  const lld_f = fullMetrics.LLD_F?.value;
-  if(lld_f != null && lld_f > 1) {
-    // 측면 LLD가 이미 계산되지 않았을 때만 계산
-    if(!fullMetrics.LLD || fullMetrics.LLD.value === lld_f) {
-      const delta = lld_f - 1;
-      const penalty = Math.min(25, delta * 10);
-      penalties += penalty;
-      reasons.push(`LLD_F ${lld_f.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
-    }
+  // 18. LLD (Leg Length Discrepancy) - 정상 ≤1cm (정면 분석 항목)
+  const lld = fullMetrics.LLD_F?.value || fullMetrics.LLD?.value;
+  if(lld != null && lld > 1) {
+    const delta = lld - 1;
+    const penalty = Math.min(25, delta * 10);
+    penalties += penalty;
+    reasons.push(`LLD ${lld.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
   }
   
   // 19. TD (Trunk Deviation) - 정상 ±2°
