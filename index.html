@@ -3138,7 +3138,7 @@ const internalAngle = (a,b,c) => {
 };
 
 // 모바일 터치 이벤트 헬퍼 함수
-function addMobileTouchSupport(element, handler) {
+window.addMobileTouchSupport = window.addMobileTouchSupport || function addMobileTouchSupport(element, handler) {
   if(!element) return;
   
   // 클릭 이벤트
@@ -3166,7 +3166,7 @@ function addMobileTouchSupport(element, handler) {
     e.stopPropagation();
     handler(e);
   }, { passive: false });
-}
+};
 
 // Before/After 세션 전환 버튼 (DOM 로드 후 안전하게 연결)
 window.initSessionButtons = window.initSessionButtons || function initSessionButtons() {
@@ -3215,7 +3215,7 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
   }
   
   console.log("initSessionButtons 완료");
-}
+};
 
 // DOM 로드 후 버튼 이벤트 초기화 (주석 처리 - 아래 두 번째 스크립트 태그에서 통합 처리)
 // if(document.readyState === 'loading') {
