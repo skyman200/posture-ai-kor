@@ -26,6 +26,11 @@ async function initializeApp() {
   
   // 버튼 초기화 함수들 직접 구현 (HTML 인라인 스크립트가 번들에 포함되지 않으므로)
   const setupButtonsDirectly = () => {
+    // ✅ 이미 초기화되었으면 스킵
+    if (window._buttonsInitialized) {
+      console.log("⏭️ 버튼 이미 초기화됨, 스킵");
+      return;
+    }
     // setupResetButton 직접 구현
     if (typeof window.setupResetButton !== 'function') {
       window.setupResetButton = function() {
@@ -290,6 +295,10 @@ async function initializeApp() {
     if (typeof window.setupCalibrationButtons === 'function') window.setupCalibrationButtons();
     if (typeof window.setupPDFButton === 'function') window.setupPDFButton();
     if (typeof window.setupImageButton === 'function') window.setupImageButton();
+    
+    // ✅ 초기화 완료 플래그
+    window._buttonsInitialized = true;
+    console.log("✅ 모든 버튼 초기화 완료");
   };
   
   setupButtonsDirectly();
@@ -425,12 +434,16 @@ async function initializeApp() {
   // 직접 연결은 한 번만 실행 (중복 방지)
   let sessionButtonsSetup = false;
   const tryInitSessionButtons = () => {
-    // 직접 연결은 한 번만 실행
-    if (!sessionButtonsSetup) {
-      setupSessionButtonsDirectly();
-      sessionButtonsSetup = true;
+    // ✅ 한 번만 실행
+    if (sessionButtonsSetup) {
+      console.log("⏭️ 세션 버튼 이미 초기화됨");
+      return;
     }
     
+    setupSessionButtonsDirectly();
+    sessionButtonsSetup = true;
+    
+    // HTML의 initSessionButtons가 있으면 호출 (1회만)
     if (typeof window.initSessionButtons === 'function') {
       try {
         window.initSessionButtons();
@@ -438,9 +451,6 @@ async function initializeApp() {
       } catch (error) {
         console.error("❌ initSessionButtons 실행 실패:", error);
       }
-    } else if (retryCount2 < maxRetries2) {
-      retryCount2++;
-      setTimeout(tryInitSessionButtons, 100);
     } else {
       console.warn("⚠️ initSessionButtons 함수를 찾을 수 없지만 직접 연결은 완료됨");
     }
@@ -536,14 +546,15 @@ function handleFileUpload(file) {
   img.src = URL.createObjectURL(file);
   img.onload = () => {
     console.log("✅ 이미지 로드됨", img.width, img.height);
-    // 기존 handleFileUpload 함수가 있으면 이벤트 객체 형태로 호출
-    if (typeof window.handleFileUpload === 'function') {
-      const mockEvent = {
-        target: {
-          files: [file]
-        }
-      };
-      window.handleFileUpload(mockEvent);
+    
+    // ✅ HTML의 전역 함수 직접 호출 (재귀 방지)
+    if (typeof window.processImageUpload === 'function') {
+      window.processImageUpload(img, file);
+    } else if (typeof window.handleImageUpload === 'function') {
+      window.handleImageUpload(img, file);
+    } else {
+      console.error("❌ processImageUpload 또는 handleImageUpload 함수 없음");
+      alert("이미지 처리 함수를 찾을 수 없습니다.");
     }
   };
   img.onerror = () => {
@@ -582,8 +593,18 @@ function bindFileInput() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  if (initialized) return;
-  initialized = true;
-  initializeApp();
-});
+// ✅ 안전한 초기화
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!initialized) {
+      initialized = true;
+      initializeApp();
+    }
+  });
+} else {
+  // DOM이 이미 로드됨
+  if (!initialized) {
+    initialized = true;
+    initializeApp();
+  }
+}

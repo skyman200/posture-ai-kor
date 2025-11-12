@@ -7,17 +7,16 @@ export async function loadPostureDB() {
     return window.PostureDB;
   }
 
-  // ✅ GitHub Pages에서 repo path 포함하도록 보정
-  const ORIGIN = location.origin;
-  const REPO = (location.pathname.includes('/posture-ai-kor')) ? '/posture-ai-kor' : '';
+  // ✅ 단순화된 경로 시도 (우선순위 조정)
   const CANDIDATES = [
-    // 1) GitHub Pages (정식 경로)
-    `${ORIGIN}${REPO}/db/Posture_Muscle_DB_Full.json`,
-    // 2) raw.githubusercontent.com (직접)
-    `https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.json`,
-    // 3) 앱 로컬 상대경로 (개발/로컬서버)
-    `/public/db/Posture_Muscle_DB_Full.json`,
-    `/db/Posture_Muscle_DB_Full.json`,
+    // 1) 상대경로 우선 (로컬 개발)
+    './db/Posture_Muscle_DB_Full.json',
+    // 2) 절대 경로 (로컬 서버)
+    '/db/Posture_Muscle_DB_Full.json',
+    // 3) GitHub Pages 경로
+    '/posture-ai-kor/db/Posture_Muscle_DB_Full.json',
+    // 4) raw.githubusercontent.com (직접)
+    'https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/db/Posture_Muscle_DB_Full.json',
   ];
 
   let lastErr = null;

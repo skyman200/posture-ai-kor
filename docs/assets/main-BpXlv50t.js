@@ -103,7 +103,7 @@ const scriptRel = 'modulepreload';const assetsURL = function(dep) { return "/pos
       return;
     }
     try {
-      const mpModule = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.164/pose.js'),true?[]:void 0);
+      const mpModule = await __vitePreload(() => import('https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js'),true?[]:void 0);
       window.MP_Pose = mpModule.default || mpModule.Pose || mpModule;
       // 전역 변수로도 노출 (pose-detection 라이브러리 호환성)
       if (typeof window !== 'undefined' && !window.Pose) {
@@ -154,7 +154,7 @@ const scriptRel = 'modulepreload';const assetsURL = function(dep) { return "/pos
       try {
         // import map을 지원하면 importmap을 통해 매핑된 specifier가 해결됨
         // 없으면 CDN 경로로 직접 동적 import
-        const url = 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.164/pose.js';
+        const url = 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js';
         const mod = await import(url);
         // Some builds export default or named exports; provide a safe global
         window.MP_Pose = (mod && (mod.default || mod.Pose || mod)) || {};
