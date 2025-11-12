@@ -124,17 +124,35 @@ export async function exportDetailedPDF({
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p', 'mm', 'a4');
-  pdf.setFont('helvetica', 'normal');
+  
+  // 한글 폰트 로드 시도 (전역 함수 사용)
+  if (typeof loadKoreanFontForPDF === 'function') {
+    await loadKoreanFontForPDF(pdf);
+  }
+  
+  // 폰트가 로드되지 않았으면 기본 폰트 사용
+  if (typeof window.koreanFontLoaded === 'undefined' || !window.koreanFontLoaded) {
+    pdf.setFont('helvetica', 'normal');
+  }
+
+  // 한글 텍스트 추가 헬퍼 함수 (전역 함수 사용)
+  const addKoreanText = (text, x, y, options = {}) => {
+    if (typeof window.pdfAddKoreanText === 'function') {
+      window.pdfAddKoreanText(pdf, text, x, y, options);
+    } else {
+      pdf.text(text, x, y);
+    }
+  };
 
   // 공통 헤더 함수
   const header = (title) => {
     pdf.setFontSize(18);
-    pdf.text(title, 14, 18);
+    addKoreanText(title, 14, 18, { fontSize: 18, fontStyle: 'bold' });
     pdf.setFontSize(11);
-    pdf.text(`센터: ${centerName || '-'}`, 14, 26);
-    pdf.text(`회원: ${memberName || '-'}`, 14, 31);
-    pdf.text(`세션: ${sessionName || '-'}`, 14, 36);
-    pdf.text(`생성: ${new Date().toLocaleString('ko-KR')}`, 14, 41);
+    addKoreanText(`센터: ${centerName || '-'}`, 14, 26, { fontSize: 11 });
+    addKoreanText(`회원: ${memberName || '-'}`, 14, 31, { fontSize: 11 });
+    addKoreanText(`세션: ${sessionName || '-'}`, 14, 36, { fontSize: 11 });
+    addKoreanText(`생성: ${new Date().toLocaleString('ko-KR')}`, 14, 41, { fontSize: 11 });
     pdf.line(14, 44, 196, 44);
   };
 
@@ -143,7 +161,7 @@ export async function exportDetailedPDF({
   let y = 52;
   
   pdf.setFontSize(12);
-  pdf.text('① 종합 요약', 14, y); 
+  addKoreanText('① 종합 요약', 14, y, { fontSize: 12, fontStyle: 'bold' }); 
   y += 6;
 
   if (analysis.sections && analysis.sections.length > 0) {
@@ -162,7 +180,7 @@ export async function exportDetailedPDF({
       }
     });
   } else {
-    pdf.text('- 분석 결과가 없습니다.', 18, y);
+    addKoreanText('- 분석 결과가 없습니다.', 18, y, { fontSize: 12 });
     y += 6;
   }
 
@@ -249,7 +267,7 @@ export async function exportDetailedPDF({
       }
 
       if (r.pilates && r.pilates.length > 0) {
-        pdf.text('• 필라테스 추천:', 18, y);
+        addKoreanText('• 필라테스 추천:', 18, y, { fontSize: 12, fontStyle: 'bold' });
         y += 6;
         
         r.pilates.forEach(p => {
@@ -269,7 +287,7 @@ export async function exportDetailedPDF({
       }
     }
   } else {
-    pdf.text('분석 결과가 없습니다.', 14, y);
+    addKoreanText('분석 결과가 없습니다.', 14, y, { fontSize: 12 });
   }
 
   // 페이지 마지막 — 종합 근육/운동 묶음
@@ -291,7 +309,7 @@ export async function exportDetailedPDF({
   pdf.text(weakWrapped, 14, y);
   y += 6 * weakWrapped.length;
 
-  pdf.text('필라테스 세션(통합):', 14, y);
+  addKoreanText('필라테스 세션(통합):', 14, y, { fontSize: 12, fontStyle: 'bold' });
   y += 6;
 
   if (analysis.pilatesAll && analysis.pilatesAll.length > 0) {
@@ -308,7 +326,7 @@ export async function exportDetailedPDF({
       }
     });
   } else {
-    pdf.text('- 추천 세션이 없습니다.', 18, y);
+    addKoreanText('- 추천 세션이 없습니다.', 18, y, { fontSize: 12 });
   }
 
   // 저장 (모바일 호환)
