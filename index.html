@@ -7319,9 +7319,9 @@ if(document.readyState === 'loading') {
 function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
-  ctx.lineWidth = 3;
-  ctx.globalAlpha = isDashed ? 0.9 : 0.8;
-  ctx.setLineDash(isDashed ? [6, 4] : []);
+  ctx.lineWidth = 4; // 선명도 향상을 위해 두께 증가
+  ctx.globalAlpha = isDashed ? 0.95 : 0.9; // 선명도 향상
+  ctx.setLineDash(isDashed ? [8, 5] : []);
   
   // 키포인트 순서 정의 (측면)
   const keyOrder = ['tragus', 'c7', 'acromion', 'hip', 'knee', 'ankle'];
@@ -7356,24 +7356,28 @@ function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
     const p = points[key];
     if(!p || p.x == null || p.y == null) return;
     
-    // 점 그리기
+    // 점 그리기 (더 크고 선명하게)
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); // 크기 증가 (6 -> 8)
     ctx.fill();
-    
-    // 라벨 그리기
-    ctx.font = '13px Arial';
-    ctx.fillStyle = '#fff';
+    // 점 외곽선 추가로 더 선명하게
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-    ctx.strokeText(`${labelPrefix}:${key}`, p.x + 12, p.y);
-    ctx.fillText(`${labelPrefix}:${key}`, p.x + 12, p.y);
+    ctx.stroke();
+    
+    // 라벨 그리기 (더 크고 선명하게)
+    ctx.font = 'bold 15px Arial'; // 폰트 크기 증가 및 볼드
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3; // 외곽선 두께 증가
+    ctx.strokeText(`${labelPrefix}:${key}`, p.x + 15, p.y);
+    ctx.fillText(`${labelPrefix}:${key}`, p.x + 15, p.y);
   });
   
   ctx.globalAlpha = 1.0;
 }
 
-// 스켈레톤만 흰 배경에 그리기 (별도 표시용)
+// 스켈레톤만 흰 배경에 그리기 (별도 표시용, 고해상도)
 async function createSkeletonOnWhiteBackground(beforeImgData, afterImgData, beforePoints, afterPoints, orientation = 'side') {
   return new Promise((resolve, reject) => {
     try {
@@ -7382,24 +7386,31 @@ async function createSkeletonOnWhiteBackground(beforeImgData, afterImgData, befo
       
       beforeImg.onload = () => {
         afterImg.onload = () => {
-          // 캔버스 생성 (흰 배경)
+          // 캔버스 생성 (흰 배경, 고해상도)
           const skeletonCanvas = document.createElement('canvas');
           const skeletonCtx = skeletonCanvas.getContext('2d');
           
-          // 크기 설정 (더 큰 이미지 기준)
-          const width = Math.max(beforeImg.width, afterImg.width);
-          const height = Math.max(beforeImg.height, afterImg.height);
+          // 고해상도 설정 (2배 스케일)
+          const scale = 2;
+          const baseWidth = Math.max(beforeImg.width, afterImg.width);
+          const baseHeight = Math.max(beforeImg.height, afterImg.height);
+          const width = baseWidth * scale;
+          const height = baseHeight * scale;
+          
           skeletonCanvas.width = width;
           skeletonCanvas.height = height;
           
+          // 고해상도 렌더링 설정
+          skeletonCtx.scale(scale, scale);
+          
           // 흰 배경 채우기
           skeletonCtx.fillStyle = '#ffffff';
-          skeletonCtx.fillRect(0, 0, width, height);
+          skeletonCtx.fillRect(0, 0, baseWidth, baseHeight);
           
           // Before 스켈레톤 그리기 (파란색, 점선)
           if(beforePoints) {
-            const scaleX = width / beforeImg.width;
-            const scaleY = height / beforeImg.height;
+            const scaleX = baseWidth / beforeImg.width;
+            const scaleY = baseHeight / beforeImg.height;
             const scaledBeforePoints = {};
             Object.keys(beforePoints).forEach(key => {
               if(beforePoints[key] && beforePoints[key].x != null && beforePoints[key].y != null) {
@@ -7414,8 +7425,8 @@ async function createSkeletonOnWhiteBackground(beforeImgData, afterImgData, befo
           
           // After 스켈레톤 그리기 (주황색, 실선)
           if(afterPoints) {
-            const scaleX = width / afterImg.width;
-            const scaleY = height / afterImg.height;
+            const scaleX = baseWidth / afterImg.width;
+            const scaleY = baseHeight / afterImg.height;
             const scaledAfterPoints = {};
             Object.keys(afterPoints).forEach(key => {
               if(afterPoints[key] && afterPoints[key].x != null && afterPoints[key].y != null) {
@@ -7428,7 +7439,7 @@ async function createSkeletonOnWhiteBackground(beforeImgData, afterImgData, befo
             drawSkeleton(skeletonCtx, scaledAfterPoints, '#E67E22', 'A', false);
           }
           
-          resolve(skeletonCanvas.toDataURL('image/png'));
+          resolve(skeletonCanvas.toDataURL('image/png', 1.0));
         };
         afterImg.onerror = reject;
         afterImg.src = afterImgData;
@@ -12243,8 +12254,39 @@ function exportAsPdf(options = {}) {
         y += Math.max(15, commentLines.length * 12);
       });
       
-      // 그래프 이미지 추가
+      // 그래프 이미지 추가 (없으면 생성)
+      let chartImageData = null;
       if (chartCanvasElement) {
+        try {
+          chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
+        } catch (err) {
+          console.warn('차트 캔버스에서 이미지 추출 실패:', err);
+        }
+      }
+      
+      // 그래프가 없으면 생성 시도
+      if (!chartImageData && comparison && comparison.results && comparison.results.length > 0 && typeof drawComparisonChart === 'function') {
+        try {
+          const beforeData = {};
+          const afterData = {};
+          comparison.results.forEach(item => {
+            if (item.before != null) beforeData[item.name] = item.before;
+            if (item.after != null) afterData[item.name] = item.after;
+          });
+          
+          if (Object.keys(beforeData).length > 0 || Object.keys(afterData).length > 0) {
+            const chartCanvas = drawComparisonChart(beforeData, afterData, null, { disableAnimation: true });
+            if (chartCanvas && chartCanvas.chart) {
+              await new Promise(resolve => setTimeout(resolve, 500)); // 차트 렌더링 대기
+              chartImageData = chartCanvas.toDataURL('image/png', 0.95);
+            }
+          }
+        } catch (err) {
+          console.warn('차트 생성 실패:', err);
+        }
+      }
+      
+      if (chartImageData) {
         y += 20;
         if (y > pageH - 300) {
           pdf.addPage();
@@ -12252,13 +12294,20 @@ function exportAsPdf(options = {}) {
         }
         
         try {
-          const chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
-          const chartW = Math.min(imgW, 700);
-          const chartH = (chartCanvasElement.height / chartCanvasElement.width) * chartW;
-          const chartX = margin + (imgW - chartW) / 2;
-          
-          pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, 300));
-          y += Math.min(chartH, 300) + 20;
+          const chartImg = new Image();
+          chartImg.src = chartImageData;
+          await new Promise((resolve, reject) => {
+            chartImg.onload = () => {
+              const chartW = Math.min(imgW, 700);
+              const chartH = (chartImg.height / chartImg.width) * chartW;
+              const chartX = margin + (imgW - chartW) / 2;
+              
+              pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, 300));
+              y += Math.min(chartH, 300) + 20;
+              resolve();
+            };
+            chartImg.onerror = reject;
+          });
         } catch (err) {
           console.warn('차트 이미지 추가 실패:', err);
         }
@@ -12476,6 +12525,31 @@ function exportAsPdf(options = {}) {
                     y += cuesLines.length * 10 + 4;
                   }
                   
+                  // 초기 자세 (Setup Position)
+                  if (exerciseInfo.setup) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(92, 68, 184);
+                    pdfAddKoreanText(pdf, '    초기 자세:', margin + 35, y, { fontSize: 8, fontStyle: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(50, 50, 50);
+                    const setupLines = pdf.splitTextToSize(exerciseInfo.setup, imgW - 100);
+                    setupLines.forEach((line, idx) => {
+                      pdfAddKoreanText(pdf, line, margin + 80, y + (idx * 10), { fontSize: 8 });
+                    });
+                    y += setupLines.length * 10 + 4;
+                  }
+                  
+                  // 스프링 설정 (Spring Traditional)
+                  if (exerciseInfo.spring) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(92, 68, 184);
+                    pdfAddKoreanText(pdf, '    스프링 설정:', margin + 35, y, { fontSize: 8, fontStyle: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(50, 50, 50);
+                    pdfAddKoreanText(pdf, exerciseInfo.spring, margin + 95, y, { fontSize: 8 });
+                    y += 12;
+                  }
+                  
                   // 세트/반복
                   if (exerciseInfo.sets) {
                     pdf.setFont('helvetica', 'bold');
@@ -12487,8 +12561,50 @@ function exportAsPdf(options = {}) {
                     y += 12;
                   }
                   
+                  // 호흡 패턴 (Breathing Pattern)
+                  if (exerciseInfo.breathing) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(92, 68, 184);
+                    pdfAddKoreanText(pdf, '    호흡 패턴:', margin + 35, y, { fontSize: 8, fontStyle: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(50, 50, 50);
+                    const breathingLines = pdf.splitTextToSize(exerciseInfo.breathing, imgW - 100);
+                    breathingLines.forEach((line, idx) => {
+                      pdfAddKoreanText(pdf, line, margin + 80, y + (idx * 10), { fontSize: 8 });
+                    });
+                    y += breathingLines.length * 10 + 4;
+                  }
+                  
+                  // 클래식 큐 (Classical Cues)
+                  if (exerciseInfo.classicalCues) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(92, 68, 184);
+                    pdfAddKoreanText(pdf, '    클래식 큐:', margin + 35, y, { fontSize: 8, fontStyle: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(50, 50, 50);
+                    const classicalCuesLines = pdf.splitTextToSize(exerciseInfo.classicalCues, imgW - 100);
+                    classicalCuesLines.forEach((line, idx) => {
+                      pdfAddKoreanText(pdf, line, margin + 80, y + (idx * 10), { fontSize: 8 });
+                    });
+                    y += classicalCuesLines.length * 10 + 4;
+                  }
+                  
+                  // 피해야 할 실수 (Common Mistakes)
+                  if (exerciseInfo.mistakes) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(231, 76, 60);
+                    pdfAddKoreanText(pdf, '    피해야 할 실수:', margin + 35, y, { fontSize: 8, fontStyle: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(50, 50, 50);
+                    const mistakesLines = pdf.splitTextToSize(exerciseInfo.mistakes, imgW - 100);
+                    mistakesLines.forEach((line, idx) => {
+                      pdfAddKoreanText(pdf, line, margin + 80, y + (idx * 10), { fontSize: 8 });
+                    });
+                    y += mistakesLines.length * 10 + 4;
+                  }
+                  
                   // 주의사항
-                  if (exerciseInfo.precaution) {
+                  if (exerciseInfo.precaution && !exerciseInfo.mistakes) {
                     pdf.setFont('helvetica', 'bold');
                     pdf.setTextColor(231, 76, 60);
                     pdfAddKoreanText(pdf, '    주의:', margin + 35, y, { fontSize: 8, fontStyle: 'bold' });
@@ -12499,6 +12615,20 @@ function exportAsPdf(options = {}) {
                       pdfAddKoreanText(pdf, line, margin + 80, y + (idx * 10), { fontSize: 8 });
                     });
                     y += precautionLines.length * 10 + 4;
+                  }
+                  
+                  // 참고 자료 (References)
+                  if (exerciseInfo.references) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(100, 100, 100);
+                    pdfAddKoreanText(pdf, '    참고 자료:', margin + 35, y, { fontSize: 7, fontStyle: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(80, 80, 80);
+                    const referencesLines = pdf.splitTextToSize(exerciseInfo.references, imgW - 100);
+                    referencesLines.forEach((line, idx) => {
+                      pdfAddKoreanText(pdf, line, margin + 80, y + (idx * 9), { fontSize: 7 });
+                    });
+                    y += referencesLines.length * 9 + 4;
                   }
                   
                   y += 4; // 운동 간 간격
