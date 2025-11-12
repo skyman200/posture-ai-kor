@@ -3320,9 +3320,9 @@ window.setOrientation = window.setOrientation || function setOrientation(orienta
     resizeCanvasFor(null);
     draw();
   }
-}
+};
 
-function switchSession(s) {
+window.switchSession = window.switchSession || function switchSession(s) {
   cur = s;
   window.cur = s; // 전역으로도 설정
   
