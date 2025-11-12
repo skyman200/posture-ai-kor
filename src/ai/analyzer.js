@@ -96,3 +96,10 @@ export function computeMetricsOnly() {
   // TODO: 실제 구현은 기존 코드에서 가져와야 함
   // 현재는 최소 구현만
 }
+
+// ✅ window에 노출 (HTML 스크립트에서 접근 가능하도록)
+if (typeof window !== 'undefined') {
+  window.computeMetricsOnly = computeMetricsOnly;
+  window.liveAnalyzer = liveAnalyzer;
+  console.log("✅ computeMetricsOnly 및 liveAnalyzer를 window에 노출");
+}

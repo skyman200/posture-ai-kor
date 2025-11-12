@@ -484,10 +484,16 @@ async function initializeApp() {
   if (window.computeMetricsOnly) window.computeMetricsOnly();
   if (window.updateCompare) window.updateCompare();
   
-  // ✅ 모델 로딩 (싱글톤 패턴으로 1회만 실행)
+  // ✅ 모델 로딩 (안전한 폴백 포함)
   try {
-    await ModelLoader.loadModels();
-    console.log("✅ 모델 로딩 완료");
+    if (ModelLoader && typeof ModelLoader.loadModels === 'function') {
+      await ModelLoader.loadModels();
+      console.log("✅ 모델 로딩 완료");
+    } else {
+      console.warn("⚠️ ModelLoader.loadModels가 없어 스킵");
+      // 수동 초기화는 MediaPipe Pose가 필요하므로 여기서는 스킵
+      // HTML의 modelManager가 처리하도록 함
+    }
   } catch (err) {
     console.error("❌ 모델 로딩 실패:", err);
     // 모델 로딩 실패해도 UI는 활성화 (폴백 모드)

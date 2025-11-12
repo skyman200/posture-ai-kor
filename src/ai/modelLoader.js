@@ -410,3 +410,11 @@ export async function loadModels() {
   console.log("✅ 모든 모델 로드 완료 (정면: 앙상블, 옆모습: BlazePose)");
   return models;
 }
+
+// ✅ window에 노출 (HTML 스크립트에서 접근 가능하도록)
+if (typeof window !== 'undefined') {
+  window.ModelLoader = ModelLoader;
+  window.loadModels = loadModels;
+  window.loadPoseModels = loadModels; // 별칭 추가
+  console.log("✅ ModelLoader 및 loadModels를 window에 노출");
+}
