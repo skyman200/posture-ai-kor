@@ -13812,30 +13812,36 @@ if (document.getElementById("downloadPdfBtn")) {
 }
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./js/NotoSansKR-Bold-normal.js"></script>
+<script src="https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/fonts/NotoSansKR-Regular-normal.js"></script>
+<script src="https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/fonts/NotoSansKR-Bold-normal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 async function saveTextBasedPDF() {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF("p", "mm", "a4");
 
-  // ✅ 한글폰트 강제 박아넣기 (Bold만 사용, Regular도 Bold로 대체)
+  // ✅ 한글폰트 강제 박아넣기
+  if (typeof NotoSansKR_Regular_normal !== 'undefined' && NotoSansKR_Regular_normal) {
+    pdf.addFileToVFS("NotoSansKR-Regular.ttf", NotoSansKR_Regular_normal);
+    pdf.addFont("NotoSansKR-Regular.ttf", "NotoSansKR", "normal");
+  } else {
+    console.error("❌ NotoSansKR_Regular_normal 변수를 찾을 수 없습니다.");
+  }
+  
   if (typeof NotoSansKR_Bold_normal !== 'undefined' && NotoSansKR_Bold_normal) {
-    // Bold를 Regular와 Bold 둘 다로 등록
-    pdf.addFileToVFS("NotoSansKR-Regular.ttf", NotoSansKR_Bold_normal);
-    pdf.addFont("NotoSansKR-Regular.ttf", "NotoSansKR-Regular", "normal");
-    
     pdf.addFileToVFS("NotoSansKR-Bold.ttf", NotoSansKR_Bold_normal);
-    pdf.addFont("NotoSansKR-Bold.ttf", "NotoSansKR-Bold", "bold");
-    
-    pdf.setFont("NotoSansKR-Regular", "normal");
+    pdf.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
   } else {
     console.error("❌ NotoSansKR_Bold_normal 변수를 찾을 수 없습니다.");
+  }
+  
+  if (typeof NotoSansKR_Regular_normal === 'undefined' && typeof NotoSansKR_Bold_normal === 'undefined') {
     alert("폰트 파일을 로드할 수 없습니다. 페이지를 새로고침해주세요.");
     return;
   }
   
+  pdf.setFont("NotoSansKR", "normal");
   pdf.setFontSize(11);
 
   let y = 15;
@@ -13849,7 +13855,7 @@ async function saveTextBasedPDF() {
 
   const addTextBlock = (text, size = 11, bold = false) => {
     pdf.setFontSize(size);
-    pdf.setFont(bold ? "NotoSansKR-Bold" : "NotoSansKR-Regular");
+    pdf.setFont("NotoSansKR", bold ? "bold" : "normal");
     const lines = pdf.splitTextToSize(text, 190);
     newPageIfNeeded(lines.length);
     pdf.text(lines, 10, y);
