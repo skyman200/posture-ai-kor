@@ -76,11 +76,12 @@ export const ModelLoader = (() => {
           } else {
             // 폴백: 직접 로드 시도
             console.warn("⚠️ TensorFlow.js를 찾을 수 없음, 직접 로드 시도");
+            // 폴백: ESM +esm 형식 시도
             try {
-              const tfModule = await import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.esm.min.js');
+              const tfModule = await import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/+esm');
               tf = tfModule.default || tfModule.tf || tfModule;
               window.tf = tf;
-              console.log("✅ TensorFlow.js 직접 로드 완료");
+              console.log("✅ TensorFlow.js 직접 로드 완료 (ESM +esm)");
             } catch (tfErr) {
               console.error("❌ TensorFlow.js 로드 실패:", tfErr);
               throw new Error("TensorFlow.js를 로드할 수 없습니다.");
@@ -209,14 +210,28 @@ export async function loadMoveNet() {
     }
     
     // @tensorflow-models/pose-detection에서 MoveNet 로드
-    // @mediapipe/pose 의존성 문제를 피하기 위해 직접 CDN 사용
+    // @mediapipe/pose 의존성 문제 해결: 먼저 @mediapipe/pose가 로드되었는지 확인
+    if (typeof window !== 'undefined' && !window.MP_Pose && !window.Pose) {
+      console.warn("⚠️ @mediapipe/pose가 아직 로드되지 않음, 대기 중...");
+      // 최대 3초 대기
+      let waitCount = 0;
+      while (!window.MP_Pose && !window.Pose && waitCount < 30) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitCount++;
+      }
+      if (!window.MP_Pose && !window.Pose) {
+        console.warn("⚠️ @mediapipe/pose 로드 타임아웃, 계속 진행...");
+      }
+    }
+    
     let poseDetection;
     try {
+      // import-map을 통해 @mediapipe/pose가 해결되도록 시도
       poseDetection = await import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js');
     } catch (importErr) {
-      // ESM 실패 시 UMD 시도
-      console.warn("⚠️ ESM import 실패, UMD 로드 시도:", importErr);
-      throw importErr; // 일단 에러 전파
+      console.warn("⚠️ pose-detection ESM import 실패:", importErr);
+      // 에러를 전파하여 폴백 모드로 전환
+      throw importErr;
     }
     
     // MoveNet 모델 타입 확인
@@ -274,11 +289,21 @@ export async function loadPoseNet() {
     }
     
     // @tensorflow-models/pose-detection에서 PoseNet 로드
+    // @mediapipe/pose 의존성 문제 해결: 먼저 @mediapipe/pose가 로드되었는지 확인
+    if (typeof window !== 'undefined' && !window.MP_Pose && !window.Pose) {
+      console.warn("⚠️ @mediapipe/pose가 아직 로드되지 않음, 대기 중...");
+      let waitCount = 0;
+      while (!window.MP_Pose && !window.Pose && waitCount < 30) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitCount++;
+      }
+    }
+    
     let poseDetection;
     try {
       poseDetection = await import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js');
     } catch (importErr) {
-      console.warn("⚠️ ESM import 실패:", importErr);
+      console.warn("⚠️ pose-detection ESM import 실패:", importErr);
       throw importErr;
     }
     
@@ -321,11 +346,21 @@ async function loadSideDetector() {
     }
     
     // @tensorflow-models/pose-detection에서 BlazePose 로드
+    // @mediapipe/pose 의존성 문제 해결: 먼저 @mediapipe/pose가 로드되었는지 확인
+    if (typeof window !== 'undefined' && !window.MP_Pose && !window.Pose) {
+      console.warn("⚠️ @mediapipe/pose가 아직 로드되지 않음, 대기 중...");
+      let waitCount = 0;
+      while (!window.MP_Pose && !window.Pose && waitCount < 30) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitCount++;
+      }
+    }
+    
     let poseDetection;
     try {
       poseDetection = await import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.esm.min.js');
     } catch (importErr) {
-      console.warn("⚠️ ESM import 실패:", importErr);
+      console.warn("⚠️ pose-detection ESM import 실패:", importErr);
       throw importErr;
     }
     
