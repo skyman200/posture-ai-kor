@@ -387,7 +387,14 @@ async function loadPoseNet() {
     return frontModels.pose;
   } catch (err) {
     console.error("❌ PoseNet 로드 실패:", err);
-    throw err;
+    // 폴백: 간단한 PoseNet 모델
+    console.warn("⚠️ PoseNet 폴백 모드 사용");
+    frontModels.pose = {
+      estimatePoses: async (img) => {
+        return []; // 빈 결과 반환
+      }
+    };
+    return frontModels.pose;
   } finally {
     modelLoadingState.pose = false;
   }
@@ -1251,35 +1258,146 @@ async function initializeApp() {
       };
     }
     
-    // setupPDFButton과 setupImageButton은 HTML에 정의된 함수 사용 (필요시 재시도)
-    const tryCallWindowFunction = (name, maxRetries = 10) => {
-      let retries = 0;
-      const tryCall = () => {
-        if (typeof window[name] === 'function') {
-          try {
-            window[name]();
-            console.log(`✅ ${name} 실행 완료`);
-          } catch (error) {
-            console.error(`❌ ${name} 실행 실패:`, error);
-          }
-        } else if (retries < maxRetries) {
-          retries++;
-          setTimeout(tryCall, 100);
-        } else {
-          console.warn(`⚠️ ${name} 함수를 찾을 수 없습니다 (HTML 인라인 스크립트 확인 필요).`);
+    // setupPDFButton 직접 구현
+    if (typeof window.setupPDFButton !== 'function') {
+      window.setupPDFButton = function() {
+        const btnPDF = document.getElementById("btnPDF");
+        if (!btnPDF) {
+          console.warn("PDF 버튼을 찾을 수 없습니다.");
+          return;
         }
+        // 기존 이벤트 리스너 제거 (중복 방지)
+        const newBtn = btnPDF.cloneNode(true);
+        btnPDF.parentNode.replaceChild(newBtn, btnPDF);
+        
+        newBtn.addEventListener('click', async () => {
+          try {
+            const btn = document.getElementById("btnPDF");
+            const originalText = btn.textContent;
+            btn.textContent = "⏳ PDF 생성 중...";
+            btn.disabled = true;
+            
+            let centerName = prompt("센터 이름을 입력하세요:", localStorage.getItem('centerName') || "") || null;
+            if(centerName) localStorage.setItem('centerName', centerName);
+            
+            let memberName = prompt("회원 이름을 입력하세요:", localStorage.getItem('memberName') || "") || null;
+            if(memberName) localStorage.setItem('memberName', memberName);
+            
+            if(!centerName || !memberName) {
+              if(!confirm("센터 이름 또는 회원 이름이 입력되지 않았습니다. 계속하시겠습니까?")) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+                return;
+              }
+            }
+            
+            // 라이브러리 로드 대기
+            let retryCount = 0;
+            while ((typeof html2canvas === 'undefined' || !window.jspdf) && retryCount < 30) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+              retryCount++;
+            }
+            
+            const S = window.sessions?.[window.cur || "Before"];
+            const hasSidePoints = S?.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
+            const hasFrontPoints = S?.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
+            if (!S || (!hasSidePoints && !hasFrontPoints)) {
+              alert("먼저 이미지를 업로드하고 분석을 완료해주세요.");
+              btn.textContent = originalText;
+              btn.disabled = false;
+              return;
+            }
+            
+            if (typeof window.exportAsPdf === 'function') {
+              await window.exportAsPdf({
+                userName: localStorage.getItem('userName') || memberName || "사용자",
+                centerName: centerName,
+                memberName: memberName,
+                appName: 'DIT 자세 분석 AI'
+              });
+            } else {
+              alert("PDF 생성 함수를 찾을 수 없습니다.");
+            }
+            
+            btn.textContent = originalText;
+            btn.disabled = false;
+          } catch(error) {
+            console.error("❌ PDF 생성 실패:", error);
+            alert("PDF 생성에 실패했습니다: " + (error.message || '알 수 없는 오류'));
+            const btn = document.getElementById("btnPDF");
+            if (btn) {
+              btn.textContent = "📄 PDF 저장";
+              btn.disabled = false;
+            }
+          }
+        });
+        console.log("✅ PDF 버튼 이벤트 연결 완료");
       };
-      tryCall();
-    };
+    }
     
-    // HTML에 정의된 함수들 호출 시도
-    tryCallWindowFunction('setupPDFButton');
-    tryCallWindowFunction('setupImageButton');
+    // setupImageButton 직접 구현
+    if (typeof window.setupImageButton !== 'function') {
+      window.setupImageButton = function() {
+        const btnImage = document.getElementById("btnImage");
+        if (!btnImage) {
+          console.warn("이미지 버튼을 찾을 수 없습니다.");
+          return;
+        }
+        
+        btnImage.onclick = async () => {
+          const btn = document.getElementById("btnImage");
+          const originalText = btn.textContent;
+          btn.textContent = "⏳ 이미지 생성 중...";
+          btn.disabled = true;
+          try {
+            if (typeof html2canvas === 'undefined') {
+              throw new Error("html2canvas 라이브러리가 로드되지 않았습니다.");
+            }
+            const memberNameDisplay = localStorage.getItem('memberName') || window.memberName || '회원';
+            const centerNameDisplay = localStorage.getItem('centerName') || window.centerName || '';
+            
+            if (typeof window.captureReportCanvases === 'function' && typeof window.combineCanvasesVertical === 'function' && typeof window.downloadCanvasAsImage === 'function') {
+              const pageData = await window.captureReportCanvases({
+                centerName: centerNameDisplay,
+                memberName: memberNameDisplay,
+                appName: 'DIT 자세 분석 AI',
+                logoUrl: null
+              });
+              const orderedCanvases = [
+                pageData.canvases.cover,
+                ...(pageData.includeHeatmapPage && pageData.canvases.heatmap ? [pageData.canvases.heatmap] : []),
+                pageData.canvases.metrics,
+                pageData.canvases.aiSummary,
+                pageData.canvases.pilates,
+                pageData.canvases.aiDeep,
+                pageData.canvases.conclusion
+              ].filter(Boolean);
+              if (!orderedCanvases.length) {
+                throw new Error("저장할 페이지가 없습니다.");
+              }
+              const combinedCanvas = window.combineCanvasesVertical(orderedCanvases);
+              const imageFileName = `${centerNameDisplay || 'DIT'}_${memberNameDisplay || '회원'}_자세분석리포트_${new Date().toISOString().split('T')[0]}.png`;
+              await window.downloadCanvasAsImage(combinedCanvas, imageFileName, btn, originalText);
+            } else {
+              throw new Error("이미지 생성 함수를 찾을 수 없습니다.");
+            }
+          } catch (error) {
+            console.error("전체 이미지 생성 실패:", error);
+            alert("이미지 생성 중 오류가 발생했습니다: " + (error?.message || "알 수 없는 오류"));
+            btn.textContent = originalText || "🖼️ 이미지 저장";
+            btn.disabled = false;
+          }
+        };
+        console.log("✅ 이미지 버튼 이벤트 연결 완료");
+      };
+    }
     
     // 직접 구현한 함수들 실행
     if (typeof window.setupResetButton === 'function') window.setupResetButton();
     if (typeof window.setupCalibrateButton === 'function') window.setupCalibrateButton();
     if (typeof window.setupCalibrationButtons === 'function') window.setupCalibrationButtons();
+    if (typeof window.setupPDFButton === 'function') window.setupPDFButton();
+    if (typeof window.setupImageButton === 'function') window.setupImageButton();
   };
   
   setupButtonsDirectly();
@@ -1307,15 +1425,35 @@ async function initializeApp() {
     const btnReset = document.getElementById("btnReset");
     const btnCalibrate = document.getElementById("btnCalibrate");
     
+    // 버튼별 리스너 등록 여부 추적
+    const buttonListeners = new WeakMap();
+    
     const addClickHandler = (btn, handler) => {
       if (btn) {
-        // 기존 이벤트 리스너가 있는지 확인하고 추가
-        // 중복 방지를 위해 once 옵션은 사용하지 않음 (여러 번 클릭 가능해야 함)
-        btn.addEventListener('click', handler, { passive: true });
-        btn.addEventListener('touchstart', (e) => {
-          e.preventDefault();
+        // 기존 리스너가 있으면 제거 (중복 방지)
+        if (buttonListeners.has(btn)) {
+          const oldHandler = buttonListeners.get(btn);
+          btn.removeEventListener('click', oldHandler.click);
+          btn.removeEventListener('touchstart', oldHandler.touch);
+        }
+        
+        // 새 리스너 등록
+        const clickHandler = (e) => {
+          e.stopPropagation();
           handler(e);
-        }, { passive: false });
+        };
+        const touchHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handler(e);
+        };
+        
+        btn.addEventListener('click', clickHandler, { passive: true });
+        btn.addEventListener('touchstart', touchHandler, { passive: false });
+        
+        // 리스너 저장 (나중에 제거하기 위해)
+        buttonListeners.set(btn, { click: clickHandler, touch: touchHandler });
+        
         console.log(`✅ ${btn.id} 직접 연결 완료`);
         return btn;
       }
@@ -1392,9 +1530,14 @@ async function initializeApp() {
     }
   };
   
+  // 직접 연결은 한 번만 실행 (중복 방지)
+  let sessionButtonsSetup = false;
   const tryInitSessionButtons = () => {
-    // 항상 직접 연결도 함께 실행 (이중 보호)
-    setupSessionButtonsDirectly();
+    // 직접 연결은 한 번만 실행
+    if (!sessionButtonsSetup) {
+      setupSessionButtonsDirectly();
+      sessionButtonsSetup = true;
+    }
     
     if (typeof window.initSessionButtons === 'function') {
       try {

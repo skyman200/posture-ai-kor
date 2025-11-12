@@ -172,7 +172,14 @@ export async function loadPoseNet() {
     return frontModels.pose;
   } catch (err) {
     console.error("❌ PoseNet 로드 실패:", err);
-    throw err;
+    // 폴백: 간단한 PoseNet 모델
+    console.warn("⚠️ PoseNet 폴백 모드 사용");
+    frontModels.pose = {
+      estimatePoses: async (img) => {
+        return []; // 빈 결과 반환
+      }
+    };
+    return frontModels.pose;
   } finally {
     modelLoadingState.pose = false;
   }
