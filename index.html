@@ -8400,6 +8400,23 @@ function normalizeExerciseEntry(entry) {
   if (!normalized.purpose && normalized.description) normalized.purpose = normalized.description;
   if (!normalized.sets_reps && normalized.reps) normalized.sets_reps = normalized.reps;
   if (!normalized.precaution && normalized.warning) normalized.precaution = normalized.warning;
+  // ✅ DB의 모든 필드 정규화
+  if (!normalized.spring && normalized.spring_traditional) normalized.spring = normalized.spring_traditional;
+  if (!normalized.breathing && normalized.breathing_pattern) normalized.breathing = normalized.breathing_pattern;
+  if (!normalized.setup && normalized.setup_position) normalized.setup = normalized.setup_position;
+  if (!normalized.mistakes && normalized.common_mistakes) normalized.mistakes = normalized.common_mistakes;
+  if (!normalized.classical_cues && normalized.classical_cues_by_jay_grimes_romana) normalized.classical_cues = normalized.classical_cues_by_jay_grimes_romana;
+  if (!normalized.references && normalized.reference) normalized.references = normalized.reference;
+  // ✅ _raw 데이터에서 직접 가져오기 (CSV 원본)
+  if (normalized._raw) {
+    if (!normalized.spring && normalized._raw.Spring_Traditional) normalized.spring = normalized._raw.Spring_Traditional;
+    if (!normalized.reps && normalized._raw.Reps) normalized.reps = normalized._raw.Reps;
+    if (!normalized.breathing && normalized._raw.Breathing_Pattern) normalized.breathing = normalized._raw.Breathing_Pattern;
+    if (!normalized.setup && normalized._raw.Setup_Position) normalized.setup = normalized._raw.Setup_Position;
+    if (!normalized.mistakes && normalized._raw.Common_Mistakes_to_Avoid) normalized.mistakes = normalized._raw.Common_Mistakes_to_Avoid;
+    if (!normalized.classical_cues && normalized._raw.Classical_Cues_by_Jay_Grimes_Romana) normalized.classical_cues = normalized._raw.Classical_Cues_by_Jay_Grimes_Romana;
+    if (!normalized.references && normalized._raw.References) normalized.references = normalized._raw.References;
+  }
   return normalized;
 }
 
