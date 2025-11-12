@@ -8050,12 +8050,33 @@ function generatePilatesSessionText(metrics, pilatesItems = null) {
 
 // ✅ AI 심층 분석 생성 (DB 기반 상세 분석)
 function generateAIDeepAnalysis(metrics) {
+  // ✅ metrics가 {before, after} 형태인지 확인하고 적절히 처리
   const g = k => {
     const m = metrics?.[k];
-    return {
-      before: (m && m.before != null) ? m.before : null,
-      after:  (m && m.after != null) ? m.after : (typeof m === 'number' ? m : null)
-    };
+    if (!m) {
+      // metrics에 해당 키가 없으면 fullMetrics에서 직접 가져오기 시도
+      const bMetrics = sessions.Before?.metrics?.fullMetrics || {};
+      const aMetrics = sessions.After?.metrics?.fullMetrics || {};
+      const bVal = bMetrics[k]?.value != null ? bMetrics[k].value : 
+                   (bMetrics[k]?.value_deg != null ? bMetrics[k].value_deg : 
+                   (bMetrics[k]?.value_cm != null ? bMetrics[k].value_cm : null));
+      const aVal = aMetrics[k]?.value != null ? aMetrics[k].value : 
+                   (aMetrics[k]?.value_deg != null ? aMetrics[k].value_deg : 
+                   (aMetrics[k]?.value_cm != null ? aMetrics[k].value_cm : null));
+      return { before: bVal, after: aVal };
+    }
+    // {before, after} 형태인 경우
+    if (typeof m === 'object' && ('before' in m || 'after' in m)) {
+      return {
+        before: (m.before != null) ? m.before : null,
+        after:  (m.after != null) ? m.after : null
+      };
+    }
+    // 숫자 값인 경우 (after로 처리)
+    if (typeof m === 'number') {
+      return { before: null, after: m };
+    }
+    return { before: null, after: null };
   };
 
   const lines = [];
@@ -8136,10 +8157,18 @@ function generateAIDeepAnalysis(metrics) {
     lines.push(parts.join('\n'));
   });
 
-  // ✅ 패턴 요약 (DB 기반)
-  const pats = detectPatterns(metrics);
+  // ✅ 패턴 요약 (DB 기반) - metrics를 {before, after} 형태에서 실제 값으로 변환
+  const metricsForPattern = {};
+  seq.forEach(s => {
+    const {before, after} = g(s.k);
+    const currentValue = after != null ? after : before;
+    if (currentValue != null) {
+      metricsForPattern[s.k] = currentValue;
+    }
+  });
+  const pats = detectPatterns(metricsForPattern);
   lines.push('\n▶ 패턴 요약');
-  if(pats.length) {
+  if(pats && pats.length > 0) {
     lines.push(`- 관찰된 주요 패턴: ${pats.map(p => PILATES_PATTERN_DB[p]?.title || p).join(', ')}`);
     // 각 패턴별 상세 설명 추가
     pats.forEach(p => {
@@ -8913,8 +8942,21 @@ const html2canvasOptions = {
   scrollY: -window.scrollY,
   imageTimeout: 20000,
   removeContainer: isMobile,
+  // ✅ 한글 폰트 렌더링 개선
+  fontEmbedCSS: true,
   // 메모리 절약 옵션 추가
   onclone: (clonedDoc) => {
+    // ✅ 한글 폰트가 제대로 렌더링되도록 폰트 강제 설정
+    const allElements = clonedDoc.querySelectorAll('*');
+    allElements.forEach(el => {
+      const computedStyle = window.getComputedStyle(el);
+      if (computedStyle.fontFamily && !computedStyle.fontFamily.includes('Apple SD Gothic Neo') && 
+          !computedStyle.fontFamily.includes('Malgun Gothic') && 
+          !computedStyle.fontFamily.includes('Nanum Gothic')) {
+        el.style.fontFamily = "'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif";
+      }
+    });
+    
     // 복제된 문서에서 불필요한 요소 제거
     const images = clonedDoc.querySelectorAll('img');
     images.forEach(img => {
@@ -9487,27 +9529,34 @@ setPageContainerStyle(page6Container);
 // ✅ AI 심층 분석 텍스트 생성 (DB 기반)
 const deepAnalysisText = generateAIDeepAnalysis(combinedMetrics);
 
-// ✅ 텍스트를 HTML로 변환 (글자 잘림 방지 - word-wrap, white-space:pre-wrap 추가)
+// ✅ 텍스트를 HTML로 변환 (글자 깨짐 방지 - 한글 폰트 명시, HTML 이스케이프, word-wrap, white-space:pre-wrap 추가)
+const escapeHtml = (text) => {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 const deepAnalysisHtml = deepAnalysisText.split('\n').map(line => {
+  const escapedLine = escapeHtml(line);
   if(line.trim() === '') return '<br>';
   if(line.startsWith('▶')) {
-    return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
+    return `<div style="font-size:16px; font-weight:700; color:#2c3e50; margin-top:20px; margin-bottom:10px; word-wrap:break-word; line-height:1.6; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">${escapedLine}</div>`;
   }
   if(line.startsWith('📍')) {
-    return `<div style="font-size:14px; font-weight:600; color:#6366f1; margin-top:15px; margin-bottom:8px; word-wrap:break-word; line-height:1.6;">${line}</div>`;
+    return `<div style="font-size:14px; font-weight:600; color:#6366f1; margin-top:15px; margin-bottom:8px; word-wrap:break-word; line-height:1.6; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">${escapedLine}</div>`;
   }
   if(line.startsWith('- ')) {
-    return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
+    return `<div style="font-size:12px; color:#333; margin-left:10px; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">${escapedLine}</div>`;
   }
   if(line.startsWith('  ·')) {
-    return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
+    return `<div style="font-size:11px; color:#555; margin-left:25px; margin-bottom:3px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">${escapedLine}</div>`;
   }
-  return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap;">${line}</div>`;
+  return `<div style="font-size:12px; color:#333; margin-bottom:5px; line-height:1.6; word-wrap:break-word; white-space:pre-wrap; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">${escapedLine}</div>`;
 }).join('');
 
 page6Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 심층 분석</h2>
-  <div style="margin-top:20px; line-height:1.6;">
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">🤖 AI 자세 심층 분석</h2>
+  <div style="margin-top:20px; line-height:1.6; font-family:'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;">
     ${deepAnalysisHtml}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
