@@ -11903,18 +11903,48 @@ function exportAsPdf(options = {}) {
     // 페이지 4: AI 해석 요약 (기존 canvas 사용)
     if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas);
     
-    // 페이지 5: 필라테스 추천 (항상 텍스트로 작성)
+    // 페이지 5: 필라테스 추천 (텍스트 직접 삽입)
     pdf.addPage();
       let y = margin + 10;
       
-      // 제목
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdfAddKoreanText(pdf, '🧘 필라테스 운동 추천', margin, y, { fontSize: 20, fontStyle: 'bold' });
-      y += 30;
+      // ✅ 필라테스 텍스트 PDF 삽입
+      const pilatesPanel = document.getElementById("pilatesPanel");
+      const pilatesList = document.getElementById("pilatesList");
       
-      if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+      // 디버깅: pilatesList 텍스트 확인
+      console.log("📌 pilates text =", pilatesList?.innerText || "pilatesList not found");
+      
+      // pilatesList가 존재하고 텍스트 있으면 PDF에 추가
+      if (pilatesPanel && pilatesList && pilatesList.innerText.trim() !== "") {
+        // 제목
+        pdf.setFont("NotoSansKR", "normal");
+        pdf.setFontSize(16);
+        pdf.setTextColor(0, 0, 0);
+        pdfAddKoreanText(pdf, "🧘 필라테스 운동 추천", margin, y, { fontSize: 16, fontStyle: 'bold' });
+        y += 20;
+        
+        // 필라테스 텍스트 삽입
+        pdf.setFont("NotoSansKR", "normal");
+        pdf.setFontSize(12);
+        pdf.setTextColor(50, 50, 50);
+        const lines = pdf.splitTextToSize(pilatesList.innerText, imgW - 40);
+        lines.forEach((line) => {
+          if (y > pageH - 50) {
+            pdf.addPage();
+            y = margin + 20;
+          }
+          pdfAddKoreanText(pdf, line, margin + 20, y, { fontSize: 12 });
+          y += 12;
+        });
+        y += 10;
+      } else if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+        // 폴백: 기존 방식 (analysis.pilates 배열 사용)
+        // 제목
+        pdf.setFontSize(20);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdfAddKoreanText(pdf, '🧘 필라테스 운동 추천', margin, y, { fontSize: 20, fontStyle: 'bold' });
+        y += 30;
         // 각 추천 항목 (앱의 renderPilatesItemCard와 동일하게)
         analysis.pilates.forEach((item, idx) => {
         if (y > pageH - 150) {
