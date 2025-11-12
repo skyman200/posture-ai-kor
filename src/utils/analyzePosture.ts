@@ -216,7 +216,14 @@ async function loadPilatesDB(): Promise<PilatesExercise[]> {
 // ─────────────────────────────────────────────────────────────
 // 5) 핵심: 분석 → 패턴 매칭 → 운동 추천
 
-export async function analyzeAndRecommendFromPoints(points: PosePoints) {
+export async function analyzeAndRecommendFromPoints(
+  points: PosePoints,
+  options?: {
+    muscleDB?: MusclePattern[];
+    pilatesDB?: PilatesExercise[];
+    autoFetch?: boolean;
+  }
+) {
   // (A) 지표 계산
   const results: PostureResults = {
     PTA: calcPelvicTilt(points.asis, points.psis),
@@ -225,8 +232,9 @@ export async function analyzeAndRecommendFromPoints(points: PosePoints) {
     // … 필요한 지표 계속 추가
   };
 
-  // (B) DB 로드
-  const [muscleDB, pilatesDB] = await Promise.all([loadMuscleDB(), loadPilatesDB()]);
+  // (B) DB 로드 (옵션에서 제공되면 사용, 없으면 자동 로드)
+  const muscleDB = options?.muscleDB ?? await loadMuscleDB();
+  const pilatesDB = options?.pilatesDB ?? await loadPilatesDB();
 
   // (C) 패턴 매칭 룰
   //   ※ "값이 null이면 매칭에서 제외" — 좌표 빠져도 앱이 안 터짐
@@ -283,7 +291,7 @@ export async function analyzeAndRecommend(
     ankle: posturePoints.ankle || null
   };
 
-  return await analyzeAndRecommendFromPoints(points);
+  return await analyzeAndRecommendFromPoints(points, options);
 }
 
 // ─────────────────────────────────────────────────────────────
