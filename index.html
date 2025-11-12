@@ -752,12 +752,33 @@ const keypointsFront = [
 // 기존 호환성을 위해 keypoints 변수 유지 (getKeypoints 함수로 동적 반환)
 let keypoints = keypointsSide; // 기본값
 
-// sessions를 전역으로 노출
-// ✅ sessions는 모듈(src/core/sessions.js)에서 정의되므로 여기서는 제거
-// 모듈이 로드되면 window.sessions에 자동으로 할당됨
+// ✅ sessions 객체를 HTML에 직접 정의 (모듈보다 먼저 로드되어야 함)
+const sessions = {
+  Before: { 
+    imgSide: null, 
+    imgFront: null, 
+    sidePoints: new Map(),
+    frontPoints: new Map(),
+    metrics: {}, 
+    score: null, 
+    analysis: null,
+    poseData: null
+  },
+  After: { 
+    imgSide: null, 
+    imgFront: null, 
+    sidePoints: new Map(),
+    frontPoints: new Map(),
+    metrics: {}, 
+    score: null, 
+    analysis: null,
+    poseData: null
+  }
+};
+window.sessions = sessions;
 
 let cur = "Before";
-window.cur = cur; // 전역으로도 설정
+window.cur = cur;
 
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
 const rad2deg = r => r * 180 / Math.PI;
@@ -3265,7 +3286,7 @@ window.setOrientation = window.setOrientation || function setOrientation(orienta
   const sessionName = options.sessionName || window.cur || cur;
   const manual = !!options.manual;
   const unlock = !!options.unlock;
-  const session = (window.sessions || sessions)[sessionName];
+  const session = window.sessions[sessionName];
   if(!session) return;
   
   if(!session.poseData) {
@@ -3320,10 +3341,9 @@ window.setOrientation = window.setOrientation || function setOrientation(orienta
 
 window.switchSession = window.switchSession || function switchSession(s) {
   cur = s;
-  window.cur = s; // 전역으로도 설정
+  window.cur = s;
   
-  // ✅ currentSessions 한 번만 선언 (중복 제거)
-  const currentSessions = window.sessions || sessions;
+  const currentSessions = window.sessions;
   
   const btnBefore = document.getElementById("btnBefore");
   const btnAfter = document.getElementById("btnAfter");
