@@ -72,7 +72,6 @@ export function buildFullMetrics(values = {}) {
     SPP: values.SPP ?? null,
     KAS: values.KAS ?? null,
     LLAS: values.LLAS ?? null,
-    FBA: values.FBA ?? null,
   };
   console.log("✅ fullMetrics 생성 완료:", fm);
   return fm;

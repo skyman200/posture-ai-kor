@@ -46,8 +46,7 @@ const front = {
   HTA: 0.5, 
   SPP: 1.2, 
   KAS: 2.9, 
-  LLAS: 1.0, 
-  FBA: 7.0 
+  LLAS: 1.0
 };
 
 // 2) DB 기반 분석

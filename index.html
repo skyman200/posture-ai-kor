@@ -503,16 +503,6 @@ canvas {
           <strong>해석:</strong> ↑ → 한쪽 회내·회외 또는 하지 회전성 불균형.
         </div>
       </details>
-      
-      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">FBA (Foot Base Angle) - 발 정렬 각도</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 기준:</strong> angle(line(ankle, toe), body midline)<br>
-          <strong>측정 방법:</strong> ① 피험자는 발끝까지 보이게 정면으로 선다. ② 발 중심선(ankle–toe)과 몸 중심선 간 각도 계산.<br>
-          <strong>정상 범위:</strong> 0–10°<br>
-          <strong>해석:</strong> ↑ → 과도한 외회전(회외) / ↓ → 회내 경향.
-        </div>
-      </details>
     </div>
   </div>
   
@@ -606,7 +596,6 @@ canvas {
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">SPP(어깨골반평행도)</td><td id="cmpSppB">—</td><td id="cmpSppA">—</td><td id="cmpSppD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">KAS(무릎정렬대칭성)</td><td id="cmpKasB">—</td><td id="cmpKasA">—</td><td id="cmpKasD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">LLAS(하지축대칭성)</td><td id="cmpLlasB">—</td><td id="cmpLlasA">—</td><td id="cmpLlasD">—</td><td>0-3°</td></tr>
-        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">FBA(발정렬각)</td><td id="cmpFbaB">—</td><td id="cmpFbaA">—</td><td id="cmpFbaD">—</td><td>0-3°</td></tr>
         <tr style="background:#f0f0f0; font-weight:600;"><td>체형 점수</td><td id="cmpScoreB">—</td><td id="cmpScoreA">—</td><td id="cmpScoreD">—</td><td>0–100</td></tr>
       </tbody>
     </table>
@@ -1475,51 +1464,6 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     result.SPP.value_deg = angleDiff;
     result.SPP.meaning = result.SPP.desc;
   }
-  
-  // 7️⃣ FBA (Foot Base Angle): 발 정렬 각도
-  // 0° = 발이 중심선과 일직선일 때, +각도 = 발끝이 바깥쪽(외회전), -각도 = 발끝이 안쪽(내회전)
-  // 발가락 좌표가 없으면 계산하지 않음
-  const L_toe = p("L_toe");
-  const R_toe = p("R_toe");
-  if (L_ankle && L_toe && R_ankle && R_toe) {
-    // 신체 중심선 (midline)
-    const midlineX = (L_ankle.x + R_ankle.x) / 2;
-    
-    // 좌측 발 정렬: ankle-toe 라인과 중심선의 각도
-    const L_dx = L_toe.x - L_ankle.x;
-    const L_dy = L_toe.y - L_ankle.y;
-    // 중심선 기준 각도: atan2(dy, dx) - 중심선이 수직이므로 x 방향 기준
-    // 발끝이 오른쪽(바깥쪽)이면 양수, 왼쪽(안쪽)이면 음수
-    const L_angle = rad2deg(Math.atan2(L_dy, L_dx - midlineX));
-    
-    // 우측 발 정렬
-    const R_dx = R_toe.x - R_ankle.x;
-    const R_dy = R_toe.y - R_ankle.y;
-    const R_angle = rad2deg(Math.atan2(R_dy, R_dx - midlineX));
-    
-    // 평균 각도 (외회전 각도)
-    const avgAngle = (L_angle + R_angle) / 2;
-    // 0° = 중심선과 일직선, 양수 = 외회전, 음수 = 내회전
-    const fba = Math.abs(avgAngle); // 표시는 절대값
-    
-    result.FBA = {
-      value: fba,
-      value_signed: avgAngle, // 부호 포함 값 (내부 사용)
-      status: classifyRange({
-        v: fba,
-        nMin: 0, nMax: 10,
-        mildMin: 10, mildMax: 20,
-        modMin: 20, modMax: 30,
-        sevMin: 30, sevMax: null,
-        higherIsWorse: true
-      }),
-      unit: "°",
-      desc: "Foot Base Angle (발 정렬 각도)"
-    };
-    result.FBA.value_deg = fba;
-    result.FBA.meaning = result.FBA.desc;
-  }
-  
   
   // 6️⃣ Knee Deviation (Front): 좌우 knee 높이 차이
   const L_knee = p("L_knee") || p("L_Knee");
@@ -4285,22 +4229,6 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 24. FBA (Foot Base Angle) - 정상 0-10°
-  const fba = fullMetrics.FBA?.value;
-  if(fba != null) {
-    if(fba > 10) {
-      const delta = fba - 10;
-      const penalty = Math.min(15, delta * 1.5);
-      penalties += penalty;
-      reasons.push(`FBA ${fba.toFixed(1)}° (정상 0-10°, 과도한 외회전) - ${penalty.toFixed(0)}점 감점`);
-    } else if(fba < 0) {
-      const delta = Math.abs(fba);
-      const penalty = Math.min(10, delta * 2);
-      penalties += penalty;
-      reasons.push(`FBA ${fba.toFixed(1)}° (정상 0-10°, 회내 경향) - ${penalty.toFixed(0)}점 감점`);
-    }
-  }
-  
   // PDS는 별도로 계산되므로 여기서는 제외
   
   const score = Math.round(clamp(100 - penalties, 0, 100));
@@ -5287,8 +5215,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'SPP', name: 'SPP(어깨골반평행도)', unit: '°', type: 'front'},
       {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'front'},  // 정면 분석 항목으로 이동
       {key: 'KAS', name: 'KAS(무릎정렬대칭성)', unit: '°', type: 'front'},
-      {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'},
-      {key: 'FBA', name: 'FBA(발정렬각)', unit: '°', type: 'front'}
+      {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'}
     ];
     
     // 모든 항목 합치기 (측면 먼저, 정면 나중)
@@ -5707,8 +5634,7 @@ function updateCompare() {
     {key: 'SPP', id: 'Spp', unit: '°'},
     {key: 'Q_Angle', id: 'Qangle', unit: '°'},  // 정면 분석 항목으로 이동
     {key: 'KAS', id: 'Kas', unit: '°'},
-    {key: 'LLAS', id: 'Llas', unit: '°'},
-    {key: 'FBA', id: 'Fba', unit: '°'}
+    {key: 'LLAS', id: 'Llas', unit: '°'}
   ];
   
   // 헬퍼 함수: 정면 메트릭 키 가져오기 (하위 호환성)
@@ -10287,8 +10213,7 @@ const DIRECTIONAL_LABEL_RULES = {
   TD: { threshold: 5, positive: '후만증', negative: '전만증' },
   HTA: { threshold: 1, positive: '우측 기울기', negative: '좌측 기울기' },
   KAS: { threshold: 2, positive: '외회전', negative: '내회전' },
-  LLAS: { threshold: 2, positive: '우측 이동', negative: '좌측 이동' },
-  FBA: { threshold: 2, positive: '회내', negative: '회외' }
+  LLAS: { threshold: 2, positive: '우측 이동', negative: '좌측 이동' }
 };
 
 const ABSOLUTE_LABEL_RULES = {
@@ -10388,8 +10313,7 @@ const NORMAL_TEXT = {
   LLD: '≤1cm',
   LLD_F: '≤1cm',
   KAS: '-2–2°',
-  LLAS: '-2–2°',
-  FBA: '-2–2°'
+  LLAS: '-2–2°'
 };
 
 const DB_METRIC_RULES = {
@@ -10478,13 +10402,6 @@ const DB_METRIC_RULES = {
     absThreshold: 2,
     labelPositive: "우측 이동",
     labelNegative: "좌측 이동"
-  },
-  FBA: {
-    positiveCode: "FBA_PRONATION",
-    negativeCode: "FBA_SUPINATION",
-    absThreshold: 2,
-    labelPositive: "회내",
-    labelNegative: "회외"
   }
 };
 
@@ -11699,7 +11616,8 @@ function pdfAddKoreanText(pdf, text, x, y, options = {}) {
     }
   }
   
-  // 폴백: 기본 폰트 사용
+  // 폴백: 기본 폰트 사용 (한글 폰트가 없을 때)
+  // 주의: 기본 폰트는 한글을 제대로 표시하지 못할 수 있음
   pdf.setFont('helvetica', fontStyle);
   pdf.setFontSize(fontSize);
   if (align === 'center' || align === 'right') {
@@ -12245,7 +12163,7 @@ function exportAsPdf(options = {}) {
               pdf.setFont('helvetica', 'bold');
               pdf.setFontSize(10);
               pdf.setTextColor(92, 68, 184);
-              pdf.text(`${equipment}:`, margin + 20, y);
+              pdfAddKoreanText(pdf, `${equipment}:`, margin + 20, y, { fontSize: 10, fontStyle: 'bold' });
               y += 14;
               
               // 각 운동의 상세 정보
@@ -12263,7 +12181,7 @@ function exportAsPdf(options = {}) {
                     pdf.setFont('helvetica', 'normal');
                     pdf.setFontSize(9);
                     pdf.setTextColor(50, 50, 50);
-                    pdf.text(`  • ${exerciseName}`, margin + 30, y);
+                    pdfAddKoreanText(pdf, `  • ${exerciseName}`, margin + 30, y, { fontSize: 9 });
                     y += 12;
                   }
                 } else {
@@ -12271,7 +12189,7 @@ function exportAsPdf(options = {}) {
                   pdf.setFont('helvetica', 'bold');
                   pdf.setFontSize(9);
                   pdf.setTextColor(92, 68, 184);
-                  pdf.text(`  • ${exerciseInfo.title}`, margin + 30, y);
+                  pdfAddKoreanText(pdf, `  • ${exerciseInfo.title}`, margin + 30, y, { fontSize: 9, fontStyle: 'bold' });
                   y += 12;
                   
                   pdf.setFont('helvetica', 'normal');
@@ -12363,7 +12281,9 @@ function exportAsPdf(options = {}) {
           pdf.setFontSize(8);
           pdf.setTextColor(75, 85, 99); // #4b5563
           const noteLines = pdf.splitTextToSize(note, imgW - 40);
-          pdf.text(noteLines, margin + 20, y);
+          noteLines.forEach((line, idx) => {
+            pdfAddKoreanText(pdf, line, margin + 20, y + (idx * 10), { fontSize: 8 });
+          });
           y += noteLines.length * 10 + 8;
         }
         
@@ -13255,8 +13175,12 @@ function mapPoseToKeypoints(pose, orientation) {
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
     // 중요: MediaPipe keypoints는 정규화된 좌표(0-1) 또는 픽셀 좌표를 반환합니다
+    // keypoints[7] = 화면 왼쪽 귀 → 환자의 왼쪽 귀 → L_tragus
+    // keypoints[8] = 화면 오른쪽 귀 → 환자의 오른쪽 귀 → R_tragus
     // keypoints[11] = 화면 왼쪽 어깨 → 환자의 왼쪽 어깨 → L_acromion
     // keypoints[12] = 화면 오른쪽 어깨 → 환자의 오른쪽 어깨 → R_acromion
+    const mpScreenLeftEar = keypoints[7];   // 화면 왼쪽 귀 (환자 왼쪽)
+    const mpScreenRightEar = keypoints[8]; // 화면 오른쪽 귀 (환자 오른쪽)
     const mpScreenLeft = keypoints[11];   // 화면 왼쪽 어깨 (환자 왼쪽)
     const mpScreenRight = keypoints[12]; // 화면 오른쪽 어깨 (환자 오른쪽)
     const mpScreenLeftHip = keypoints[23];   // 화면 왼쪽 골반 (환자 왼쪽)
@@ -13268,6 +13192,8 @@ function mapPoseToKeypoints(pose, orientation) {
     
     // 디버깅: keypoints 배열 상태 확인
     console.log(`🔍 정면 keypoints 디버깅: 총 ${keypoints.length}개`);
+    console.log(`🔍 keypoints[7] (leftEar):`, mpScreenLeftEar ? `존재 (x=${mpScreenLeftEar.x?.toFixed(3)}, y=${mpScreenLeftEar.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[8] (rightEar):`, mpScreenRightEar ? `존재 (x=${mpScreenRightEar.x?.toFixed(3)}, y=${mpScreenRightEar.y?.toFixed(3)})` : 'null');
     console.log(`🔍 keypoints[23] (leftHip):`, mpScreenLeftHip ? `존재 (x=${mpScreenLeftHip.x?.toFixed(3)}, y=${mpScreenLeftHip.y?.toFixed(3)})` : 'null');
     console.log(`🔍 keypoints[24] (rightHip):`, mpScreenRightHip ? `존재 (x=${mpScreenRightHip.x?.toFixed(3)}, y=${mpScreenRightHip.y?.toFixed(3)})` : 'null');
     console.log(`🔍 keypoints[25] (leftKnee):`, mpScreenLeftKnee ? `존재 (x=${mpScreenLeftKnee.x?.toFixed(3)}, y=${mpScreenLeftKnee.y?.toFixed(3)})` : 'null');
@@ -13294,6 +13220,24 @@ function mapPoseToKeypoints(pose, orientation) {
     };
     
     // 정면 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
+    // 화면 왼쪽 귀 (keypoints[7]) → 환자 왼쪽 귀 → L_tragus
+    const leftEarPoint = makePoint(mpScreenLeftEar, 'L_tragus');
+    if (leftEarPoint) {
+      keypointMap['L_tragus'] = leftEarPoint;
+      console.log(`✅ L_tragus 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftEarPoint.x.toFixed(3)}, ${leftEarPoint.y.toFixed(3)}), score: ${leftEarPoint.score.toFixed(2)}`);
+    } else {
+      console.warn(`⚠️ L_tragus 매핑 실패: mpScreenLeftEar confidence=${getKeypointConfidence(mpScreenLeftEar).toFixed(2)}`);
+    }
+    
+    // 화면 오른쪽 귀 (keypoints[8]) → 환자 오른쪽 귀 → R_tragus
+    const rightEarPoint = makePoint(mpScreenRightEar, 'R_tragus');
+    if (rightEarPoint) {
+      keypointMap['R_tragus'] = rightEarPoint;
+      console.log(`✅ R_tragus 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightEarPoint.x.toFixed(3)}, ${rightEarPoint.y.toFixed(3)}), score: ${rightEarPoint.score.toFixed(2)}`);
+    } else {
+      console.warn(`⚠️ R_tragus 매핑 실패: mpScreenRightEar confidence=${getKeypointConfidence(mpScreenRightEar).toFixed(2)}`);
+    }
+    
     // 화면 왼쪽 어깨 (keypoints[11]) → 환자 왼쪽 어깨 → L_acromion
     const leftShoulderPoint = makePoint(mpScreenLeft, 'L_acromion');
     if (leftShoulderPoint) {

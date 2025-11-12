@@ -35,7 +35,6 @@ export interface Metrics {
   SPP?: number;
   KAS?: number;
   LLAS?: number;
-  FBA?: number;
 }
 
 export type PosePoints = {
@@ -308,7 +307,7 @@ export function buildReportText(payload: {
   lines.push('— 분석 항목 요약 —');
   lines.push('경추/두부: CVA, HPD, HTA');
   lines.push('체간/상체: TIA, TD, SAA, STA, SPP');
-  lines.push('골반/하지: PTA, POA, HPA, LLD, KA, Knee Dev, KAS, Tibial, Q-Angle, LLAS, FBA');
+  lines.push('골반/하지: PTA, POA, HPA, LLD, KA, Knee Dev, KAS, Tibial, Q-Angle, LLAS');
   lines.push('전체 균형: GSB, PDS');
   lines.push('');
 
@@ -1258,7 +1257,6 @@ const metricOrder: (keyof Metrics)[] = [
   "SPP",
   "KAS",
   "LLAS",
-  "FBA",
 ];
 
 const metricRules: Record<string, MetricRule> = {
@@ -1282,7 +1280,6 @@ const metricRules: Record<string, MetricRule> = {
   SPP: { positiveCode: "SPP_FORWARD", negativeCode: "SPP_BACKWARD", absThreshold: 1, labelPositive: "전방 편위", labelNegative: "후방 편위" },
   KAS: { positiveCode: "KAS_EXTERNAL", negativeCode: "KAS_INTERNAL", absThreshold: 2, labelPositive: "외회전", labelNegative: "내회전" },
   LLAS: { positiveCode: "LLAS_RIGHT", negativeCode: "LLAS_LEFT", absThreshold: 2, labelPositive: "우측 이동", labelNegative: "좌측 이동" },
-  FBA: { positiveCode: "FBA_PRONATION", negativeCode: "FBA_SUPINATION", absThreshold: 2, labelPositive: "회내", labelNegative: "회외" },
 };
 
 function evaluateMetricDeviation(
