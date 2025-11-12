@@ -8548,20 +8548,24 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
     ${(sideSkeletonImg || frontSkeletonImg) ? `
     <div style="margin-top:24px;">
       <div style="font-size:12px; font-weight:600; margin-bottom:8px;">📐 포즈 분석 오버레이 (스켈레톤)</div>
-      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; align-items:center;">
         ${sideSkeletonImg ? `
-        <div style="flex:1; min-width:400px; max-width:1500px;">
-          <div style="text-align:center; padding:20px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <img src="${sideSkeletonImg}" style="width:100%; height:auto; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; max-height:1800px;" />
-            <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색 점선(Before) | 주황색 실선(After)</div>
+        <div style="flex:1; min-width:400px; max-width:1500px; display:flex; justify-content:center; align-items:center;">
+          <div style="text-align:center; padding:60px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:visible;">
+            <div style="width:100%; display:flex; justify-content:center; align-items:center; transform:scale(3); transform-origin:center center;">
+              <img src="${sideSkeletonImg}" style="width:auto; height:auto; max-width:800px; max-height:800px; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; margin:0 auto;" />
+            </div>
+            <div style="margin-top:24px; font-size:10px; color:#666;">측면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
         ` : ''}
         ${frontSkeletonImg ? `
-        <div style="flex:1; min-width:400px; max-width:1500px;">
-          <div style="text-align:center; padding:20px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <img src="${frontSkeletonImg}" style="width:100%; height:auto; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; max-height:1800px;" />
-            <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색 점선(Before) | 주황색 실선(After)</div>
+        <div style="flex:1; min-width:400px; max-width:1500px; display:flex; justify-content:center; align-items:center;">
+          <div style="text-align:center; padding:60px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:visible;">
+            <div style="width:100%; display:flex; justify-content:center; align-items:center; transform:scale(3); transform-origin:center center;">
+              <img src="${frontSkeletonImg}" style="width:auto; height:auto; max-width:800px; max-height:800px; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; margin:0 auto;" />
+            </div>
+            <div style="margin-top:24px; font-size:10px; color:#666;">정면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
         ` : ''}
@@ -8615,20 +8619,36 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     analysis = mergeAnalysisData(analysisResultFallback, analysis);
   }
 
-  if (!hasMeaningfulAnalysis(analysis) && S.metrics?.fullMetrics) {
+  // ✅ 필라테스 데이터 보강: analysis.pilates가 없거나 비어있으면 재생성
+  if ((!analysis.pilates || !Array.isArray(analysis.pilates) || analysis.pilates.length === 0) && S.metrics?.fullMetrics) {
     try {
       const refreshedAnalysis = await analyzeMusclesWithDB(S.metrics.fullMetrics);
-      if (refreshedAnalysis) {
-        analysis = refreshedAnalysis;
-        S.analysis = refreshedAnalysis;
+      if (refreshedAnalysis && refreshedAnalysis.pilates && Array.isArray(refreshedAnalysis.pilates) && refreshedAnalysis.pilates.length > 0) {
+        analysis = mergeAnalysisData(refreshedAnalysis, analysis);
+        S.analysis = analysis;
+        console.log('✅ PDF 생성: 필라테스 데이터 보강 완료', analysis.pilates.length, '개 항목');
       }
     } catch (recalcErr) {
-      console.warn('PDF 생성 중 분석 데이터 보강 실패:', recalcErr);
+      console.warn('PDF 생성 중 필라테스 데이터 보강 실패:', recalcErr);
     }
   }
 
   if (!analysis) {
     analysis = {};
+  }
+  
+  // ✅ 필라테스 데이터 최종 확인 및 로깅
+  if (analysis.pilates && Array.isArray(analysis.pilates)) {
+    console.log('📊 PDF 생성: 필라테스 데이터 확인', {
+      count: analysis.pilates.length,
+      items: analysis.pilates.map(item => ({
+        name: item.name || item.issue,
+        hasPilates: !!(item.pilates && Object.keys(item.pilates).length > 0),
+        equipment: item.pilates ? Object.keys(item.pilates) : []
+      }))
+    });
+  } else {
+    console.warn('⚠️ PDF 생성: 필라테스 데이터 없음', { analysisKeys: Object.keys(analysis) });
   }
 
   // 통합 분석 결과 가져오기 (운동 추천 포함)
@@ -9067,20 +9087,15 @@ const setPageContainerStyle = (container) => {
   container.classList.add('pdf-safe');
 };
 
-// ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) ==========
+// ========== 페이지 3: 수치표 (그래프 제거됨) ==========
 const comparison = analyzeBeforeAfterComparison();
-try {
-  await ensureChartLibrary();
-} catch (chartErr) {
-  console.warn('Chart.js 준비 실패:', chartErr);
-}
+// ✅ Chart.js 로드 제거됨 (그래프 삭제 요청)
 const page3Container = document.createElement("div");
 setPageContainerStyle(page3Container);
 
-// chartCanvas 변수를 함수 스코프 상단에서 선언
-let chartCanvas = null;
+// ✅ chartCanvas 변수 제거됨 (그래프 삭제 요청)
 
-let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
+let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표</h2>';
 
 if(comparison && comparison.results.length > 0) {
   let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
@@ -9100,7 +9115,6 @@ if(comparison && comparison.results.length > 0) {
   comparisonTableHTML += '</table>';
 
   page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
-    <div id="beforeAfterChartSection"></div>
     <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
       <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">📈 전체 변화 요약</div>
       <div style="font-size:11px; line-height:1.6; color:#333;">${comparison.summary.overallComment}</div>
@@ -9118,105 +9132,7 @@ page3HTML += `<div style="margin-top:20px; padding-top:10px; border-top:1px soli
     </div>`;
 
 page3Container.innerHTML = page3HTML;
-const labels = comparison?.results?.map(r => r.name) || [];
-const beforeData = comparison?.results?.map(r => r.before) || [];
-const afterData = comparison?.results?.map(r => r.after) || [];
-
-const chartSectionPlaceholder = page3Container.querySelector('#beforeAfterChartSection');
-if(chartSectionPlaceholder) {
-  const section = document.createElement('div');
-  section.style.marginTop = '20px';
-  section.innerHTML = `
-    <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:#333;">📈 Before-After 그래프 (Chart.js)</div>
-    <div style="background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd;">
-      <div style="font-size:10px; color:#666; margin-bottom:8px;">🔵 Before (교정 전) | 🟢 After (교정 후) | ⚠️ 붉은 값 = 정상범위 벗어남</div>
-    </div>
-  `;
-  const graphShell = section.querySelector('div:nth-child(2)');
-  chartCanvas = document.createElement('canvas');
-  chartCanvas.width = 800;
-  chartCanvas.height = 400;
-  chartCanvas.style.width = '100%';
-  chartCanvas.style.maxHeight = '420px';
-  graphShell.appendChild(chartCanvas);
-  chartSectionPlaceholder.replaceWith(section);
-
-  if(typeof Chart !== 'undefined') {
-    const ctx = chartCanvas.getContext('2d');
-    chartCanvas.chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Before',
-            data: beforeData,
-            backgroundColor: beforeData.map((v, i) => 
-              chartOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(52,152,219,0.8)'),
-            borderColor: beforeData.map((v, i) => 
-              chartOutOfRange(labels[i], v) ? '#C0392B' : '#21618C'),
-            borderWidth: 1
-          },
-          {
-            label: 'After',
-            data: afterData,
-            backgroundColor: afterData.map((v, i) => 
-              chartOutOfRange(labels[i], v) ? 'rgba(231,76,60,0.8)' : 'rgba(46,204,113,0.8)'),
-            borderColor: afterData.map((v, i) => 
-              chartOutOfRange(labels[i], v) ? '#C0392B' : '#1E8449'),
-            borderWidth: 1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: { 
-            display: true, 
-            text: 'Before–After 자세 비교 그래프', 
-            font: { size: 16, weight: 'bold' },
-            padding: { top: 10, bottom: 20 }
-          },
-          legend: { 
-            position: 'top',
-            labels: {
-              font: { size: 12 },
-              padding: 15
-            }
-          },
-          tooltip: { 
-            callbacks: { 
-              label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}${comparison.results[ctx.dataIndex].unit}` 
-            } 
-          }
-        },
-        scales: {
-          y: { 
-            beginAtZero: true, 
-            title: { 
-              display: true, 
-              text: '단위 (° / cm)',
-              font: { size: 12 }
-            },
-            ticks: {
-              font: { size: 10 }
-            }
-          },
-          x: { 
-            ticks: { 
-              autoSkip: false, 
-              maxRotation: 45, 
-              minRotation: 45,
-              font: { size: 9 }
-            }
-          }
-        }
-      }
-    });
-    await waitForChartRender(chartCanvas.chartInstance);
-  }
-}
+// ✅ 그래프 생성 코드 제거됨 (사용자 요청)
 
 document.body.appendChild(page3Container);
 
@@ -9613,7 +9529,7 @@ if (isMobile) {
     canvases: {
       cover: canvas1,
       heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
-      chartCanvas: chartCanvas?.chartInstance?.canvas || null, // 그래프만 캡처
+      chartCanvas: null, // ✅ 그래프 제거됨
       aiSummary: canvas4 || null, // AI 해석 요약 페이지
       pilates: canvas5 || null, // 필라테스 추천 페이지
       aiDeep: canvas6 || null, // AI 심층 분석 페이지
@@ -11837,7 +11753,7 @@ function exportAsPdf(options = {}) {
       throw new Error("표지 캔버스를 생성하지 못했습니다.");
     }
     const heatmapCanvas = canvases.heatmap;
-    const chartCanvasElement = canvases.chartCanvas;
+    const chartCanvasElement = null; // ✅ 그래프 제거됨
     const aiSummaryCanvas = canvases.aiSummary; // AI 해석 요약 캔버스
     const pilatesCanvas = canvases.pilates; // 필라테스 추천 캔버스
     const aiDeepCanvas = canvases.aiDeep; // AI 심층 분석 캔버스
@@ -12092,64 +12008,7 @@ function exportAsPdf(options = {}) {
         y += Math.max(15, commentLines.length * 12);
       });
       
-      // 그래프 이미지 추가 (없으면 생성)
-      let chartImageData = null;
-      if (chartCanvasElement) {
-        try {
-          chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
-        } catch (err) {
-          console.warn('차트 캔버스에서 이미지 추출 실패:', err);
-        }
-      }
-      
-      // 그래프가 없으면 생성 시도
-      if (!chartImageData && comparison && comparison.results && comparison.results.length > 0 && typeof drawComparisonChart === 'function') {
-        try {
-          const beforeData = {};
-          const afterData = {};
-          comparison.results.forEach(item => {
-            if (item.before != null) beforeData[item.name] = item.before;
-            if (item.after != null) afterData[item.name] = item.after;
-          });
-          
-          if (Object.keys(beforeData).length > 0 || Object.keys(afterData).length > 0) {
-            const chartCanvas = drawComparisonChart(beforeData, afterData, null, { disableAnimation: true });
-            if (chartCanvas && chartCanvas.chart) {
-              await new Promise(resolve => setTimeout(resolve, 500)); // 차트 렌더링 대기
-              chartImageData = chartCanvas.toDataURL('image/png', 0.95);
-            }
-          }
-        } catch (err) {
-          console.warn('차트 생성 실패:', err);
-        }
-      }
-      
-      if (chartImageData) {
-        y += 20;
-        if (y > pageH - 300) {
-          pdf.addPage();
-          y = margin + 20;
-        }
-        
-        try {
-          const chartImg = new Image();
-          chartImg.src = chartImageData;
-          await new Promise((resolve, reject) => {
-            chartImg.onload = () => {
-              const chartW = Math.min(imgW, 700);
-              const chartH = (chartImg.height / chartImg.width) * chartW;
-              const chartX = margin + (imgW - chartW) / 2;
-              
-              pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, 300));
-              y += Math.min(chartH, 300) + 20;
-              resolve();
-            };
-            chartImg.onerror = reject;
-          });
-        } catch (err) {
-          console.warn('차트 이미지 추가 실패:', err);
-        }
-      }
+      // ✅ 그래프 제거됨 (사용자 요청)
       
       // 전체 변화 요약
       if (comparison.summary && comparison.summary.overallComment) {
