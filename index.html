@@ -3772,7 +3772,7 @@ function drawHandle(x, y, label, color, isSelected = false) {
 }
 
 // 각도와 점수만 계산 (실시간 표시용, AI 분석 없음)
-function computeMetricsOnly() {
+window.computeMetricsOnly = function computeMetricsOnly() {
   const S = sessions[cur];
   const P = getPts(cur);
   let cva = null, pelvic = null, knee = null;
