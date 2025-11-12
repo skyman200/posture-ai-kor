@@ -11517,6 +11517,25 @@ function pdfAddKoreanText(pdf, text, x, y, options = {}) {
 }
 
 // ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
+// ✅ 한글 폰트 등록 함수
+async function registerKoreanFont(pdf) {
+  try {
+    const regular = await fetch("/fonts/NotoSansKR-Regular.ttf").then(r => r.arrayBuffer());
+    const bold = await fetch("/fonts/NotoSansKR-Bold.ttf").then(r => r.arrayBuffer());
+    
+    pdf.addFileToVFS("NotoSansKR-Regular.ttf", regular);
+    pdf.addFont("NotoSansKR-Regular.ttf", "NotoSansKR", "normal");
+    
+    pdf.addFileToVFS("NotoSansKR-Bold.ttf", bold);
+    pdf.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
+    
+    console.log("✅ 한글 폰트 등록 완료");
+  } catch (err) {
+    console.error("❌ 한글 폰트 등록 실패:", err);
+    throw err;
+  }
+}
+
 function exportAsPdf(options = {}) {
   const {
     fileName = null, // null이면 자동 생성
@@ -11553,6 +11572,13 @@ function exportAsPdf(options = {}) {
       
       console.log("✅ 라이브러리 확인 완료");
       
+      // ✅ 필라테스 데이터 테스트 (데이터가 비어있을 경우)
+      if (!window.analysis || !window.analysis.exercises || window.analysis.exercises.length === 0) {
+        console.log("⚠️ 필라테스 데이터 없음 - 테스트 데이터 추가");
+        if (!window.analysis) window.analysis = {};
+        window.analysis.exercises = ["Hundred", "Roll Up", "Swan", "Teaser"];
+      }
+      
       const { jsPDF } = window.jspdf;
       const {
         canvases,
@@ -11569,7 +11595,11 @@ function exportAsPdf(options = {}) {
       
     // PDF 생성 (마진 24px = 약 0.6cm)
     const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
-    // NotoSansKR 폰트 사용 (base64 JS 파일에서 자동 로드됨)
+    
+    // ✅ 한글 폰트 등록
+    await registerKoreanFont(pdf);
+    
+    // NotoSansKR 폰트 사용
     pdf.setFont("NotoSansKR", "normal");
     
     // 전역 함수로 노출 (다른 파일에서 사용)
@@ -11595,7 +11625,6 @@ function exportAsPdf(options = {}) {
     
     console.log('📊 comparison:', comparison);
     console.log('📊 analysis:', analysis);
-    console.log('📊 chartCanvas:', chartCanvasElement);
     console.log('📊 aiSummaryCanvas:', aiSummaryCanvas);
     
     const maxImg1H = pageH - margin * 2;
@@ -13735,13 +13764,11 @@ function getOrCreateCanvas(id, width = 1200, height = 800) {
 
 // ✅ chart / summary 캔버스 강제 확보 + 2D context 안정화
 function ensureCanvasReady() {
-  const chartCanvas = getOrCreateCanvas("chartCanvas");
   const aiSummaryCanvas = getOrCreateCanvas("aiSummaryCanvas");
 
-  chartCanvas.getContext("2d", { willReadFrequently: true });
   aiSummaryCanvas.getContext("2d", { willReadFrequently: true });
 
-  return { chartCanvas, aiSummaryCanvas };
+  return { aiSummaryCanvas };
 }
 
 // ✅ PDF 생성 (터질 확률 0%에 도전한 버전) - 사용자 제공 간단 버전
@@ -13750,7 +13777,7 @@ async function exportAsPdfSimple() {
   try {
     console.log("🔥 PDF 생성 시작 (간단 버전)");
 
-    const { chartCanvas, aiSummaryCanvas } = ensureCanvasReady();
+    const { aiSummaryCanvas } = ensureCanvasReady();
 
     // 캔버스에 내용 없을 경우 안내 문구 자동 생성
     const ctx = aiSummaryCanvas.getContext("2d");
@@ -13759,7 +13786,6 @@ async function exportAsPdfSimple() {
     ctx.fillText("AI 분석 결과가 아직 없거나 표시되지 않음", 50, 120);
 
     // 이미지 변환
-    const img1 = chartCanvas.toDataURL("image/png");
     const img2 = aiSummaryCanvas.toDataURL("image/png");
 
     // jsPDF 생성
@@ -13772,13 +13798,15 @@ async function exportAsPdfSimple() {
       format: "a4"
     });
 
+    // ✅ 한글 폰트 등록
+    await registerKoreanFont(pdf);
+
     const pageWidth = pdf.internal.pageSize.getWidth();
     const imgWidth = pageWidth - 40;
 
-    // NotoSansKR 폰트 사용 (base64 JS 파일에서 자동 로드됨)
+    // NotoSansKR 폰트 사용
     pdf.setFont("NotoSansKR", "normal");
     pdfAddKoreanText(pdf, "📌 자세 분석 리포트", 20, 40, { fontSize: 16, fontStyle: 'bold' });
-    pdf.addImage(img1, "PNG", 20, 60, imgWidth, 220);
     pdf.addPage();
     pdfAddKoreanText(pdf, "📊 AI 분석 요약", 20, 40, { fontSize: 16, fontStyle: 'bold' });
     pdf.addImage(img2, "PNG", 20, 60, imgWidth, 220);
@@ -13798,15 +13826,17 @@ if (document.getElementById("downloadPdfBtn")) {
 }
 </script>
 
+<!-- 1. jsPDF -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://skyman200.github.io/posture-ai-kor/fonts/NotoSansKR-Regular-base64.js"></script>
-<script src="https://skyman200.github.io/posture-ai-kor/fonts/NotoSansKR-Bold-base64.js"></script>
+<!-- 2. 내가 올린 폰트 -->
+<script src="./fonts/NotoSansKR-Regular-normal.js"></script>
+<script src="./fonts/NotoSansKR-Bold-normal.js"></script>
+<!-- 3. 폰트 등록 실행 -->
 <script>
-  // 혹시 jspdf보다 먼저 로드되었을 경우 안전 등록
-  if (window._pdfFonts && window.jspdf?.API?.addFileToVFS) {
+  if (window._pdfFonts && window.jspdf?.jsPDF?.API) {
     window._pdfFonts.forEach(f => {
-      window.jspdf.API.addFileToVFS(f.ttfName, f.fontData);
-      window.jspdf.API.addFont(f.ttfName, f.family, f.style);
+      window.jspdf.jsPDF.API.addFileToVFS(f.ttfName, f.fontData);
+      window.jspdf.jsPDF.API.addFont(f.ttfName, f.family, f.style);
     });
   }
 </script>

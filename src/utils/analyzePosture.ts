@@ -7,6 +7,7 @@ import {
   ExerciseEntry,
   PostureMetricEntry,
 } from "./prescriptionData";
+import { loadCSV, CSVRow } from './csv';
 
 // ─────────────────────────────────────────────────────────────
 // 0) 타입 (any로 둬도 되지만 최소한의 안전망)
@@ -190,11 +191,26 @@ export function calcSAA(acromion?: Pt, thoraxRef?: Pt): number | null {
 
 async function loadMuscleDB(): Promise<MusclePattern[]> {
   try {
-    const res = await fetch('/db/Posture_Muscle_DB_Full.json');
-    if (!res.ok) throw new Error('Muscle DB load failed');
-    const data = await res.json();
-    // 배열이 아니면 배열로 변환 시도
-    return Array.isArray(data) ? data : Object.values(data);
+    const rows = await loadCSV('/db/posture_metrics_full.csv');
+    
+    return rows.map((row: CSVRow) => {
+      const tightMuscles = (row.Tight_Muscle || '')
+        .split(',')
+        .map(m => m.trim())
+        .filter(m => m.length > 0);
+      const weakMuscles = (row.Weak_Muscle || '')
+        .split(',')
+        .map(m => m.trim())
+        .filter(m => m.length > 0);
+      
+      return {
+        key: row.Metric_Code || '',
+        posture_ko: row.Metric_Name_KR || '',
+        pattern_name: `${row.Metric_Name_EN || ''} (${row.Deviation_Label || ''})`,
+        description: row.Recommended_Strategy || row.Notes || '',
+        muscles: [...tightMuscles, ...weakMuscles]
+      };
+    }).filter(m => m.key); // key가 있는 것만 반환
   } catch (err) {
     console.error('❌ Muscle DB 로드 실패:', err);
     return [];
@@ -203,10 +219,55 @@ async function loadMuscleDB(): Promise<MusclePattern[]> {
 
 async function loadPilatesDB(): Promise<PilatesExercise[]> {
   try {
-    const res = await fetch('/db/Pilates_Exercise_DB_1000_v2.json');
-    if (!res.ok) throw new Error('Pilates DB load failed');
-    const data = await res.json();
-    return Array.isArray(data) ? data : Object.values(data);
+    const csvFiles = [
+      '/db/Pilates_Barrel_22_Classical.csv',
+      '/db/Pilates_Cadillac_58_Classical.csv',
+      '/db/Pilates_Mat_34_Classical.csv',
+      '/db/Pilates_Reformer_42_Classical.csv',
+      '/db/Pilates_WundaChair_28_Classical.csv'
+    ];
+    
+    const allExercises: PilatesExercise[] = [];
+    let globalId = 1;
+    
+    for (const file of csvFiles) {
+      try {
+        const rows = await loadCSV(file);
+        
+        // 파일명에서 장비명 추출
+        const equipmentMatch = file.match(/Pilates_(\w+)_/);
+        const equipmentEn = equipmentMatch ? equipmentMatch[1] : 'Unknown';
+        const equipmentKoMap: Record<string, string> = {
+          'Barrel': '배럴',
+          'Cadillac': '캐딜락',
+          'Mat': '매트',
+          'Reformer': '리포머',
+          'WundaChair': '원다체어'
+        };
+        const equipmentKo = equipmentKoMap[equipmentEn] || equipmentEn;
+        
+        rows.forEach((row: CSVRow) => {
+          // posture_key는 나중에 매칭 로직에서 설정 (일단 빈 문자열)
+          allExercises.push({
+            id: globalId++,
+            posture_key: '', // 나중에 매칭 로직에서 설정
+            equipment_en: equipmentEn,
+            equipment_ko: equipmentKo,
+            name_en: row.Exercise_Name_EN || '',
+            name_ko: row.Exercise_Name_KR || '',
+            purpose: row['Main_Strengthen_Muscles (주요 강화 근육)'] || '',
+            how_to_do: row['How_to_Perform_Step_by_Step (상세 동작 설명)'] || '',
+            sets_reps: row.Reps || '',
+            cues: row['Breathing_Pattern'] || '',
+            contra: ''
+          });
+        });
+      } catch (fileErr) {
+        console.warn(`⚠️ ${file} 로드 실패:`, fileErr);
+      }
+    }
+    
+    return allExercises;
   } catch (err) {
     console.error('❌ Pilates DB 로드 실패:', err);
     return [];
