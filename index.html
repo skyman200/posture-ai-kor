@@ -660,10 +660,11 @@ window.handleFileUpload = window.handleFileUpload || function handleFileUpload(e
     alert("이미지를 불러올 수 없습니다. 파일 형식을 확인해주세요.");
   };
   
-  img.onload = async () => {
+    img.onload = async () => {
     targetSession[imgKey] = img;
     if(window.resizeCanvasFor) window.resizeCanvasFor(img);
     if(window.draw) window.draw();
+    if(window.computeMetricsOnly) window.computeMetricsOnly();
     
     // 포즈 분석 실행
     if(window.liveAnalyzer && window.liveAnalyzer.analyzeCurrentSession) {
