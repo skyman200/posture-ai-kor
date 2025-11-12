@@ -81,59 +81,110 @@ async function initializeApp() {
     const btnAfter = document.getElementById("btnAfter");
     const btnOrientationSide = document.getElementById("btnOrientationSide");
     const btnOrientationFront = document.getElementById("btnOrientationFront");
+    const btnReset = document.getElementById("btnReset");
+    const btnCalibrate = document.getElementById("btnCalibrate");
     
     const addClickHandler = (btn, handler) => {
       if (btn) {
-        btn.addEventListener('click', handler);
-        btn.addEventListener('touchstart', handler, { passive: true });
+        // 기존 이벤트 리스너가 있는지 확인하고 추가
+        // 중복 방지를 위해 once 옵션은 사용하지 않음 (여러 번 클릭 가능해야 함)
+        btn.addEventListener('click', handler, { passive: true });
+        btn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          handler(e);
+        }, { passive: false });
         console.log(`✅ ${btn.id} 직접 연결 완료`);
+        return btn;
       }
+      return null;
     };
     
-    if (btnBefore) addClickHandler(btnBefore, () => {
-      console.log("Before 버튼 클릭됨");
-      if (typeof window.switchSession === 'function') {
-        window.switchSession("Before");
-      }
-    });
+    if (btnBefore) {
+      const handler = () => {
+        console.log("Before 버튼 클릭됨");
+        if (typeof window.switchSession === 'function') {
+          window.switchSession("Before");
+        }
+      };
+      addClickHandler(btnBefore, handler);
+    }
     
-    if (btnAfter) addClickHandler(btnAfter, () => {
-      console.log("After 버튼 클릭됨");
-      if (typeof window.switchSession === 'function') {
-        window.switchSession("After");
-      }
-    });
+    if (btnAfter) {
+      const handler = () => {
+        console.log("After 버튼 클릭됨");
+        if (typeof window.switchSession === 'function') {
+          window.switchSession("After");
+        }
+      };
+      addClickHandler(btnAfter, handler);
+    }
     
-    if (btnOrientationSide) addClickHandler(btnOrientationSide, () => {
-      console.log("옆모습 버튼 클릭됨");
-      if (typeof window.setOrientation === 'function') {
-        window.setOrientation("side", { manual: true });
-      }
-    });
+    if (btnOrientationSide) {
+      const handler = () => {
+        console.log("옆모습 버튼 클릭됨");
+        if (typeof window.setOrientation === 'function') {
+          window.setOrientation("side", { manual: true });
+        }
+      };
+      addClickHandler(btnOrientationSide, handler);
+    }
     
-    if (btnOrientationFront) addClickHandler(btnOrientationFront, () => {
-      console.log("정면 버튼 클릭됨");
-      if (typeof window.setOrientation === 'function') {
-        window.setOrientation("front", { manual: true });
-      }
-    });
+    if (btnOrientationFront) {
+      const handler = () => {
+        console.log("정면 버튼 클릭됨");
+        if (typeof window.setOrientation === 'function') {
+          window.setOrientation("front", { manual: true });
+        }
+      };
+      addClickHandler(btnOrientationFront, handler);
+    }
+    
+    if (btnReset) {
+      const handler = () => {
+        console.log("Reset 버튼 클릭됨");
+        const orientation = window.sessions?.[window.cur || "Before"]?.poseData?.orientation || "side";
+        const currentSession = window.sessions?.[window.cur || "Before"];
+        if (!currentSession) return;
+        const currentPoints = orientation === "front" ? currentSession.frontPoints : currentSession.sidePoints;
+        if (currentPoints && currentPoints.clear) currentPoints.clear();
+        if (typeof window.draw === 'function') window.draw();
+        if (typeof window.computeMetricsOnly === 'function') window.computeMetricsOnly();
+      };
+      addClickHandler(btnReset, handler);
+    }
+    
+    if (btnCalibrate) {
+      const handler = () => {
+        console.log("캘리브레이션 버튼 클릭됨");
+        if (typeof window.setupCalibrateButton === 'function') {
+          // setupCalibrateButton이 이미 실행되었을 수 있으므로 직접 토글
+          const panel = document.getElementById("calibrationPanel");
+          if (panel) {
+            const isVisible = panel.style.display !== "none";
+            panel.style.display = isVisible ? "none" : "block";
+          }
+        }
+      };
+      addClickHandler(btnCalibrate, handler);
+    }
   };
   
   const tryInitSessionButtons = () => {
+    // 항상 직접 연결도 함께 실행 (이중 보호)
+    setupSessionButtonsDirectly();
+    
     if (typeof window.initSessionButtons === 'function') {
       try {
         window.initSessionButtons();
         console.log("✅ initSessionButtons 실행 완료");
       } catch (error) {
         console.error("❌ initSessionButtons 실행 실패:", error);
-        setupSessionButtonsDirectly();
       }
     } else if (retryCount2 < maxRetries2) {
       retryCount2++;
       setTimeout(tryInitSessionButtons, 100);
     } else {
-      console.error("❌ initSessionButtons 함수를 찾을 수 없습니다. 직접 연결 시도...");
-      setupSessionButtonsDirectly();
+      console.warn("⚠️ initSessionButtons 함수를 찾을 수 없지만 직접 연결은 완료됨");
     }
   };
   

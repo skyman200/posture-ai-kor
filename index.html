@@ -3233,7 +3233,7 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
   console.log("버튼 요소:", {btnBefore, btnAfter, btnOrientationSide, btnOrientationFront});
   
   if(btnBefore) {
-    addMobileTouchSupport(btnBefore, () => {
+    const handler = () => {
       console.log("Before 버튼 클릭됨");
       if (typeof window.switchSession === 'function') {
         window.switchSession("Before");
@@ -3242,13 +3242,17 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
       } else {
         console.error("switchSession 함수를 찾을 수 없습니다");
       }
-    });
+    };
+    btnBefore.addEventListener('click', handler);
+    if (typeof window.addMobileTouchSupport === 'function') {
+      window.addMobileTouchSupport(btnBefore, handler);
+    }
   } else {
     console.error("btnBefore를 찾을 수 없습니다");
   }
   
   if(btnAfter) {
-    addMobileTouchSupport(btnAfter, () => {
+    const handler = () => {
       console.log("After 버튼 클릭됨");
       if (typeof window.switchSession === 'function') {
         window.switchSession("After");
@@ -3257,13 +3261,17 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
       } else {
         console.error("switchSession 함수를 찾을 수 없습니다");
       }
-    });
+    };
+    btnAfter.addEventListener('click', handler);
+    if (typeof window.addMobileTouchSupport === 'function') {
+      window.addMobileTouchSupport(btnAfter, handler);
+    }
   } else {
     console.error("btnAfter를 찾을 수 없습니다");
   }
   
   if(btnOrientationSide) {
-    addMobileTouchSupport(btnOrientationSide, () => {
+    const handler = () => {
       console.log("옆모습 버튼 클릭됨");
       if (typeof window.setOrientation === 'function') {
         window.setOrientation("side", { manual: true });
@@ -3272,13 +3280,17 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
       } else {
         console.error("setOrientation 함수를 찾을 수 없습니다");
       }
-    });
+    };
+    btnOrientationSide.addEventListener('click', handler);
+    if (typeof window.addMobileTouchSupport === 'function') {
+      window.addMobileTouchSupport(btnOrientationSide, handler);
+    }
   } else {
     console.error("btnOrientationSide를 찾을 수 없습니다");
   }
   
   if(btnOrientationFront) {
-    addMobileTouchSupport(btnOrientationFront, () => {
+    const handler = () => {
       console.log("정면 버튼 클릭됨");
       if (typeof window.setOrientation === 'function') {
         window.setOrientation("front", { manual: true });
@@ -3287,7 +3299,11 @@ window.initSessionButtons = window.initSessionButtons || function initSessionBut
       } else {
         console.error("setOrientation 함수를 찾을 수 없습니다");
       }
-    });
+    };
+    btnOrientationFront.addEventListener('click', handler);
+    if (typeof window.addMobileTouchSupport === 'function') {
+      window.addMobileTouchSupport(btnOrientationFront, handler);
+    }
   } else {
     console.error("btnOrientationFront를 찾을 수 없습니다");
   }
@@ -7050,20 +7066,29 @@ if(document.readyState === 'loading') {
 }
 
 // Reset 버튼 (안전한 초기화)
-function setupResetButton() {
+window.setupResetButton = window.setupResetButton || function setupResetButton() {
   const btnReset = document.getElementById("btnReset");
   if(!btnReset) {
     console.warn("Reset 버튼을 찾을 수 없습니다.");
     return;
   }
-  addMobileTouchSupport(btnReset, () => {
-    const orientation = window.sessions?.[cur]?.poseData?.orientation || "side";
-    const currentPoints = orientation === "front" ? sessions[cur].frontPoints : sessions[cur].sidePoints;
-    currentPoints.clear();
-    draw();
-    computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
-  });
-}
+  const handler = () => {
+    const orientation = window.sessions?.[window.cur || cur]?.poseData?.orientation || "side";
+    const currentSession = window.sessions?.[window.cur || cur];
+    if (!currentSession) return;
+    const currentPoints = orientation === "front" ? currentSession.frontPoints : currentSession.sidePoints;
+    if (currentPoints && currentPoints.clear) currentPoints.clear();
+    if (typeof draw === 'function') draw();
+    if (typeof computeMetricsOnly === 'function') computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
+  };
+  // 일반 클릭 이벤트 추가
+  btnReset.addEventListener('click', handler);
+  // 모바일 터치 지원도 추가
+  if (typeof window.addMobileTouchSupport === 'function') {
+    window.addMobileTouchSupport(btnReset, handler);
+  }
+  console.log("✅ Reset 버튼 이벤트 연결 완료");
+};
 
 // DOM 준비 후 Reset 버튼 설정
 if(document.readyState === 'loading') {
@@ -7074,39 +7099,54 @@ if(document.readyState === 'loading') {
 
 // ✅ 캘리브레이션 기능
 let calibrationMode = false;
-function setupCalibrateButton() {
+window.setupCalibrateButton = window.setupCalibrateButton || function setupCalibrateButton() {
   const btnCalibrate = document.getElementById("btnCalibrate");
   if(!btnCalibrate) {
     console.warn("캘리브레이션 버튼을 찾을 수 없습니다.");
     return;
   }
-  addMobileTouchSupport(btnCalibrate, () => {
+  const handler = () => {
     calibrationMode = !calibrationMode;
     const panel = document.getElementById("calibrationPanel");
-    const S = window.sessions?.[cur];
+    const S = window.sessions?.[window.cur || cur];
+    const cv = document.getElementById("cv");
     
     if(calibrationMode) {
-      panel.style.display = "block";
+      if (panel) panel.style.display = "block";
       // 세션에 캘리브레이션 점 저장
-      S.calibrationPoint1 = null;
-      S.calibrationPoint2 = null;
-      document.getElementById("calPoint1").textContent = "클릭하여 선택";
-      document.getElementById("calPoint2").textContent = "클릭하여 선택";
-      document.getElementById("calibrationResult").textContent = "";
+      if (S) {
+        S.calibrationPoint1 = null;
+        S.calibrationPoint2 = null;
+      }
+      const calPoint1 = document.getElementById("calPoint1");
+      const calPoint2 = document.getElementById("calPoint2");
+      const calibrationResult = document.getElementById("calibrationResult");
+      if (calPoint1) calPoint1.textContent = "클릭하여 선택";
+      if (calPoint2) calPoint2.textContent = "클릭하여 선택";
+      if (calibrationResult) calibrationResult.textContent = "";
       // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
-      cv.style.cursor = "crosshair";
-      draw(); // 초기화
+      if (cv) cv.style.cursor = "crosshair";
+      if (typeof draw === 'function') draw(); // 초기화
     } else {
-      panel.style.display = "none";
-      cv.style.cursor = "default";
+      if (panel) panel.style.display = "none";
+      if (cv) cv.style.cursor = "default";
       calibrationMode = false;
       // 캘리브레이션 점 초기화
-      S.calibrationPoint1 = null;
-      S.calibrationPoint2 = null;
-      draw();
+      if (S) {
+        S.calibrationPoint1 = null;
+        S.calibrationPoint2 = null;
+      }
+      if (typeof draw === 'function') draw();
     }
-  });
-}
+  };
+  // 일반 클릭 이벤트 추가
+  btnCalibrate.addEventListener('click', handler);
+  // 모바일 터치 지원도 추가
+  if (typeof window.addMobileTouchSupport === 'function') {
+    window.addMobileTouchSupport(btnCalibrate, handler);
+  }
+  console.log("✅ 캘리브레이션 버튼 이벤트 연결 완료");
+};
 
 // DOM 준비 후 캘리브레이션 버튼 설정
 if(document.readyState === 'loading') {
@@ -7160,53 +7200,69 @@ cv.addEventListener('click', (e) => {
 }, true); // capture phase에서 먼저 처리
 
 // 캘리브레이션 관련 버튼들 초기화
-function setupCalibrationButtons() {
+window.setupCalibrationButtons = window.setupCalibrationButtons || function setupCalibrationButtons() {
   const btnConfirm = document.getElementById("btnCalibrateConfirm");
   const btnCancel = document.getElementById("btnCalibrateCancel");
   const btnSaveJSON = document.getElementById("btnSaveJSON");
   const btnLoadJSON = document.getElementById("btnLoadJSON");
   
   if(btnConfirm) {
-    addMobileTouchSupport(btnConfirm, () => {
-      const S = window.sessions?.[cur];
-      if(!S.calibrationPoint1 || !S.calibrationPoint2) {
+    const handler = () => {
+      const S = window.sessions?.[window.cur || cur];
+      if(!S || !S.calibrationPoint1 || !S.calibrationPoint2) {
         alert("두 점을 모두 선택해주세요.");
         return;
       }
       
-      const realLengthCm = parseFloat(document.getElementById("calibrationLength").value);
+      const realLengthCm = parseFloat(document.getElementById("calibrationLength")?.value || 0);
       if(!realLengthCm || realLengthCm <= 0) {
         alert("실제 길이(cm)를 올바르게 입력해주세요.");
         return;
       }
       
       try {
-        const pxPerCm = calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
-        S.pxPerCm = pxPerCm;
-        document.getElementById("calibrationResult").textContent = 
-          `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
-        document.getElementById("calibrationResult").style.color = "#2ec4b6";
-        
-        // 메트릭 재계산
-        computeMetricsOnly();
-        
-        console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
+        if (typeof calibratePxPerCm === 'function') {
+          const pxPerCm = calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
+          S.pxPerCm = pxPerCm;
+          const calibrationResult = document.getElementById("calibrationResult");
+          if (calibrationResult) {
+            calibrationResult.textContent = `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+            calibrationResult.style.color = "#2ec4b6";
+          }
+          
+          // 메트릭 재계산
+          if (typeof computeMetricsOnly === 'function') computeMetricsOnly();
+          
+          console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
+        }
       } catch(err) {
         alert("캘리브레이션 오류: " + err.message);
       }
-    });
+    };
+    btnConfirm.addEventListener('click', handler);
+    if (typeof window.addMobileTouchSupport === 'function') {
+      window.addMobileTouchSupport(btnConfirm, handler);
+    }
   }
   
   if(btnCancel) {
-    addMobileTouchSupport(btnCancel, () => {
+    const handler = () => {
       calibrationMode = false;
-      document.getElementById("calibrationPanel").style.display = "none";
-      const S = window.sessions?.[cur];
-      S.calibrationPoint1 = null;
-      S.calibrationPoint2 = null;
-      cv.style.cursor = "default";
-      draw();
-    });
+      const panel = document.getElementById("calibrationPanel");
+      const cv = document.getElementById("cv");
+      const S = window.sessions?.[window.cur || cur];
+      if (panel) panel.style.display = "none";
+      if (S) {
+        S.calibrationPoint1 = null;
+        S.calibrationPoint2 = null;
+      }
+      if (cv) cv.style.cursor = "default";
+      if (typeof draw === 'function') draw();
+    };
+    btnCancel.addEventListener('click', handler);
+    if (typeof window.addMobileTouchSupport === 'function') {
+      window.addMobileTouchSupport(btnCancel, handler);
+    }
   }
   
   if(btnSaveJSON) {
@@ -7260,7 +7316,7 @@ function setupCalibrationButtons() {
       inp.click();
     };
   }
-}
+};
 
 // DOM 준비 후 캘리브레이션 관련 버튼들 설정
 if(document.readyState === 'loading') {
