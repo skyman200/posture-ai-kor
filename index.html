@@ -8712,17 +8712,17 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
       <div style="font-size:12px; font-weight:600; margin-bottom:8px;">📐 포즈 분석 오버레이 (스켈레톤)</div>
       <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
         ${sideSkeletonImg ? `
-        <div style="flex:1; min-width:280px; max-width:400px;">
-          <div style="text-align:center;">
-            <img src="${sideSkeletonImg}" style="width:100%; height:auto; border-radius:10px; border:2px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+        <div style="flex:1; min-width:280px; max-width:500px;">
+          <div style="text-align:center; padding:15px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <img src="${sideSkeletonImg}" style="width:100%; height:auto; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; max-height:600px;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
         ` : ''}
         ${frontSkeletonImg ? `
-        <div style="flex:1; min-width:280px; max-width:400px;">
-          <div style="text-align:center;">
-            <img src="${frontSkeletonImg}" style="width:100%; height:auto; border-radius:10px; border:2px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+        <div style="flex:1; min-width:280px; max-width:500px;">
+          <div style="text-align:center; padding:15px; background:#fff; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <img src="${frontSkeletonImg}" style="width:100%; height:auto; border-radius:8px; display:block; object-fit:contain; image-rendering:high-quality; max-height:600px;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색 점선(Before) | 주황색 실선(After)</div>
           </div>
         </div>
