@@ -2,6 +2,49 @@
 // jsPDF만 사용 (모바일 저장 호환) – html2canvas 없이 캔버스/이미지 직접 삽입도 가능
 
 /**
+ * pdfMake docDefinition 안에서 { pageBreak: 'after' } 같은 애들 다 잡아서 안전하게 바꿔주는 함수
+ * @param {any} node - pdfMake docDefinition 또는 그 일부
+ */
+function sanitizePdfDoc(node) {
+  if (!node) return;
+
+  // 배열이면 내부 요소들 재귀
+  if (Array.isArray(node)) {
+    node.forEach(sanitizePdfDoc);
+    return;
+  }
+
+  // 객체가 아니면 패스
+  if (typeof node !== 'object') return;
+
+  // (1) { pageBreak: 'after' } 같은 순수 pageBreak 객체 → 더미 text 추가
+  const keys = Object.keys(node);
+  if (keys.length === 1 && keys[0] === 'pageBreak') {
+    node.text = ' ';         // 여기서 한 줄짜리 공백 텍스트 넣어주면 pdfMake 인정함
+    return;
+  }
+
+  // (2) content / stack / columns 재귀
+  if (Array.isArray(node.content)) sanitizePdfDoc(node.content);
+  if (Array.isArray(node.stack)) sanitizePdfDoc(node.stack);
+  if (Array.isArray(node.columns)) sanitizePdfDoc(node.columns);
+
+  // (3) table.body (2차원 배열) 재귀
+  if (node.table && Array.isArray(node.table.body)) {
+    node.table.body.forEach(row => sanitizePdfDoc(row));
+  }
+
+  // (4) header/footer 안에 content가 배열로 있을 수도 있음
+  if (Array.isArray(node.header)) sanitizePdfDoc(node.header);
+  if (Array.isArray(node.footer)) sanitizePdfDoc(node.footer);
+}
+
+// 전역으로도 노출 (index.html 등에서 사용 가능)
+if (typeof window !== 'undefined') {
+  window.sanitizePdfDoc = sanitizePdfDoc;
+}
+
+/**
  * 모바일 감지 함수
  */
 function isMobileDevice() {
