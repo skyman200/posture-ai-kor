@@ -3387,13 +3387,13 @@ function ensureDefaultPoints(session) {
       R_acromion: {x:W*0.7, y:H*0.3},
       L_asis: {x:W*0.35, y:H*0.5},
       R_asis: {x:W*0.65, y:H*0.5},
-      L_knee: {x:W*0.4, y:H*0.22},  // 무릎 위치 3배 올리기 (0.65 → 0.22)
-      R_knee: {x:W*0.6, y:H*0.22},  // 무릎 위치 3배 올리기 (0.65 → 0.22)
-      L_ankle: {x:W*0.4, y:H*0.28},  // 발목 위치 3배 올리기 (0.85 → 0.28)
-      R_ankle: {x:W*0.6, y:H*0.28},  // 발목 위치 3배 올리기 (0.85 → 0.28)
+      L_knee: {x:W*0.4, y:H*0.11},  // ✅ 무릎 위치 50% 올리기 (0.22 → 0.11)
+      R_knee: {x:W*0.6, y:H*0.11},  // ✅ 무릎 위치 50% 올리기 (0.22 → 0.11)
+      L_ankle: {x:W*0.4, y:H*0.14},  // ✅ 발목 위치 50% 올리기 (0.28 → 0.14)
+      R_ankle: {x:W*0.6, y:H*0.14},  // ✅ 발목 위치 50% 올리기 (0.28 → 0.14)
       // Q-angle 측정용 dot (ASIS-KNEE-Tibial tub 사용)
-      L_tibial_tub: {x:W*0.4, y:H*0.23},  // 좌측 경골 결절 (무릎 아래 약간, 0.68 → 0.23)
-      R_tibial_tub: {x:W*0.6, y:H*0.23},  // 우측 경골 결절 (무릎 아래 약간, 0.68 → 0.23)
+      L_tibial_tub: {x:W*0.4, y:H*0.115},  // ✅ 좌측 경골 결절 50% 올리기 (0.23 → 0.115)
+      R_tibial_tub: {x:W*0.6, y:H*0.115},  // ✅ 우측 경골 결절 50% 올리기 (0.23 → 0.115)
     } : {
       tragus: {x:W*0.35, y:H*0.3},
       c7: {x:W*0.3, y:H*0.35},
@@ -3826,8 +3826,57 @@ function computeAll() {
   // ✅ 정면 분석만 있을 때는 정면 메트릭만, 측면 분석만 있을 때는 측면 메트릭만 사용
   let mergedMetrics = {};
   
-  // 측면 분석 결과가 있으면 기존 방식으로도 저장
-  if(sideMetrics.status !== "not_available") {
+  // ✅ 정면 분석만 있는 경우를 먼저 체크 (측면 분석 후 정면 분석 시 정면만 사용)
+  if(frontMetrics.status !== "not_available" && sideMetrics.status === "not_available") {
+    // 정면 분석만 있는 경우 - 정면 메트릭만 사용
+    mergedMetrics = { ...frontMetrics };
+    
+    S.metrics = { 
+      fullMetrics: mergedMetrics,  // 정면 분석 결과만
+      orientation: "front",
+      frontMetrics: frontMetrics
+    };
+    window.fullMetrics = mergedMetrics;
+    
+    // 정면 분석 점수 계산 (정면 메트릭만 사용)
+    const scoreData = computeScoreFromFullMetrics(mergedMetrics);
+    S.score = scoreData;
+    
+    // ✅ 정면 분석 전에 이전 분석 결과 초기화
+    S.analysis = null;
+    
+    // 정면 분석에 대한 DB 기반 분석 실행 (정면 메트릭만 전달)
+    analyzeMusclesWithDB(mergedMetrics, "front").then(analysis => {
+      S.analysis = {
+        ...analysis,
+        fullMetrics: mergedMetrics,
+        orientation: "front"
+      };
+      updateDisplay();
+      updateCompare();
+      displayFrontAnalysis(frontMetrics);
+      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
+      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+    }).catch(err => {
+      console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
+      S.analysis = { 
+        fullMetrics: mergedMetrics,
+        orientation: "front",
+        comments: [],
+        details: [],
+        exercises: []
+      };
+      updateDisplay();
+      updateCompare();
+      displayFrontAnalysis(frontMetrics);
+      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+    });
+    
+    // 골반 분석 자동 실행 (정면 분석만 있는 경우에도 시도)
+    analyzePelvicTiltAuto();
+    
+  } else if(sideMetrics.status !== "not_available") {
+    // 측면 분석 결과가 있으면 기존 방식으로도 저장
     // 측면 분석 결과 통합
     mergedMetrics = { ...sideMetrics };
     
@@ -10140,37 +10189,35 @@ if (isMobile) {
 // 기존 페이지 5, 6 코드는 위에서 새로운 페이지 5, 6, 7로 대체됨
 
 
+  const textData = {
+    comparison,
+    analysis,
+    dbAnalysis,
+    scoreResult,
+    planTexts,
+    pilatesHtml,
+    deepAnalysisText,
+    beforeAfterSummaryHtml,
+    fullPlanHtml,
+    combinedMetrics,
+    afterMetricsForDB,
+    memberNameForPDF1
+  };
+
   return {
-    canvases: {
-      cover: canvas1,
-      sideImage: sideImageCanvas || null, // 측면 사진
-      sideReport: sideReportCanvas || null, // 측면 리포트
-      frontImage: frontImageCanvas || null, // 정면 사진
-      frontReport: frontReportCanvas || null, // 정면 리포트
-      combinedReport: combinedReportCanvas || null, // 종합 리포트 (측면+정면)
-      heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
-      metrics: canvas3 || null, // 수치표 + 변화 그래프 페이지
-      chartCanvas: chartCanvas?.chartInstance?.canvas || null, // 그래프만 캡처
-      aiSummary: canvas4 || null, // AI 해석 요약 페이지 (종합 리포트로 대체)
-      pilates: canvas5 || null, // 필라테스 추천 페이지
-      aiDeep: canvas6 || null, // AI 심층 분석 페이지
-      postureType: canvas8 || null, // 체형 유형 분석 페이지
-      conclusion: canvas7 || null // 최종 분석 & 전략 페이지
-    },
-    textData: {
-      comparison,
-      analysis,
-      dbAnalysis,
-      scoreResult,
-      planTexts,
-      pilatesHtml,
-      deepAnalysisText,
-      beforeAfterSummaryHtml,
-      fullPlanHtml,
-      combinedMetrics,
-      afterMetricsForDB,
-      memberNameForPDF1
-    },
+    captureList: [
+      { id: "page1Container", addPageAfter: true },
+      { id: "sideImageContainer", addPageAfter: true },
+      { id: "sideReportContainer", addPageAfter: true },
+      { id: "frontImageContainer", addPageAfter: true },
+      { id: "frontReportContainer", addPageAfter: true },
+      { id: "page4Container", addPageAfter: true },
+      { id: "page5Container", addPageAfter: true },
+      { id: "page6Container", addPageAfter: true },
+      { id: "page8Container", addPageAfter: true },
+      { id: "page7Container", addPageAfter: false }
+    ],
+    textData,
     includeHeatmapPage,
     totalPages,
     pageIndexMap
@@ -12060,578 +12107,123 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
 }
 
 // ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
-function exportAsPdf(options = {}) {
+async function exportAsPdf(options = {}) {
   const {
-    fileName = null, // null이면 자동 생성
-    userName = localStorage.getItem('userName') || '사용자',
-    centerName = localStorage.getItem('centerName') || null,
-    memberName = localStorage.getItem('memberName') || null,
+    fileName = null,
+    centerName = localStorage.getItem('centerName'),
+    memberName = localStorage.getItem('memberName'),
     appName = 'DIT 자세 분석 AI',
     logoUrl = null
   } = options;
-  
-  // 파일명 자동 생성 (센터명/회원명 우선)
-  let finalFileName = fileName;
-  if(!finalFileName) {
-    if(centerName && memberName) {
-      finalFileName = `${centerName}_${memberName}_자세분석리포트_${new Date().toISOString().split('T')[0]}.pdf`;
+
+  // 파일명 자동 생성
+  let finalName = fileName;
+  if (!finalName) {
+    if (centerName && memberName) {
+      finalName = `${centerName}_${memberName}_자세분석리포트_${new Date().toISOString().split('T')[0]}.pdf`;
     } else {
-      finalFileName = `DIT_자세_분석_리포트_${cur}_${new Date().toISOString().split('T')[0]}.pdf`;
+      finalName = `DIT_자세_분석_${Date.now()}.pdf`;
     }
   }
-  
-  return new Promise(async (resolve, reject) => {
-    try {
-      console.log("🔍 PDF 생성 시작 - 라이브러리 확인 중...");
-      
-      // 라이브러리 확인
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        console.error("❌ jsPDF 라이브러리 없음:", { jspdf: window.jspdf });
-        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
-      }
-      if (typeof html2canvas === 'undefined') {
-        console.error("❌ html2canvas 라이브러리 없음");
-        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
-      }
-      
-      console.log("✅ 라이브러리 확인 완료");
-      
-      const { jsPDF } = window.jspdf;
-      const {
-        canvases,
-        textData,
-        includeHeatmapPage,
-        totalPages,
-        pageIndexMap
-      } = await captureReportCanvases({
-        centerName,
-        memberName,
-        appName,
-        logoUrl
-      });
-      
-    // PDF 생성 (마진 24px = 약 0.6cm, 폰트 안전화)
-    const pdf = new jsPDF({orientation:"portrait", unit:"px", format:"a4"});
-    // 폰트 안전화: helvetica만 사용 (폰트 오류 방지)
-    try {
-      pdf.setFont('helvetica', 'normal');
-    } catch(err) {
-      console.warn('폰트 설정 실패, 기본 폰트 사용:', err);
-    }
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 24; // Dart 코드의 margin: EdgeInsets.all(24)와 동일
-    const imgW = pageW - (margin * 2);
-    
-    const coverCanvas = canvases.cover;
-    const sideImageCanvas = canvases.sideImage; // 측면 사진
-    const sideReportCanvas = canvases.sideReport; // 측면 리포트
-    const frontImageCanvas = canvases.frontImage; // 정면 사진
-    const frontReportCanvas = canvases.frontReport; // 정면 리포트
-    const combinedReportCanvas = canvases.combinedReport; // 종합 리포트
-    const heatmapCanvas = canvases.heatmap;
-    const chartCanvasElement = canvases.chartCanvas;
-    const aiSummaryCanvas = canvases.aiSummary; // AI 해석 요약 캔버스 (종합 리포트로 대체)
-    const pilatesCanvas = canvases.pilates; // 필라테스 추천 캔버스
-    const aiDeepCanvas = canvases.aiDeep; // AI 심층 분석 캔버스
-    const postureTypeCanvas = canvases.postureType; // 체형 유형 분석 캔버스
-    const conclusionCanvas = canvases.conclusion; // 최종 분석 & 전략 캔버스
-    
-    // 텍스트 데이터
-    const { comparison, analysis, dbAnalysis, scoreResult, planTexts, pilatesHtml, deepAnalysisText, beforeAfterSummaryHtml, fullPlanHtml, combinedMetrics, afterMetricsForDB, memberNameForPDF1 } = textData || {};
-    
-    console.log('📊 comparison:', comparison);
-    console.log('📊 analysis:', analysis);
-    console.log('📊 chartCanvas:', chartCanvasElement);
-    console.log('📊 aiSummaryCanvas:', aiSummaryCanvas);
-    
-    const maxImg1H = pageH - margin * 2;
-    
-    // 페이지 추가 함수
-    const addPageToPdf = (canvas) => {
-      if (!canvas) return;
-      const maxImgH = pageH - margin * 2;
-      const targetWidth = Math.min(imgW, canvas.width);
-      const scaleRatio = targetWidth / canvas.width;
-      const pageHeightPx = Math.max(160, Math.floor(maxImgH / (scaleRatio || 1)));
-      const overlapPx = Math.max(pageHeightPx * 0.45, 220);
 
-      const renderSlice = (sliceCanvas) => {
-        if (!sliceCanvas || sliceCanvas.width === 0 || sliceCanvas.height === 0) return;
-        
-        try {
-          // ✅ JPEG 압축 사용 (메모리 절약)
-          const imageData = sliceCanvas.toDataURL("image/jpeg", 0.85);
-          const canvasAspectRatio = sliceCanvas.width / sliceCanvas.height;
-          
-          // 너비 기준으로 높이 계산 (원본 비율 유지)
-          let finalRenderWidth = Math.min(imgW, sliceCanvas.width);
-          let finalRenderHeight = finalRenderWidth / canvasAspectRatio;
-          
-          // 높이가 페이지를 넘으면 높이 기준으로 재계산
-          if (finalRenderHeight > maxImgH) {
-            finalRenderHeight = maxImgH;
-            finalRenderWidth = finalRenderHeight * canvasAspectRatio;
-          }
-          
-          const finalPageX = margin + (imgW - finalRenderWidth) / 2;
-          
-        pdf.addPage();
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, pageW, pageH, "F");
-        pdf.addImage(
-            imageData,
-          "JPEG",  // ✅ PNG 대신 JPEG 사용
-            finalPageX,
-          margin,
-            finalRenderWidth,
-            finalRenderHeight,
-          undefined,
-          'FAST'  // ✅ 압축 모드 지정
-        );
-        } catch (err) {
-          console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
-        }
-      };
+  // 캡쳐 리스트만 가져옴 (캔버스 생성 안함)
+  const { captureList } = await captureReportCanvases({
+    centerName,
+    memberName,
+    appName,
+    logoUrl
+  });
 
-      if (canvas.height <= pageHeightPx) {
-        renderSlice(canvas);
-        return;
+  // Worker 생성
+  const worker = new Worker('./pdfWorker.js');
+
+  function send(msg) {
+    worker.postMessage(msg);
+  }
+
+  const pdfPromise = new Promise((resolve, reject) => {
+    worker.onmessage = function (e) {
+      const msg = e.data;
+
+      if (msg.type === 'pdfReady') {
+        const blob = new Blob([msg.buffer], { type: 'application/pdf' });
+        resolve(blob);
+        worker.terminate();
       }
 
-      let offsetY = 0;
-      while (offsetY < canvas.height) {
-        const remaining = canvas.height - offsetY;
-        const currentHeight = Math.min(pageHeightPx, remaining);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = currentHeight;
-        const ctx = sliceCanvas.getContext("2d");
-        ctx.drawImage(
-          canvas,
-          0,
-          offsetY,
-          canvas.width,
-          currentHeight,
-          0,
-          0,
-          canvas.width,
-          currentHeight
-        );
-        renderSlice(sliceCanvas);
-
-        if (offsetY + currentHeight >= canvas.height) {
-          break;
-        }
-        const advance = Math.max(1, currentHeight - overlapPx);
-        offsetY += advance;
+      if (msg.type === 'error') {
+        reject(msg.message);
+        worker.terminate();
       }
     };
-    
-    // 페이지 1: 측면 사진
-    if (sideImageCanvas) {
-      addPageToPdf(sideImageCanvas);
-    }
-    
-    // 페이지 2: 측면 리포트
-    if (sideReportCanvas) {
-      addPageToPdf(sideReportCanvas);
-    }
-    
-    // 페이지 3: 정면 사진
-    if (frontImageCanvas) {
-      addPageToPdf(frontImageCanvas);
-    }
-    
-    // 페이지 4: 정면 리포트
-    if (frontReportCanvas) {
-      addPageToPdf(frontReportCanvas);
-    }
-    
-    // 페이지 5: 종합 리포트 (측면+정면 종합 자세 분석 리포트 및 종합점수)
-    if (combinedReportCanvas) {
-      addPageToPdf(combinedReportCanvas);
-    }
-    
-    // 페이지 6: 필라테스 세션 추천
-    if (pilatesCanvas) {
-      addPageToPdf(pilatesCanvas);
-    }
-    
-    // 페이지 7: AI 자세 심층 분석
-    if (aiDeepCanvas) {
-      addPageToPdf(aiDeepCanvas);
-    }
-    
-    // 페이지 8: 종합적 체형 유형 분석
-    if (postureTypeCanvas) {
-      addPageToPdf(postureTypeCanvas);
-    }
-    
-    // 페이지 9: 최종 분석 & 전략
-    if (conclusionCanvas) {
-      addPageToPdf(conclusionCanvas);
-    }
-    
-    // 기존 페이지들 (사용 안함, 주석 처리)
-    /*
-    // 페이지 2: Heatmap (있으면)
-    if (includeHeatmapPage && heatmapCanvas) {
-      addPageToPdf(heatmapCanvas);
-    }
-    
-    // 페이지 3: 수치표 + 변화 그래프 (텍스트로 작성)
-    if (comparison && comparison.results && comparison.results.length > 0) {
-      pdf.addPage();
-      let y = margin + 10;
-      
-      // 제목
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('수치표 + 변화 그래프', margin, y);
-      y += 30;
-      
-      // 수치표 헤더
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('항목', margin, y);
-      pdf.text('Before', margin + 150, y);
-      pdf.text('After', margin + 220, y);
-      pdf.text('변화', margin + 280, y);
-      pdf.text('분석', margin + 350, y);
-      y += 5;
-      
-      // 구분선
-      pdf.setLineWidth(0.5);
-      pdf.line(margin, y, pageW - margin, y);
-      y += 10;
-      
-      // 데이터 행
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      
-      comparison.results.forEach((item, idx) => {
-        if (y > pageH - 100) { // 페이지 넘김
-          pdf.addPage();
-          y = margin + 20;
-        }
-        
-        const statusColor = item.status === 'improved' ? [46, 204, 113] : 
-                           item.status === 'worsened' ? [231, 76, 60] : [100, 100, 100];
-        const deltaStr = (item.delta >= 0 ? '+' : '') + item.delta.toFixed(1);
-        
-        // 배경색 (홀수/짝수)
-        if (idx % 2 === 1) {
-          pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, y - 8, pageW - margin * 2, 15, 'F');
-        }
-        
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(item.name, margin, y);
-        pdf.text(item.before.toFixed(1) + item.unit, margin + 150, y);
-        pdf.text(item.after.toFixed(1) + item.unit, margin + 220, y);
-        
-        pdf.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-        pdf.text(deltaStr + item.unit, margin + 280, y);
-        
-        pdf.setTextColor(80, 80, 80);
-        const commentLines = pdf.splitTextToSize(item.comment, 180);
-        pdf.text(commentLines, margin + 350, y);
-        
-        y += Math.max(15, commentLines.length * 12);
-      });
-      
-      // 그래프 이미지 추가 (유효성 검사 강화)
-      if (chartCanvasElement && chartCanvasElement.width > 0 && chartCanvasElement.height > 0) {
-        y += 20;
-        if (y > pageH - 300) {
-          pdf.addPage();
-          y = margin + 20;
-        }
-        
-        try {
-          // 차트가 완전히 렌더링될 때까지 대기
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
-          if (chartImageData && chartImageData !== 'data:,' && chartImageData.length > 100) {
-            const chartW = Math.min(imgW, 700);
-            const chartH = (chartCanvasElement.height / chartCanvasElement.width) * chartW;
-            const chartX = margin + (imgW - chartW) / 2;
-            
-            pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, 300));
-            y += Math.min(chartH, 300) + 20;
-          } else {
-            console.warn('차트 이미지 데이터가 유효하지 않습니다.');
-          }
-        } catch (err) {
-          console.warn('차트 이미지 추가 실패:', err);
-        }
-      } else {
-        console.warn('차트 캔버스가 유효하지 않습니다 (width:', chartCanvasElement?.width, 'height:', chartCanvasElement?.height, ')');
-      }
-      
-      // 전체 변화 요약
-      if (comparison.summary && comparison.summary.overallComment) {
-        if (y > pageH - 80) {
-          pdf.addPage();
-          y = margin + 20;
-        }
-        
-        pdf.setFillColor(232, 245, 233);
-        pdf.roundedRect(margin, y, imgW, 60, 3, 3, 'F');
-        pdf.setTextColor(46, 204, 113);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(11);
-        pdf.text('전체 변화 요약', margin + 10, y + 15);
-        
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        pdf.setTextColor(50, 50, 50);
-        const summaryLines = pdf.splitTextToSize(comparison.summary.overallComment, imgW - 20);
-        pdf.text(summaryLines, margin + 10, y + 30);
-      }
-      
-      // 페이지 번호
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      const metricsPageNum = pageIndexMap.metrics || 2;
-      pdf.text(`Page ${metricsPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
-    }
-    
-    // 페이지 4: AI 해석 요약 (기존 canvas 사용) - 주석 처리
-    // if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas);
-    
-    // 페이지 5: 필라테스 추천 (canvas 사용 - 한글 깨짐 방지) - 주석 처리
-    // if (pilatesCanvas) {
-    //   addPageToPdf(pilatesCanvas);
-    // } else if (analysis && analysis.pilates && analysis.pilates.length > 0) {
-    //   pdf.addPage();
-    //   let y = margin + 10;
-    //   pdf.setFontSize(20);
-    //   pdf.setFont('helvetica', 'bold');
-    //   pdf.setTextColor(0, 0, 0);
-    //   pdf.text('Pilates Exercise Recommendations', margin, y);
-    //   y += 30;
-    //   pdf.setFont('helvetica', 'normal');
-    //   pdf.setFontSize(9);
-    //   pdf.setTextColor(50, 50, 50);
-    //   pdf.text('Pilates recommendations are available in the canvas version.', margin, y);
-    // }
-    
-    // 페이지 6: AI 심층 분석 (canvas 사용 - 한글 깨짐 방지) - 주석 처리
-    // if (aiDeepCanvas) {
-    //   addPageToPdf(aiDeepCanvas);
-    //   if (chartCanvasElement && chartCanvasElement.width > 0 && chartCanvasElement.height > 0) {
-    //     pdf.addPage();
-    //     let y = margin + 10;
-    //     try {
-    //       await new Promise(resolve => setTimeout(resolve, 500));
-    //       pdf.setFont('helvetica', 'bold');
-    //       pdf.setFontSize(16);
-    //       pdf.setTextColor(0, 0, 0);
-    //       pdf.text('Before-After Comparison Graph', margin, y);
-    //       y += 25;
-    //       const chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
-    //       if (chartImageData && chartImageData !== 'data:,' && chartImageData.length > 100) {
-    //         const chartW = Math.min(imgW, 700);
-    //         const chartH = (chartCanvasElement.height / chartCanvasElement.width) * chartW;
-    //         const chartX = margin + (imgW - chartW) / 2;
-    //         pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, pageH - y - 40));
-    //       }
-    //     } catch (err) {
-    //       console.warn('차트 이미지 추가 실패:', err);
-    //     }
-    //     pdf.setFontSize(8);
-    //     pdf.setTextColor(150, 150, 150);
-    //     const graphPageNum = (pageIndexMap.aiDeep || 5) + 1;
-    //     pdf.text(`Page ${graphPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
-    //   }
-    // } else if (deepAnalysisText) {
-    //   pdf.addPage();
-    //   let y = margin + 10;
-    //   pdf.setFontSize(20);
-    //   pdf.setFont('helvetica', 'bold');
-    //   pdf.setTextColor(0, 0, 0);
-    //   pdf.text('AI Posture Deep Analysis', margin, y);
-    //   y += 30;
-    //   pdf.setFont('helvetica', 'normal');
-    //   pdf.setFontSize(9);
-    //   pdf.setTextColor(50, 50, 50);
-    //   pdf.text('Deep analysis content is available in the canvas version.', margin, y);
-    // }
-    
-    // 페이지 7: 체형 유형 분석 (canvas 사용 - 한글 깨짐 방지) - 주석 처리
-    // if (postureTypeCanvas) {
-    //   addPageToPdf(postureTypeCanvas);
-    // }
-    
-    // 페이지 8: 결론 - 주석 처리
-    // if (conclusionCanvas) addPageToPdf(conclusionCanvas);
-    */
-    
-    // PDF 다운로드 (모바일 안정화)
-    let pdfSaved = false;
-    const isMobile = isMobileDevice();
-    
-    try {
-      // 모바일에서는 직접 save 메서드 우선 사용 (가장 안정적)
-      if (isMobile) {
-        try {
-          // 작은 지연으로 UI 블로킹 방지 및 메모리 정리
-          await new Promise(resolve => setTimeout(resolve, 300));
-          pdf.save(finalFileName);
-          console.log('✅ PDF 저장 성공 (직접 save)');
-          pdfSaved = true;
-        } catch (saveErr) {
-          console.warn('⚠️ 직접 save 실패:', saveErr);
-          // 폴백으로 진행
-        }
-      }
-      
-      // Blob 방식 (데스크톱 또는 직접 save 실패 시)
-      if (!pdfSaved) {
-        let pdfBlob;
-        try {
-          // 모바일에서 메모리 절약을 위해 추가 지연
-          if (isMobile) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-          
-          pdfBlob = pdf.output('blob');
-          if (!pdfBlob || pdfBlob.size === 0) {
-            throw new Error('PDF Blob 생성 실패');
-          }
-          
-          // 모바일에서 Blob 크기가 너무 크면 경고
-          if (isMobile && pdfBlob.size > 50 * 1024 * 1024) { // 50MB
-            console.warn('⚠️ PDF 크기가 큽니다:', (pdfBlob.size / 1024 / 1024).toFixed(2), 'MB');
-          }
-        } catch (blobErr) {
-          console.error('❌ Blob 생성 실패:', blobErr);
-          
-          // 모바일에서는 data URI 방식 시도 (더 안정적)
-          if (isMobile) {
-          try {
-              await new Promise(resolve => setTimeout(resolve, 200));
-            const dataUri = pdf.output('datauristring');
-            const link = document.createElement('a');
-            link.href = dataUri;
-            link.download = finalFileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-              
-              // 모바일에서 더 긴 지연 후 클릭
-              await new Promise(resolve => setTimeout(resolve, 300));
-            requestAnimationFrame(() => {
-                try {
-                  link.click();
-                } catch (e) {
-                  const clickEvent = new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                  });
-                  link.dispatchEvent(clickEvent);
-                }
-                setTimeout(() => {
-                  if (document.body.contains(link)) {
-                    document.body.removeChild(link);
-                  }
-                }, 2000);
-              });
-              pdfSaved = true;
-            } catch (finalErr) {
-              console.error('❌ Data URI 방식도 실패:', finalErr);
-              throw new Error('PDF 저장에 실패했습니다: ' + (finalErr.message || '알 수 없는 오류'));
-            }
-          } else {
-            // 데스크톱에서는 data URI 폴백
-            try {
-              const dataUri = pdf.output('datauristring');
-              const link = document.createElement('a');
-              link.href = dataUri;
-              link.download = finalFileName;
-              link.style.display = 'none';
-              document.body.appendChild(link);
-              requestAnimationFrame(() => {
-              link.click();
-              setTimeout(() => {
-                if (document.body.contains(link)) {
-                  document.body.removeChild(link);
-                }
-              }, 1000);
-            });
-            pdfSaved = true;
-          } catch (finalErr) {
-            throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
-            }
-          }
-        }
-        
-        if (!pdfSaved && pdfBlob) {
-          // Blob 다운로드 링크 사용
-          const url = URL.createObjectURL(pdfBlob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = finalFileName;
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          
-          // 모바일에서 더 긴 지연
-          const delay = isMobile ? 400 : 0;
-          await new Promise(resolve => setTimeout(resolve, delay));
-          
-          requestAnimationFrame(() => {
-            try {
-              link.click();
-            } catch (e) {
-              const clickEvent = new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                view: window
-              });
-              link.dispatchEvent(clickEvent);
-            }
-          });
-          
-          setTimeout(() => {
-            try {
-              URL.revokeObjectURL(url);
-              if (document.body.contains(link)) {
-                document.body.removeChild(link);
-              }
-            } catch (e) {
-              console.warn('정리 중 오류:', e);
-            }
-          }, isMobile ? 5000 : 3000);
-          pdfSaved = true;
-        }
-      }
-    } catch (err) {
-      console.error('❌ PDF 다운로드 오류:', err);
-      const errorMsg = isMobile 
-        ? 'PDF 저장에 실패했습니다. 파일 크기가 너무 클 수 있습니다. 페이지를 새로고침하고 다시 시도해주세요.'
-        : 'PDF 저장에 실패했습니다: ' + (err.message || '알 수 없는 오류');
-      alert(errorMsg);
+
+    worker.onerror = err => {
       reject(err);
-      return;
-    }
-    
-    if (!pdfSaved) {
-      const errorMsg = 'PDF 저장이 완료되지 않았습니다.';
-      console.error('❌', errorMsg);
-      alert(errorMsg);
-      reject(new Error(errorMsg));
-      return;
-    }
-    
-    resolve();
-  } catch(error) {
-    console.error("PDF 생성 실패:", error);
-    reject(error);
-  }
+      worker.terminate();
+    };
   });
+
+  // PDF 초기화
+  send({
+    type: 'init',
+    options: { orientation: "p", unit: "px", format: "a4" }
+  });
+
+  const pageW = 595;
+  const pageH = 842;
+  const margin = 24;
+  const imgW = pageW - margin * 2;
+  const imgH = pageH - margin * 2;
+
+  // html2canvas → JPEG → Worker 로 전송
+  for (const item of captureList) {
+    const elem = document.getElementById(item.id);
+    if (!elem) continue;
+
+    const canvas = await html2canvas(elem, {
+      scale: 1.2,
+      backgroundColor: null,
+      useCORS: true
+    });
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+    // 메모리 해제
+    try {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 1;
+      canvas.height = 1;
+      canvas.remove?.();
+    } catch {}
+
+    // Worker로 전송
+    send({
+      type: 'addImage',
+      dataUrl,
+      x: margin,
+      y: margin,
+      width: imgW,
+      height: imgH,
+      addPageAfter: item.addPageAfter
+    });
+
+    // GC 휴식
+    await new Promise(res => setTimeout(res, 10));
+  }
+
+  // 마무리
+  send({ type: 'finalize' });
+
+  // PDF 다운로드
+  const blob = await pdfPromise;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = finalName;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // PDF 저장 (모바일 최적화, 페이지 분리) - 개선 버전
