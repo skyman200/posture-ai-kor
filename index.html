@@ -668,10 +668,11 @@ if (document.readyState === 'loading') {
 }
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./fonts/NotoSansKR-Bold-normal.js"></script>
+<!-- 포즈 모델 관련: 그대로 둬도 됨 -->
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
 <!-- AI 자동 분석 모듈 통합 -->
 <!-- PRO 통합 버전 (기존 + DB 기반 분석): main_pro_compatible.js -->
 <!-- <script type="module" src="./js/main_pro_compatible.js"></script> -->
@@ -14586,39 +14587,158 @@ if (document.getElementById("downloadPdfBtn")) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
 <!-- ===================================================== -->
-<!-- 🔥 새로운 PDF 함수 등록 (완전체 버전) -->
+<!-- 🔥 새로운 PDF 함수 등록 (savePosturePdfFromApp) -->
 <!-- ===================================================== -->
 <script>
-// reportPdf.js 모듈에서 saveFullPDF 함수를 사용할 수 있도록 설정
-// 이미 reportPdf.js에서 window.saveFullPDF로 노출되어 있음
-// 추가로 간단한 래퍼 함수 제공
+async function savePosturePdfFromApp() {
+  const progressBox = document.getElementById("pdfProgress");
+  const update = (p, msg) => {
+    if (!progressBox) return;
+    progressBox.style.display = "block";
+    progressBox.innerText = msg ? msg : `PDF 저장 중... ${p}%`;
+  };
 
-async function savePosturePdf() {
   try {
-    // reportPdf.js의 saveFullPDF 함수 사용
-    if (typeof window.saveFullPDF === 'function') {
-      await window.saveFullPDF();
-    } else {
-      // 모듈이 아직 로드되지 않았으면 동적 import
-      const reportModule = await import('./assets/ai/reportPdf.js');
-      if (reportModule.saveFullPDF) {
-        await reportModule.saveFullPDF();
-      } else {
-        throw new Error('PDF 생성 함수를 찾을 수 없습니다.');
-      }
+    update(5, "PDF 준비 중...");
+
+    // 1) 전역 이미지 체크 (측면/정면 전후 + 오버레이)
+    const sideBefore  = window.sideBeforeImg;
+    const sideAfter   = window.sideAfterImg;
+    const sideOverlay = window.sideOverlayImg;
+    const frontBefore = window.frontBeforeImg;
+    const frontAfter  = window.frontAfterImg;
+    const frontOverlay= window.frontOverlayImg;
+
+    if (!sideBefore || !sideAfter || !sideOverlay ||
+        !frontBefore || !frontAfter || !frontOverlay) {
+      alert("Before/After 이미지 전역 변수(window.sideBeforeImg 등)가 세팅돼 있는지 먼저 확인해봐.");
+      if (progressBox) progressBox.style.display = "none";
+      return;
     }
+
+    // 2) PDF 문서 구조
+    let docDefinition = {
+      pageSize: "A4",
+      pageMargins: [20, 20, 20, 20],
+      content: [],
+      styles: {
+        title: { fontSize: 20, bold: true, margin: [0, 0, 0, 10] },
+        subtitle: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] }
+      }
+    };
+
+    // ========= 1페이지: 측면 =========
+    update(15, "측면 이미지 정리 중...");
+
+    docDefinition.content.push({
+      stack: [
+        { text: "측면 비교 (Side View)", style: "title" },
+        {
+          columns: [
+            { image: sideBefore, width: 250 },
+            { image: sideAfter,  width: 250 }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        { text: "측면 오버레이", style: "subtitle" },
+        { image: sideOverlay, width: 500 }
+      ],
+      pageBreak: "after"
+    });
+
+    // ========= 2페이지: 정면 =========
+    update(35, "정면 이미지 정리 중...");
+
+    docDefinition.content.push({
+      stack: [
+        { text: "정면 비교 (Front View)", style: "title" },
+        {
+          columns: [
+            { image: frontBefore, width: 250 },
+            { image: frontAfter,  width: 250 }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        { text: "정면 오버레이", style: "subtitle" },
+        { image: frontOverlay, width: 500 }
+      ],
+      pageBreak: "after"
+    });
+
+    // ========= 3페이지: 리포트 패널 캡쳐 =========
+    update(55, "리포트 패널 캡쳐 중...");
+
+    const reportEl = document.getElementById("report-box");
+    if (reportEl && window.html2canvas) {
+      const canvas = await html2canvas(reportEl, {
+        scale: 2,
+        useCORS: true
+      });
+      const reportImg = canvas.toDataURL("image/png");
+
+      docDefinition.content.push({
+        stack: [
+          { text: "자세 분석 리포트", style: "title" },
+          { image: reportImg, width: 550 }
+        ]
+      });
+    } else {
+      console.warn("#report-box 요소를 못 찾았거나 html2canvas가 없음.");
+    }
+
+    // ========= 4) PDF 생성 & 다운로드 =========
+    update(85, "PDF 생성 중...");
+
+    // pdfMake 폰트 준비 (있는 경우)
+    if (typeof preparePdfMakeFonts === 'function') {
+      const { vfs, fonts } = await preparePdfMakeFonts();
+      pdfMake.fonts = fonts;
+      pdfMake.vfs = vfs;
+    }
+
+    // docDefinition 정화
+    if (typeof sanitizePdfDoc === 'function') {
+      sanitizePdfDoc(docDefinition);
+    }
+
+    pdfMake.createPdf(docDefinition).download("posture_report.pdf");
+
+    update(100, "완료!");
+    setTimeout(() => { if (progressBox) progressBox.style.display = "none"; }, 1200);
+
   } catch (err) {
-    console.error('PDF 생성 실패:', err);
-    alert(`PDF 생성에 실패했습니다: ${err.message}`);
+    console.error("PDF 생성 중 오류:", err);
+    alert("PDF 생성 중 오류가 났다. 콘솔 메시지를 캡쳐해서 나한테 다시 보내줘.");
+    if (progressBox) progressBox.style.display = "none";
   }
 }
 
 // 전역으로 노출
-window.savePosturePdf = savePosturePdf;
+window.savePosturePdfFromApp = savePosturePdfFromApp;
 
 console.log('[CLEANUP] ✅ 새로운 PDF 시스템 준비 완료');
-console.log('[CLEANUP] 사용법: savePosturePdf() 또는 window.saveFullPDF()');
+console.log('[CLEANUP] 사용법: savePosturePdfFromApp()');
 </script>
+
+<!-- ===================================================== -->
+<!-- 🔥 PDF 진행률 표시 박스 -->
+<!-- ===================================================== -->
+<div id="pdfProgress" style="
+  position: fixed;
+  bottom: 20px; left: 20px;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  display: none;
+  z-index: 99999;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  border: 1px solid rgba(124,156,255,0.3);
+">
+  PDF 저장 중... 0%
+</div>
 
   </body>
 </html>
