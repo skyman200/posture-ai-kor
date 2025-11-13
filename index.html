@@ -178,9 +178,7 @@ canvas {
   -webkit-user-select: none;
 }
 </style>
-<!-- pdfMake -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<!-- pdfMake는 body 끝에서 클린업 후 로드됨 -->
   </head>
   <body>
 <aside class="panel sidebar" style="order: 1;">
@@ -14459,6 +14457,168 @@ if (document.getElementById("downloadPdfBtn")) {
 </script>
 
 <!-- pdf-lib는 이미 head에 추가됨 -->
+
+<!-- ===================================================== -->
+<!-- 🔥 PDF 코드 완전 클린업 스크립트 -->
+<!-- ===================================================== -->
+<script>
+(function() {
+  'use strict';
+  
+  console.log('[CLEANUP] ==========================================');
+  console.log('[CLEANUP] PDF 코드 클린업 시작...');
+  console.log('[CLEANUP] ==========================================');
+  
+  // === 1) 전역에 남아있는 pdf 관련 함수/변수 제거 ===
+  const oldPdfFunctions = [
+    "savePDF", "savePdf", "downloadPdf", "generatePdf", "createPdf",
+    "exportPDF", "exportPdf", "pdfSave", "makePdf", 
+    "oldPdf", "reportPdf", "saveReportPdf", "exportAsPdfSimple",
+    "generatePosturePdf", "savePosturePdfFromApp", "buildPostureDocDefinition"
+  ];
+  
+  let removedFunctions = 0;
+  oldPdfFunctions.forEach(fn => {
+    if (window[fn]) {
+      console.warn("[CLEANUP] 기존 PDF 함수 제거:", fn);
+      try {
+        delete window[fn];
+        removedFunctions++;
+      } catch (e) {
+        window[fn] = undefined;
+        removedFunctions++;
+      }
+    }
+  });
+  
+  // === 2) 이미 로드된 jspdf, pdfmake, html2canvas 제거 ===
+  const removedLibs = [];
+  
+  if (window.jsPDF) {
+    console.warn("[CLEANUP] 기존 jsPDF 제거");
+    try {
+      delete window.jsPDF;
+      removedLibs.push('jsPDF');
+    } catch (e) {
+      window.jsPDF = undefined;
+      removedLibs.push('jsPDF');
+    }
+  }
+  
+  if (window.jspdf) {
+    console.warn("[CLEANUP] 기존 jspdf 제거");
+    try {
+      delete window.jspdf;
+      removedLibs.push('jspdf');
+    } catch (e) {
+      window.jspdf = undefined;
+      removedLibs.push('jspdf');
+    }
+  }
+  
+  if (window.pdfMake) {
+    console.warn("[CLEANUP] 기존 pdfMake 제거");
+    try {
+      delete window.pdfMake;
+      removedLibs.push('pdfMake');
+    } catch (e) {
+      window.pdfMake = undefined;
+      removedLibs.push('pdfMake');
+    }
+  }
+  
+  if (window.html2canvas) {
+    console.warn("[CLEANUP] 기존 html2canvas 제거");
+    try {
+      delete window.html2canvas;
+      removedLibs.push('html2canvas');
+    } catch (e) {
+      window.html2canvas = undefined;
+      removedLibs.push('html2canvas');
+    }
+  }
+  
+  // === 3) script 태그에서 중복 제거 ===
+  const scriptsToRemove = [];
+  document.querySelectorAll("script").forEach(s => {
+    const src = s.src || '';
+    const text = s.textContent || '';
+    if (
+      src.includes("jspdf") ||
+      src.includes("pdfmake") ||
+      src.includes("html2canvas") ||
+      src.includes("reportPdf") ||
+      src.includes("savePdf") ||
+      src.includes("pdf-lib") ||
+      text.includes("pdfMake") ||
+      text.includes("jsPDF")
+    ) {
+      const identifier = src || text.substring(0, 50);
+      console.warn("[CLEANUP] 스크립트 제거:", identifier);
+      scriptsToRemove.push(s);
+    }
+  });
+  
+  scriptsToRemove.forEach(s => {
+    try {
+      s.remove();
+    } catch (e) {
+      if (s.parentNode) {
+        s.parentNode.removeChild(s);
+      }
+    }
+  });
+  
+  // === 4) 완료 메시지 ===
+  console.log("[CLEANUP] ==========================================");
+  console.log(`[CLEANUP] ✅ 제거 완료: 함수 ${removedFunctions}개, 라이브러리 ${removedLibs.length}개, 스크립트 ${scriptsToRemove.length}개`);
+  console.log("[CLEANUP] ✅ 이전 PDF 관련 코드는 전부 제거 완료됨.");
+  console.log("[CLEANUP] 이제 깨끗한 상태에서 새 PDF 시스템을 로드합니다.");
+  console.log("[CLEANUP] ==========================================");
+})();
+</script>
+
+<!-- ===================================================== -->
+<!-- 🔥 클린 상태에서 다시 PDF 라이브러리 로드 -->
+<!-- ===================================================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+<!-- ===================================================== -->
+<!-- 🔥 새로운 PDF 함수 등록 (완전체 버전) -->
+<!-- ===================================================== -->
+<script>
+// reportPdf.js 모듈에서 saveFullPDF 함수를 사용할 수 있도록 설정
+// 이미 reportPdf.js에서 window.saveFullPDF로 노출되어 있음
+// 추가로 간단한 래퍼 함수 제공
+
+async function savePosturePdf() {
+  try {
+    // reportPdf.js의 saveFullPDF 함수 사용
+    if (typeof window.saveFullPDF === 'function') {
+      await window.saveFullPDF();
+    } else {
+      // 모듈이 아직 로드되지 않았으면 동적 import
+      const reportModule = await import('./assets/ai/reportPdf.js');
+      if (reportModule.saveFullPDF) {
+        await reportModule.saveFullPDF();
+      } else {
+        throw new Error('PDF 생성 함수를 찾을 수 없습니다.');
+      }
+    }
+  } catch (err) {
+    console.error('PDF 생성 실패:', err);
+    alert(`PDF 생성에 실패했습니다: ${err.message}`);
+  }
+}
+
+// 전역으로 노출
+window.savePosturePdf = savePosturePdf;
+
+console.log('[CLEANUP] ✅ 새로운 PDF 시스템 준비 완료');
+console.log('[CLEANUP] 사용법: savePosturePdf() 또는 window.saveFullPDF()');
+</script>
 
   </body>
 </html>
