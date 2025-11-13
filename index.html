@@ -13031,9 +13031,9 @@ function setupPDFButton() {
   btnPDF.parentNode.replaceChild(newBtn, btnPDF);
   
   newBtn.addEventListener('click', async () => {
-    // 새 PDF 시스템 사용
-    if (typeof savePosturePdf === 'function') {
-      await savePosturePdf();
+    // PDF v3 시스템 사용
+    if (typeof saveFullPDF === 'function') {
+      await saveFullPDF();
       return;
     }
     
@@ -14461,9 +14461,9 @@ async function exportAsPdfSimple() {
   }
 }
 
-// PDF 버튼 이벤트 리스너 (새 PDF 시스템 사용)
+// PDF 버튼 이벤트 리스너 (PDF v3 시스템 사용)
 if (document.getElementById("downloadPdfBtn")) {
-  document.getElementById("downloadPdfBtn").addEventListener("click", savePosturePdf);
+  document.getElementById("downloadPdfBtn").addEventListener("click", saveFullPDF);
 }
 </script>
 
@@ -14475,11 +14475,10 @@ if (document.getElementById("downloadPdfBtn")) {
 <script>
 // =============== PDF Legacy 코드 완전 제거 패치 ===============
 
-// 1) 기존 PDF 함수 제거
+// 1) 기존 PDF 함수 제거 (pdfMake 기반 함수들)
 [
   "exportAsPdfSimple",
   "generatePosturePdf",
-  "savePosturePdfFromApp",
   "buildPostureDocDefinition",
   "savePDF",
   "exportPDF",
@@ -14492,11 +14491,14 @@ if (document.getElementById("downloadPdfBtn")) {
   }
 });
 
-// 2) jsPDF 관련 제거
-window.jsPDF = undefined;
-if (window.jspdf) {
-  window.jspdf = undefined;
-  delete window.jspdf;
+// savePosturePdfFromApp은 새 시스템에서 호환성으로 유지
+// savePosturePdf도 새 시스템에서 호환성으로 유지
+
+// 2) pdfMake 제거 (더 이상 사용 안 함)
+if (window.pdfMake) {
+  console.warn("[PDF CLEAN] Removing pdfMake");
+  window.pdfMake = undefined;
+  delete window.pdfMake;
 }
 
 // 3) checkLibraries() 무력화
@@ -14520,150 +14522,19 @@ console.log("[PDF CLEAN] ✅ Legacy PDF 코드 제거 완료");
 </script>
 
 <!-- ===================================================== -->
-<!-- 🔥 클린 상태에서 다시 PDF 라이브러리 로드 -->
+<!-- 🔥 PDF v3: html2canvas + jsPDF + Tesseract.js -->
 <!-- ===================================================== -->
+<!-- html2canvas -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
-<!-- ===================================================== -->
-<!-- 🔥 새로운 PDF 시스템 (3단계) -->
-<!-- ===================================================== -->
-<script>
-// ================= 새 PDF 엔진 =================
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-async function savePosturePdf() {
-  const progressBox = document.getElementById("pdfProgress");
-  const update = (v, msg) => {
-    if (!progressBox) return;
-    progressBox.style.display = "block";
-    progressBox.innerText = msg ? msg : `PDF 저장중... ${v}%`;
-  };
+<!-- Tesseract.js (OCR) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-  try {
-    update(5, "이미지 준비중...");
-
-    // ===== 1) 이미지 전역변수 불러오기 =====
-    const sideBefore  = window.sideBeforeImg;
-    const sideAfter   = window.sideAfterImg;
-    const sideOverlay = window.sideOverlayImg;
-
-    const frontBefore  = window.frontBeforeImg;
-    const frontAfter   = window.frontAfterImg;
-    const frontOverlay = window.frontOverlayImg;
-
-    if (!sideBefore || !sideAfter || !sideOverlay ||
-        !frontBefore || !frontAfter || !frontOverlay) {
-      alert("Before/After 이미지 세팅이 필요합니다.");
-      if (progressBox) progressBox.style.display = "none";
-      return;
-    }
-
-    // ===== 2) PDF Document 구조 =====
-    let docDefinition = {
-      pageSize: "A4",
-      pageMargins: [20, 20, 20, 20],
-      content: [],
-      styles: {
-        title: { fontSize: 21, bold: true, margin: [0, 0, 0, 10] },
-        subtitle: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] }
-      }
-    };
-
-    // ===== 3) 1페이지: 측면 =====
-    update(15, "측면 페이지 구성중...");
-
-    docDefinition.content.push({
-      stack: [
-        { text: "측면 비교 (Side View)", style: "title" },
-        {
-          columns: [
-            { image: sideBefore, width: 250 },
-            { image: sideAfter, width: 250 }
-          ]
-        },
-        { text: "측면 오버레이", style: "subtitle" },
-        { image: sideOverlay, width: 500 }
-      ],
-      pageBreak: "after"
-    });
-
-    // ===== 4) 2페이지: 정면 =====
-    update(35, "정면 페이지 구성중...");
-
-    docDefinition.content.push({
-      stack: [
-        { text: "정면 비교 (Front View)", style: "title" },
-        {
-          columns: [
-            { image: frontBefore, width: 250 },
-            { image: frontAfter, width: 250 }
-          ]
-        },
-        { text: "정면 오버레이", style: "subtitle" },
-        { image: frontOverlay, width: 500 }
-      ],
-      pageBreak: "after"
-    });
-
-    // ===== 5) 3페이지: 리포트 박스 =====
-    update(55, "리포트 캡쳐중...");
-
-    const reportEl = document.getElementById("report-box");
-    if (!reportEl) {
-      console.warn("#report-box 요소를 찾을 수 없습니다.");
-      update(100, "완료 (리포트 박스 없음)");
-      setTimeout(() => { if (progressBox) progressBox.style.display = "none"; }, 1200);
-      return;
-    }
-
-    const canvas = await html2canvas(reportEl, {
-      scale: 2,
-      useCORS: true
-    });
-    const reportImg = canvas.toDataURL("image/png");
-
-    docDefinition.content.push({
-      stack: [
-        { text: "자세 분석 리포트", style: "title" },
-        { image: reportImg, width: 550 }
-      ]
-    });
-
-    // ===== 6) PDF 생성 =====
-    update(85, "PDF 생성중...");
-
-    // docDefinition 정화 (pageBreak 에러 방지)
-    if (typeof sanitizePdfDoc === 'function') {
-      sanitizePdfDoc(docDefinition);
-    }
-
-    // pdfMake 폰트 준비 (있는 경우)
-    if (typeof preparePdfMakeFonts === 'function') {
-      const { vfs, fonts } = await preparePdfMakeFonts();
-      pdfMake.fonts = fonts;
-      pdfMake.vfs = vfs;
-    }
-
-    pdfMake.createPdf(docDefinition).download("posture_report.pdf");
-
-    update(100, "완료!");
-    setTimeout(() => { if (progressBox) progressBox.style.display = "none"; }, 1200);
-
-  } catch (err) {
-    console.error("❌ PDF 생성 오류:", err);
-    alert("PDF 생성 중 오류가 발생했습니다.");
-    if (progressBox) progressBox.style.display = "none";
-  }
-}
-
-// 전역으로 노출 (기존 버튼 호환성)
-window.savePosturePdf = savePosturePdf;
-window.savePosturePdfFromApp = savePosturePdf; // 기존 버튼 호환
-
-console.log('[PDF SYSTEM] ✅ 새로운 PDF 시스템 준비 완료');
-console.log('[PDF SYSTEM] 사용법: savePosturePdf() 또는 savePosturePdfFromApp()');
-</script>
+<!-- PDF generator -->
+<script src="./pdf-maker.js"></script>
 
 <!-- ===================================================== -->
 <!-- 🔥 PDF 진행률 표시 박스 -->
