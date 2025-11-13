@@ -1,421 +1,144 @@
 // src/ai/reportPdf.js
-// jsPDF만 사용 (모바일 저장 호환) – html2canvas 없이 캔버스/이미지 직접 삽입도 가능
+// pdfMake ONLY version (jsPDF 완전 제거)
+// Canvas 그래프, Before/After, 상세 결과, 필라테스 추천 모두 포함
 
 /**
- * 모바일 감지 함수
+ * 캔버스를 PNG로 변환
  */
-function isMobileDevice() {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
-         (window.innerWidth <= 768 && 'ontouchstart' in window);
-}
-
-/**
- * 모바일 호환 PDF 저장
- * @param {string} fileName - 파일명
- * @param {object} pdfInstance - jsPDF 인스턴스
- */
-async function savePDFMobileCompatible(fileName, pdfInstance) {
+function canvasToImage(canvas) {
   try {
-    // 모바일에서는 간단한 방식 우선 사용
-    if (isMobileDevice()) {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        pdfInstance.save(fileName);
-        console.log('✅ PDF 저장 성공 (직접 save)');
-        return;
-      } catch (saveErr) {
-        console.warn('⚠️ 직접 save 실패:', saveErr);
-      }
-    }
-    
-    // Blob 생성
-    let blob;
-    try {
-      blob = pdfInstance.output('blob');
-      if (!blob || blob.size === 0) {
-        throw new Error('PDF Blob 생성 실패');
-      }
-    } catch (blobErr) {
-      // 최종 폴백: data URI
-      try {
-        const dataUri = pdfInstance.output('datauristring');
-        const link = document.createElement('a');
-        link.href = dataUri;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
-        }, 1000);
-        return;
-      } catch (finalErr) {
-        throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
-      }
-    }
-    
-    // 다운로드 링크 사용
-    const fileURL = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = fileURL;
-    link.download = fileName;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    
-    requestAnimationFrame(() => {
-      try {
-        link.click();
-      } catch (e) {
-        const clickEvent = new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        });
-        link.dispatchEvent(clickEvent);
-      }
-    });
-    
-    setTimeout(() => {
-      try {
-        URL.revokeObjectURL(fileURL);
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-      } catch (e) {
-        console.warn('정리 중 오류:', e);
-      }
-    }, 3000);
-    
-  } catch (err) {
-    console.error('❌ PDF 저장 실패:', err);
-    alert('⚠️ PDF 저장 중 오류가 발생했습니다.\n페이지를 새로고침하고 다시 시도해주세요.');
+    if (canvas && canvas.toDataURL)
+      return canvas.toDataURL("image/png", 1.0);
+  } catch (e) {
+    console.warn("canvas 변환 실패:", e);
   }
+  return null;
 }
 
 /**
- * 상세 PDF 리포트 생성
- * @param {object} options - 리포트 옵션
- * @param {string} options.centerName - 센터명
- * @param {string} options.memberName - 회원명
- * @param {string} options.sessionName - 세션명
- * @param {object} options.analysis - analyzeWithDB() 결과
- * @param {object} options.before - Before 측정값 (선택)
- * @param {object} options.after - After 측정값 (선택)
- * @param {object} options.charts - 차트 캔버스 객체 (선택)
- *   - overviewCanvas: Before-After 비교 그래프
- *   - sideChartCanvas: 측면 지표 그래프
- *   - frontChartCanvas: 정면 지표 그래프
+ * 필라테스 추천 0개일 때 안전 처리
  */
-export async function exportDetailedPDF({ 
-  centerName, 
-  memberName, 
+function formatPilatesList(list) {
+  if (!list || list.length === 0) {
+    return [{ text: "- 추천 없음", margin: [10, 2, 0, 0], fontSize: 11 }];
+  }
+  return list.map(p => ({
+    text: `- ${p.equipment || ""}: ${p.name || ""}${p.purpose ? ` (${p.purpose})` : ""}`,
+    margin: [10, 2, 0, 0],
+    fontSize: 11,
+  }));
+}
+
+/**
+ * PDF 생성
+ */
+export async function exportDetailedPDF({
+  centerName,
+  memberName,
   sessionName,
-  analysis,         // analyzeWithDB(measured) 결과
-  before,           // before 원시값(객체) – 그래프/표에 사용
-  after,            // after 원시값(객체) – 그래프/표에 사용
-  charts = {}       // { sideChartCanvas, frontChartCanvas, overviewCanvas } 옵션
+  analysis,
+  before,
+  after,
+  charts = {}
 }) {
-  // jsPDF 확인
-  if (typeof window === 'undefined' || !window.jspdf || !window.jspdf.jsPDF) {
-    throw new Error('jsPDF가 로드되지 않았습니다.');
-  }
+  // ====== 이미지 변환 ======
+  const overviewImg = canvasToImage(charts.overviewCanvas);
+  const sideImg = canvasToImage(charts.sideChartCanvas);
+  const frontImg = canvasToImage(charts.frontChartCanvas);
 
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  pdf.setFont("NotoSansKR", "normal");
+  // ====== document definition ======
+  const doc = {
+    pageSize: "A4",
+    pageMargins: [20, 20, 20, 28],
+    defaultStyle: {
+      font: "Helvetica", // vfs 폰트 사용할 수도 있음
+      fontSize: 11,
+      lineHeight: 1.3,
+    },
+    content: [
+      // =========== HEADER ===========
+      {
+        text: "AI 자세 분석 종합 리포트",
+        fontSize: 20,
+        bold: true,
+        margin: [0, 0, 0, 15],
+      },
+      { text: `센터: ${centerName || "-"}`, margin: [0, 2] },
+      { text: `회원: ${memberName || "-"}`, margin: [0, 2] },
+      { text: `세션: ${sessionName || "-"}`, margin: [0, 2] },
+      { text: `생성: ${new Date().toLocaleString("ko-KR")}`, margin: [0, 2, 0, 10] },
+      { canvas: [{ type: "line", x1: 0, x2: 550, y1: 0, y2: 0 }], margin: [0, 10] },
 
-  // 공통 헤더 함수
-  const header = (title) => {
-    pdf.setFontSize(18);
-    pdf.text(title, 14, 18);
-    pdf.setFontSize(11);
-    pdf.text(`센터: ${centerName || '-'}`, 14, 26);
-    pdf.text(`회원: ${memberName || '-'}`, 14, 31);
-    pdf.text(`세션: ${sessionName || '-'}`, 14, 36);
-    pdf.text(`생성: ${new Date().toLocaleString('ko-KR')}`, 14, 41);
-    pdf.line(14, 44, 196, 44);
+      // =========== ① 종합 요약 ===========
+      { text: "① 종합 요약", fontSize: 14, bold: true, margin: [0, 12, 0, 6] },
+      ...(analysis.sections?.length
+        ? analysis.sections.map(sec => ({
+            text: `-${
+              sec.section === "side"
+                ? "측면"
+                : sec.section === "front"
+                ? "정면"
+                : sec.section
+            }: ${sec.summary}`,
+            margin: [0, 2],
+          }))
+        : [{ text: "- 분석 결과 없음", margin: [0, 2] }]),
+
+      // =========== ② 그래프 ===========
+      ...(overviewImg
+        ? [
+            { text: "② Before–After 비교 그래프", fontSize: 14, bold: true, margin: [0, 16, 0, 6] },
+            { image: overviewImg, width: 500, margin: [0, 0, 0, 10] },
+          ]
+        : []),
+
+      ...(sideImg
+        ? [
+            { text: "③ 측면(사이드) 지표 그래프", fontSize: 14, bold: true, margin: [0, 16, 0, 6] },
+            { image: sideImg, width: 500, margin: [0, 0, 0, 10] },
+          ]
+        : []),
+
+      ...(frontImg
+        ? [
+            { text: "④ 정면(프론트) 지표 그래프", fontSize: 14, bold: true, margin: [0, 16, 0, 6] },
+            { image: frontImg, width: 500, margin: [0, 0, 0, 10] },
+          ]
+        : []),
+
+      // =========== ⑤ 지표별 상세 ===========
+      { text: "⑤ 지표별 상세 해석", fontSize: 14, bold: true, margin: [0, 20, 0, 10], pageBreak: "before" },
+      ...(analysis.results?.length
+        ? analysis.results.flatMap(r => {
+            const secTag =
+              r.section === "side" ? "[측면]" : r.section === "front" ? "[정면]" : "[기타]";
+            return [
+              {
+                text: `${secTag} ${r.name} (${r.metric}) → ${r.value}${r.unit} | 정상:${r.normalText} | 상태:${r.status}`,
+                bold: true,
+                margin: [0, 8, 0, 2],
+              },
+              r.pattern ? { text: `• 패턴: ${r.pattern}`, margin: [5, 2] } : null,
+              r.tight?.length ? { text: `• 긴장근: ${r.tight.join(", ")}`, margin: [5, 2] } : null,
+              r.weak?.length ? { text: `• 약화근: ${r.weak.join(", ")}`, margin: [5, 2] } : null,
+              r.exerciseGuide ? { text: `• 가이드: ${r.exerciseGuide}`, margin: [5, 2] } : null,
+              { text: "• 필라테스 추천:", bold: true, margin: [5, 6, 0, 2] },
+              ...formatPilatesList(r.pilates),
+            ].filter(Boolean);
+          })
+        : [{ text: "지표별 상세 분석 없음", margin: [0, 6] }]),
+
+      // =========== ⑥ 종합 요약 ===========
+      { text: "⑥ 종합 근육/운동 요약", fontSize: 14, bold: true, margin: [0, 20, 0, 10], pageBreak: "before" },
+      { text: `긴장근(통합): ${analysis.tightAll?.join(", ") || "-"}`, margin: [0, 2] },
+      { text: `약화근(통합): ${analysis.weakAll?.join(", ") || "-"}`, margin: [0, 6] },
+      { text: "필라테스(통합):", bold: true, margin: [0, 10, 0, 4] },
+      ...formatPilatesList(analysis.pilatesAll),
+    ],
   };
 
-  // 페이지 1 — 개요 + 섹션 요약
-  header('AI 자세 분석 종합 리포트');
-  let y = 52;
-  
-  pdf.setFontSize(12);
-  pdf.text('① 종합 요약', 14, y); 
-  y += 6;
+  // ====== PDF 다운로드 ======
+  const fileName = `${memberName || "member"}_${sessionName || "session"}_AI_Posture_Report.pdf`;
 
-  if (analysis.sections && analysis.sections.length > 0) {
-    analysis.sections.forEach(sec => {
-      const sectionName = sec.section === 'side' ? '측면' : 
-                          sec.section === 'front' ? '정면' : 
-                          sec.section || '기타';
-      const summaryLines = pdf.splitTextToSize(`- ${sectionName}: ${sec.summary}`, 180);
-      pdf.text(summaryLines, 18, y);
-      y += 6 * summaryLines.length;
-      
-      if (y > 270) { 
-        pdf.addPage(); 
-        header('AI 자세 분석 종합 리포트'); 
-        y = 52; 
-      }
-    });
-  } else {
-    pdf.text('- 분석 결과가 없습니다.', 18, y);
-    y += 6;
-  }
-
-  // 그래프 추가 (옵션) – Before-After 비교, 사이드/프론트
-  const addCanvas = (canvas, title) => {
-    if (!canvas) return;
-    
-    try {
-      // Chart.js 캔버스인 경우
-      let imgData;
-      if (canvas.toDataURL) {
-        imgData = canvas.toDataURL('image/png', 1.0);
-      } else if (canvas.chart && canvas.chart.canvas) {
-        imgData = canvas.chart.canvas.toDataURL('image/png', 1.0);
-      } else {
-        return;
-      }
-
-      if (imgData && imgData !== 'data:,') {
-        pdf.addPage();
-        header(title);
-        pdf.addImage(imgData, 'PNG', 14, 52, 182, 100);
-      }
-    } catch (err) {
-      console.warn('그래프 추가 실패:', err);
-    }
-  };
-
-  // Before-After 비교 그래프
-  if (before && after && charts.overviewCanvas) {
-    addCanvas(charts.overviewCanvas, '② Before–After 비교 그래프(개요)');
-  }
-
-  // 측면 그래프
-  if (charts.sideChartCanvas) {
-    addCanvas(charts.sideChartCanvas, '③ 측면(사이드) 지표 그래프');
-  }
-
-  // 정면 그래프
-  if (charts.frontChartCanvas) {
-    addCanvas(charts.frontChartCanvas, '④ 정면(프론트) 지표 그래프');
-  }
-
-  // 페이지 N — 지표별 상세(긴 설명 + 정상범위 + 근육/운동)
-  pdf.addPage();
-  header('⑤ 지표별 상세 해석(모든 내용 DB 기준)');
-  y = 52;
-  pdf.setFontSize(11);
-
-  if (analysis.results && analysis.results.length > 0) {
-    for (const r of analysis.results) {
-      const secTag = r.section === 'side' ? '[측면]' : 
-                     (r.section === 'front' ? '[정면]' : '[기타]');
-      
-      const line1 = `${secTag} ${r.name} (${r.metric})  →  ${r.value}${r.unit} | 정상:${r.normalText || '-'} | 상태:${r.status}`;
-      const line1Wrapped = pdf.splitTextToSize(line1, 180);
-      line1Wrapped.forEach(line => {
-        if (y > 270) { 
-          pdf.addPage(); 
-          header('지표별 상세 해석(계속)'); 
-          y = 52; 
-        }
-        pdf.text(line, 14, y);
-        y += 6;
-      });
-
-      if (r.pattern) {
-        const patternWrapped = pdf.splitTextToSize(`• 패턴: ${r.pattern}`, 180);
-        patternWrapped.forEach(line => {
-          if (y > 270) { 
-            pdf.addPage(); 
-            header('지표별 상세 해석(계속)'); 
-            y = 52; 
-          }
-          pdf.text(line, 18, y);
-          y += 6;
-        });
-      }
-
-      if (r.tight && r.tight.length > 0) {
-        const tightText = Array.isArray(r.tight) ? r.tight.join(', ') : r.tight;
-        const tightWrapped = pdf.splitTextToSize(`• 긴장근: ${tightText}`, 180);
-        tightWrapped.forEach(line => {
-          if (y > 270) { 
-            pdf.addPage(); 
-            header('지표별 상세 해석(계속)'); 
-            y = 52; 
-          }
-          pdf.text(line, 18, y);
-          y += 6;
-        });
-      }
-
-      if (r.weak && r.weak.length > 0) {
-        const weakText = Array.isArray(r.weak) ? r.weak.join(', ') : r.weak;
-        const weakWrapped = pdf.splitTextToSize(`• 약화근: ${weakText}`, 180);
-        weakWrapped.forEach(line => {
-          if (y > 270) { 
-            pdf.addPage(); 
-            header('지표별 상세 해석(계속)'); 
-            y = 52; 
-          }
-          pdf.text(line, 18, y);
-          y += 6;
-        });
-      }
-
-      if (r.exerciseGuide) {
-        const guideWrapped = pdf.splitTextToSize(`• 가이드: ${r.exerciseGuide}`, 180);
-        guideWrapped.forEach(line => {
-          if (y > 270) { 
-            pdf.addPage(); 
-            header('지표별 상세 해석(계속)'); 
-            y = 52; 
-          }
-          pdf.text(line, 18, y);
-          y += 6;
-        });
-      }
-
-      if (r.pilates && r.pilates.length > 0) {
-        if (y > 270) { 
-          pdf.addPage(); 
-          header('지표별 상세 해석(계속)'); 
-          y = 52; 
-        }
-        pdf.text('• 필라테스 추천:', 18, y);
-        y += 6;
-        
-        r.pilates.forEach(p => {
-          const pText = `  - ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
-          const pWrapped = pdf.splitTextToSize(pText, 176);
-          pWrapped.forEach(line => {
-            if (y > 270) { 
-              pdf.addPage(); 
-              header('지표별 상세 해석(계속)'); 
-              y = 52; 
-            }
-            pdf.text(line, 22, y);
-            y += 6;
-          });
-          
-          // 운동 설명 추가
-          const howToDo = p.how_to_do || p.how || p.instructions || '';
-          if (howToDo) {
-            const howText = `    운동 설명: ${howToDo}`;
-            const howWrapped = pdf.splitTextToSize(howText, 172);
-            howWrapped.forEach(line => {
-              if (y > 270) { 
-                pdf.addPage(); 
-                header('지표별 상세 해석(계속)'); 
-                y = 52; 
-              }
-              pdf.text(line, 22, y);
-              y += 6;
-            });
-          }
-        });
-      }
-
-      y += 4; // 항목 간 간격
-    }
-  } else {
-    pdf.text('분석 결과가 없습니다.', 14, y);
-  }
-
-  // 페이지 마지막 — 종합 근육/운동 묶음
-  pdf.addPage();
-  header('⑥ 종합 근육/운동 요약');
-  y = 52;
-
-  const tightAllText = (analysis.tightAll && analysis.tightAll.length > 0) 
-    ? analysis.tightAll.join(', ') 
-    : '-';
-  const tightWrapped = pdf.splitTextToSize(`긴장된 근육(통합): ${tightAllText}`, 180);
-  tightWrapped.forEach(line => {
-    if (y > 270) { 
-      pdf.addPage(); 
-      header('종합 근육/운동 요약(계속)'); 
-      y = 52; 
-    }
-    pdf.text(line, 14, y);
-    y += 6;
-  });
-
-  const weakAllText = (analysis.weakAll && analysis.weakAll.length > 0)
-    ? analysis.weakAll.join(', ')
-    : '-';
-  const weakWrapped = pdf.splitTextToSize(`약화된 근육(통합): ${weakAllText}`, 180);
-  weakWrapped.forEach(line => {
-    if (y > 270) { 
-      pdf.addPage(); 
-      header('종합 근육/운동 요약(계속)'); 
-      y = 52; 
-    }
-    pdf.text(line, 14, y);
-    y += 6;
-  });
-
-  pdf.text('필라테스 세션(통합):', 14, y);
-  y += 6;
-
-  if (analysis.pilatesAll && analysis.pilatesAll.length > 0) {
-    analysis.pilatesAll.forEach(p => {
-      const pText = `- ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
-      const pWrapped = pdf.splitTextToSize(pText, 180);
-      pWrapped.forEach(line => {
-        if (y > 270) { 
-          pdf.addPage(); 
-          header('필라테스 세션(계속)'); 
-          y = 52; 
-        }
-        pdf.text(line, 18, y);
-        y += 6;
-      });
-      
-      // 운동 설명 추가
-      const howToDo = p.how_to_do || p.how || p.instructions || '';
-      if (howToDo) {
-        const howText = `  운동 설명: ${howToDo}`;
-        const howWrapped = pdf.splitTextToSize(howText, 176);
-        howWrapped.forEach(line => {
-          if (y > 270) { 
-            pdf.addPage(); 
-            header('필라테스 세션(계속)'); 
-            y = 52; 
-          }
-          pdf.text(line, 18, y);
-          y += 6;
-        });
-      }
-      
-      y += 2; // 항목 간 간격
-    });
-  } else {
-    pdf.text('- 추천 세션이 없습니다.', 18, y);
-  }
-
-  // 미리보기 표시 (옵션 2: 미리보기 + 다운로드)
-  const fileName = `${memberName || 'member'}_${sessionName || 'session'}_AI_Posture_Report.pdf`;
-  
-  // 미리보기 유틸리티 동적 import
-  try {
-    const { previewPDF } = await import('../utils/previewUtils');
-    await previewPDF(pdf, fileName);
-    console.log(`✅ 상세 PDF 리포트 생성 완료 (미리보기): ${fileName}`);
-  } catch (importErr) {
-    console.warn('⚠️ 미리보기 모듈 로드 실패, 직접 저장으로 폴백:', importErr);
-    // 폴백: 기존 저장 방식
-    await savePDFMobileCompatible(fileName, pdf);
-    console.log(`✅ 상세 PDF 리포트 생성 완료 (직접 저장): ${fileName}`);
-  }
+  pdfMake.createPdf(doc).download(fileName);
 }
-
-
-
