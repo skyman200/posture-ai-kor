@@ -12155,8 +12155,9 @@ async function exportAsPdf(options = {}) {
     logoUrl
   });
 
-  // Worker 생성
-  const worker = new Worker('./pdfWorker.js');
+  // Worker 생성 (GitHub Pages 경로 대응)
+  const workerBase = location.pathname.replace(/\/[^/]*$/, "/");
+  const worker = new Worker(`${workerBase}pdfWorker.js`);
 
   function send(msg) {
     worker.postMessage(msg);

@@ -1,27 +1,30 @@
-// pdfWorker.js
-self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+// pdfWorker.js (완전 통합 버전)
+self.importScripts('./libs/jspdf.umd.min.js');
+self.importScripts('./libs/html2canvas.min.js');
 
 let pdf = null;
 
-self.onmessage = function (e) {
+self.onmessage = async function (e) {
   const msg = e.data;
 
-  if (msg.type === 'init') {
-    const { jsPDF } = self.jspdf;
+  try {
+    if (msg.type === 'init') {
+      const { jsPDF } = self.jspdf;
 
-    pdf = new jsPDF({
-      orientation: "p",
-      unit: "px",
-      format: "a4",
-      compress: false,
-      putOnlyUsedFonts: true,
-      floatPrecision: 16
-    });
+      pdf = new jsPDF({
+        orientation: "p",
+        unit: "px",
+        format: "a4",
+        compress: true,
+        putOnlyUsedFonts: true,
+        floatPrecision: 16
+      });
+      return;
+    }
 
-  } else if (msg.type === 'addImage') {
-    if (!pdf) return;
+    if (msg.type === 'addImage') {
+      if (!pdf) return;
 
-    try {
       pdf.addImage(
         msg.dataUrl,
         "JPEG",
@@ -34,19 +37,21 @@ self.onmessage = function (e) {
       );
 
       if (msg.addPageAfter) pdf.addPage();
-
-    } catch (err) {
-      console.error("[Worker] addImage error:", err);
+      return;
     }
 
-  } else if (msg.type === 'finalize') {
-    try {
+    if (msg.type === 'finalize') {
       const buffer = pdf.output("arraybuffer");
       self.postMessage({ type: 'pdfReady', buffer }, [buffer]);
       pdf = null;
-    } catch (err) {
-      self.postMessage({ type: 'error', message: err.message });
+      return;
     }
+
+  } catch (err) {
+    self.postMessage({
+      type: 'error',
+      message: err?.message ?? "Worker internal error",
+      stack: err?.stack ?? null
+    });
   }
 };
-
