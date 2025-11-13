@@ -11668,7 +11668,6 @@ function buildAnalysisCards(fullReportText) {
 
   return [
     {
-      pageBreak: "after",
       margin: [0, 0, 0, 0],
       table: {
         widths: ["*"],
@@ -11771,10 +11770,7 @@ function buildPage1(data) {
     });
   }
 
-  return {
-    pageBreak: "after",
-    content,
-  };
+  return { content };
 }
 
 // ====== 2페이지(앞모습) 정의 ======
@@ -11848,23 +11844,30 @@ function buildPage2(data) {
     });
   }
 
-  return {
-    pageBreak: "after",
-    content,
-  };
+  return { content };
 }
 
 // ====== 전체 docDefinition 생성 ======
 function buildPostureDocDefinition(data) {
   const { fullReportText } = data;
 
-  const pages = [];
+  const content = [];
 
-  pages.push(buildPage1(data));
-  pages.push(buildPage2(data));
+  // 1페이지 내용 추가
+  const page1Content = buildPage1(data);
+  content.push(...page1Content.content);
+  content.push({ pageBreak: "after" });
 
+  // 2페이지 내용 추가
+  const page2Content = buildPage2(data);
+  content.push(...page2Content.content);
+  content.push({ pageBreak: "after" });
+
+  // 3페이지 이후 분석 카드 추가
   const analysisCards = buildAnalysisCards(fullReportText);
-  pages.push(...analysisCards);
+  if (analysisCards.length > 0) {
+    content.push(...analysisCards);
+  }
 
   const docDefinition = {
     info: {
@@ -11949,7 +11952,7 @@ function buildPostureDocDefinition(data) {
         color: "#9ca3af",
       },
     },
-    content: pages,
+    content: content,
   };
 
   return docDefinition;
@@ -11992,7 +11995,17 @@ async function generatePosturePdf() {
 
   const fileName = `posture_report_${memberName}_${yyyy}${mm}${dd}.pdf`;
 
-  pdfMake.createPdf(docDefinition, null, fonts, vfs).download(fileName);
+  try {
+    // pdfMake 폰트 설정
+    pdfMake.fonts = fonts;
+    pdfMake.vfs = vfs;
+    
+    // PDF 생성 및 다운로드
+    pdfMake.createPdf(docDefinition).download(fileName);
+  } catch (err) {
+    console.error("PDF 생성 오류:", err);
+    alert("PDF 생성에 실패했습니다: " + err.message);
+  }
 }
 
 // 기존 함수명 호환성 유지
@@ -12022,7 +12035,17 @@ async function savePosturePdfFromApp(memberName, centerName) {
     const dd = String(today.getDate()).padStart(2, "0");
     const fileName = `posture_report_${memberName}_${yyyy}${mm}${dd}.pdf`;
 
-    pdfMake.createPdf(docDefinition, null, fonts, vfs).download(fileName);
+    try {
+      // pdfMake 폰트 설정
+      pdfMake.fonts = fonts;
+      pdfMake.vfs = vfs;
+      
+      // PDF 생성 및 다운로드
+      pdfMake.createPdf(docDefinition).download(fileName);
+    } catch (err) {
+      console.error("PDF 생성 오류:", err);
+      alert("PDF 생성에 실패했습니다: " + err.message);
+    }
   } else {
     await generatePosturePdf();
   }
