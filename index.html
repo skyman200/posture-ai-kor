@@ -13060,14 +13060,21 @@ function setupPDFButton() {
   btnPDF.parentNode.replaceChild(newBtn, btnPDF);
   
   newBtn.addEventListener('click', async () => {
-    // PDF v3 시스템 사용
+    // PDF v3 시스템 사용 (generateFinalPDF)
+    if (typeof generateFinalPDF === 'function') {
+      await generateFinalPDF();
+      return;
+    }
+    
+    // 폴백: saveFullPDF (pdf-maker.js)
     if (typeof saveFullPDF === 'function') {
       await saveFullPDF();
       return;
     }
     
     // 폴백: 기존 로직 (하지만 실행되지 않도록)
-    console.warn("[PDF CLEAN] setupPDFButton: 새 PDF 시스템을 사용하세요");
+    console.warn("[PDF CLEAN] setupPDFButton: PDF 시스템을 찾을 수 없습니다");
+    alert("PDF 생성 함수를 찾을 수 없습니다. 페이지를 새로고침해주세요.");
     return;
     
     // 아래 코드는 실행되지 않음 (위에서 return)
@@ -14586,23 +14593,8 @@ console.log("[PDF CLEAN] ✅ Legacy PDF 코드 제거 완료");
 </div>
 
 <!-- ===================================================== -->
-<!-- 🔥 PDF v3: 버튼 및 UI 요소 (PART 2) -->
+<!-- 🔥 PDF v3: UI 요소 (PART 2) -->
 <!-- ===================================================== -->
-<!-- PDF 버튼 UI -->
-<div style="position: fixed; bottom: 20px; right: 20px; z-index: 99999;">
-    <button id="btnGeneratePDF"
-        style="
-            padding: 12px 18px;
-            background:#4a90e2;
-            color:white;
-            border-radius:8px;
-            font-size:15px;
-            border:none;
-            box-shadow:0px 3px 10px rgba(0,0,0,0.25);
-            cursor: pointer;">
-        📄 PDF 저장 (OCR 포함)
-    </button>
-</div>
 
 <!-- OCR 텍스트 임시 저장용 -->
 <div id="ocrHiddenBox"
@@ -14822,16 +14814,12 @@ async function generateFinalPDF() {
 }
 
 /* -------------------------------------------------
-   버튼 연결
+   기존 PDF 버튼 연결 (btnPDF)
 -------------------------------------------------- */
-const pdfBtn = document.getElementById("btnGeneratePDF");
-if (pdfBtn) {
-    pdfBtn.addEventListener("click", () => {
-        setPdfStatus("PDF 생성 시작…");
-        generateFinalPDF();
-    });
-} else {
-    console.warn("btnGeneratePDF 버튼을 찾을 수 없습니다.");
+// 기존 btnPDF 버튼이 generateFinalPDF를 호출하도록 설정
+if (typeof generateFinalPDF === 'function') {
+    window.generateFinalPDF = generateFinalPDF;
+    console.log("[PDF v3] generateFinalPDF 함수 전역 노출 완료");
 }
 
 console.log("[PDF v3] ✅ 최종 PDF 엔진 준비 완료");
