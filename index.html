@@ -9416,7 +9416,44 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
 
 // 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로)
 let pilatesHtml = '';
-if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
+// ✅ 웹앱에서 생성된 필라테스 추천을 우선 사용
+if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommendations) && window.PilatesRecommendations.length > 0) {
+  // 웹앱 추천 데이터를 analysis.pilates 형식으로 변환
+  // 도구별로 그룹화하여 renderPilatesItemCard가 기대하는 형식으로 변환
+  const toolMap = {
+    'Mat': '매트',
+    'Reformer': '리포머',
+    'Cadillac': '캐딜락',
+    'Chair': '체어',
+    'WundaChair': '체어',
+    'Barrel': '바렐'
+  };
+  
+  // 도구별로 운동 그룹화
+  const groupedByTool = {};
+  window.PilatesRecommendations.forEach(rec => {
+    // equipment_ko를 우선 사용, 없으면 tool을 변환
+    const toolKo = rec.equipment_ko || rec.equipment || 
+                   (rec.tool ? (toolMap[rec.tool] || toolMap['Mat'] || '매트') : '매트');
+    if (!groupedByTool[toolKo]) {
+      groupedByTool[toolKo] = [];
+    }
+    groupedByTool[toolKo].push({
+      exercise_ko: rec.exercise_ko || rec.name,
+      exercise_en: rec.exercise_en || rec.name,
+      ...rec
+    });
+  });
+  
+  // renderPilatesItemCard가 기대하는 형식으로 변환
+  const pilatesData = {
+    name: '필라테스 운동 추천',
+    description: '자세 분석 결과를 바탕으로 추천된 필라테스 운동입니다.',
+    pilates: groupedByTool
+  };
+  
+  pilatesHtml = renderPilatesItemCard(pilatesData, { context: 'ui', index: 0, limitPerTool: Infinity });
+} else if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
   // 앱에서 사용하는 것과 동일한 방식으로 렌더링 (context: 'ui', limitPerTool: Infinity로 모든 운동 표시)
   pilatesHtml = analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'ui', index: idx, limitPerTool: Infinity })).join('');
 } else {
