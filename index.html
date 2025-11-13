@@ -294,10 +294,7 @@ canvas {
   </div>
 
 
-  <!-- AI PRO 리포트 표시 영역 -->
-  <div id="report-box" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; white-space: pre-wrap; font-size:12px; line-height:1.5; max-height:400px; overflow-y:auto; color:var(--ink); font-family: 'Noto Sans KR', sans-serif;"></div>
-  
-  <!-- 16개 항목 상세 설명 -->
+  <!-- AI PRO 리포트 표시 영역 -->6개 항목 상세 설명 -->
   <div id="metricsDescPanel" style="margin-top:12px; padding:12px; background:rgba(124,156,255,0.1); border-radius:10px;">
     <div style="font-size:14px; font-weight:600; margin-bottom:8px; color:#7c9cff;">📋 분석 항목 설명</div>
     <div style="font-size:11px; color:#7c9cff; margin-bottom:8px; padding:4px 8px; background:rgba(124,156,255,0.2); border-radius:4px; display:inline-block;">측면 항목 (옆모습)</div>
@@ -330,6 +327,9 @@ canvas {
           <strong>임상적 의미:</strong> 10° 초과 시 요추 과전만 또는 평평한 등(Flat Back) 위험이 있습니다.
         </div>
       </details>
+  <div id="report-box" style="margin-top:12px; padding:12px; background:rgba(46,196,182,0.1); border-radius:10px; display:none; white-space: pre-wrap; font-size:12px; line-height:1.5; max-height:400px; overflow-y:auto; color:var(--ink); font-family: 'Noto Sans KR', sans-serif;"></div>
+  
+  <!-- 1
       <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">SAA (Scapular Alignment Angle) - 견갑골 정렬각</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
@@ -11081,6 +11081,7 @@ async function generatePosturePDF(centerName, memberName, before, after) {
     for (const item of results) {
       if (y > 260) {
         pdf.addPage();
+        addPdfFooter(pdf);
         y = 20;
       }
       pdf.setFontSize(11);
@@ -11536,6 +11537,24 @@ async function registerKoreanFont(pdf) {
   }
 }
 
+// ✅ PDF Footer 추가 함수 (모든 페이지 하단에 자동 삽입)
+function addPdfFooter(pdf) {
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const footerText = "Created by Kim Cook PhD, DIT Physiotherapy (@pila_strong)";
+  
+  pdf.setFontSize(10);
+  pdf.setTextColor(128, 128, 128); // 회색
+  pdf.setFont('helvetica', 'normal');
+  
+  // 페이지 하단 중앙에 footer 추가
+  const textWidth = pdf.getTextWidth(footerText);
+  const x = (pageW - textWidth) / 2;
+  const y = pageH - 10; // 하단에서 10px 위
+  
+  pdf.text(footerText, x, y);
+}
+
 function exportAsPdf(options = {}) {
   const {
     fileName = null, // null이면 자동 생성
@@ -11655,6 +11674,8 @@ function exportAsPdf(options = {}) {
         finalCoverW,
         finalCoverH
     );
+    // ✅ 첫 페이지(표지) Footer 추가
+    addPdfFooter(pdf);
     } catch (err) {
       console.error('표지 이미지 추가 실패:', err);
       throw new Error('표지 이미지를 PDF에 추가할 수 없습니다.');
@@ -11700,6 +11721,8 @@ function exportAsPdf(options = {}) {
             finalRenderWidth,
             finalRenderHeight
         );
+        // ✅ Footer 추가
+        addPdfFooter(pdf);
         } catch (err) {
           console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
         }
@@ -11808,6 +11831,7 @@ function exportAsPdf(options = {}) {
     
     if (comparison && comparison.results && comparison.results.length > 0) {
       pdf.addPage();
+      addPdfFooter(pdf);
       let y = margin + 10;
       
       // 제목
@@ -11838,6 +11862,7 @@ function exportAsPdf(options = {}) {
       comparison.results.forEach((item, idx) => {
         if (y > pageH - 100) { // 페이지 넘김
           pdf.addPage();
+          addPdfFooter(pdf);
           y = margin + 20;
         }
         
@@ -11874,6 +11899,7 @@ function exportAsPdf(options = {}) {
       if (comparison.summary && comparison.summary.overallComment) {
         if (y > pageH - 80) {
           pdf.addPage();
+          addPdfFooter(pdf);
           y = margin + 20;
         }
         
@@ -11893,11 +11919,13 @@ function exportAsPdf(options = {}) {
         });
       }
       
-      // 페이지 번호
+      // 페이지 번호 (footer 위에 배치)
       pdf.setFontSize(8);
       pdf.setTextColor(150, 150, 150);
       const metricsPageNum = pageIndexMap.metrics || 2;
-      pdf.text(`Page ${metricsPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
+      pdf.text(`Page ${metricsPageNum}/${totalPages}`, pageW - margin - 50, pageH - 25);
+      // ✅ Footer 추가
+      addPdfFooter(pdf);
     }
     
     // 페이지 4: AI 해석 요약 (기존 canvas 사용)
@@ -11905,6 +11933,7 @@ function exportAsPdf(options = {}) {
     
     // 페이지 5: 필라테스 추천 (텍스트 직접 삽입)
     pdf.addPage();
+    addPdfFooter(pdf);
       let y = margin + 10;
       
       // ✅ 필라테스 텍스트 PDF 삽입
@@ -11931,6 +11960,7 @@ function exportAsPdf(options = {}) {
         lines.forEach((line) => {
           if (y > pageH - 50) {
             pdf.addPage();
+            addPdfFooter(pdf);
             y = margin + 20;
           }
           pdfAddKoreanText(pdf, line, margin + 20, y, { fontSize: 12 });
@@ -11949,6 +11979,7 @@ function exportAsPdf(options = {}) {
         analysis.pilates.forEach((item, idx) => {
         if (y > pageH - 150) {
           pdf.addPage();
+          addPdfFooter(pdf);
           y = margin + 20;
         }
         
@@ -12038,6 +12069,7 @@ function exportAsPdf(options = {}) {
               exercises.forEach((exercise, exIdx) => {
                 if (y > pageH - 200) {
                   pdf.addPage();
+                  addPdfFooter(pdf);
                   y = margin + 20;
                 }
                 
@@ -12247,11 +12279,13 @@ function exportAsPdf(options = {}) {
         pdfAddKoreanText(pdf, '추천 세션이 없습니다.', margin + 20, y, { fontSize: 12 });
       }
       
-      // 페이지 번호
+      // 페이지 번호 (footer 위에 배치)
       pdf.setFontSize(8);
       pdf.setTextColor(150, 150, 150);
       const pilatesPageNum = pageIndexMap.pilates || 4;
-      pdf.text(`Page ${pilatesPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
+      pdf.text(`Page ${pilatesPageNum}/${totalPages}`, pageW - margin - 50, pageH - 25);
+      // ✅ Footer 추가
+      addPdfFooter(pdf);
     
     // 나머지 페이지 (AI 심층 분석, 결론)
     if (aiDeepCanvas) addPageToPdf(aiDeepCanvas);
@@ -13837,7 +13871,9 @@ async function exportAsPdfSimple() {
     // NotoSansKR 폰트 사용
     pdf.setFont("NotoSansKR", "normal");
     pdfAddKoreanText(pdf, "📌 자세 분석 리포트", 20, 40, { fontSize: 16, fontStyle: 'bold' });
+    addPdfFooter(pdf);
     pdf.addPage();
+    addPdfFooter(pdf);
     pdfAddKoreanText(pdf, "📊 AI 분석 요약", 20, 40, { fontSize: 16, fontStyle: 'bold' });
     pdf.addImage(img2, "PNG", 20, 60, imgWidth, 220);
     pdf.save("Posture_AI_Report.pdf");
@@ -13870,76 +13906,6 @@ if (document.getElementById("downloadPdfBtn")) {
     });
   }
 </script>
-
-<script>
-async function saveTextBasedPDF() {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF("p", "mm", "a4");
-
-  pdf.setFont("NotoSansKR", "normal");
-  pdf.setFontSize(11);
-
-  let y = 15;
-
-  const newPageIfNeeded = (lineCount = 1) => {
-    if (y + lineCount * 5 > 280) {
-      pdf.addPage();
-      y = 15;
-    }
-  };
-
-  const addTextBlock = (text, size = 11, bold = false) => {
-    pdf.setFontSize(size);
-    pdf.setFont("NotoSansKR", bold ? "bold" : "normal");
-    const lines = pdf.splitTextToSize(text, 190);
-    newPageIfNeeded(lines.length);
-    pdf.text(lines, 10, y);
-    y += lines.length * 5 + 4;
-  };
-
-  const addImage = (imgEl) => {
-    try {
-      if (!imgEl.src) return;
-      pdf.addImage(imgEl.src, "JPEG", 10, y, 180, 0);
-      y += 60;
-      newPageIfNeeded(10);
-    } catch(e) {
-      console.warn("이미지 처리 중 오류", e);
-    }
-  };
-
-  // ✅ 본문 전체 텍스트 + 이미지 순차 삽입
-  document.body.querySelectorAll("*").forEach(el => {
-    if (el.tagName === "IMG") {
-      addImage(el);
-    } else if (el.innerText?.trim()) {
-      addTextBlock(el.innerText.trim());
-    }
-  });
-
-  // ✅ 마지막 페이지에 백업 JSON 추가
-  pdf.addPage();
-  y = 15;
-  addTextBlock("📦 APP DATA BACKUP (JSON)", 14, true);
-
-  const backupData = {
-    generatedAt: new Date().toISOString(),
-    fullText: document.body.innerText
-  };
-
-  addTextBlock(JSON.stringify(backupData, null, 2), 8);
-
-  pdf.save("Pilates_Full_Report.pdf");
-}
-</script>
-
-<button onclick="saveTextBasedPDF()" style="
-  position:fixed; bottom:20px; right:20px;
-  background:#000; color:#fff; padding:12px 18px;
-  font-size:15px; border-radius:8px; z-index:99999;
-">
-📄 한글 포함 텍스트 PDF 저장
-</button>
 
   </body>
 </html>
