@@ -1,0 +1,19 @@
+{
+  "name": "posture-ai-kor",
+  "version": "1.0.0",
+  "description": "Posture AI Analysis Web Application",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'No build step required for static HTML/JS project'",
+    "deploy": "echo 'Deploy static files'"
+  },
+  "keywords": [
+    "posture",
+    "ai",
+    "physiotherapy",
+    "pose-estimation"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+
