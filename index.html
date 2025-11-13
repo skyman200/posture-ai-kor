@@ -9018,15 +9018,19 @@ if (afterViews.side || beforeViews.side) {
       windowWidth: containerWidth,
       windowHeight: containerHeight,
       width: containerWidth,
-      height: containerHeight
+      height: containerHeight,
+      scale: 1.5  // 품질 낮춤 (기본 2에서 1.5로)
     });
     
+    // ✅ 캔버스 크기 제한 + 압축
     if (sideImageCanvas && (sideImageCanvas.width > PDF_MAX_CANVAS_EDGE || sideImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
       const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideImageCanvas.width, PDF_MAX_CANVAS_EDGE / sideImageCanvas.height);
       const newCanvas = document.createElement('canvas');
       newCanvas.width = Math.floor(sideImageCanvas.width * ratio);
       newCanvas.height = Math.floor(sideImageCanvas.height * ratio);
       const ctx = newCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'medium';
       ctx.drawImage(sideImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
       sideImageCanvas = newCanvas;
     }
@@ -9056,6 +9060,9 @@ Object.keys(fullMetricsForSide).forEach(key => {
   }
 });
 
+// ✅ 측면 분석임을 명시
+sideMetrics.orientation = "side";
+
 // 측면 분석 수행
 let sideAnalysis = null;
 try {
@@ -9073,6 +9080,7 @@ if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
   setPageContainerStyle(sideReportContainer);
   sideReportContainer.classList.add('pdf-safe');
   
+  // ✅ 측면 메트릭만으로 점수 계산
   const sideScoreResult = computeScoreFromFullMetrics(sideMetrics);
   
   sideReportContainer.innerHTML = `
@@ -9128,15 +9136,19 @@ if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
       windowWidth: containerWidth,
       windowHeight: containerHeight,
       width: containerWidth,
-      height: containerHeight
+      height: containerHeight,
+      scale: 1.5  // 품질 낮춤
     });
     
+    // ✅ 캔버스 크기 제한 + 압축
     if (sideReportCanvas && (sideReportCanvas.width > PDF_MAX_CANVAS_EDGE || sideReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
       const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideReportCanvas.width, PDF_MAX_CANVAS_EDGE / sideReportCanvas.height);
       const newCanvas = document.createElement('canvas');
       newCanvas.width = Math.floor(sideReportCanvas.width * ratio);
       newCanvas.height = Math.floor(sideReportCanvas.height * ratio);
       const ctx = newCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'medium';
       ctx.drawImage(sideReportCanvas, 0, 0, newCanvas.width, newCanvas.height);
       sideReportCanvas = newCanvas;
     }
@@ -9188,15 +9200,19 @@ if (afterViews.front || beforeViews.front) {
       windowWidth: containerWidth,
       windowHeight: containerHeight,
       width: containerWidth,
-      height: containerHeight
+      height: containerHeight,
+      scale: 1.5  // 품질 낮춤
     });
     
+    // ✅ 캔버스 크기 제한 + 압축
     if (frontImageCanvas && (frontImageCanvas.width > PDF_MAX_CANVAS_EDGE || frontImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
       const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontImageCanvas.width, PDF_MAX_CANVAS_EDGE / frontImageCanvas.height);
       const newCanvas = document.createElement('canvas');
       newCanvas.width = Math.floor(frontImageCanvas.width * ratio);
       newCanvas.height = Math.floor(frontImageCanvas.height * ratio);
       const ctx = newCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'medium';
       ctx.drawImage(frontImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
       frontImageCanvas = newCanvas;
     }
@@ -9226,6 +9242,9 @@ Object.keys(fullMetricsForFront).forEach(key => {
   }
 });
 
+// ✅ 정면 분석임을 명시
+frontMetrics.orientation = "front";
+
 // 정면 분석 수행
 let frontAnalysis = null;
 try {
@@ -9243,7 +9262,7 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
   setPageContainerStyle(frontReportContainer);
   frontReportContainer.classList.add('pdf-safe');
   
-  // 정면 점수는 전체 점수 사용 (정면 항목만으로는 점수 계산이 어려움)
+  // ✅ 정면 메트릭만으로 점수 계산
   const frontScoreResult = computeScoreFromFullMetrics(frontMetrics);
   
   frontReportContainer.innerHTML = `
@@ -9299,15 +9318,19 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
       windowWidth: containerWidth,
       windowHeight: containerHeight,
       width: containerWidth,
-      height: containerHeight
+      height: containerHeight,
+      scale: 1.5  // 품질 낮춤
     });
     
+    // ✅ 캔버스 크기 제한 + 압축
     if (frontReportCanvas && (frontReportCanvas.width > PDF_MAX_CANVAS_EDGE || frontReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
       const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontReportCanvas.width, PDF_MAX_CANVAS_EDGE / frontReportCanvas.height);
       const newCanvas = document.createElement('canvas');
       newCanvas.width = Math.floor(frontReportCanvas.width * ratio);
       newCanvas.height = Math.floor(frontReportCanvas.height * ratio);
       const ctx = newCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'medium';
       ctx.drawImage(frontReportCanvas, 0, 0, newCanvas.width, newCanvas.height);
       frontReportCanvas = newCanvas;
     }
@@ -9735,7 +9758,8 @@ try {
   windowWidth: container4Width,
   windowHeight: container4Height,
   width: container4Width,
-  height: container4Height
+  height: container4Height,
+  scale: 1.5  // ✅ 품질 낮춤
 });
 } catch (err) {
   console.error('❌ 종합 리포트 캔버스 생성 실패:', err);
@@ -9746,13 +9770,15 @@ if (document.body.contains(page4Container)) {
   document.body.removeChild(page4Container);
 }
 
-// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+// ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (combinedReportCanvas && (combinedReportCanvas.width > PDF_MAX_CANVAS_EDGE || combinedReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
   const ratio = Math.min(PDF_MAX_CANVAS_EDGE / combinedReportCanvas.width, PDF_MAX_CANVAS_EDGE / combinedReportCanvas.height);
   const newCanvas = document.createElement('canvas');
   newCanvas.width = Math.floor(combinedReportCanvas.width * ratio);
   newCanvas.height = Math.floor(combinedReportCanvas.height * ratio);
   const ctx = newCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(combinedReportCanvas, 0, 0, newCanvas.width, newCanvas.height);
   combinedReportCanvas = newCanvas;
 }
@@ -9859,7 +9885,8 @@ try {
   windowWidth: container5Width,
   windowHeight: container5Height,
   width: container5Width,
-  height: container5Height
+  height: container5Height,
+  scale: 1.5  // ✅ 품질 낮춤
 });
 } catch (err) {
   console.error('❌ canvas5 생성 실패:', err);
@@ -9870,13 +9897,15 @@ if (document.body.contains(page5Container)) {
   document.body.removeChild(page5Container);
 }
 
-// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+// ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (canvas5 && (canvas5.width > PDF_MAX_CANVAS_EDGE || canvas5.height > PDF_MAX_CANVAS_EDGE)) {
   const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas5.width, PDF_MAX_CANVAS_EDGE / canvas5.height);
   const newCanvas = document.createElement('canvas');
   newCanvas.width = Math.floor(canvas5.width * ratio);
   newCanvas.height = Math.floor(canvas5.height * ratio);
   const ctx = newCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(canvas5, 0, 0, newCanvas.width, newCanvas.height);
   canvas5 = newCanvas;
 }
@@ -9939,7 +9968,8 @@ try {
   windowWidth: container6Width,
   windowHeight: container6Height,
   width: container6Width,
-  height: container6Height
+  height: container6Height,
+  scale: 1.5  // ✅ 품질 낮춤
 });
 } catch (err) {
   console.error('❌ canvas6 생성 실패:', err);
@@ -9950,13 +9980,15 @@ if (document.body.contains(page6Container)) {
   document.body.removeChild(page6Container);
 }
 
-// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+// ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (canvas6 && (canvas6.width > PDF_MAX_CANVAS_EDGE || canvas6.height > PDF_MAX_CANVAS_EDGE)) {
   const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas6.width, PDF_MAX_CANVAS_EDGE / canvas6.height);
   const newCanvas = document.createElement('canvas');
   newCanvas.width = Math.floor(canvas6.width * ratio);
   newCanvas.height = Math.floor(canvas6.height * ratio);
   const ctx = newCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(canvas6, 0, 0, newCanvas.width, newCanvas.height);
   canvas6 = newCanvas;
 }
@@ -10003,7 +10035,8 @@ if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분
       windowWidth: container8Width,
       windowHeight: container8Height,
       width: container8Width,
-      height: container8Height
+      height: container8Height,
+      scale: 1.5  // ✅ 품질 낮춤
     });
   } catch (err) {
     console.error('❌ canvas8 생성 실패:', err);
@@ -10014,13 +10047,15 @@ if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분
     document.body.removeChild(page8Container);
   }
   
-  // 캔버스 즉시 압축
+  // ✅ 캔버스 즉시 압축 + 이미지 스무딩
   if (canvas8 && (canvas8.width > PDF_MAX_CANVAS_EDGE || canvas8.height > PDF_MAX_CANVAS_EDGE)) {
     const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas8.width, PDF_MAX_CANVAS_EDGE / canvas8.height);
     const newCanvas = document.createElement('canvas');
     newCanvas.width = Math.floor(canvas8.width * ratio);
     newCanvas.height = Math.floor(canvas8.height * ratio);
     const ctx = newCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
     ctx.drawImage(canvas8, 0, 0, newCanvas.width, newCanvas.height);
     canvas8 = newCanvas;
   }
@@ -10073,7 +10108,8 @@ try {
   windowWidth: container7Width,
   windowHeight: container7Height,
   width: container7Width,
-  height: container7Height
+  height: container7Height,
+  scale: 1.5  // ✅ 품질 낮춤
 });
 } catch (err) {
   console.error('❌ canvas7 생성 실패:', err);
@@ -10084,13 +10120,15 @@ if (document.body.contains(page7Container)) {
   document.body.removeChild(page7Container);
 }
 
-// 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
+// ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (canvas7 && (canvas7.width > PDF_MAX_CANVAS_EDGE || canvas7.height > PDF_MAX_CANVAS_EDGE)) {
   const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas7.width, PDF_MAX_CANVAS_EDGE / canvas7.height);
   const newCanvas = document.createElement('canvas');
   newCanvas.width = Math.floor(canvas7.width * ratio);
   newCanvas.height = Math.floor(canvas7.height * ratio);
   const ctx = newCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(canvas7, 0, 0, newCanvas.width, newCanvas.height);
   canvas7 = newCanvas;
 }
@@ -12122,8 +12160,8 @@ function exportAsPdf(options = {}) {
         if (!sliceCanvas || sliceCanvas.width === 0 || sliceCanvas.height === 0) return;
         
         try {
-          // PNG 원본 크기 그대로 사용 (최고 품질)
-          const imageData = sliceCanvas.toDataURL("image/png");
+          // ✅ JPEG 압축 사용 (메모리 절약)
+          const imageData = sliceCanvas.toDataURL("image/jpeg", 0.85);
           const canvasAspectRatio = sliceCanvas.width / sliceCanvas.height;
           
           // 너비 기준으로 높이 계산 (원본 비율 유지)
@@ -12143,11 +12181,13 @@ function exportAsPdf(options = {}) {
         pdf.rect(0, 0, pageW, pageH, "F");
         pdf.addImage(
             imageData,
-          "PNG",
+          "JPEG",  // ✅ PNG 대신 JPEG 사용
             finalPageX,
           margin,
             finalRenderWidth,
-            finalRenderHeight
+            finalRenderHeight,
+          undefined,
+          'FAST'  // ✅ 압축 모드 지정
         );
         } catch (err) {
           console.warn('PDF 페이지 추가 중 오류 (스킵):', err);
