@@ -3389,15 +3389,15 @@ function ensureDefaultPoints(session) {
       R_acromion: {x:W*0.7, y:H*0.3},
       L_asis: {x:W*0.35, y:H*0.5},
       R_asis: {x:W*0.65, y:H*0.5},
-      L_knee: {x:W*0.4, y:H*0.75},
-      R_knee: {x:W*0.6, y:H*0.75},
-      L_ankle: {x:W*0.4, y:H*0.95},
-      R_ankle: {x:W*0.6, y:H*0.95},
+      L_knee: {x:W*0.4, y:H*0.65},  // 무릎 위치 위로 조정 (0.75 → 0.65)
+      R_knee: {x:W*0.6, y:H*0.65},  // 무릎 위치 위로 조정 (0.75 → 0.65)
+      L_ankle: {x:W*0.4, y:H*0.85},  // 발목 위치 위로 조정 (0.95 → 0.85)
+      R_ankle: {x:W*0.6, y:H*0.85},  // 발목 위치 위로 조정 (0.95 → 0.85)
       // Q-angle 측정용 dot (무릎 중심 근처)
-      L_patella: {x:W*0.4, y:H*0.75},  // 좌측 슬개골 중심
-      R_patella: {x:W*0.6, y:H*0.75},  // 우측 슬개골 중심
-      L_tibial_tub: {x:W*0.4, y:H*0.78},  // 좌측 경골 결절 (슬개골 아래 약간)
-      R_tibial_tub: {x:W*0.6, y:H*0.78},  // 우측 경골 결절 (슬개골 아래 약간)
+      L_patella: {x:W*0.4, y:H*0.65},  // 좌측 슬개골 중심 (무릎과 동일)
+      R_patella: {x:W*0.6, y:H*0.65},  // 우측 슬개골 중심 (무릎과 동일)
+      L_tibial_tub: {x:W*0.4, y:H*0.68},  // 좌측 경골 결절 (슬개골 아래 약간, 0.78 → 0.68)
+      R_tibial_tub: {x:W*0.6, y:H*0.68},  // 우측 경골 결절 (슬개골 아래 약간, 0.78 → 0.68)
     } : {
       tragus: {x:W*0.35, y:H*0.3},
       c7: {x:W*0.3, y:H*0.35},
@@ -3686,6 +3686,50 @@ function drawHandle(x, y, label, color, isSelected = false) {
 // 각도와 점수만 계산 (실시간 표시용, AI 분석 없음)
 function computeMetricsOnly() {
   const S = sessions[cur];
+  const pxPerCm = S.pxPerCm || 50.0;
+  
+  // 측면 및 정면 키포인트를 Map 형태로 변환
+  const sidePoints = {};
+  const frontPoints = {};
+  
+  // 측면 키포인트
+  for(const [key, value] of S.sidePoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      sidePoints[key] = { x: value.x, y: value.y };
+    }
+  }
+  
+  // 정면 키포인트
+  for(const [key, value] of S.frontPoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      frontPoints[key] = { x: value.x, y: value.y };
+    }
+  }
+  
+  // 전체 메트릭 계산 (AI 분석 없이)
+  const imageWidth = cv ? (cv.width / DPR) : 1080; // 캔버스 너비 또는 기본값
+  const sideMetrics = Object.keys(sidePoints).length > 0 
+    ? analyzeFullPosture(sidePoints, pxPerCm, imageWidth) 
+    : { status: "not_available" };
+  
+  const frontMetrics = Object.keys(frontPoints).length > 0 
+    ? analyzeFrontPosture(frontPoints, pxPerCm) 
+    : { status: "not_available" };
+  
+  // 측면 및 정면 분석 결과를 통합하여 fullMetrics에 저장
+  const mergedMetrics = {};
+  
+  // 측면 분석 결과 통합
+  if(sideMetrics.status !== "not_available") {
+    Object.assign(mergedMetrics, sideMetrics);
+  }
+  
+  // 정면 분석 결과 통합 (측면 결과와 병합)
+  if(frontMetrics.status !== "not_available") {
+    Object.assign(mergedMetrics, frontMetrics);
+  }
+  
+  // 기존 호환성을 위한 처리
   const P = getPts(cur);
   let cva = null, pelvic = null, knee = null;
 
@@ -3697,20 +3741,14 @@ function computeMetricsOnly() {
   }
   if(P.ASIS && P.PSIS) {
     // TRUNK 각도: 수평선과 ASIS-PSIS 선 사이의 각도
-    // ASIS에서 PSIS로 가는 벡터의 각도를 계산
     const dx = P.PSIS.x - P.ASIS.x;
     const dy = P.PSIS.y - P.ASIS.y;
     const angle = Math.atan2(dy, dx);
     let pelvicDeg = rad2deg(angle);
     
-    // 수평선 기준으로 각도 정규화 (-90~90도 범위)
-    // -176.4도는 180 + (-176.4) = 3.6도로 변환되어야 함
-    // 각도를 -180~180 범위에서 -90~90 범위로 변환
     if(pelvicDeg < -90) {
-      // -176.4도 같은 경우: 180 + (-176.4) = 3.6도
       pelvicDeg = 180 + pelvicDeg;
     } else if(pelvicDeg > 90) {
-      // 176.4도 같은 경우: 176.4 - 180 = -3.6도
       pelvicDeg = pelvicDeg - 180;
     }
     
@@ -3720,34 +3758,35 @@ function computeMetricsOnly() {
     knee = rad2deg(internalAngle(P.Hip, P.Knee, P.Ankle));
   }
 
-  S.metrics = { cva, pelvic, knee };
-  const score = computeScore(cva, pelvic, knee);
+  // fullMetrics가 있으면 fullMetrics 기반으로 점수 계산
+  let score;
+  if(Object.keys(mergedMetrics).length > 0) {
+    S.metrics = { 
+      cva, 
+      pelvic, 
+      knee,
+      fullMetrics: mergedMetrics,
+      orientation: sideMetrics.status !== "not_available" ? "side" : "front",
+      frontMetrics: frontMetrics.status !== "not_available" ? frontMetrics : null
+    };
+    window.fullMetrics = mergedMetrics;
+    score = computeScoreFromFullMetrics(mergedMetrics);
+  } else {
+    S.metrics = { cva, pelvic, knee };
+    score = computeScore(cva, pelvic, knee);
+  }
+  
   S.score = score;
   
   // AI 분석은 하지 않음 (저장 버튼 클릭 시에만)
   
   updateDisplay();
-  updateCompare();
-  // 점수만 업데이트 (AI 분석 없음)
-  const scoreEl = document.getElementById("totalScore");
-  const reasonEl = document.getElementById("scoreReason");
-  if(scoreEl && score) {
-    scoreEl.textContent = score.score;
-    if(score >= 85) {
-      scoreEl.style.color = "#2ec4b6";
-    } else if(score >= 70) {
-      scoreEl.style.color = "#ffd166";
-    } else {
-      scoreEl.style.color = "#ff6b6b";
-    }
-  }
-  if(reasonEl && score) {
-    if(score.reasons && score.reasons.length > 0) {
-      reasonEl.textContent = "감점 근거: " + score.reasons.join(", ");
-    } else {
-      reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
-    }
-  }
+  updateCompare(); // 전체 분석 항목 업데이트
+  
+  // 전체 분석 항목 표시 업데이트 (AI 분석 없이)
+  // score 객체를 전달 (computeScoreFromFullMetrics는 {score, reasons, penalties} 반환)
+  const scoreData = typeof score === 'object' && score !== null ? score : { score: score, reasons: [], penalties: 0 };
+  updateScoreAndAnalysis(scoreData, cva, pelvic, knee, null);
 }
 
 // 전체 계산 (AI 분석 포함) - 저장 버튼 클릭 시에만 호출
@@ -8541,10 +8580,15 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
   let analysis = S.analysis || {};
   
   // 모든 캔버스 변수를 함수 스코프 상단에서 초기화 (에러 방지)
+  let sideImageCanvas = null; // 측면 사진
+  let sideReportCanvas = null; // 측면 리포트
+  let frontImageCanvas = null; // 정면 사진
+  let frontReportCanvas = null; // 정면 리포트
+  let combinedReportCanvas = null; // 종합 리포트 (측면+정면)
   let canvas4 = null;
-  let canvas5 = null;
-  let canvas6 = null;
-  let canvas7 = null;
+  let canvas5 = null; // 필라테스 추천
+  let canvas6 = null; // AI 심층 분석
+  let canvas7 = null; // 최종 분석 & 전략
   let canvas8 = null; // 체형 유형 분석 페이지
   const hasMeaningfulAnalysis = (data) => {
     if (!data) return false;
@@ -8917,19 +8961,364 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
+// ========== 페이지 1: 측면 사진 ==========
+if (afterViews.side || beforeViews.side) {
+  const sideImageContainer = document.createElement("div");
+  setPageContainerStyle(sideImageContainer);
+  sideImageContainer.classList.add('pdf-safe');
+  
+  const sideImg = afterViews.side || beforeViews.side;
+  sideImageContainer.innerHTML = `
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 사진</h2>
+    <div style="text-align:center; margin-top:20px;">
+      <img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
+    </div>
+    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+        <span>Page 1</span>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(sideImageContainer);
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  try {
+    const containerWidth = Math.max(sideImageContainer.scrollWidth, sideImageContainer.offsetWidth, 794);
+    const containerHeight = Math.max(sideImageContainer.scrollHeight, sideImageContainer.offsetHeight);
+    
+    sideImageCanvas = await html2canvas(sideImageContainer, {
+      ...html2canvasOptions,
+      windowWidth: containerWidth,
+      windowHeight: containerHeight,
+      width: containerWidth,
+      height: containerHeight
+    });
+    
+    if (sideImageCanvas && (sideImageCanvas.width > PDF_MAX_CANVAS_EDGE || sideImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+      const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideImageCanvas.width, PDF_MAX_CANVAS_EDGE / sideImageCanvas.height);
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = Math.floor(sideImageCanvas.width * ratio);
+      newCanvas.height = Math.floor(sideImageCanvas.height * ratio);
+      const ctx = newCanvas.getContext('2d');
+      ctx.drawImage(sideImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
+      sideImageCanvas = newCanvas;
+    }
+  } catch (err) {
+    console.error('❌ 측면 사진 캔버스 생성 실패:', err);
+    sideImageCanvas = null;
+  }
+  
+  if (document.body.contains(sideImageContainer)) {
+    document.body.removeChild(sideImageContainer);
+  }
+  
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+// ========== 페이지 2: 측면 리포트 ==========
+// 측면 항목만 필터링하여 분석
+const sideMetrics = {};
+const fullMetricsForSide = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
+const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+Object.keys(fullMetricsForSide).forEach(key => {
+  const code = METRIC_KEY_ALIASES[key] || key;
+  if (sideMetricKeys.includes(code)) {
+    sideMetrics[key] = fullMetricsForSide[key];
+  }
+});
+
+// 측면 분석 수행
+let sideAnalysis = null;
+try {
+  if (Object.keys(sideMetrics).length > 0) {
+    const flatSideMetrics = flattenFullMetrics(sideMetrics);
+    sideAnalysis = await analyzeWithDB(flatSideMetrics, "side");
+  }
+} catch (err) {
+  console.warn('측면 분석 실패:', err);
+}
+
+// 측면 리포트 페이지 생성
+if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
+  const sideReportContainer = document.createElement("div");
+  setPageContainerStyle(sideReportContainer);
+  sideReportContainer.classList.add('pdf-safe');
+  
+  const sideScoreResult = computeScoreFromFullMetrics(sideMetrics);
+  
+  sideReportContainer.innerHTML = `
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 측면 자세 분석 리포트</h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+      ${sideScoreResult ? `
+      <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
+        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 측면 점수</div>
+        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${sideScoreResult.score}/100</div>
+        <div style="font-size:11px; color:#15803d;">${sideScoreResult.reasons ? sideScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
+      </div>` : ''}
+
+      ${(sideAnalysis?.muscles?.tight && (sideAnalysis.muscles.tight.size > 0 || sideAnalysis.muscles.tight.length > 0)) || (sideAnalysis?.muscles?.weak && (sideAnalysis.muscles.weak.size > 0 || sideAnalysis.muscles.weak.length > 0)) ? `
+      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
+        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
+        ${(sideAnalysis.muscles.tight?.size > 0 || sideAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${sideAnalysis.muscles.tight instanceof Set ? Array.from(sideAnalysis.muscles.tight).join(', ') : (Array.isArray(sideAnalysis.muscles.tight) ? sideAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
+        ${(sideAnalysis.muscles.weak?.size > 0 || sideAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${sideAnalysis.muscles.weak instanceof Set ? Array.from(sideAnalysis.muscles.weak).join(', ') : (Array.isArray(sideAnalysis.muscles.weak) ? sideAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
+      </div>` : ''}
+    </div>
+
+    ${(sideAnalysis?.topRecommendations || []).length ? `
+    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 측면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
+        ${(sideAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+          <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
+          ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
+          ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
+
+    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+        <span>Page 2</span>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(sideReportContainer);
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  try {
+    const containerWidth = Math.max(sideReportContainer.scrollWidth, sideReportContainer.offsetWidth, 794);
+    const containerHeight = Math.max(sideReportContainer.scrollHeight, sideReportContainer.offsetHeight);
+    
+    sideReportCanvas = await html2canvas(sideReportContainer, {
+      ...html2canvasOptions,
+      windowWidth: containerWidth,
+      windowHeight: containerHeight,
+      width: containerWidth,
+      height: containerHeight
+    });
+    
+    if (sideReportCanvas && (sideReportCanvas.width > PDF_MAX_CANVAS_EDGE || sideReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+      const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideReportCanvas.width, PDF_MAX_CANVAS_EDGE / sideReportCanvas.height);
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = Math.floor(sideReportCanvas.width * ratio);
+      newCanvas.height = Math.floor(sideReportCanvas.height * ratio);
+      const ctx = newCanvas.getContext('2d');
+      ctx.drawImage(sideReportCanvas, 0, 0, newCanvas.width, newCanvas.height);
+      sideReportCanvas = newCanvas;
+    }
+  } catch (err) {
+    console.error('❌ 측면 리포트 캔버스 생성 실패:', err);
+    sideReportCanvas = null;
+  }
+  
+  if (document.body.contains(sideReportContainer)) {
+    document.body.removeChild(sideReportContainer);
+  }
+  
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+// ========== 페이지 3: 정면 사진 ==========
+if (afterViews.front || beforeViews.front) {
+  const frontImageContainer = document.createElement("div");
+  setPageContainerStyle(frontImageContainer);
+  frontImageContainer.classList.add('pdf-safe');
+  
+  const frontImg = afterViews.front || beforeViews.front;
+  frontImageContainer.innerHTML = `
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 사진</h2>
+    <div style="text-align:center; margin-top:20px;">
+      <img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
+    </div>
+    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+        <span>Page 3</span>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(frontImageContainer);
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  try {
+    const containerWidth = Math.max(frontImageContainer.scrollWidth, frontImageContainer.offsetWidth, 794);
+    const containerHeight = Math.max(frontImageContainer.scrollHeight, frontImageContainer.offsetHeight);
+    
+    frontImageCanvas = await html2canvas(frontImageContainer, {
+      ...html2canvasOptions,
+      windowWidth: containerWidth,
+      windowHeight: containerHeight,
+      width: containerWidth,
+      height: containerHeight
+    });
+    
+    if (frontImageCanvas && (frontImageCanvas.width > PDF_MAX_CANVAS_EDGE || frontImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+      const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontImageCanvas.width, PDF_MAX_CANVAS_EDGE / frontImageCanvas.height);
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = Math.floor(frontImageCanvas.width * ratio);
+      newCanvas.height = Math.floor(frontImageCanvas.height * ratio);
+      const ctx = newCanvas.getContext('2d');
+      ctx.drawImage(frontImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
+      frontImageCanvas = newCanvas;
+    }
+  } catch (err) {
+    console.error('❌ 정면 사진 캔버스 생성 실패:', err);
+    frontImageCanvas = null;
+  }
+  
+  if (document.body.contains(frontImageContainer)) {
+    document.body.removeChild(frontImageContainer);
+  }
+  
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+// ========== 페이지 4: 정면 리포트 ==========
+// 정면 항목만 필터링하여 분석
+const frontMetrics = {};
+const fullMetricsForFront = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
+const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
+Object.keys(fullMetricsForFront).forEach(key => {
+  const code = METRIC_KEY_ALIASES[key] || key;
+  if (frontMetricKeys.includes(code)) {
+    frontMetrics[key] = fullMetricsForFront[key];
+  }
+});
+
+// 정면 분석 수행
+let frontAnalysis = null;
+try {
+  if (Object.keys(frontMetrics).length > 0) {
+    const flatFrontMetrics = flattenFullMetrics(frontMetrics);
+    frontAnalysis = await analyzeWithDB(flatFrontMetrics, "front");
+  }
+} catch (err) {
+  console.warn('정면 분석 실패:', err);
+}
+
+// 정면 리포트 페이지 생성
+if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
+  const frontReportContainer = document.createElement("div");
+  setPageContainerStyle(frontReportContainer);
+  frontReportContainer.classList.add('pdf-safe');
+  
+  // 정면 점수는 전체 점수 사용 (정면 항목만으로는 점수 계산이 어려움)
+  const frontScoreResult = computeScoreFromFullMetrics(frontMetrics);
+  
+  frontReportContainer.innerHTML = `
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 정면 자세 분석 리포트</h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+      ${frontScoreResult ? `
+      <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
+        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 정면 점수</div>
+        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${frontScoreResult.score}/100</div>
+        <div style="font-size:11px; color:#15803d;">${frontScoreResult.reasons ? frontScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
+      </div>` : ''}
+
+      ${(frontAnalysis?.muscles?.tight && (frontAnalysis.muscles.tight.size > 0 || frontAnalysis.muscles.tight.length > 0)) || (frontAnalysis?.muscles?.weak && (frontAnalysis.muscles.weak.size > 0 || frontAnalysis.muscles.weak.length > 0)) ? `
+      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
+        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
+        ${(frontAnalysis.muscles.tight?.size > 0 || frontAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${frontAnalysis.muscles.tight instanceof Set ? Array.from(frontAnalysis.muscles.tight).join(', ') : (Array.isArray(frontAnalysis.muscles.tight) ? frontAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
+        ${(frontAnalysis.muscles.weak?.size > 0 || frontAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${frontAnalysis.muscles.weak instanceof Set ? Array.from(frontAnalysis.muscles.weak).join(', ') : (Array.isArray(frontAnalysis.muscles.weak) ? frontAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
+      </div>` : ''}
+    </div>
+
+    ${(frontAnalysis?.topRecommendations || []).length ? `
+    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 정면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
+        ${(frontAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+          <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
+          ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
+          ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
+
+    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+        <span>Page 4</span>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(frontReportContainer);
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  try {
+    const containerWidth = Math.max(frontReportContainer.scrollWidth, frontReportContainer.offsetWidth, 794);
+    const containerHeight = Math.max(frontReportContainer.scrollHeight, frontReportContainer.offsetHeight);
+    
+    frontReportCanvas = await html2canvas(frontReportContainer, {
+      ...html2canvasOptions,
+      windowWidth: containerWidth,
+      windowHeight: containerHeight,
+      width: containerWidth,
+      height: containerHeight
+    });
+    
+    if (frontReportCanvas && (frontReportCanvas.width > PDF_MAX_CANVAS_EDGE || frontReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+      const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontReportCanvas.width, PDF_MAX_CANVAS_EDGE / frontReportCanvas.height);
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = Math.floor(frontReportCanvas.width * ratio);
+      newCanvas.height = Math.floor(frontReportCanvas.height * ratio);
+      const ctx = newCanvas.getContext('2d');
+      ctx.drawImage(frontReportCanvas, 0, 0, newCanvas.width, newCanvas.height);
+      frontReportCanvas = newCanvas;
+    }
+  } catch (err) {
+    console.error('❌ 정면 리포트 캔버스 생성 실패:', err);
+    frontReportCanvas = null;
+  }
+  
+  if (document.body.contains(frontReportContainer)) {
+    document.body.removeChild(frontReportContainer);
+  }
+  
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
 const includeHeatmapPage = false;
-const totalPages = includeHeatmapPage ? 7 : 6;
+const totalPages = 9; // 측면사진, 측면리포트, 정면사진, 정면리포트, 종합리포트, 필라테스, AI심층, 체형유형, 최종분석
 const pageIndexMap = {
-  metrics: includeHeatmapPage ? 3 : 2,
-  aiSummary: includeHeatmapPage ? 4 : 3,
-  pilates: includeHeatmapPage ? 5 : 4,
-  aiDeep: includeHeatmapPage ? 6 : 5,
-  conclusion: includeHeatmapPage ? 7 : 6
+  sideImage: 1,
+  sideReport: 2,
+  frontImage: 3,
+  frontReport: 4,
+  combinedReport: 5,
+  pilates: 6,
+  aiDeep: 7,
+  postureType: 8,
+  conclusion: 9
 };
 let planTexts = { quickHtml: '', fullText: '' };
 
 let canvas2 = null;
-if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
+if (false && includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   const page2Container = document.createElement("div");
   setPageContainerStyle(page2Container);
   page2Container.classList.add('pdf-safe');
@@ -9229,7 +9618,7 @@ if (isMobile) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-// ========== 페이지 4: AI 해석 요약 (DB 기반 분석 포함) ==========
+// ========== 페이지 5: 종합 리포트 (측면+정면 종합 자세 분석 리포트 및 종합점수) ==========
 const page4Container = document.createElement("div");
 setPageContainerStyle(page4Container);
 
@@ -9247,7 +9636,7 @@ metricKeys.forEach(key => {
   }
 });
 
-// DB 기반 AI 분석 수행
+// DB 기반 AI 분석 수행 (전체 metrics 사용)
 let dbAnalysis = null;
 try {
   if(Object.keys(afterMetricsForDB).length > 0) {
@@ -9257,13 +9646,9 @@ try {
   console.warn('DB 기반 분석 실패:', err);
 }
 
-// ✅ 전체 체형 점수 계산
+// ✅ 전체 체형 점수 계산 (PDS 기반으로 일관성 유지)
 const fullMetricsForScore = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
-const scoreResult = computeScore(
-  fullMetricsForScore.CVA?.value || fullMetricsForScore.CVA?.value_deg || null,
-  fullMetricsForScore.PTA?.value || fullMetricsForScore.PTA?.value_deg || null,
-  fullMetricsForScore.KA?.value || fullMetricsForScore.KA?.value_deg || null
-);
+const scoreResult = computeScoreFromFullMetrics(fullMetricsForScore);
 
 const memberNameForPDF1 = memberName || '회원';
 
@@ -9285,7 +9670,7 @@ planTexts = buildPlanTexts({
 });
 
 page4Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 자세 분석 리포트</h2>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 종합 자세 분석 리포트 (측면 + 정면)</h2>
 
   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
     ${scoreResult ? `
@@ -9330,7 +9715,7 @@ page4Container.innerHTML = `
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
       <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
         <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
-        <span>Page ${pageIndexMap.aiSummary}/${totalPages}</span>
+        <span>Page ${pageIndexMap.combinedReport}/${totalPages}</span>
       </div>
   </div>
 `;
@@ -9345,7 +9730,7 @@ try {
   const container4Width = Math.max(page4Container.scrollWidth, page4Container.offsetWidth, 794);
   const container4Height = Math.max(page4Container.scrollHeight, page4Container.offsetHeight);
   
-  canvas4 = await html2canvas(page4Container, {
+  combinedReportCanvas = await html2canvas(page4Container, {
   ...html2canvasOptions,
   windowWidth: container4Width,
   windowHeight: container4Height,
@@ -9353,8 +9738,8 @@ try {
   height: container4Height
 });
 } catch (err) {
-  console.error('❌ canvas4 생성 실패:', err);
-  canvas4 = null;
+  console.error('❌ 종합 리포트 캔버스 생성 실패:', err);
+  combinedReportCanvas = null;
 }
 
 if (document.body.contains(page4Container)) {
@@ -9362,14 +9747,14 @@ if (document.body.contains(page4Container)) {
 }
 
 // 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
-if (canvas4 && (canvas4.width > PDF_MAX_CANVAS_EDGE || canvas4.height > PDF_MAX_CANVAS_EDGE)) {
-  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / canvas4.width, PDF_MAX_CANVAS_EDGE / canvas4.height);
+if (combinedReportCanvas && (combinedReportCanvas.width > PDF_MAX_CANVAS_EDGE || combinedReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+  const ratio = Math.min(PDF_MAX_CANVAS_EDGE / combinedReportCanvas.width, PDF_MAX_CANVAS_EDGE / combinedReportCanvas.height);
   const newCanvas = document.createElement('canvas');
-  newCanvas.width = Math.floor(canvas4.width * ratio);
-  newCanvas.height = Math.floor(canvas4.height * ratio);
+  newCanvas.width = Math.floor(combinedReportCanvas.width * ratio);
+  newCanvas.height = Math.floor(combinedReportCanvas.height * ratio);
   const ctx = newCanvas.getContext('2d');
-  ctx.drawImage(canvas4, 0, 0, newCanvas.width, newCanvas.height);
-  canvas4 = newCanvas;
+  ctx.drawImage(combinedReportCanvas, 0, 0, newCanvas.width, newCanvas.height);
+  combinedReportCanvas = newCanvas;
 }
 
 if (isMobile) {
@@ -9720,14 +10105,19 @@ if (isMobile) {
   return {
     canvases: {
       cover: canvas1,
+      sideImage: sideImageCanvas || null, // 측면 사진
+      sideReport: sideReportCanvas || null, // 측면 리포트
+      frontImage: frontImageCanvas || null, // 정면 사진
+      frontReport: frontReportCanvas || null, // 정면 리포트
+      combinedReport: combinedReportCanvas || null, // 종합 리포트 (측면+정면)
       heatmap: includeHeatmapPage && canvas2 ? canvas2 : null,
       metrics: canvas3 || null, // 수치표 + 변화 그래프 페이지
       chartCanvas: chartCanvas?.chartInstance?.canvas || null, // 그래프만 캡처
-      aiSummary: canvas4 || null, // AI 해석 요약 페이지
+      aiSummary: canvas4 || null, // AI 해석 요약 페이지 (종합 리포트로 대체)
       pilates: canvas5 || null, // 필라테스 추천 페이지
       aiDeep: canvas6 || null, // AI 심층 분석 페이지
       postureType: canvas8 || null, // 체형 유형 분석 페이지
-      conclusion: canvas7 || null // 결론 페이지
+      conclusion: canvas7 || null // 최종 분석 & 전략 페이지
     },
     textData: {
       comparison,
@@ -11696,16 +12086,18 @@ function exportAsPdf(options = {}) {
     const imgW = pageW - (margin * 2);
     
     const coverCanvas = canvases.cover;
-    if (!coverCanvas) {
-      throw new Error("표지 캔버스를 생성하지 못했습니다.");
-    }
+    const sideImageCanvas = canvases.sideImage; // 측면 사진
+    const sideReportCanvas = canvases.sideReport; // 측면 리포트
+    const frontImageCanvas = canvases.frontImage; // 정면 사진
+    const frontReportCanvas = canvases.frontReport; // 정면 리포트
+    const combinedReportCanvas = canvases.combinedReport; // 종합 리포트
     const heatmapCanvas = canvases.heatmap;
     const chartCanvasElement = canvases.chartCanvas;
-    const aiSummaryCanvas = canvases.aiSummary; // AI 해석 요약 캔버스
+    const aiSummaryCanvas = canvases.aiSummary; // AI 해석 요약 캔버스 (종합 리포트로 대체)
     const pilatesCanvas = canvases.pilates; // 필라테스 추천 캔버스
     const aiDeepCanvas = canvases.aiDeep; // AI 심층 분석 캔버스
     const postureTypeCanvas = canvases.postureType; // 체형 유형 분석 캔버스
-    const conclusionCanvas = canvases.conclusion; // 결론 캔버스
+    const conclusionCanvas = canvases.conclusion; // 최종 분석 & 전략 캔버스
     
     // 텍스트 데이터
     const { comparison, analysis, dbAnalysis, scoreResult, planTexts, pilatesHtml, deepAnalysisText, beforeAfterSummaryHtml, fullPlanHtml, combinedMetrics, afterMetricsForDB, memberNameForPDF1 } = textData || {};
@@ -11717,38 +12109,7 @@ function exportAsPdf(options = {}) {
     
     const maxImg1H = pageH - margin * 2;
     
-    // 첫 페이지: 표지 이미지 (원본 크기 유지, 고품질)
-    try {
-      // PNG 원본 크기 그대로 사용 (최고 품질)
-      const coverImageData = coverCanvas.toDataURL("image/png");
-      const coverAspectRatio = coverCanvas.width / coverCanvas.height;
-      
-      // 너비 기준으로 높이 계산 (원본 비율 유지)
-      let finalCoverW = Math.min(imgW, coverCanvas.width);
-      let finalCoverH = finalCoverW / coverAspectRatio;
-      
-      // 높이가 페이지를 넘으면 높이 기준으로 재계산
-      if (finalCoverH > maxImg1H) {
-        finalCoverH = maxImg1H;
-        finalCoverW = finalCoverH * coverAspectRatio;
-      }
-      
-      const finalCoverX = margin + (imgW - finalCoverW) / 2;
-      
-    pdf.addImage(
-        coverImageData,
-      "PNG",
-        finalCoverX,
-      margin,
-        finalCoverW,
-        finalCoverH
-    );
-    } catch (err) {
-      console.error('표지 이미지 추가 실패:', err);
-      throw new Error('표지 이미지를 PDF에 추가할 수 없습니다.');
-    }
-    
-    // 페이지 2-6 추가 (간단한 추가 함수)
+    // 페이지 추가 함수
     const addPageToPdf = (canvas) => {
       if (!canvas) return;
       const maxImgH = pageH - margin * 2;
@@ -11827,6 +12188,53 @@ function exportAsPdf(options = {}) {
       }
     };
     
+    // 페이지 1: 측면 사진
+    if (sideImageCanvas) {
+      addPageToPdf(sideImageCanvas);
+    }
+    
+    // 페이지 2: 측면 리포트
+    if (sideReportCanvas) {
+      addPageToPdf(sideReportCanvas);
+    }
+    
+    // 페이지 3: 정면 사진
+    if (frontImageCanvas) {
+      addPageToPdf(frontImageCanvas);
+    }
+    
+    // 페이지 4: 정면 리포트
+    if (frontReportCanvas) {
+      addPageToPdf(frontReportCanvas);
+    }
+    
+    // 페이지 5: 종합 리포트 (측면+정면 종합 자세 분석 리포트 및 종합점수)
+    if (combinedReportCanvas) {
+      addPageToPdf(combinedReportCanvas);
+    }
+    
+    // 페이지 6: 필라테스 세션 추천
+    if (pilatesCanvas) {
+      addPageToPdf(pilatesCanvas);
+    }
+    
+    // 페이지 7: AI 자세 심층 분석
+    if (aiDeepCanvas) {
+      addPageToPdf(aiDeepCanvas);
+    }
+    
+    // 페이지 8: 종합적 체형 유형 분석
+    if (postureTypeCanvas) {
+      addPageToPdf(postureTypeCanvas);
+    }
+    
+    // 페이지 9: 최종 분석 & 전략
+    if (conclusionCanvas) {
+      addPageToPdf(conclusionCanvas);
+    }
+    
+    // 기존 페이지들 (사용 안함, 주석 처리)
+    /*
     // 페이지 2: Heatmap (있으면)
     if (includeHeatmapPage && heatmapCanvas) {
       addPageToPdf(heatmapCanvas);
@@ -11951,94 +12359,76 @@ function exportAsPdf(options = {}) {
       pdf.text(`Page ${metricsPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
     }
     
-    // 페이지 4: AI 해석 요약 (기존 canvas 사용)
-    if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas);
+    // 페이지 4: AI 해석 요약 (기존 canvas 사용) - 주석 처리
+    // if (aiSummaryCanvas) addPageToPdf(aiSummaryCanvas);
     
-    // 페이지 5: 필라테스 추천 (canvas 사용 - 한글 깨짐 방지)
-    // 필라테스 추천은 한글이 많아서 html2canvas로 캡처한 이미지를 사용
-    if (pilatesCanvas) {
-      addPageToPdf(pilatesCanvas);
-    } else if (analysis && analysis.pilates && analysis.pilates.length > 0) {
-      // canvas가 없으면 텍스트로 폴백 (영문만)
-      pdf.addPage();
-      let y = margin + 10;
-      
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Pilates Exercise Recommendations', margin, y);
-      y += 30;
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(50, 50, 50);
-      pdf.text('Pilates recommendations are available in the canvas version.', margin, y);
-    }
+    // 페이지 5: 필라테스 추천 (canvas 사용 - 한글 깨짐 방지) - 주석 처리
+    // if (pilatesCanvas) {
+    //   addPageToPdf(pilatesCanvas);
+    // } else if (analysis && analysis.pilates && analysis.pilates.length > 0) {
+    //   pdf.addPage();
+    //   let y = margin + 10;
+    //   pdf.setFontSize(20);
+    //   pdf.setFont('helvetica', 'bold');
+    //   pdf.setTextColor(0, 0, 0);
+    //   pdf.text('Pilates Exercise Recommendations', margin, y);
+    //   y += 30;
+    //   pdf.setFont('helvetica', 'normal');
+    //   pdf.setFontSize(9);
+    //   pdf.setTextColor(50, 50, 50);
+    //   pdf.text('Pilates recommendations are available in the canvas version.', margin, y);
+    // }
     
-    // 페이지 6: AI 심층 분석 (canvas 사용 - 한글 깨짐 방지)
-    // AI 심층 분석은 한글이 많아서 html2canvas로 캡처한 이미지를 사용
-    if (aiDeepCanvas) {
-      addPageToPdf(aiDeepCanvas);
-      
-      // 사전/사후 비교 그래프를 별도 페이지로 추가 (유효성 검사 강화)
-      if (chartCanvasElement && chartCanvasElement.width > 0 && chartCanvasElement.height > 0) {
-        pdf.addPage();
-        let y = margin + 10;
-        
-        try {
-          // 차트가 완전히 렌더링될 때까지 대기
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(16);
-          pdf.setTextColor(0, 0, 0);
-          pdf.text('Before-After Comparison Graph', margin, y);
-          y += 25;
-          
-          const chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
-          if (chartImageData && chartImageData !== 'data:,' && chartImageData.length > 100) {
-            const chartW = Math.min(imgW, 700);
-            const chartH = (chartCanvasElement.height / chartCanvasElement.width) * chartW;
-            const chartX = margin + (imgW - chartW) / 2;
-            
-            pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, pageH - y - 40));
-          } else {
-            console.warn('차트 이미지 데이터가 유효하지 않습니다.');
-          }
-        } catch (err) {
-          console.warn('차트 이미지 추가 실패:', err);
-        }
-        
-        // 페이지 번호
-        pdf.setFontSize(8);
-        pdf.setTextColor(150, 150, 150);
-        const graphPageNum = (pageIndexMap.aiDeep || 5) + 1;
-        pdf.text(`Page ${graphPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
-      }
-    } else if (deepAnalysisText) {
-      // canvas가 없으면 텍스트로 폴백 (영문만)
-      pdf.addPage();
-      let y = margin + 10;
-      
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('AI Posture Deep Analysis', margin, y);
-      y += 30;
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(9);
-      pdf.setTextColor(50, 50, 50);
-      pdf.text('Deep analysis content is available in the canvas version.', margin, y);
-    }
+    // 페이지 6: AI 심층 분석 (canvas 사용 - 한글 깨짐 방지) - 주석 처리
+    // if (aiDeepCanvas) {
+    //   addPageToPdf(aiDeepCanvas);
+    //   if (chartCanvasElement && chartCanvasElement.width > 0 && chartCanvasElement.height > 0) {
+    //     pdf.addPage();
+    //     let y = margin + 10;
+    //     try {
+    //       await new Promise(resolve => setTimeout(resolve, 500));
+    //       pdf.setFont('helvetica', 'bold');
+    //       pdf.setFontSize(16);
+    //       pdf.setTextColor(0, 0, 0);
+    //       pdf.text('Before-After Comparison Graph', margin, y);
+    //       y += 25;
+    //       const chartImageData = chartCanvasElement.toDataURL('image/png', 0.95);
+    //       if (chartImageData && chartImageData !== 'data:,' && chartImageData.length > 100) {
+    //         const chartW = Math.min(imgW, 700);
+    //         const chartH = (chartCanvasElement.height / chartCanvasElement.width) * chartW;
+    //         const chartX = margin + (imgW - chartW) / 2;
+    //         pdf.addImage(chartImageData, 'PNG', chartX, y, chartW, Math.min(chartH, pageH - y - 40));
+    //       }
+    //     } catch (err) {
+    //       console.warn('차트 이미지 추가 실패:', err);
+    //     }
+    //     pdf.setFontSize(8);
+    //     pdf.setTextColor(150, 150, 150);
+    //     const graphPageNum = (pageIndexMap.aiDeep || 5) + 1;
+    //     pdf.text(`Page ${graphPageNum}/${totalPages}`, pageW - margin - 50, pageH - 20);
+    //   }
+    // } else if (deepAnalysisText) {
+    //   pdf.addPage();
+    //   let y = margin + 10;
+    //   pdf.setFontSize(20);
+    //   pdf.setFont('helvetica', 'bold');
+    //   pdf.setTextColor(0, 0, 0);
+    //   pdf.text('AI Posture Deep Analysis', margin, y);
+    //   y += 30;
+    //   pdf.setFont('helvetica', 'normal');
+    //   pdf.setFontSize(9);
+    //   pdf.setTextColor(50, 50, 50);
+    //   pdf.text('Deep analysis content is available in the canvas version.', margin, y);
+    // }
     
-    // 페이지 7: 체형 유형 분석 (canvas 사용 - 한글 깨짐 방지)
-    if (postureTypeCanvas) {
-      addPageToPdf(postureTypeCanvas);
-    }
+    // 페이지 7: 체형 유형 분석 (canvas 사용 - 한글 깨짐 방지) - 주석 처리
+    // if (postureTypeCanvas) {
+    //   addPageToPdf(postureTypeCanvas);
+    // }
     
-    // 페이지 8: 결론
-    if (conclusionCanvas) addPageToPdf(conclusionCanvas);
+    // 페이지 8: 결론 - 주석 처리
+    // if (conclusionCanvas) addPageToPdf(conclusionCanvas);
+    */
     
     // PDF 다운로드 (모바일 안정화)
     let pdfSaved = false;
@@ -13057,8 +13447,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_knee 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_asis']) {
       const hipY = keypointMap['L_asis'].y;
-      // 정규화된 좌표인 경우 0.2~0.25 정도 아래, 픽셀인 경우 20~25% 아래
-      const kneeOffset = hipY < 1 ? 0.22 : (hipY * 0.25);
+      // 정규화된 좌표인 경우 0.18~0.2 정도 아래, 픽셀인 경우 18~20% 아래 (위로 조정)
+      const kneeOffset = hipY < 1 ? 0.18 : (hipY * 0.2);
       keypointMap['L_knee'] = {
         x: keypointMap['L_asis'].x,
         y: hipY + kneeOffset,
@@ -13068,7 +13458,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['L_acromion']) {
       // 골반이 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['L_acromion'].y;
-      const kneeOffset = shoulderY < 1 ? 0.5 : (shoulderY * 0.55);
+      const kneeOffset = shoulderY < 1 ? 0.45 : (shoulderY * 0.5);
       keypointMap['L_knee'] = {
         x: keypointMap['L_acromion'].x,
         y: shoulderY + kneeOffset,
@@ -13083,7 +13473,7 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_knee 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_asis']) {
       const hipY = keypointMap['R_asis'].y;
-      const kneeOffset = hipY < 1 ? 0.22 : (hipY * 0.25);
+      const kneeOffset = hipY < 1 ? 0.18 : (hipY * 0.2);
       keypointMap['R_knee'] = {
         x: keypointMap['R_asis'].x,
         y: hipY + kneeOffset,
@@ -13093,7 +13483,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['R_acromion']) {
       // 골반이 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['R_acromion'].y;
-      const kneeOffset = shoulderY < 1 ? 0.5 : (shoulderY * 0.55);
+      const kneeOffset = shoulderY < 1 ? 0.45 : (shoulderY * 0.5);
       keypointMap['R_knee'] = {
         x: keypointMap['R_acromion'].x,
         y: shoulderY + kneeOffset,
@@ -13108,8 +13498,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_knee']) {
       const kneeY = keypointMap['L_knee'].y;
-      // 정규화된 좌표인 경우 0.25~0.3 정도 아래, 픽셀인 경우 25~30% 아래
-      const ankleOffset = kneeY < 1 ? 0.28 : (kneeY * 0.3);
+      // 정규화된 좌표인 경우 0.2~0.22 정도 아래, 픽셀인 경우 20~22% 아래 (위로 조정)
+      const ankleOffset = kneeY < 1 ? 0.2 : (kneeY * 0.22);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_knee'].x,
         y: kneeY + ankleOffset,
@@ -13119,7 +13509,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['L_asis']) {
       // 무릎이 없으면 골반을 기준으로 추정
       const hipY = keypointMap['L_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.5 : (hipY * 0.55);
+      const ankleOffset = hipY < 1 ? 0.4 : (hipY * 0.45);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_asis'].x,
         y: hipY + ankleOffset,
@@ -13129,7 +13519,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['L_acromion']) {
       // 골반도 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['L_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.8 : (shoulderY * 0.85);
+      const ankleOffset = shoulderY < 1 ? 0.65 : (shoulderY * 0.7);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_acromion'].x,
         y: shoulderY + ankleOffset,
@@ -13144,7 +13534,7 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_knee']) {
       const kneeY = keypointMap['R_knee'].y;
-      const ankleOffset = kneeY < 1 ? 0.28 : (kneeY * 0.3);
+      const ankleOffset = kneeY < 1 ? 0.2 : (kneeY * 0.22);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_knee'].x,
         y: kneeY + ankleOffset,
@@ -13154,7 +13544,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['R_asis']) {
       // 무릎이 없으면 골반을 기준으로 추정
       const hipY = keypointMap['R_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.5 : (hipY * 0.55);
+      const ankleOffset = hipY < 1 ? 0.4 : (hipY * 0.45);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_asis'].x,
         y: hipY + ankleOffset,
@@ -13164,7 +13554,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['R_acromion']) {
       // 골반도 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['R_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.8 : (shoulderY * 0.85);
+      const ankleOffset = shoulderY < 1 ? 0.65 : (shoulderY * 0.7);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_acromion'].x,
         y: shoulderY + ankleOffset,
@@ -13174,24 +13564,47 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     // tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용)
-    // 좌측 tibial tub
+    // 좌측 tibial tub (무릎 아래 약간, 위로 조정)
     if (keypointMap['L_knee']) {
+      const kneeY = keypointMap['L_knee'].y;
+      const tibialOffset = kneeY < 1 ? 0.03 : (kneeY * 0.05); // 무릎 아래 3~5% (기존보다 위로)
       keypointMap['L_tibial_tub'] = {
         x: keypointMap['L_knee'].x,
-        y: keypointMap['L_knee'].y + (keypointMap['L_ankle'] ? (keypointMap['L_ankle'].y - keypointMap['L_knee'].y) * 0.15 : 50), // 무릎 아래 약 15% 또는 50px
+        y: kneeY + tibialOffset,
         score: keypointMap['L_knee'].score * 0.9
       };
       console.log(`✅ L_tibial_tub 매핑 (L_knee 기준): (${keypointMap['L_tibial_tub'].x.toFixed(3)}, ${keypointMap['L_tibial_tub'].y.toFixed(3)})`);
     }
     
-    // 우측 tibial tub
+    // 우측 tibial tub (무릎 아래 약간, 위로 조정)
     if (keypointMap['R_knee']) {
+      const kneeY = keypointMap['R_knee'].y;
+      const tibialOffset = kneeY < 1 ? 0.03 : (kneeY * 0.05); // 무릎 아래 3~5% (기존보다 위로)
       keypointMap['R_tibial_tub'] = {
         x: keypointMap['R_knee'].x,
-        y: keypointMap['R_knee'].y + (keypointMap['R_ankle'] ? (keypointMap['R_ankle'].y - keypointMap['R_knee'].y) * 0.15 : 50), // 무릎 아래 약 15% 또는 50px
+        y: kneeY + tibialOffset,
         score: keypointMap['R_knee'].score * 0.9
       };
       console.log(`✅ R_tibial_tub 매핑 (R_knee 기준): (${keypointMap['R_tibial_tub'].x.toFixed(3)}, ${keypointMap['R_tibial_tub'].y.toFixed(3)})`);
+    }
+    
+    // patella 추가: 무릎과 동일한 위치 (Q-angle 측정용)
+    if (keypointMap['L_knee']) {
+      keypointMap['L_patella'] = {
+        x: keypointMap['L_knee'].x,
+        y: keypointMap['L_knee'].y,
+        score: keypointMap['L_knee'].score * 0.95
+      };
+      console.log(`✅ L_patella 매핑 (L_knee와 동일): (${keypointMap['L_patella'].x.toFixed(3)}, ${keypointMap['L_patella'].y.toFixed(3)})`);
+    }
+    
+    if (keypointMap['R_knee']) {
+      keypointMap['R_patella'] = {
+        x: keypointMap['R_knee'].x,
+        y: keypointMap['R_knee'].y,
+        score: keypointMap['R_knee'].score * 0.95
+      };
+      console.log(`✅ R_patella 매핑 (R_knee와 동일): (${keypointMap['R_patella'].x.toFixed(3)}, ${keypointMap['R_patella'].y.toFixed(3)})`);
     }
 
     console.log(`✅ 정면 랜드마크 매핑 완료 (환자 기준): ${Object.keys(keypointMap).length}개 - [${Object.keys(keypointMap).join(', ')}]`);
