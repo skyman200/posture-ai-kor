@@ -179,6 +179,7 @@ canvas {
 }
 </style>
 <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/@pdf-lib/fontkit@1.0.0/dist/fontkit.umd.min.js"></script>
   </head>
   <body>
 <aside class="panel sidebar" style="order: 1;">
@@ -11584,15 +11585,27 @@ function addPdfFooter(pdf) {
 
 const NOTO_FONT_URL = "https://raw.githubusercontent.com/skyman200/posture-ai-kor/main/public/fonts/NotoSansKR-Regular.ttf";
 
-// 폰트 캐시
+// 폰트 바이트 캐시 (fontBytes는 재사용 가능)
 let _notoFontBytes = null;
 
-async function getNotoFontBytes() {
-  if (_notoFontBytes) return _notoFontBytes;
-  const res = await fetch(NOTO_FONT_URL);
-  const buf = await res.arrayBuffer();
-  _notoFontBytes = new Uint8Array(buf);
-  return _notoFontBytes;
+// ✅ pdf-lib + fontkit 정석 방식으로 폰트 로드
+async function loadNotoFont(pdfDoc) {
+  // 🔥 fontkit 등록 필수 (PDFDocument.create() 직후)
+  if (typeof fontkit !== 'undefined') {
+    pdfDoc.registerFontkit(fontkit);
+  }
+  
+  // 🔥 fontBytes 캐시 (한 번만 fetch)
+  if (!_notoFontBytes) {
+    const fontBytes = await fetch(NOTO_FONT_URL, {
+      mode: "cors",
+      cache: "no-cache"
+    }).then(res => res.arrayBuffer());
+    _notoFontBytes = fontBytes;
+  }
+  
+  // 🔥 embedFont (각 pdfDoc마다 새로 embed해야 함)
+  return await pdfDoc.embedFont(_notoFontBytes);
 }
 
 // dataURL → Uint8Array
@@ -11769,8 +11782,8 @@ async function generatePosturePdf({
   const { PDFDocument, rgb } = PDFLib;
   const pdfDoc = await PDFDocument.create();
   
-  const fontBytes = await getNotoFontBytes();
-  const notoFont = await pdfDoc.embedFont(fontBytes);
+  // ✅ pdf-lib + fontkit 정석 방식으로 폰트 로드
+  const notoFont = await loadNotoFont(pdfDoc);
   
   const pageWidth = 595.28;  // A4
   const pageHeight = 841.89;
