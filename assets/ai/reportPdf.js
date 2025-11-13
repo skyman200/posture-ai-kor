@@ -138,11 +138,163 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
 }
 
 /**
- * 상세 PDF 리포트 생성
+ * 사용자 정보 입력 받기 (고객이름, 센터이름, 담당선생님)
+ */
+async function getUserInfo() {
+  return new Promise((resolve) => {
+    // 기존 값 가져오기
+    const savedMemberName = localStorage.getItem('memberName') || '';
+    const savedCenterName = localStorage.getItem('centerName') || '';
+    const savedTeacherName = localStorage.getItem('teacherName') || '';
+
+    // 모달 스타일 입력창 생성
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 15, 20, 0.8);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', sans-serif;
+    `;
+
+    const form = document.createElement('div');
+    form.style.cssText = `
+      background: linear-gradient(135deg, rgba(30, 34, 42, 0.95) 0%, rgba(20, 24, 32, 0.95) 100%);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(124, 156, 255, 0.3);
+    `;
+
+    form.innerHTML = `
+      <h2 style="color: #7c9cff; font-size: 24px; font-weight: 800; margin: 0 0 30px 0; text-align: center;">
+        📋 PDF 리포트 정보 입력
+      </h2>
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: #e7eef7; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+          👤 고객 이름 <span style="color: #ffb86c;">*</span>
+        </label>
+        <input type="text" id="memberName" value="${savedMemberName}" 
+          style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(124, 156, 255, 0.3);
+          background: rgba(11, 15, 20, 0.6); color: #e7eef7; font-size: 14px; box-sizing: border-box;"
+          placeholder="고객 이름을 입력하세요">
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: #e7eef7; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+          🏢 센터 이름 <span style="color: #ffb86c;">*</span>
+        </label>
+        <input type="text" id="centerName" value="${savedCenterName}" 
+          style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(124, 156, 255, 0.3);
+          background: rgba(11, 15, 20, 0.6); color: #e7eef7; font-size: 14px; box-sizing: border-box;"
+          placeholder="센터 이름을 입력하세요">
+      </div>
+      <div style="margin-bottom: 30px;">
+        <label style="display: block; color: #e7eef7; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+          👨‍🏫 담당 선생님
+        </label>
+        <input type="text" id="teacherName" value="${savedTeacherName}" 
+          style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(124, 156, 255, 0.3);
+          background: rgba(11, 15, 20, 0.6); color: #e7eef7; font-size: 14px; box-sizing: border-box;"
+          placeholder="담당 선생님 이름을 입력하세요 (선택)">
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button id="cancelBtn" style="flex: 1; padding: 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.05); color: #e7eef7; font-size: 14px; font-weight: 600; cursor: pointer;
+          transition: all 0.2s;">
+          취소
+        </button>
+        <button id="confirmBtn" style="flex: 1; padding: 14px; border-radius: 10px; border: none;
+          background: linear-gradient(135deg, #7c9cff 0%, #5a7fff 100%); color: white; font-size: 14px; font-weight: 700;
+          cursor: pointer; box-shadow: 0 4px 15px rgba(124, 156, 255, 0.4); transition: all 0.2s;">
+          생성하기 ✨
+        </button>
+      </div>
+    `;
+
+    modal.appendChild(form);
+    document.body.appendChild(modal);
+
+    const memberInput = form.querySelector('#memberName');
+    const centerInput = form.querySelector('#centerName');
+    const teacherInput = form.querySelector('#teacherName');
+    const confirmBtn = form.querySelector('#confirmBtn');
+    const cancelBtn = form.querySelector('#cancelBtn');
+
+    // 포커스
+    memberInput.focus();
+
+    // 버튼 호버 효과
+    confirmBtn.onmouseenter = () => {
+      confirmBtn.style.transform = 'translateY(-2px)';
+      confirmBtn.style.boxShadow = '0 6px 20px rgba(124, 156, 255, 0.6)';
+    };
+    confirmBtn.onmouseleave = () => {
+      confirmBtn.style.transform = 'translateY(0)';
+      confirmBtn.style.boxShadow = '0 4px 15px rgba(124, 156, 255, 0.4)';
+    };
+
+    cancelBtn.onmouseenter = () => {
+      cancelBtn.style.background = 'rgba(255,255,255,0.1)';
+    };
+    cancelBtn.onmouseleave = () => {
+      cancelBtn.style.background = 'rgba(255,255,255,0.05)';
+    };
+
+    // 확인 버튼
+    const handleConfirm = () => {
+      const memberName = memberInput.value.trim();
+      const centerName = centerInput.value.trim();
+      const teacherName = teacherInput.value.trim();
+
+      if (!memberName || !centerName) {
+        alert('⚠️ 고객 이름과 센터 이름은 필수입니다.');
+        return;
+      }
+
+      // localStorage에 저장
+      localStorage.setItem('memberName', memberName);
+      localStorage.setItem('centerName', centerName);
+      if (teacherName) {
+        localStorage.setItem('teacherName', teacherName);
+      }
+
+      document.body.removeChild(modal);
+      resolve({ memberName, centerName, teacherName });
+    };
+
+    confirmBtn.onclick = handleConfirm;
+    cancelBtn.onclick = () => {
+      document.body.removeChild(modal);
+      resolve(null);
+    };
+
+    // Enter 키 처리
+    [memberInput, centerInput, teacherInput].forEach(input => {
+      input.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          handleConfirm();
+        }
+      };
+    });
+  });
+}
+
+/**
+ * 상세 PDF 리포트 생성 (앱 디자인 스타일 적용)
  * @param {object} options - 리포트 옵션
- * @param {string} options.centerName - 센터명
- * @param {string} options.memberName - 회원명
+ * @param {string} options.centerName - 센터명 (선택, 없으면 입력받음)
+ * @param {string} options.memberName - 회원명 (선택, 없으면 입력받음)
  * @param {string} options.sessionName - 세션명
+ * @param {string} options.teacherName - 담당 선생님 (선택)
  * @param {object} options.analysis - analyzeWithDB() 결과
  * @param {object} options.before - Before 측정값 (선택)
  * @param {object} options.after - After 측정값 (선택)
@@ -150,16 +302,42 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
  *   - overviewCanvas: Before-After 비교 그래프
  *   - sideChartCanvas: 측면 지표 그래프
  *   - frontChartCanvas: 정면 지표 그래프
+ * @param {object} options.images - 이미지 데이터 (선택)
+ *   - sideBeforeImg: 측면 Before 이미지 (data URL)
+ *   - sideAfterImg: 측면 After 이미지 (data URL)
+ *   - sideOverlayImg: 측면 오버레이 이미지 (data URL)
+ *   - frontBeforeImg: 정면 Before 이미지 (data URL)
+ *   - frontAfterImg: 정면 After 이미지 (data URL)
+ *   - frontOverlayImg: 정면 오버레이 이미지 (data URL)
+ *   - sideSkeletonImg: 측면 스켈레톤 이미지 (data URL)
+ *   - frontSkeletonImg: 정면 스켈레톤 이미지 (data URL)
  */
 export async function exportDetailedPDF({ 
   centerName, 
   memberName, 
   sessionName,
+  teacherName,
   analysis,         // analyzeWithDB(measured) 결과
   before,           // before 원시값(객체) – 그래프/표에 사용
   after,            // after 원시값(객체) – 그래프/표에 사용
-  charts = {}       // { sideChartCanvas, frontChartCanvas, overviewCanvas } 옵션
+  charts = {},      // { sideChartCanvas, frontChartCanvas, overviewCanvas } 옵션
+  images = {}       // 이미지 데이터
 }) {
+  // 사용자 정보 입력 받기 (없으면)
+  let finalMemberName = memberName;
+  let finalCenterName = centerName;
+  let finalTeacherName = teacherName;
+
+  if (!finalMemberName || !finalCenterName) {
+    const userInfo = await getUserInfo();
+    if (!userInfo) {
+      console.log('PDF 생성이 취소되었습니다.');
+      return;
+    }
+    finalMemberName = userInfo.memberName;
+    finalCenterName = userInfo.centerName;
+    finalTeacherName = userInfo.teacherName || finalTeacherName;
+  }
   // jsPDF 확인
   if (typeof window === 'undefined' || !window.jspdf || !window.jspdf.jsPDF) {
     throw new Error('jsPDF가 로드되지 않았습니다.');
@@ -178,6 +356,42 @@ export async function exportDetailedPDF({
     pdf.setFont('helvetica', 'normal');
   }
 
+  // 이미지 데이터 가져오기 (옵션 또는 전역 변수에서)
+  const sideBeforeImg = images.sideBeforeImg || window.sideBeforeImg || null;
+  const sideAfterImg = images.sideAfterImg || window.sideAfterImg || null;
+  const sideOverlayImg = images.sideOverlayImg || window.sideOverlayImg || null;
+  const frontBeforeImg = images.frontBeforeImg || window.frontBeforeImg || null;
+  const frontAfterImg = images.frontAfterImg || window.frontAfterImg || null;
+  const frontOverlayImg = images.frontOverlayImg || window.frontOverlayImg || null;
+  const sideSkeletonImg = images.sideSkeletonImg || null;
+  const frontSkeletonImg = images.frontSkeletonImg || null;
+
+  // 색상 텍스트 추가 헬퍼 함수 (이모지 + 색상 지원)
+  const addColoredText = (text, x, y, color, options = {}) => {
+    const { fontSize = 12, fontStyle = 'normal', align = 'left' } = options;
+    pdf.setTextColor(color[0], color[1], color[2]);
+    pdf.setFontSize(fontSize);
+    pdf.setFont('helvetica', fontStyle);
+    
+    // 중앙 정렬일 때 x 좌표 조정
+    let finalX = x;
+    if (align === 'center') {
+      finalX = 105; // A4 가로 중앙 (210mm / 2)
+    } else if (align === 'right') {
+      finalX = 196; // 오른쪽 정렬
+    }
+    
+    if (typeof window.pdfAddKoreanText === 'function') {
+      window.pdfAddKoreanText(pdf, text, finalX, y, { fontSize, fontStyle, align });
+    } else {
+      if (align === 'center' || align === 'right') {
+        pdf.text(text, finalX, y, { align });
+      } else {
+        pdf.text(text, finalX, y);
+      }
+    }
+  };
+
   // 한글 텍스트 추가 헬퍼 함수 (전역 함수 사용)
   const addKoreanText = (text, x, y, options = {}) => {
     if (typeof window.pdfAddKoreanText === 'function') {
@@ -187,44 +401,273 @@ export async function exportDetailedPDF({
     }
   };
 
-  // 공통 헤더 함수
-  const header = (title) => {
-    pdf.setFontSize(18);
-    addKoreanText(title, 14, 18, { fontSize: 18, fontStyle: 'bold' });
-    pdf.setFontSize(11);
-    addKoreanText(`센터: ${centerName || '-'}`, 14, 26, { fontSize: 11 });
-    addKoreanText(`회원: ${memberName || '-'}`, 14, 31, { fontSize: 11 });
-    addKoreanText(`세션: ${sessionName || '-'}`, 14, 36, { fontSize: 11 });
-    addKoreanText(`생성: ${new Date().toLocaleString('ko-KR')}`, 14, 41, { fontSize: 11 });
-    pdf.line(14, 44, 196, 44);
+  // 이미지 추가 헬퍼 함수 (안전하게)
+  const addImageSafe = (imgData, x, y, width, height, label = '') => {
+    if (!imgData || imgData === 'data:,') return false;
+    try {
+      pdf.addImage(imgData, 'PNG', x, y, width, height);
+      return true;
+    } catch (err) {
+      console.warn(`이미지 추가 실패 (${label}):`, err);
+      return false;
+    }
   };
 
-  // 페이지 1 — 개요 + 섹션 요약
-  header('AI 자세 분석 종합 리포트');
-  let y = 52;
+  // 카드 스타일 박스 그리기
+  const drawCard = (x, y, width, height, title = '') => {
+    // 배경 (연한 회색)
+    pdf.setFillColor(250, 251, 255);
+    pdf.roundedRect(x, y, width, height, 3, 3, 'F');
+    
+    // 테두리
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.5);
+    pdf.roundedRect(x, y, width, height, 3, 3, 'D');
+    
+    // 제목이 있으면 추가
+    if (title) {
+      pdf.setFontSize(12);
+      pdf.setTextColor(15, 23, 42);
+      addKoreanText(title, x + 2, y + 5, { fontSize: 12, fontStyle: 'bold' });
+    }
+  };
+
+  // 섹션 헤더 (이모지 + 색상)
+  const drawSectionHeader = (title, y) => {
+    // 배경 박스
+    pdf.setFillColor(124, 156, 255, 0.1);
+    pdf.roundedRect(14, y - 4, 182, 8, 2, 2, 'F');
+    
+    pdf.setFontSize(18);
+    addColoredText(title, 14, y, [124, 156, 255], { fontSize: 18, fontStyle: 'bold' });
+    
+    // 액센트 라인
+    pdf.setDrawColor(124, 156, 255);
+    pdf.setLineWidth(1);
+    pdf.line(14, y + 3, 196, y + 3);
+    
+    // 하단 그림자
+    pdf.setFillColor(124, 156, 255, 0.05);
+    pdf.rect(14, y + 4, 182, 1, 'F');
+    
+    return y + 8;
+  };
+
+  // 공통 헤더 함수 (개선된 디자인 - 이모지 + 색상)
+  const header = (title) => {
+    // 상단 그라데이션 효과 (어둡게)
+    pdf.setFillColor(11, 15, 20); // --bg: #0b0f14
+    pdf.rect(0, 0, 210, 35, 'F');
+    
+    // 액센트 바 (상단)
+    pdf.setFillColor(124, 156, 255); // --accent: #7c9cff
+    pdf.rect(0, 0, 210, 3, 'F');
+    
+    // 제목 (이모지 + 색상)
+    pdf.setFontSize(22);
+    addColoredText(title, 14, 20, [124, 156, 255], { fontSize: 22, fontStyle: 'bold' });
+    
+    // 정보 박스 (그라데이션 효과 시뮬레이션)
+    pdf.setFillColor(30, 34, 42); // --panel: rgba(30, 34, 42, 0.7)
+    pdf.roundedRect(14, 25, 182, 22, 3, 3, 'F');
+    
+    // 정보 텍스트 (색상 적용)
+    pdf.setFontSize(10);
+    addColoredText(`🏢 센터: ${finalCenterName || '-'}`, 16, 31, [231, 238, 247], { fontSize: 10 });
+    addColoredText(`👤 회원: ${finalMemberName || '-'}`, 16, 36, [231, 238, 247], { fontSize: 10 });
+    
+    if (finalTeacherName) {
+      addColoredText(`👨‍🏫 담당: ${finalTeacherName}`, 110, 31, [255, 184, 108], { fontSize: 10 });
+    }
+    addColoredText(`📅 세션: ${sessionName || '-'}`, 110, 36, [231, 238, 247], { fontSize: 10 });
+    
+    const dateStr = new Date().toLocaleString('ko-KR');
+    addColoredText(`🕐 생성: ${dateStr}`, 14, 42, [155, 163, 175], { fontSize: 9 });
+    
+    // 구분선 (그라데이션 효과)
+    pdf.setDrawColor(124, 156, 255);
+    pdf.setLineWidth(0.5);
+    pdf.line(14, 48, 196, 48);
+    
+    // 하단 그림자 효과
+    pdf.setFillColor(0, 0, 0, 0.1);
+    pdf.rect(14, 49, 182, 1, 'F');
+  };
+
+  // 페이지 1 — 커버 페이지 (이미지 포함)
+  header('📋 AI 자세 분석 보고서');
+  let y = 55;
+  
+  // 환영 메시지 (고객 맞춤)
+  pdf.setFontSize(14);
+  addColoredText(`✨ ${finalMemberName}님의 자세 분석 리포트에 오신 것을 환영합니다! ✨`, 14, y, [124, 156, 255], { fontSize: 14, align: 'center' });
+  y += 8;
+  
+  // 서브 타이틀
+  pdf.setFontSize(11);
+  addColoredText('이 리포트는 AI 기반 자세 분석과 전문가 추천 운동을 포함합니다.', 14, y, [155, 163, 175], { fontSize: 11 });
+  y += 10;
+
+  // Before/After 이미지 섹션
+  const hasBeforeAfter = sideBeforeImg || sideAfterImg || frontBeforeImg || frontAfterImg;
+  if (hasBeforeAfter) {
+    y = drawSectionHeader('📸 Before / After 비교', y);
+    y += 2;
+    
+    // 측면 이미지
+    if (sideBeforeImg || sideAfterImg) {
+      drawCard(14, y, 182, 60, '측면 (Side View)');
+      y += 8;
+      
+      if (sideBeforeImg) {
+        addImageSafe(sideBeforeImg, 16, y, 85, 50, '측면 Before');
+        pdf.setFontSize(9);
+        addColoredText('🔵 Before', 16 + 42.5, y + 52, [59, 130, 246], { fontSize: 9, align: 'center' });
+      }
+      
+      if (sideAfterImg) {
+        addImageSafe(sideAfterImg, 111, y, 85, 50, '측면 After');
+        pdf.setFontSize(9);
+        addColoredText('🟠 After', 111 + 42.5, y + 52, [230, 126, 34], { fontSize: 9, align: 'center' });
+      }
+      
+      y += 65;
+    }
+    
+    // 정면 이미지
+    if (frontBeforeImg || frontAfterImg) {
+      drawCard(14, y, 182, 60, '정면 (Front View)');
+      y += 8;
+      
+      if (frontBeforeImg) {
+        addImageSafe(frontBeforeImg, 16, y, 85, 50, '정면 Before');
+        pdf.setFontSize(9);
+        addColoredText('🔵 Before', 16 + 42.5, y + 52, [59, 130, 246], { fontSize: 9, align: 'center' });
+      }
+      
+      if (frontAfterImg) {
+        addImageSafe(frontAfterImg, 111, y, 85, 50, '정면 After');
+        pdf.setFontSize(9);
+        addColoredText('🟠 After', 111 + 42.5, y + 52, [230, 126, 34], { fontSize: 9, align: 'center' });
+      }
+      
+      y += 65;
+    }
+    
+    // 페이지 넘김 체크
+    if (y > 250) {
+      pdf.addPage();
+      header('📋 AI 자세 분석 보고서 (계속)');
+      y = 52;
+    }
+  }
+
+  // 오버레이 이미지 섹션
+  if (sideOverlayImg || frontOverlayImg) {
+    y = drawSectionHeader('🔄 Before-After 오버레이 (변화 시각화)', y);
+    
+    if (sideOverlayImg) {
+      drawCard(14, y, 182, 70, '측면 오버레이');
+      y += 8;
+      addImageSafe(sideOverlayImg, 16, y, 178, 60, '측면 오버레이');
+      pdf.setFontSize(9);
+      addColoredText('🔵 파란색(Before) | 🟠 주황색(After)', 16, y + 62, [102, 102, 102], { fontSize: 9 });
+      y += 75;
+    }
+    
+    if (frontOverlayImg) {
+      if (y > 240) {
+        pdf.addPage();
+        header('📋 AI 자세 분석 보고서 (계속)');
+        y = 52;
+      }
+      drawCard(14, y, 182, 70, '정면 오버레이');
+      y += 8;
+      addImageSafe(frontOverlayImg, 16, y, 178, 60, '정면 오버레이');
+      pdf.setFontSize(9);
+      addColoredText('🔵 파란색(Before) | 🟠 주황색(After)', 16, y + 62, [102, 102, 102], { fontSize: 9 });
+      y += 75;
+    }
+  }
+
+  // 스켈레톤 이미지 섹션
+  if (sideSkeletonImg || frontSkeletonImg) {
+    if (y > 240) {
+      pdf.addPage();
+      header('📋 AI 자세 분석 보고서 (계속)');
+      y = 52;
+    }
+    
+    y = drawSectionHeader('📐 포즈 분석 오버레이 (스켈레톤)', y);
+    
+    if (sideSkeletonImg) {
+      drawCard(14, y, 182, 70, '측면 스켈레톤');
+      y += 8;
+      addImageSafe(sideSkeletonImg, 16, y, 178, 60, '측면 스켈레톤');
+      pdf.setFontSize(9);
+      addColoredText('🔵 파란색 점선(Before) | 🟠 주황색 실선(After)', 16, y + 62, [102, 102, 102], { fontSize: 9 });
+      y += 75;
+    }
+    
+    if (frontSkeletonImg) {
+      if (y > 240) {
+        pdf.addPage();
+        header('📋 AI 자세 분석 보고서 (계속)');
+        y = 52;
+      }
+      drawCard(14, y, 182, 70, '정면 스켈레톤');
+      y += 8;
+      addImageSafe(frontSkeletonImg, 16, y, 178, 60, '정면 스켈레톤');
+      pdf.setFontSize(9);
+      addColoredText('🔵 파란색 점선(Before) | 🟠 주황색 실선(After)', 16, y + 62, [102, 102, 102], { fontSize: 9 });
+      y += 75;
+    }
+  }
+
+  // 페이지 2 — 종합 요약
+  pdf.addPage();
+  header('① 종합 요약');
+  y = 52;
   
   pdf.setFontSize(12);
-  addKoreanText('① 종합 요약', 14, y, { fontSize: 12, fontStyle: 'bold' }); 
-  y += 6;
+  pdf.setTextColor(15, 23, 42);
 
   if (analysis.sections && analysis.sections.length > 0) {
-    analysis.sections.forEach(sec => {
+    analysis.sections.forEach((sec, idx) => {
       const sectionName = sec.section === 'side' ? '측면' : 
                           sec.section === 'front' ? '정면' : 
                           sec.section || '기타';
-      const summaryLines = pdf.splitTextToSize(`- ${sectionName}: ${sec.summary}`, 180);
-      pdf.text(summaryLines, 18, y);
-      y += 6 * summaryLines.length;
       
-      if (y > 270) { 
+      // 카드 스타일로 섹션 표시
+      const summaryLines = sec.summary ? pdf.splitTextToSize(sec.summary, 178) : [];
+      const cardHeight = 25 + 6 * summaryLines.length;
+      drawCard(14, y, 182, cardHeight, '');
+      pdf.setFontSize(12);
+      const emoji = sectionName === '측면' ? '📐' : sectionName === '정면' ? '📷' : '📊';
+      addColoredText(`${emoji} ${sectionName}`, 16, y + 6, [124, 156, 255], { fontSize: 12, fontStyle: 'bold' });
+      
+      if (sec.summary) {
+        pdf.setFontSize(10);
+        addColoredText(sec.summary, 18, y + 12, [15, 23, 42], { fontSize: 10 });
+        y += 12 + 6 * summaryLines.length;
+      } else {
+        y += 20;
+      }
+      
+      y += 4; // 간격
+      
+      if (y > 250) { 
         pdf.addPage(); 
-        header('AI 자세 분석 종합 리포트'); 
+        header('① 종합 요약 (계속)'); 
         y = 52; 
       }
     });
   } else {
-    addKoreanText('- 분석 결과가 없습니다.', 18, y, { fontSize: 12 });
-    y += 6;
+    drawCard(14, y, 182, 20, '');
+    pdf.setFontSize(11);
+    pdf.setTextColor(102, 102, 102);
+    addKoreanText('분석 결과가 없습니다.', 18, y + 8, { fontSize: 11 });
+    y += 25;
   }
 
   // 그래프 추가 (옵션) – Before-After 비교, 사이드/프론트
@@ -269,68 +712,91 @@ export async function exportDetailedPDF({
 
   // 페이지 N — 지표별 상세(긴 설명 + 정상범위 + 근육/운동)
   pdf.addPage();
-  header('⑤ 지표별 상세 해석(모든 내용 DB 기준)');
+  header('⑤ 지표별 상세 해석');
   y = 52;
   pdf.setFontSize(11);
+  pdf.setTextColor(15, 23, 42);
 
   if (analysis.results && analysis.results.length > 0) {
     for (const r of analysis.results) {
       const secTag = r.section === 'side' ? '[측면]' : 
                      (r.section === 'front' ? '[정면]' : '[기타]');
       
-      const line1 = `${secTag} ${r.name} (${r.metric})  →  ${r.value}${r.unit} | 정상:${r.normalText || '-'} | 상태:${r.status}`;
-      const line1Wrapped = pdf.splitTextToSize(line1, 180);
-      pdf.text(line1Wrapped, 14, y);
-      y += 6 * line1Wrapped.length;
+      // 카드 스타일로 각 지표 표시
+      const cardHeight = 40 + (r.pattern ? 15 : 0) + (r.tight?.length ? 15 : 0) + 
+                         (r.weak?.length ? 15 : 0) + (r.exerciseGuide ? 15 : 0) + 
+                         (r.pilates?.length ? 20 * r.pilates.length : 0);
+      
+      const statusEmoji = r.status === '정상' ? '✅' : r.status === '주의' ? '⚠️' : r.status === '위험' ? '🔴' : '📊';
+      drawCard(14, y, 182, cardHeight, `${statusEmoji} ${secTag} ${r.name}`);
+      
+      pdf.setFontSize(10);
+      const statusColor = r.status === '정상' ? [46, 204, 113] : 
+                         r.status === '주의' ? [255, 184, 108] : 
+                         r.status === '위험' ? [231, 76, 60] : [100, 100, 100];
+      
+      const line1 = `📏 ${r.metric}  →  ${r.value}${r.unit} | 정상:${r.normalText || '-'} | 상태:${r.status}`;
+      const line1Wrapped = pdf.splitTextToSize(line1, 178);
+      addColoredText(line1Wrapped, 16, y + 12, [15, 23, 42], { fontSize: 10 });
+      y += 8 + 5 * line1Wrapped.length;
 
       if (r.pattern) {
-        const patternWrapped = pdf.splitTextToSize(`• 패턴: ${r.pattern}`, 180);
-        pdf.text(patternWrapped, 18, y);
-        y += 6 * patternWrapped.length;
+        pdf.setFontSize(9);
+        const patternWrapped = pdf.splitTextToSize(`🔍 패턴: ${r.pattern}`, 178);
+        addColoredText(patternWrapped, 16, y, [71, 85, 105], { fontSize: 9 });
+        y += 5 * patternWrapped.length;
       }
 
       if (r.tight && r.tight.length > 0) {
         const tightText = Array.isArray(r.tight) ? r.tight.join(', ') : r.tight;
-        const tightWrapped = pdf.splitTextToSize(`• 긴장근: ${tightText}`, 180);
-        pdf.text(tightWrapped, 18, y);
-        y += 6 * tightWrapped.length;
+        pdf.setFontSize(9);
+        const tightWrapped = pdf.splitTextToSize(`🔴 긴장근: ${tightText}`, 178);
+        addColoredText(tightWrapped, 16, y, [230, 38, 0], { fontSize: 9 });
+        y += 5 * tightWrapped.length;
       }
 
       if (r.weak && r.weak.length > 0) {
         const weakText = Array.isArray(r.weak) ? r.weak.join(', ') : r.weak;
-        const weakWrapped = pdf.splitTextToSize(`• 약화근: ${weakText}`, 180);
-        pdf.text(weakWrapped, 18, y);
-        y += 6 * weakWrapped.length;
+        pdf.setFontSize(9);
+        const weakWrapped = pdf.splitTextToSize(`🔵 약화근: ${weakText}`, 178);
+        addColoredText(weakWrapped, 16, y, [59, 130, 246], { fontSize: 9 });
+        y += 5 * weakWrapped.length;
       }
 
       if (r.exerciseGuide) {
-        const guideWrapped = pdf.splitTextToSize(`• 가이드: ${r.exerciseGuide}`, 180);
-        pdf.text(guideWrapped, 18, y);
-        y += 6 * guideWrapped.length;
+        pdf.setFontSize(9);
+        const guideWrapped = pdf.splitTextToSize(`💡 가이드: ${r.exerciseGuide}`, 178);
+        addColoredText(guideWrapped, 16, y, [15, 23, 42], { fontSize: 9 });
+        y += 5 * guideWrapped.length;
       }
 
       if (r.pilates && r.pilates.length > 0) {
-        addKoreanText('• 필라테스 추천:', 18, y, { fontSize: 12, fontStyle: 'bold' });
+        pdf.setFontSize(10);
+        addColoredText('🧘 필라테스 추천:', 16, y, [124, 156, 255], { fontSize: 10, fontStyle: 'bold' });
         y += 6;
         
         r.pilates.forEach(p => {
-          const pText = `  - ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
+          pdf.setFontSize(8);
+          const pText = `  ✨ ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
           const pWrapped = pdf.splitTextToSize(pText, 176);
-          pdf.text(pWrapped, 22, y);
-          y += 6 * pWrapped.length;
+          addColoredText(pWrapped, 18, y, [71, 85, 105], { fontSize: 8 });
+          y += 4 * pWrapped.length;
         });
       }
 
-      y += 4; // 항목 간 간격
+      y += 6; // 항목 간 간격
 
-      if (y > 270) { 
+      if (y > 250) { 
         pdf.addPage(); 
-        header('지표별 상세 해석(계속)'); 
+        header('⑤ 지표별 상세 해석 (계속)'); 
         y = 52; 
       }
     }
   } else {
-    addKoreanText('분석 결과가 없습니다.', 14, y, { fontSize: 12 });
+    drawCard(14, y, 182, 20, '');
+    pdf.setFontSize(11);
+    pdf.setTextColor(102, 102, 102);
+    addKoreanText('분석 결과가 없습니다.', 18, y + 8, { fontSize: 11 });
   }
 
   // 페이지 마지막 — 종합 근육/운동 묶음
@@ -338,45 +804,87 @@ export async function exportDetailedPDF({
   header('⑥ 종합 근육/운동 요약');
   y = 52;
 
+  // 긴장된 근육
+  drawCard(14, y, 182, 30, '🔴 긴장된 근육 (통합)');
   const tightAllText = (analysis.tightAll && analysis.tightAll.length > 0) 
     ? analysis.tightAll.join(', ') 
-    : '-';
-  const tightWrapped = pdf.splitTextToSize(`긴장된 근육(통합): ${tightAllText}`, 180);
-  pdf.text(tightWrapped, 14, y);
-  y += 6 * tightWrapped.length;
+    : '없음';
+  pdf.setFontSize(10);
+  const tightWrapped = pdf.splitTextToSize(tightAllText, 178);
+  addColoredText(tightWrapped, 16, y + 12, [230, 38, 0], { fontSize: 10 });
+  y += 35 + 5 * tightWrapped.length;
 
+  // 약화된 근육
+  drawCard(14, y, 182, 30, '🔵 약화된 근육 (통합)');
   const weakAllText = (analysis.weakAll && analysis.weakAll.length > 0)
     ? analysis.weakAll.join(', ')
-    : '-';
-  const weakWrapped = pdf.splitTextToSize(`약화된 근육(통합): ${weakAllText}`, 180);
-  pdf.text(weakWrapped, 14, y);
-  y += 6 * weakWrapped.length;
+    : '없음';
+  pdf.setFontSize(10);
+  const weakWrapped = pdf.splitTextToSize(weakAllText, 178);
+  addColoredText(weakWrapped, 16, y + 12, [59, 130, 246], { fontSize: 10 });
+  y += 35 + 5 * weakWrapped.length;
 
-  addKoreanText('필라테스 세션(통합):', 14, y, { fontSize: 12, fontStyle: 'bold' });
-  y += 6;
+  // 필라테스 세션
+  if (y > 240) {
+    pdf.addPage();
+    header('⑥ 종합 근육/운동 요약 (계속)');
+    y = 52;
+  }
+  
+  drawCard(14, y, 182, 30, '🧘 필라테스 세션 (통합)');
+  y += 12;
 
   if (analysis.pilatesAll && analysis.pilatesAll.length > 0) {
+    pdf.setFontSize(9);
     analysis.pilatesAll.forEach(p => {
-      const pText = `- ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
-      const pWrapped = pdf.splitTextToSize(pText, 180);
-      pdf.text(pWrapped, 18, y);
-      y += 6 * pWrapped.length;
+      const pText = `✨ ${p.equipment || ''}: ${p.name || ''}${p.purpose ? ` (${p.purpose})` : ''}`;
+      const pWrapped = pdf.splitTextToSize(pText, 178);
+      addColoredText(pWrapped, 16, y, [15, 23, 42], { fontSize: 9 });
+      y += 5 * pWrapped.length;
       
-      if (y > 270) { 
+      if (y > 250) { 
         pdf.addPage(); 
-        header('필라테스 세션(계속)'); 
+        header('⑥ 종합 근육/운동 요약 (계속)'); 
         y = 52; 
       }
     });
   } else {
-    addKoreanText('- 추천 세션이 없습니다.', 18, y, { fontSize: 12 });
+    pdf.setFontSize(10);
+    addColoredText('추천 세션이 없습니다.', 16, y, [102, 102, 102], { fontSize: 10 });
   }
+  
+  // 마지막 페이지에 감사 메시지
+  pdf.addPage();
+  header('💝 감사합니다');
+  y = 80;
+  
+  pdf.setFontSize(16);
+  addColoredText(`🙏 ${finalMemberName}님,`, 14, y, [124, 156, 255], { fontSize: 16, fontStyle: 'bold', align: 'center' });
+  y += 10;
+  
+  pdf.setFontSize(12);
+  addColoredText('이 리포트가 건강한 자세 개선에 도움이 되기를 바랍니다.', 14, y, [71, 85, 105], { fontSize: 12, align: 'center' });
+  y += 15;
+  
+  pdf.setFontSize(11);
+  addColoredText('💪 꾸준한 운동과 올바른 자세로 더 건강한 몸을 만들어가세요!', 14, y, [124, 156, 255], { fontSize: 11, align: 'center' });
+  y += 20;
+  
+  if (finalTeacherName) {
+    pdf.setFontSize(10);
+    addColoredText(`담당: ${finalTeacherName} 선생님`, 14, y, [255, 184, 108], { fontSize: 10, align: 'center' });
+    y += 8;
+  }
+  
+  pdf.setFontSize(9);
+  addColoredText(`${finalCenterName}에서 제공`, 14, y, [155, 163, 175], { fontSize: 9, align: 'center' });
 
   // 저장 (모바일 호환)
-  const fileName = `${memberName || 'member'}_${sessionName || 'session'}_AI_Posture_Report.pdf`;
+  const fileName = `${finalMemberName || 'member'}_${sessionName || 'session'}_AI_Posture_Report.pdf`;
   await savePDFMobileCompatible(fileName, pdf);
   
   console.log(`✅ 상세 PDF 리포트 생성 완료: ${fileName}`);
+  console.log(`📋 고객: ${finalMemberName}, 센터: ${finalCenterName}, 담당: ${finalTeacherName || '없음'}`);
 }
 
 
