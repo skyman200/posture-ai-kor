@@ -3790,21 +3790,33 @@ function computeAll() {
   const S = sessions[cur];
   const pxPerCm = S.pxPerCm || 50.0;
   
+  // ✅ 현재 선택된 orientation 확인 (정면 분석만 할 때 측면 데이터 무시)
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  const currentOrientation = btnFront?.classList.contains("active") ? "front" 
+    : (btnSide?.classList.contains("active") ? "side" : S.poseData?.orientation || "side");
+  
   // 측면 및 정면 키포인트를 Map 형태로 변환
   const sidePoints = {};
   const frontPoints = {};
   
-  // 측면 키포인트
-  for(const [key, value] of S.sidePoints.entries()) {
-    if(value && value.x != null && value.y != null) {
-      sidePoints[key] = { x: value.x, y: value.y };
+  // ✅ 정면 분석만 할 때는 측면 포인트 무시
+  if (currentOrientation !== "front") {
+    // 측면 키포인트
+    for(const [key, value] of S.sidePoints.entries()) {
+      if(value && value.x != null && value.y != null) {
+        sidePoints[key] = { x: value.x, y: value.y };
+      }
     }
   }
   
-  // 정면 키포인트
-  for(const [key, value] of S.frontPoints.entries()) {
-    if(value && value.x != null && value.y != null) {
-      frontPoints[key] = { x: value.x, y: value.y };
+  // ✅ 측면 분석만 할 때는 정면 포인트 무시
+  if (currentOrientation !== "side") {
+    // 정면 키포인트
+    for(const [key, value] of S.frontPoints.entries()) {
+      if(value && value.x != null && value.y != null) {
+        frontPoints[key] = { x: value.x, y: value.y };
+      }
     }
   }
   
@@ -3819,8 +3831,17 @@ function computeAll() {
   S.analysisResult = analysisResult;
   
   // 기존 호환성을 위한 처리
-  const sideMetrics = analysisResult.side;
-  const frontMetrics = analysisResult.front;
+  let sideMetrics = analysisResult.side;
+  let frontMetrics = analysisResult.front;
+  
+  // ✅ 정면 분석만 할 때는 측면 메트릭 강제로 무시
+  if (currentOrientation === "front") {
+    sideMetrics = { status: "not_available" };
+  }
+  // ✅ 측면 분석만 할 때는 정면 메트릭 강제로 무시
+  if (currentOrientation === "side") {
+    frontMetrics = { status: "not_available" };
+  }
   
   // 측면 및 정면 분석 결과를 통합하여 fullMetrics에 저장
   // ✅ 정면 분석만 있을 때는 정면 메트릭만, 측면 분석만 있을 때는 측면 메트릭만 사용
