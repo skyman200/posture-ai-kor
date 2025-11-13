@@ -506,15 +506,6 @@ canvas {
         </div>
       </details>
       
-      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">FBA (Foot Base Angle) - 발 정렬 각도</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 기준:</strong> angle(line(ankle, toe), body midline)<br>
-          <strong>측정 방법:</strong> ① 피험자는 발끝까지 보이게 정면으로 선다. ② 발 중심선(ankle–toe)과 몸 중심선 간 각도 계산.<br>
-          <strong>정상 범위:</strong> 0–10°<br>
-          <strong>해석:</strong> ↑ → 과도한 외회전(회외) / ↓ → 회내 경향.
-        </div>
-      </details>
     </div>
   </div>
   
@@ -594,21 +585,19 @@ canvas {
         <tr><td>PTA(골반 전후경사각)</td><td id="cmpPtaB">—</td><td id="cmpPtaA">—</td><td id="cmpPtaD">—</td><td>0-15°</td></tr>
         <tr><td>KA(무릎각)</td><td id="cmpKaB">—</td><td id="cmpKaA">—</td><td id="cmpKaD">—</td><td>175-185°</td></tr>
         <tr><td>Tibial(경골경사각)</td><td id="cmpTibialB">—</td><td id="cmpTibialA">—</td><td id="cmpTibialD">—</td><td>0-10°</td></tr>
-        <tr><td>Q-Angle(Q각)</td><td id="cmpQangleB">—</td><td id="cmpQangleA">—</td><td id="cmpQangleD">—</td><td>10-20°</td></tr>
-        <tr><td>Knee Dev(무릎편위)</td><td id="cmpKneedevB">—</td><td id="cmpKneedevA">—</td><td id="cmpKneedevD">—</td><td>0-3°</td></tr>
-        <tr><td>LLD(하지길이차)</td><td id="cmpLldB">—</td><td id="cmpLldA">—</td><td id="cmpLldD">—</td><td>≤1cm</td></tr>
         <tr><td>GSB(중력중심선)</td><td id="cmpGsbB">—</td><td id="cmpGsbA">—</td><td id="cmpGsbD">—</td><td>≤2cm</td></tr>
         <tr><td>HPA(고관절각)</td><td id="cmpHpaB">—</td><td id="cmpHpaA">—</td><td id="cmpHpaD">—</td><td>0-10°</td></tr>
         <tr><td>PDS(자세점수)</td><td id="cmpPdsB">—</td><td id="cmpPdsA">—</td><td id="cmpPdsD">—</td><td>0-10</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">STA(어깨기울기각)</td><td id="cmpStaB">—</td><td id="cmpStaA">—</td><td id="cmpStaD">—</td><td>≤3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">POA(골반기울기각)</td><td id="cmpPoaB">—</td><td id="cmpPoaA">—</td><td id="cmpPoaD">—</td><td>≤3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">LLD(하지길이차)</td><td id="cmpLldfB">—</td><td id="cmpLldfA">—</td><td id="cmpLldfD">—</td><td>≤1cm</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">Q-Angle(Q각)</td><td id="cmpQangleB">—</td><td id="cmpQangleA">—</td><td id="cmpQangleD">—</td><td>10-20°</td></tr>
+        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">Knee Dev(무릎편위)</td><td id="cmpKneedevB">—</td><td id="cmpKneedevA">—</td><td id="cmpKneedevD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">TD(체간편위)</td><td id="cmpTdB">—</td><td id="cmpTdA">—</td><td id="cmpTdD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">HTA(머리기울기각)</td><td id="cmpHtaB">—</td><td id="cmpHtaA">—</td><td id="cmpHtaD">—</td><td>≤3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">SPP(어깨골반평행도)</td><td id="cmpSppB">—</td><td id="cmpSppA">—</td><td id="cmpSppD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">KAS(무릎정렬대칭성)</td><td id="cmpKasB">—</td><td id="cmpKasA">—</td><td id="cmpKasD">—</td><td>0-3°</td></tr>
         <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">LLAS(하지축대칭성)</td><td id="cmpLlasB">—</td><td id="cmpLlasA">—</td><td id="cmpLlasD">—</td><td>0-3°</td></tr>
-        <tr style="background:rgba(46,196,182,0.1);"><td style="color:#2ec4b6; font-weight:600;">FBA(발정렬각)</td><td id="cmpFbaB">—</td><td id="cmpFbaA">—</td><td id="cmpFbaD">—</td><td>0-3°</td></tr>
         <tr style="background:#f0f0f0; font-weight:600;"><td>체형 점수</td><td id="cmpScoreB">—</td><td id="cmpScoreA">—</td><td id="cmpScoreD">—</td><td>0–100</td></tr>
       </tbody>
     </table>
@@ -742,6 +731,8 @@ const keypointsSide = [
 
 // 정면 키포인트 (Flutter와 1:1 매칭)
 const keypointsFront = [
+  {key:'L_tragus', color:'#7c9cff'},  // 정면: 왼쪽 귀
+  {key:'R_tragus', color:'#7c9cff'},  // 정면: 오른쪽 귀
   {key:'c7', color:'#7c9cff'},
   {key:'L_acromion', color:'#7c9cff'},
   {key:'R_acromion', color:'#7c9cff'},
@@ -1170,50 +1161,8 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     result.HPA.meaning = result.HPA.desc;
   }
   
-  // Q-Angle은 정면 분석에서만 측정 (측면 분석에서는 제거)
-  
-  // 1️⃣4️⃣ Knee_Deviation (무릎 높이 차이): L_knee와 R_knee 수평선 각도
-  const L_knee = p("L_knee") || p("L_Knee");
-  const R_knee = p("R_knee") || p("R_Knee");
-  if (L_knee && R_knee) {
-    const kd = angleToHorizontal(L_knee, R_knee);
-    result.Knee_Deviation = {
-      value: kd,
-      status: classifyRange({
-        v: kd,
-        nMin: 0, nMax: 3,
-        mildMin: 3, mildMax: 6,
-        modMin: 6, modMax: 10,
-        sevMin: 10, sevMax: null,
-        higherIsWorse: true
-      }),
-      unit: "°",
-      desc: "Knee Height Difference"
-    };
-    // 하위 호환성
-    result.Knee_Deviation.value_deg = kd;
-    result.Knee_Deviation.meaning = result.Knee_Deviation.desc;
-  }
-  
-  // 1️⃣5️⃣ LLD (Leg Length Discrepancy): 좌우 다리 길이 차이
-  const L_asis = p("L_asis") || p("L_ASIS");
-  const R_asis = p("R_asis") || p("R_ASIS");
-  const L_ankle = p("L_ankle") || p("L_Ankle");
-  const R_ankle = p("R_ankle") || p("R_Ankle");
-  if (L_asis && L_ankle && R_asis && R_ankle) {
-    const lLen = dist(L_asis, L_ankle);
-    const rLen = dist(R_asis, R_ankle);
-    const lld = pxToCm(Math.abs(lLen - rLen), pxPerCm);
-    result.LLD = {
-      value: lld,
-      status: lld <= 1 ? "normal" : lld <= 2 ? "mild" : "severe",
-      unit: "cm",
-      desc: "Leg Length Discrepancy"
-    };
-    // 하위 호환성
-    result.LLD.value_cm = lld;
-    result.LLD.meaning = result.LLD.desc;
-  }
+  // Q-Angle, Knee_Deviation, LLD는 정면 분석에서만 측정 (측면 분석에서는 제거)
+  // 이 항목들은 정면 분석 함수(analyzePostureFront)에서만 계산됨
   
   // 1️⃣6️⃣ PDS (Postural Deviation Score): 모든 지표 합산지수
   let pdsScore = 0;
@@ -1477,51 +1426,6 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     result.SPP.value_deg = angleDiff;
     result.SPP.meaning = result.SPP.desc;
   }
-  
-  // 7️⃣ FBA (Foot Base Angle): 발 정렬 각도
-  // 0° = 발이 중심선과 일직선일 때, +각도 = 발끝이 바깥쪽(외회전), -각도 = 발끝이 안쪽(내회전)
-  // 발가락 좌표가 없으면 계산하지 않음
-  const L_toe = p("L_toe");
-  const R_toe = p("R_toe");
-  if (L_ankle && L_toe && R_ankle && R_toe) {
-    // 신체 중심선 (midline)
-    const midlineX = (L_ankle.x + R_ankle.x) / 2;
-    
-    // 좌측 발 정렬: ankle-toe 라인과 중심선의 각도
-    const L_dx = L_toe.x - L_ankle.x;
-    const L_dy = L_toe.y - L_ankle.y;
-    // 중심선 기준 각도: atan2(dy, dx) - 중심선이 수직이므로 x 방향 기준
-    // 발끝이 오른쪽(바깥쪽)이면 양수, 왼쪽(안쪽)이면 음수
-    const L_angle = rad2deg(Math.atan2(L_dy, L_dx - midlineX));
-    
-    // 우측 발 정렬
-    const R_dx = R_toe.x - R_ankle.x;
-    const R_dy = R_toe.y - R_ankle.y;
-    const R_angle = rad2deg(Math.atan2(R_dy, R_dx - midlineX));
-    
-    // 평균 각도 (외회전 각도)
-    const avgAngle = (L_angle + R_angle) / 2;
-    // 0° = 중심선과 일직선, 양수 = 외회전, 음수 = 내회전
-    const fba = Math.abs(avgAngle); // 표시는 절대값
-    
-    result.FBA = {
-      value: fba,
-      value_signed: avgAngle, // 부호 포함 값 (내부 사용)
-      status: classifyRange({
-        v: fba,
-        nMin: 0, nMax: 10,
-        mildMin: 10, mildMax: 20,
-        modMin: 20, modMax: 30,
-        sevMin: 30, sevMax: null,
-        higherIsWorse: true
-      }),
-      unit: "°",
-      desc: "Foot Base Angle (발 정렬 각도)"
-    };
-    result.FBA.value_deg = fba;
-    result.FBA.meaning = result.FBA.desc;
-  }
-  
   
   // 6️⃣ Knee Deviation (Front): 좌우 knee 높이 차이
   const L_knee = p("L_knee") || p("L_Knee");
@@ -3478,6 +3382,8 @@ function ensureDefaultPoints(session) {
   if(currentPoints.size === 0 && currentImg) {
     // Flutter 1:1 매칭 키로 기본값 설정
     const defaults = orientation === "front" ? {
+      L_tragus: {x:W*0.25, y:H*0.25},  // 정면: 왼쪽 귀
+      R_tragus: {x:W*0.75, y:H*0.25},  // 정면: 오른쪽 귀
       c7: {x:W*0.5, y:H*0.2},
       L_acromion: {x:W*0.3, y:H*0.3},
       R_acromion: {x:W*0.7, y:H*0.3},
@@ -3940,19 +3846,37 @@ function computeAll() {
       frontMetrics: frontMetrics
     };
     window.fullMetrics = mergedMetrics;
-    S.score = null;
-    S.analysis = { 
-      fullMetrics: mergedMetrics,
-      orientation: "front",
-      comments: [],
-      details: [],
-      exercises: []
-    };
-    updateDisplay();
-    updateCompare();
-    displayFrontAnalysis(frontMetrics);
-    // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
-    updateScoreAndAnalysis(null, null, null, null, S.analysis);
+    
+    // 정면 분석 점수 계산
+    const scoreData = computeScoreFromFullMetrics(mergedMetrics);
+    S.score = scoreData;
+    
+    // 정면 분석에 대한 DB 기반 분석 실행
+    analyzeMusclesWithDB(mergedMetrics).then(analysis => {
+      S.analysis = {
+        ...analysis,
+        fullMetrics: mergedMetrics,
+        orientation: "front"
+      };
+      updateDisplay();
+      updateCompare();
+      displayFrontAnalysis(frontMetrics);
+      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
+      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+    }).catch(err => {
+      console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
+      S.analysis = { 
+        fullMetrics: mergedMetrics,
+        orientation: "front",
+        comments: [],
+        details: [],
+        exercises: []
+      };
+      updateDisplay();
+      updateCompare();
+      displayFrontAnalysis(frontMetrics);
+      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+    });
     
     // 골반 분석 자동 실행 (정면 분석만 있는 경우에도 시도)
     analyzePelvicTiltAuto();
@@ -4250,25 +4174,33 @@ function computeScoreFromFullMetrics(fullMetrics) {
     reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
   }
   
-  // 24. FBA (Foot Base Angle) - 정상 0-10°
-  const fba = fullMetrics.FBA?.value;
-  if(fba != null) {
-    if(fba > 10) {
-      const delta = fba - 10;
-      const penalty = Math.min(15, delta * 1.5);
-      penalties += penalty;
-      reasons.push(`FBA ${fba.toFixed(1)}° (정상 0-10°, 과도한 외회전) - ${penalty.toFixed(0)}점 감점`);
-    } else if(fba < 0) {
-      const delta = Math.abs(fba);
-      const penalty = Math.min(10, delta * 2);
-      penalties += penalty;
-      reasons.push(`FBA ${fba.toFixed(1)}° (정상 0-10°, 회내 경향) - ${penalty.toFixed(0)}점 감점`);
+  // PDS 기반으로 체형 종합 점수 계산 (일관성 유지)
+  // PDS는 각 지표의 상태를 합산한 점수 (낮을수록 좋음)
+  // 체형 종합 점수는 높을수록 좋으므로 변환 필요
+  const pds = fullMetrics.PDS?.value;
+  let score;
+  
+  if(pds != null && !isNaN(pds)) {
+    // PDS를 체형 종합 점수로 변환
+    // PDS 0-10: normal → 90-100점
+    // PDS 10-15: mild → 70-90점
+    // PDS 15-20: moderate → 50-70점
+    // PDS 20+: severe → 0-50점
+    if(pds <= 10) {
+      score = Math.round(100 - (pds * 1.0)); // 0-10 → 100-90점
+    } else if(pds <= 15) {
+      score = Math.round(90 - ((pds - 10) * 4)); // 10-15 → 90-70점
+    } else if(pds <= 20) {
+      score = Math.round(70 - ((pds - 15) * 4)); // 15-20 → 70-50점
+    } else {
+      score = Math.round(Math.max(0, 50 - ((pds - 20) * 2.5))); // 20+ → 50-0점
     }
+    score = clamp(score, 0, 100);
+  } else {
+    // PDS가 없으면 기존 방식 사용 (감점 방식)
+    score = Math.round(clamp(100 - penalties, 0, 100));
   }
   
-  // PDS는 별도로 계산되므로 여기서는 제외
-  
-  const score = Math.round(clamp(100 - penalties, 0, 100));
   return { score, reasons, penalties };
 }
 
@@ -4355,8 +4287,10 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     }
     
     // DB 기반 분석 실행
+    // ✅ 현재 세션의 orientation 확인하여 정면/측면 구분
+    const orientation = sessions[cur]?.poseData?.orientation || sessions[cur]?.metrics?.orientation || fullMetrics?.orientation || "side";
     // ✅ index.html 내부의 analyzeWithDB 함수 사용 (muscles, topRecommendations 반환)
-    const dbAnalysis = await analyzeWithDB(flatMetrics);
+    const dbAnalysis = await analyzeWithDB(flatMetrics, orientation);
     
     // 기존 analyzeMuscles 형식으로 변환
     // ✅ 안전 가드: muscles 객체가 없을 경우 빈 배열 사용
@@ -5233,8 +5167,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', type: 'side'},
       {key: 'KA', name: 'KA(무릎각)', unit: '°', type: 'side'},
       {key: 'Tibial_Angle', name: 'Tibial(경골경사각)', unit: '°', type: 'side'},
-      {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', type: 'side'},
-      {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', type: 'side'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', type: 'side'},
       {key: 'HPA', name: 'HPA(고관절각)', unit: '°', type: 'side'},
       {key: 'PDS', name: 'PDS(자세점수)', unit: 'score', type: 'side'}
@@ -5247,13 +5179,14 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'POA_F', name: 'POA(골반기울기각)', unit: '°', type: 'front'},
       {key: 'POA', name: 'POA(골반기울기각)', unit: '°', type: 'front'}, // 하위 호환성
       {key: 'LLD_F', name: 'LLD(하지길이차)', unit: 'cm', type: 'front'},
+      {key: 'LLD', name: 'LLD(하지길이차)', unit: 'cm', type: 'front'},  // 정면 분석 항목으로 이동
+      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'front'},  // 정면 분석 항목
+      {key: 'Knee_Deviation', name: 'Knee Dev(무릎편위)', unit: '°', type: 'front'},  // 정면 분석 항목으로 이동
       {key: 'TD', name: 'TD(체간편위)', unit: '°', type: 'front'},
       {key: 'HTA', name: 'HTA(머리기울기각)', unit: '°', type: 'front'},
       {key: 'SPP', name: 'SPP(어깨골반평행도)', unit: '°', type: 'front'},
-      {key: 'Q_Angle', name: 'Q-Angle(Q각)', unit: '°', type: 'front'},  // 정면 분석 항목으로 이동
       {key: 'KAS', name: 'KAS(무릎정렬대칭성)', unit: '°', type: 'front'},
       {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'},
-      {key: 'FBA', name: 'FBA(발정렬각)', unit: '°', type: 'front'}
     ];
     
     // 모든 항목 합치기 (측면 먼저, 정면 나중)
@@ -5673,7 +5606,6 @@ function updateCompare() {
     {key: 'Q_Angle', id: 'Qangle', unit: '°'},  // 정면 분석 항목으로 이동
     {key: 'KAS', id: 'Kas', unit: '°'},
     {key: 'LLAS', id: 'Llas', unit: '°'},
-    {key: 'FBA', id: 'Fba', unit: '°'}
   ];
   
   // 헬퍼 함수: 정면 메트릭 키 가져오기 (하위 호환성)
@@ -6514,7 +6446,7 @@ function doDrag(e) {
     // 실시간 분석 업데이트 (throttle 적용)
     if(!dragUpdateTimer) {
       dragUpdateTimer = requestAnimationFrame(() => {
-        computeAll(); // 전체 분석 실행
+        computeMetricsOnly(); // 실시간 메트릭만 계산 (빠른 업데이트)
         dragUpdateTimer = null;
       });
     }
@@ -6543,8 +6475,8 @@ function endDrag(e) {
   const wasDragging = dragKey !== null;
   if(dragKey) {
     console.log('드래그 종료:', dragKey);
-    // 최종 분석 실행
-    computeAll();
+    // 최종 분석 실행 (드래그 종료 시 실시간 업데이트)
+    computeMetricsOnly(); // 실시간 메트릭 계산
   }
   
   // 모든 상태 완전히 초기화 (매번 확실히)
@@ -8499,8 +8431,11 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.lineHeight = "1.55";
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
-  container.style.overflow = "visible";
+  container.style.overflow = "visible"; // 텍스트 잘림 방지
   container.style.wordWrap = "break-word";
+  container.style.overflowWrap = "break-word"; // 추가: 텍스트 잘림 방지
+  container.style.wordBreak = "break-word"; // 추가: 긴 단어도 줄바꿈
+  container.style.whiteSpace = "normal"; // 텍스트가 자연스럽게 줄바꿈되도록
   container.style.minHeight = "1100px";
 }
 
@@ -8884,8 +8819,30 @@ const html2canvasOptions = {
   scrollY: -window.scrollY,
   imageTimeout: 20000,
   removeContainer: isMobile,
-  // 메모리 절약 옵션 추가
+  // 텍스트 잘림 방지 옵션
+  letterRendering: true, // 텍스트 렌더링 개선
+  // 메모리 절약 및 텍스트 보호 옵션
   onclone: (clonedDoc) => {
+    // 모든 텍스트 요소에 글자 잘림 방지 스타일 강제 적용
+    const allElements = clonedDoc.querySelectorAll('*');
+    allElements.forEach(el => {
+      if (el.style) {
+        // 텍스트가 잘리지 않도록 스타일 강제 적용
+        el.style.wordWrap = 'break-word';
+        el.style.overflowWrap = 'break-word';
+        el.style.wordBreak = 'break-word';
+        el.style.whiteSpace = el.style.whiteSpace || 'normal';
+        // overflow가 hidden이면 visible로 변경 (텍스트 보호)
+        if (el.style.overflow === 'hidden' && el.tagName !== 'CANVAS' && el.tagName !== 'IMG') {
+          el.style.overflow = 'visible';
+        }
+        if (el.style.textOverflow === 'ellipsis') {
+          el.style.textOverflow = 'clip';
+          el.style.whiteSpace = 'normal';
+        }
+      }
+    });
+    
     // 복제된 문서에서 불필요한 요소 제거
     const images = clonedDoc.querySelectorAll('img');
     images.forEach(img => {
@@ -8914,10 +8871,16 @@ try {
     await new Promise(resolve => setTimeout(resolve, 200));
   }
 
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+  const containerWidth = Math.max(page1Container.scrollWidth, page1Container.offsetWidth, 794);
+  const containerHeight = Math.max(page1Container.scrollHeight, page1Container.offsetHeight);
+  
   canvas1 = await html2canvas(page1Container, {
     ...html2canvasOptions,
-    windowWidth: page1Container.scrollWidth,
-    windowHeight: page1Container.scrollHeight
+    windowWidth: containerWidth,
+    windowHeight: containerHeight,
+    width: containerWidth,
+    height: containerHeight
   });
 
   if (!canvas1 || !canvas1.toDataURL) {
@@ -9011,10 +8974,16 @@ if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+  const container2Width = Math.max(page2Container.scrollWidth, page2Container.offsetWidth, 794);
+  const container2Height = Math.max(page2Container.scrollHeight, page2Container.offsetHeight);
+  
   canvas2 = await html2canvas(page2Container, {
     ...html2canvasOptions,
-    windowWidth: page2Container.scrollWidth,
-    windowHeight: page2Container.scrollHeight
+    windowWidth: container2Width,
+    windowHeight: container2Height,
+    width: container2Width,
+    height: container2Height
   });
   if (document.body.contains(page2Container)) {
     document.body.removeChild(page2Container);
@@ -9036,7 +9005,7 @@ if (includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   }
 }
 
-// 공통 페이지 스타일 설정 함수 (안전 폰트 사용, 글자 가독성 개선)
+// 공통 페이지 스타일 설정 함수 (안전 폰트 사용, 글자 가독성 개선, 글자 잘림 방지)
 const setPageContainerStyle = (container) => {
   container.style.position = "fixed";
   container.style.left = "-9999px";
@@ -9051,8 +9020,11 @@ const setPageContainerStyle = (container) => {
   container.style.lineHeight = "1.6"; // 줄 간격 개선 (1.55 -> 1.6)
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
-  container.style.overflow = "hidden";
+  container.style.overflow = "visible"; // hidden → visible로 변경하여 텍스트 잘림 방지
   container.style.wordWrap = "break-word";
+  container.style.overflowWrap = "break-word"; // 추가: 텍스트 잘림 방지
+  container.style.wordBreak = "break-word"; // 추가: 긴 단어도 줄바꿈
+  container.style.whiteSpace = "normal"; // 텍스트가 자연스럽게 줄바꿈되도록
   container.style.minHeight = "1100px";
   // PDF 안전 폰트 클래스 추가
   container.classList.add('pdf-safe');
@@ -9074,18 +9046,18 @@ let chartCanvas = null;
 let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
 
 if(comparison && comparison.results.length > 0) {
-  let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; margin-bottom:15px;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word;">분석</th></tr>';
+  let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:auto; margin-bottom:15px; word-wrap:break-word; overflow-wrap:break-word;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">분석</th></tr>';
 
   comparison.results.forEach((item, idx) => {
     const statusColor = item.status === 'improved' ? '#2ec4b6' : item.status === 'worsened' ? '#ff6b6b' : '#666';
     const statusIcon = item.status === 'improved' ? '↑' : item.status === 'worsened' ? '↓' : '→';
     const deltaStr = item.delta >= 0 ? '+' + item.delta.toFixed(1) : item.delta.toFixed(1);
     comparisonTableHTML += `<tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'};">
-      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:12px;">${item.name}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:12px;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:12px;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; font-size:12px; color:${statusColor}; font-weight:600;">${deltaStr}${item.unit} ${statusIcon}</td>
-      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; font-size:11px; color:#555; line-height:1.4;">${item.comment}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; font-size:12px; white-space:normal;">${item.name}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; font-size:12px; white-space:normal;">${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; font-size:12px; white-space:normal;">${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; font-size:12px; color:${statusColor}; font-weight:600; white-space:normal;">${deltaStr}${item.unit} ${statusIcon}</td>
+      <td style="padding:8px 6px; border:1px solid #ddd; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; font-size:11px; color:#555; line-height:1.4; white-space:normal;">${item.comment}</td>
     </tr>`;
   });
   comparisonTableHTML += '</table>';
@@ -9226,10 +9198,16 @@ if(chartSectionPlaceholder) {
 
 document.body.appendChild(page3Container);
 
+// 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+const container3Width = Math.max(page3Container.scrollWidth, page3Container.offsetWidth, 794);
+const container3Height = Math.max(page3Container.scrollHeight, page3Container.offsetHeight);
+
 let canvas3 = await html2canvas(page3Container, {
   ...html2canvasOptions,
-  windowWidth: page3Container.scrollWidth,
-  windowHeight: page3Container.scrollHeight
+  windowWidth: container3Width,
+  windowHeight: container3Height,
+  width: container3Width,
+  height: container3Height
 });
 
 if (document.body.contains(page3Container)) {
@@ -9363,10 +9341,16 @@ if (isMobile) {
 }
 
 try {
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+  const container4Width = Math.max(page4Container.scrollWidth, page4Container.offsetWidth, 794);
+  const container4Height = Math.max(page4Container.scrollHeight, page4Container.offsetHeight);
+  
   canvas4 = await html2canvas(page4Container, {
   ...html2canvasOptions,
-  windowWidth: page4Container.scrollWidth,
-  windowHeight: page4Container.scrollHeight
+  windowWidth: container4Width,
+  windowHeight: container4Height,
+  width: container4Width,
+  height: container4Height
 });
 } catch (err) {
   console.error('❌ canvas4 생성 실패:', err);
@@ -9481,10 +9465,16 @@ if (isMobile) {
 }
 
 try {
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+  const container5Width = Math.max(page5Container.scrollWidth, page5Container.offsetWidth, 794);
+  const container5Height = Math.max(page5Container.scrollHeight, page5Container.offsetHeight);
+  
   canvas5 = await html2canvas(page5Container, {
   ...html2canvasOptions,
-  windowWidth: page5Container.scrollWidth,
-  windowHeight: page5Container.scrollHeight
+  windowWidth: container5Width,
+  windowHeight: container5Height,
+  width: container5Width,
+  height: container5Height
 });
 } catch (err) {
   console.error('❌ canvas5 생성 실패:', err);
@@ -9555,10 +9545,16 @@ if (isMobile) {
 }
 
 try {
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+  const container6Width = Math.max(page6Container.scrollWidth, page6Container.offsetWidth, 794);
+  const container6Height = Math.max(page6Container.scrollHeight, page6Container.offsetHeight);
+  
   canvas6 = await html2canvas(page6Container, {
   ...html2canvasOptions,
-  windowWidth: page6Container.scrollWidth,
-  windowHeight: page6Container.scrollHeight
+  windowWidth: container6Width,
+  windowHeight: container6Height,
+  width: container6Width,
+  height: container6Height
 });
 } catch (err) {
   console.error('❌ canvas6 생성 실패:', err);
@@ -9613,10 +9609,16 @@ if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분
   }
   
   try {
+    // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+    const container8Width = Math.max(page8Container.scrollWidth, page8Container.offsetWidth, 794);
+    const container8Height = Math.max(page8Container.scrollHeight, page8Container.offsetHeight);
+    
     canvas8 = await html2canvas(page8Container, {
       ...html2canvasOptions,
-      windowWidth: page8Container.scrollWidth,
-      windowHeight: page8Container.scrollHeight
+      windowWidth: container8Width,
+      windowHeight: container8Height,
+      width: container8Width,
+      height: container8Height
     });
   } catch (err) {
     console.error('❌ canvas8 생성 실패:', err);
@@ -9677,10 +9679,16 @@ if (isMobile) {
 }
 
 try {
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
+  const container7Width = Math.max(page7Container.scrollWidth, page7Container.offsetWidth, 794);
+  const container7Height = Math.max(page7Container.scrollHeight, page7Container.offsetHeight);
+  
   canvas7 = await html2canvas(page7Container, {
   ...html2canvasOptions,
-  windowWidth: page7Container.scrollWidth,
-  windowHeight: page7Container.scrollHeight
+  windowWidth: container7Width,
+  windowHeight: container7Height,
+  width: container7Width,
+  height: container7Height
 });
 } catch (err) {
   console.error('❌ canvas7 생성 실패:', err);
@@ -10266,7 +10274,6 @@ const DIRECTIONAL_LABEL_RULES = {
   HTA: { threshold: 1, positive: '우측 기울기', negative: '좌측 기울기' },
   KAS: { threshold: 2, positive: '외회전', negative: '내회전' },
   LLAS: { threshold: 2, positive: '우측 이동', negative: '좌측 이동' },
-  FBA: { threshold: 2, positive: '회내', negative: '회외' }
 };
 
 const ABSOLUTE_LABEL_RULES = {
@@ -10547,9 +10554,41 @@ function flattenFullMetrics(fullMetrics) {
  * metrics: {CVA:72.3, PTA:5.2, ...} (After 기준 권장)
  **********************/
 
-async function analyzeWithDB(metrics = {}) {
+async function analyzeWithDB(metrics = {}, orientation = null) {
   await loadPostureDB();
   await loadPilatesDB(); // ✅ 필라테스 DB 로드
+
+  // orientation이 지정되면 해당 방향의 항목만 필터링
+  // orientation이 없으면 현재 세션의 orientation 확인
+  if (!orientation) {
+    orientation = sessions[cur]?.poseData?.orientation || sessions[cur]?.metrics?.orientation || "side";
+  }
+  
+  // 정면/측면 항목 정의
+  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
+  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+  
+  // orientation에 따라 필터링
+  let filteredMetrics = metrics;
+  if (orientation === "front") {
+    // 정면 분석: 정면 항목만 포함
+    filteredMetrics = {};
+    for (const [key, value] of Object.entries(metrics)) {
+      const code = METRIC_KEY_ALIASES[key] || key;
+      if (frontMetricKeys.includes(code)) {
+        filteredMetrics[key] = value;
+      }
+    }
+  } else {
+    // 측면 분석: 측면 항목만 포함
+    filteredMetrics = {};
+    for (const [key, value] of Object.entries(metrics)) {
+      const code = METRIC_KEY_ALIASES[key] || key;
+      if (sideMetricKeys.includes(code)) {
+        filteredMetrics[key] = value;
+      }
+    }
+  }
 
   const findings = [];
   const matches = [];
@@ -10581,7 +10620,7 @@ async function analyzeWithDB(metrics = {}) {
     Knee_Deviation: 1.0
   };
 
-  for (const [rawKey, rawValue] of Object.entries(metrics)) {
+  for (const [rawKey, rawValue] of Object.entries(filteredMetrics)) {
     const code = METRIC_KEY_ALIASES[rawKey] || rawKey;
     if (NORMAL_TEXT[code] == null) continue;
     const numericValue =
@@ -12929,25 +12968,46 @@ function mapPoseToKeypoints(pose, orientation) {
       console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
     }
     
-    // c7: 양쪽 어깨 중간 (목 아래) - 항상 생성 시도 (픽셀 좌표 기준)
+    // L_tragus, R_tragus: MediaPipe의 귀 랜드마크 사용
+    // keypoints[7] = left_ear, keypoints[8] = right_ear
+    const mpLeftEar = keypoints[7];
+    const mpRightEar = keypoints[8];
+    const leftEarPoint = makePoint(mpLeftEar, 'L_tragus');
+    if (leftEarPoint) {
+      keypointMap['L_tragus'] = leftEarPoint;
+      console.log(`✅ L_tragus 매핑 (왼쪽 귀): (${leftEarPoint.x.toFixed(3)}, ${leftEarPoint.y.toFixed(3)}), score: ${leftEarPoint.score.toFixed(2)}`);
+    }
+    
+    const rightEarPoint = makePoint(mpRightEar, 'R_tragus');
+    if (rightEarPoint) {
+      keypointMap['R_tragus'] = rightEarPoint;
+      console.log(`✅ R_tragus 매핑 (오른쪽 귀): (${rightEarPoint.x.toFixed(3)}, ${rightEarPoint.y.toFixed(3)}), score: ${rightEarPoint.score.toFixed(2)}`);
+    }
+    
+    // c7: 양쪽 어깨 중간 (목 아래) - 이미지 높이에 비례하여 계산
     if(keypointMap['R_acromion'] && keypointMap['L_acromion']) {
+      const avgShoulderY = (keypointMap['R_acromion'].y + keypointMap['L_acromion'].y) / 2;
+      // 정규화된 좌표인 경우 이미지 높이를 추정 (일반적으로 0.1~0.15 정도 위)
+      const c7Offset = keypoints[11]?.y < 1 ? 0.08 : (avgShoulderY * 0.1); // 정규화된 경우 0.08, 픽셀인 경우 10%
       keypointMap['c7'] = {
         x: (keypointMap['R_acromion'].x + keypointMap['L_acromion'].x) / 2,
-        y: Math.min(keypointMap['R_acromion'].y, keypointMap['L_acromion'].y) - 50, // 어깨 위 약 50픽셀
+        y: avgShoulderY - c7Offset,
         score: Math.min(keypointMap['R_acromion'].score, keypointMap['L_acromion'].score)
       };
       console.log(`✅ c7 매핑 (양쪽 어깨 중간): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
     } else if(keypointMap['R_acromion']) {
+      const c7Offset = keypoints[11]?.y < 1 ? 0.08 : (keypointMap['R_acromion'].y * 0.1);
       keypointMap['c7'] = {
         x: keypointMap['R_acromion'].x,
-        y: keypointMap['R_acromion'].y - 50, // 어깨 위 약 50픽셀
+        y: keypointMap['R_acromion'].y - c7Offset,
         score: keypointMap['R_acromion'].score * 0.8
       };
       console.log(`✅ c7 매핑 (R_acromion 기준): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
     } else if(keypointMap['L_acromion']) {
+      const c7Offset = keypoints[11]?.y < 1 ? 0.08 : (keypointMap['L_acromion'].y * 0.1);
       keypointMap['c7'] = {
         x: keypointMap['L_acromion'].x,
-        y: keypointMap['L_acromion'].y - 50, // 어깨 위 약 50픽셀
+        y: keypointMap['L_acromion'].y - c7Offset,
         score: keypointMap['L_acromion'].score * 0.8
       };
       console.log(`✅ c7 매핑 (L_acromion 기준): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
@@ -12962,12 +13022,13 @@ function mapPoseToKeypoints(pose, orientation) {
       keypointMap['L_asis'] = leftHipPoint;
       console.log(`✅ L_asis 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
     } else if (keypointMap['L_acromion']) {
-      // 어깨를 기준으로 골반 위치 추정 (픽셀 좌표 기준)
+      // 어깨를 기준으로 골반 위치 추정 (이미지 높이에 비례)
       const shoulderY = keypointMap['L_acromion'].y;
-      const estimatedHipY = shoulderY + 400; // 어깨 아래 약 400픽셀 위치
+      // 정규화된 좌표인 경우 0.25~0.3 정도 아래, 픽셀인 경우 25~30% 아래
+      const hipOffset = shoulderY < 1 ? 0.25 : (shoulderY * 0.3);
       keypointMap['L_asis'] = {
         x: keypointMap['L_acromion'].x,
-        y: estimatedHipY,
+        y: shoulderY + hipOffset,
         score: keypointMap['L_acromion'].score * 0.7
       };
       console.log(`✅ L_asis 추정 (L_acromion 기준): (${keypointMap['L_asis'].x.toFixed(3)}, ${keypointMap['L_asis'].y.toFixed(3)})`);
@@ -12978,38 +13039,39 @@ function mapPoseToKeypoints(pose, orientation) {
       keypointMap['R_asis'] = rightHipPoint;
       console.log(`✅ R_asis 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
     } else if (keypointMap['R_acromion']) {
-      // 어깨를 기준으로 골반 위치 추정 (픽셀 좌표 기준)
+      // 어깨를 기준으로 골반 위치 추정 (이미지 높이에 비례)
       const shoulderY = keypointMap['R_acromion'].y;
-      const estimatedHipY = shoulderY + 400; // 어깨 아래 약 400픽셀 위치
+      const hipOffset = shoulderY < 1 ? 0.25 : (shoulderY * 0.3);
       keypointMap['R_asis'] = {
         x: keypointMap['R_acromion'].x,
-        y: estimatedHipY,
+        y: shoulderY + hipOffset,
         score: keypointMap['R_acromion'].score * 0.7
       };
       console.log(`✅ R_asis 추정 (R_acromion 기준): (${keypointMap['R_asis'].x.toFixed(3)}, ${keypointMap['R_asis'].y.toFixed(3)})`);
     }
     
-    // 무릎과 발목은 골반을 기준으로 추정 (픽셀 좌표 기준)
+    // 무릎과 발목은 골반을 기준으로 추정 (이미지 높이에 비례)
     const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
     if (leftKneePoint) {
       keypointMap['L_knee'] = leftKneePoint;
       console.log(`✅ L_knee 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_asis']) {
       const hipY = keypointMap['L_asis'].y;
-      const estimatedKneeY = hipY + 500; // 골반 아래 약 500픽셀 위치
+      // 정규화된 좌표인 경우 0.2~0.25 정도 아래, 픽셀인 경우 20~25% 아래
+      const kneeOffset = hipY < 1 ? 0.22 : (hipY * 0.25);
       keypointMap['L_knee'] = {
         x: keypointMap['L_asis'].x,
-        y: estimatedKneeY,
+        y: hipY + kneeOffset,
         score: keypointMap['L_asis'].score * 0.7
       };
       console.log(`✅ L_knee 추정 (L_asis 기준): (${keypointMap['L_knee'].x.toFixed(3)}, ${keypointMap['L_knee'].y.toFixed(3)})`);
     } else if (keypointMap['L_acromion']) {
       // 골반이 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['L_acromion'].y;
-      const estimatedKneeY = shoulderY + 900; // 어깨 아래 약 900픽셀 위치
+      const kneeOffset = shoulderY < 1 ? 0.5 : (shoulderY * 0.55);
       keypointMap['L_knee'] = {
         x: keypointMap['L_acromion'].x,
-        y: estimatedKneeY,
+        y: shoulderY + kneeOffset,
         score: keypointMap['L_acromion'].score * 0.6
       };
       console.log(`✅ L_knee 추정 (L_acromion 기준): (${keypointMap['L_knee'].x.toFixed(3)}, ${keypointMap['L_knee'].y.toFixed(3)})`);
@@ -13021,20 +13083,20 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_knee 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_asis']) {
       const hipY = keypointMap['R_asis'].y;
-      const estimatedKneeY = hipY + 500; // 골반 아래 약 500픽셀 위치
+      const kneeOffset = hipY < 1 ? 0.22 : (hipY * 0.25);
       keypointMap['R_knee'] = {
         x: keypointMap['R_asis'].x,
-        y: estimatedKneeY,
+        y: hipY + kneeOffset,
         score: keypointMap['R_asis'].score * 0.7
       };
       console.log(`✅ R_knee 추정 (R_asis 기준): (${keypointMap['R_knee'].x.toFixed(3)}, ${keypointMap['R_knee'].y.toFixed(3)})`);
     } else if (keypointMap['R_acromion']) {
       // 골반이 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['R_acromion'].y;
-      const estimatedKneeY = shoulderY + 900; // 어깨 아래 약 900픽셀 위치
+      const kneeOffset = shoulderY < 1 ? 0.5 : (shoulderY * 0.55);
       keypointMap['R_knee'] = {
         x: keypointMap['R_acromion'].x,
-        y: estimatedKneeY,
+        y: shoulderY + kneeOffset,
         score: keypointMap['R_acromion'].score * 0.6
       };
       console.log(`✅ R_knee 추정 (R_acromion 기준): (${keypointMap['R_knee'].x.toFixed(3)}, ${keypointMap['R_knee'].y.toFixed(3)})`);
@@ -13046,30 +13108,31 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_knee']) {
       const kneeY = keypointMap['L_knee'].y;
-      const estimatedAnkleY = kneeY + 600; // 무릎 아래 약 600픽셀 위치
+      // 정규화된 좌표인 경우 0.25~0.3 정도 아래, 픽셀인 경우 25~30% 아래
+      const ankleOffset = kneeY < 1 ? 0.28 : (kneeY * 0.3);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_knee'].x,
-        y: estimatedAnkleY,
+        y: kneeY + ankleOffset,
         score: keypointMap['L_knee'].score * 0.7
       };
       console.log(`✅ L_ankle 추정 (L_knee 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
     } else if (keypointMap['L_asis']) {
       // 무릎이 없으면 골반을 기준으로 추정
       const hipY = keypointMap['L_asis'].y;
-      const estimatedAnkleY = hipY + 1100; // 골반 아래 약 1100픽셀 위치
+      const ankleOffset = hipY < 1 ? 0.5 : (hipY * 0.55);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_asis'].x,
-        y: estimatedAnkleY,
+        y: hipY + ankleOffset,
         score: keypointMap['L_asis'].score * 0.6
       };
       console.log(`✅ L_ankle 추정 (L_asis 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
     } else if (keypointMap['L_acromion']) {
       // 골반도 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['L_acromion'].y;
-      const estimatedAnkleY = shoulderY + 1500; // 어깨 아래 약 1500픽셀 위치
+      const ankleOffset = shoulderY < 1 ? 0.8 : (shoulderY * 0.85);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_acromion'].x,
-        y: estimatedAnkleY,
+        y: shoulderY + ankleOffset,
         score: keypointMap['L_acromion'].score * 0.5
       };
       console.log(`✅ L_ankle 추정 (L_acromion 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
@@ -13081,30 +13144,30 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_knee']) {
       const kneeY = keypointMap['R_knee'].y;
-      const estimatedAnkleY = kneeY + 600; // 무릎 아래 약 600픽셀 위치
+      const ankleOffset = kneeY < 1 ? 0.28 : (kneeY * 0.3);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_knee'].x,
-        y: estimatedAnkleY,
+        y: kneeY + ankleOffset,
         score: keypointMap['R_knee'].score * 0.7
       };
       console.log(`✅ R_ankle 추정 (R_knee 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     } else if (keypointMap['R_asis']) {
       // 무릎이 없으면 골반을 기준으로 추정
       const hipY = keypointMap['R_asis'].y;
-      const estimatedAnkleY = hipY + 1100; // 골반 아래 약 1100픽셀 위치
+      const ankleOffset = hipY < 1 ? 0.5 : (hipY * 0.55);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_asis'].x,
-        y: estimatedAnkleY,
+        y: hipY + ankleOffset,
         score: keypointMap['R_asis'].score * 0.6
       };
       console.log(`✅ R_ankle 추정 (R_asis 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     } else if (keypointMap['R_acromion']) {
       // 골반도 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['R_acromion'].y;
-      const estimatedAnkleY = shoulderY + 1500; // 어깨 아래 약 1500픽셀 위치
+      const ankleOffset = shoulderY < 1 ? 0.8 : (shoulderY * 0.85);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_acromion'].x,
-        y: estimatedAnkleY,
+        y: shoulderY + ankleOffset,
         score: keypointMap['R_acromion'].score * 0.5
       };
       console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
