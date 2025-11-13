@@ -4,7 +4,7 @@
   "description": "Posture AI Analysis Web Application",
   "type": "module",
   "scripts": {
-    "build": "echo 'No build step required for static HTML/JS project'",
+    "build": "mkdir -p dist && cp -r index.html assets db pwa-*.png vite.svg dist/ 2>/dev/null || true",
     "deploy": "echo 'Deploy static files'"
   },
   "keywords": [
