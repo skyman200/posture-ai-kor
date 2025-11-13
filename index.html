@@ -178,7 +178,36 @@ canvas {
   -webkit-user-select: none;
 }
 </style>
-<!-- pdfMake는 body 끝에서 클린업 후 로드됨 -->
+
+<!-- ===================================================== -->
+<!-- 🔥 PDF v3: html2canvas + jsPDF + Tesseract.js (PART 1) -->
+<!-- ===================================================== -->
+<!-- html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Tesseract.js (OCR) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+
+<!-- PDF Progress UI -->
+<style>
+    #pdfProgressWrap {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 6px;
+        background: rgba(0,0,0,0.15);
+        z-index: 99999;
+        display: none;
+    }
+    #pdfProgressBar {
+        width: 0%;
+        height: 100%;
+        background: #4a90e2;
+        transition: width 0.15s linear;
+    }
+</style>
   </head>
   <body>
 <aside class="panel sidebar" style="order: 1;">
@@ -14555,6 +14584,258 @@ console.log("[PDF CLEAN] ✅ Legacy PDF 코드 제거 완료");
 ">
   PDF 저장 중... 0%
 </div>
+
+<!-- ===================================================== -->
+<!-- 🔥 PDF v3: 버튼 및 UI 요소 (PART 2) -->
+<!-- ===================================================== -->
+<!-- PDF 버튼 UI -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 99999;">
+    <button id="btnGeneratePDF"
+        style="
+            padding: 12px 18px;
+            background:#4a90e2;
+            color:white;
+            border-radius:8px;
+            font-size:15px;
+            border:none;
+            box-shadow:0px 3px 10px rgba(0,0,0,0.25);
+            cursor: pointer;">
+        📄 PDF 저장 (OCR 포함)
+    </button>
+</div>
+
+<!-- OCR 텍스트 임시 저장용 -->
+<div id="ocrHiddenBox"
+     style="display:none; white-space:pre-wrap;"></div>
+
+<!-- 캡처용 임시 캔버스 -->
+<canvas id="hiddenCaptureCanvas"
+        style="display:none;"></canvas>
+
+<!-- PDF 상태 텍스트 영역 -->
+<div id="pdfStatusText"
+     style="
+        position: fixed;
+        top: 10px;
+        right: 20px;
+        z-index: 99999;
+        color: white;
+        background: rgba(0,0,0,0.55);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size:14px;
+        display:none;">
+    생성 중...
+</div>
+
+<!-- Progress Bar 영역 -->
+<div id="pdfProgressWrap">
+    <div id="pdfProgressBar"></div>
+</div>
+
+<!-- ===================================================== -->
+<!-- 🔥 PDF v3: 최종 PDF 엔진 (PART 3) -->
+<!-- ===================================================== -->
+<script>
+/* ================================================
+    ⚡ FINAL PDF ENGINE (A 방식 + OCR + AI 분석 + 디자인 카드 적용)
+    - 화면 전체 캡처 + OCR
+    - Before/After 수치 테이블 자동 추가
+    - AI 분석 섹션 자동 추출
+    - Pilates / Exercise / Weak / Tight / 결론 등 카드 디자인 적용
+================================================ */
+
+/* ------------ PDF 상태 표시 ------------ */
+function setPdfStatus(msg) {
+    const t = document.getElementById("pdfStatusText");
+    if (!t) return;
+    t.innerText = msg;
+    t.style.display = "block";
+}
+
+function hidePdfStatus() {
+    const t = document.getElementById("pdfStatusText");
+    if (!t) return;
+    t.style.display = "none";
+}
+
+/* ------------ OCR ------------ */
+async function runOCR(canvas) {
+    try {
+        setPdfStatus("OCR 분석 중…");
+
+        const worker = Tesseract.createWorker({
+            logger: m => console.log("[OCR]", m)
+        });
+
+        await worker.load();
+        await worker.loadLanguage("kor+eng");
+        await worker.initialize("kor+eng");
+
+        const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+        const { data } = await worker.recognize(blob);
+
+        await worker.terminate();
+        return data.text || "";
+    } catch (err) {
+        console.warn("OCR 실패:", err);
+        return "";
+    }
+}
+
+/* ------------ 캡처 (화면 비율 그대로) ------------ */
+async function captureElement(el) {
+    setPdfStatus("화면 캡처 중…");
+
+    return await html2canvas(el, {
+        scale: window.devicePixelRatio || 2,
+        backgroundColor: null,
+        useCORS: true,
+        logging: false
+    });
+}
+
+/* ================================================
+      🔥 AI 분석 결과 DOM → PDF 구조화 카드 생성
+================================================ */
+
+function extractSection(id, title) {
+    const el = document.getElementById(id);
+    if (!el || !el.innerText.trim()) return null;
+
+    return {
+        title,
+        content: el.innerText.trim()
+    };
+}
+
+/* 불러올 섹션 목록 */
+function getAllAnalysisSections() {
+    return [
+        extractSection("scoreReason", "점수 분석 요약"),
+        extractSection("postureTypeContent", "체형 유형"),
+        extractSection("aiComment", "AI 분석 코멘트"),
+        extractSection("muscleTightList", "긴장되어 있는 근육"),
+        extractSection("muscleWeakList", "약화된 근육"),
+        extractSection("exerciseList", "교정 운동 프로그램"),
+        extractSection("pilatesList", "필라테스 추천 프로그램"),
+        extractSection("conclusionContent", "최종 결론")
+    ].filter(Boolean);
+}
+
+/* 카드 형식 PDF 블록 변환 */
+function makeCardSection(pdf, title, text, yStart) {
+    const pageW = pdf.internal.pageSize.getWidth();
+
+    pdf.setFillColor(245, 245, 245);
+    pdf.roundedRect(20, yStart, pageW - 40, 20, 4, 4, "F");
+
+    pdf.setFont("Helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.text(title, 30, yStart + 14);
+
+    pdf.setFont("Helvetica", "normal");
+    pdf.setFontSize(12);
+
+    const split = pdf.splitTextToSize(text, pageW - 60);
+    pdf.text(split, 30, yStart + 45);
+
+    return 45 + split.length * 6 + 20;
+}
+
+/* ================================================
+      🔥 PDF 생성
+================================================ */
+
+async function generateFinalPDF() {
+    try {
+        const root = document.body;
+
+        /* 1) 화면 캡처 */
+        const canvas = await captureElement(root);
+        const imgData = canvas.toDataURL("image/png");
+
+        /* 2) OCR */
+        const ocrText = await runOCR(canvas);
+
+        /* 3) PDF 시작 */
+        setPdfStatus("PDF 빌드 중…");
+
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            throw new Error("jsPDF 라이브러리가 로드되지 않았습니다.");
+        }
+
+        const pdf = new window.jspdf.jsPDF({
+            orientation: "p",
+            unit: "px",
+            format: [canvas.width, canvas.height]
+        });
+
+        /* 4) PAGE 1 — 화면 전체 이미지 (디자인 그대로) */
+        pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+
+        /* 5) PAGE 2 — OCR 텍스트 */
+        pdf.addPage();
+        pdf.setFont("Helvetica", "bold");
+        pdf.setFontSize(18);
+        pdf.text("📌 OCR 추출 텍스트", 20, 40);
+
+        pdf.setFont("Helvetica", "normal");
+        pdf.setFontSize(12);
+
+        const ocrSplit = pdf.splitTextToSize(ocrText, pdf.internal.pageSize.getWidth() - 40);
+        pdf.text(ocrSplit, 20, 80);
+
+        /* 6) PAGE 3 — AI 분석 결과 카드 정리 섹션 */
+        pdf.addPage();
+
+        let y = 40;
+
+        pdf.setFont("Helvetica", "bold");
+        pdf.setFontSize(22);
+        pdf.text("📘 AI 체형 분석 리포트", 20, y);
+        y += 40;
+
+        const sections = getAllAnalysisSections();
+
+        for (const sec of sections) {
+            const h = makeCardSection(pdf, sec.title, sec.content, y);
+            y += h + 30;
+
+            if (y > pdf.internal.pageSize.getHeight() - 200) {
+                pdf.addPage();
+                y = 40;
+            }
+        }
+
+        /* 완료 */
+        pdf.save("posture_report_full.pdf");
+        hidePdfStatus();
+
+        console.log("✅ PDF 생성 완료");
+
+    } catch (err) {
+        console.error("❌ PDF 생성 실패:", err);
+        setPdfStatus("❌ PDF 생성 실패");
+        setTimeout(hidePdfStatus, 2000);
+    }
+}
+
+/* -------------------------------------------------
+   버튼 연결
+-------------------------------------------------- */
+const pdfBtn = document.getElementById("btnGeneratePDF");
+if (pdfBtn) {
+    pdfBtn.addEventListener("click", () => {
+        setPdfStatus("PDF 생성 시작…");
+        generateFinalPDF();
+    });
+} else {
+    console.warn("btnGeneratePDF 버튼을 찾을 수 없습니다.");
+}
+
+console.log("[PDF v3] ✅ 최종 PDF 엔진 준비 완료");
+</script>
 
   </body>
 </html>
