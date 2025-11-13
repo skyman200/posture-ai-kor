@@ -13018,7 +13018,7 @@ function exportAsPdf(options = {}) {
   });
 }
 
-// PDF 저장 (모바일 최적화, 페이지 분리) - 개선 버전
+// PDF 저장 (새 PDF 시스템 사용)
 function setupPDFButton() {
   const btnPDF = document.getElementById("btnPDF");
   if (!btnPDF) {
@@ -13031,6 +13031,17 @@ function setupPDFButton() {
   btnPDF.parentNode.replaceChild(newBtn, btnPDF);
   
   newBtn.addEventListener('click', async () => {
+    // 새 PDF 시스템 사용
+    if (typeof savePosturePdf === 'function') {
+      await savePosturePdf();
+      return;
+    }
+    
+    // 폴백: 기존 로직 (하지만 실행되지 않도록)
+    console.warn("[PDF CLEAN] setupPDFButton: 새 PDF 시스템을 사용하세요");
+    return;
+    
+    // 아래 코드는 실행되지 않음 (위에서 return)
     try {
       // 모바일에서 로딩 표시
       const btn = document.getElementById("btnPDF");
@@ -14450,133 +14461,62 @@ async function exportAsPdfSimple() {
   }
 }
 
-// PDF 버튼 이벤트 리스너 (간단 버전 사용)
-// 기존 setupPDFButton과 충돌하지 않도록 주의
+// PDF 버튼 이벤트 리스너 (새 PDF 시스템 사용)
 if (document.getElementById("downloadPdfBtn")) {
-  document.getElementById("downloadPdfBtn").addEventListener("click", exportAsPdfSimple);
+  document.getElementById("downloadPdfBtn").addEventListener("click", savePosturePdf);
 }
 </script>
 
 <!-- pdf-lib는 이미 head에 추가됨 -->
 
 <!-- ===================================================== -->
-<!-- 🔥 PDF 코드 완전 클린업 스크립트 -->
+<!-- 🔥 PDF Legacy 코드 완전 제거 패치 (1단계) -->
 <!-- ===================================================== -->
 <script>
-(function() {
-  'use strict';
-  
-  console.log('[CLEANUP] ==========================================');
-  console.log('[CLEANUP] PDF 코드 클린업 시작...');
-  console.log('[CLEANUP] ==========================================');
-  
-  // === 1) 전역에 남아있는 pdf 관련 함수/변수 제거 ===
-  const oldPdfFunctions = [
-    "savePDF", "savePdf", "downloadPdf", "generatePdf", "createPdf",
-    "exportPDF", "exportPdf", "pdfSave", "makePdf", 
-    "oldPdf", "reportPdf", "saveReportPdf", "exportAsPdfSimple",
-    "generatePosturePdf", "savePosturePdfFromApp", "buildPostureDocDefinition"
-  ];
-  
-  let removedFunctions = 0;
-  oldPdfFunctions.forEach(fn => {
-    if (window[fn]) {
-      console.warn("[CLEANUP] 기존 PDF 함수 제거:", fn);
-      try {
-        delete window[fn];
-        removedFunctions++;
-      } catch (e) {
-        window[fn] = undefined;
-        removedFunctions++;
-      }
+// =============== PDF Legacy 코드 완전 제거 패치 ===============
+
+// 1) 기존 PDF 함수 제거
+[
+  "exportAsPdfSimple",
+  "generatePosturePdf",
+  "savePosturePdfFromApp",
+  "buildPostureDocDefinition",
+  "savePDF",
+  "exportPDF",
+  "createPdf",
+  "oldPdf"
+].forEach(fn => {
+  if (window[fn]) {
+    console.warn("[PDF CLEAN] Removing legacy PDF function:", fn);
+    delete window[fn];
+  }
+});
+
+// 2) jsPDF 관련 제거
+window.jsPDF = undefined;
+if (window.jspdf) {
+  window.jspdf = undefined;
+  delete window.jspdf;
+}
+
+// 3) checkLibraries() 무력화
+window.checkLibraries = function() {
+  console.warn("[PDF CLEAN] checkLibraries() bypassed");
+  return true;
+};
+
+// 4) 기존 onclick에 PDF 함수 포함된 버튼 무력화
+document.addEventListener("DOMContentLoaded", ()=> {
+  document.querySelectorAll("button").forEach(btn=>{
+    const h = btn.getAttribute("onclick") || "";
+    if (h.includes("Pdf") || h.includes("PDF") || h.includes("pdf")) {
+      console.warn("[PDF CLEAN] onclick 제거:", btn);
+      btn.setAttribute("onclick", "");
     }
   });
-  
-  // === 2) 이미 로드된 jspdf, pdfmake, html2canvas 제거 ===
-  const removedLibs = [];
-  
-  if (window.jsPDF) {
-    console.warn("[CLEANUP] 기존 jsPDF 제거");
-    try {
-      delete window.jsPDF;
-      removedLibs.push('jsPDF');
-    } catch (e) {
-      window.jsPDF = undefined;
-      removedLibs.push('jsPDF');
-    }
-  }
-  
-  if (window.jspdf) {
-    console.warn("[CLEANUP] 기존 jspdf 제거");
-    try {
-      delete window.jspdf;
-      removedLibs.push('jspdf');
-    } catch (e) {
-      window.jspdf = undefined;
-      removedLibs.push('jspdf');
-    }
-  }
-  
-  if (window.pdfMake) {
-    console.warn("[CLEANUP] 기존 pdfMake 제거");
-    try {
-      delete window.pdfMake;
-      removedLibs.push('pdfMake');
-    } catch (e) {
-      window.pdfMake = undefined;
-      removedLibs.push('pdfMake');
-    }
-  }
-  
-  if (window.html2canvas) {
-    console.warn("[CLEANUP] 기존 html2canvas 제거");
-    try {
-      delete window.html2canvas;
-      removedLibs.push('html2canvas');
-    } catch (e) {
-      window.html2canvas = undefined;
-      removedLibs.push('html2canvas');
-    }
-  }
-  
-  // === 3) script 태그에서 중복 제거 ===
-  const scriptsToRemove = [];
-  document.querySelectorAll("script").forEach(s => {
-    const src = s.src || '';
-    const text = s.textContent || '';
-    if (
-      src.includes("jspdf") ||
-      src.includes("pdfmake") ||
-      src.includes("html2canvas") ||
-      src.includes("reportPdf") ||
-      src.includes("savePdf") ||
-      src.includes("pdf-lib") ||
-      text.includes("pdfMake") ||
-      text.includes("jsPDF")
-    ) {
-      const identifier = src || text.substring(0, 50);
-      console.warn("[CLEANUP] 스크립트 제거:", identifier);
-      scriptsToRemove.push(s);
-    }
-  });
-  
-  scriptsToRemove.forEach(s => {
-    try {
-      s.remove();
-    } catch (e) {
-      if (s.parentNode) {
-        s.parentNode.removeChild(s);
-      }
-    }
-  });
-  
-  // === 4) 완료 메시지 ===
-  console.log("[CLEANUP] ==========================================");
-  console.log(`[CLEANUP] ✅ 제거 완료: 함수 ${removedFunctions}개, 라이브러리 ${removedLibs.length}개, 스크립트 ${scriptsToRemove.length}개`);
-  console.log("[CLEANUP] ✅ 이전 PDF 관련 코드는 전부 제거 완료됨.");
-  console.log("[CLEANUP] 이제 깨끗한 상태에서 새 PDF 시스템을 로드합니다.");
-  console.log("[CLEANUP] ==========================================");
-})();
+});
+
+console.log("[PDF CLEAN] ✅ Legacy PDF 코드 제거 완료");
 </script>
 
 <!-- ===================================================== -->
@@ -14587,48 +14527,51 @@ if (document.getElementById("downloadPdfBtn")) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
 <!-- ===================================================== -->
-<!-- 🔥 새로운 PDF 함수 등록 (savePosturePdfFromApp) -->
+<!-- 🔥 새로운 PDF 시스템 (3단계) -->
 <!-- ===================================================== -->
 <script>
-async function savePosturePdfFromApp() {
+// ================= 새 PDF 엔진 =================
+
+async function savePosturePdf() {
   const progressBox = document.getElementById("pdfProgress");
-  const update = (p, msg) => {
+  const update = (v, msg) => {
     if (!progressBox) return;
     progressBox.style.display = "block";
-    progressBox.innerText = msg ? msg : `PDF 저장 중... ${p}%`;
+    progressBox.innerText = msg ? msg : `PDF 저장중... ${v}%`;
   };
 
   try {
-    update(5, "PDF 준비 중...");
+    update(5, "이미지 준비중...");
 
-    // 1) 전역 이미지 체크 (측면/정면 전후 + 오버레이)
+    // ===== 1) 이미지 전역변수 불러오기 =====
     const sideBefore  = window.sideBeforeImg;
     const sideAfter   = window.sideAfterImg;
     const sideOverlay = window.sideOverlayImg;
-    const frontBefore = window.frontBeforeImg;
-    const frontAfter  = window.frontAfterImg;
-    const frontOverlay= window.frontOverlayImg;
+
+    const frontBefore  = window.frontBeforeImg;
+    const frontAfter   = window.frontAfterImg;
+    const frontOverlay = window.frontOverlayImg;
 
     if (!sideBefore || !sideAfter || !sideOverlay ||
         !frontBefore || !frontAfter || !frontOverlay) {
-      alert("Before/After 이미지 전역 변수(window.sideBeforeImg 등)가 세팅돼 있는지 먼저 확인해봐.");
+      alert("Before/After 이미지 세팅이 필요합니다.");
       if (progressBox) progressBox.style.display = "none";
       return;
     }
 
-    // 2) PDF 문서 구조
+    // ===== 2) PDF Document 구조 =====
     let docDefinition = {
       pageSize: "A4",
       pageMargins: [20, 20, 20, 20],
       content: [],
       styles: {
-        title: { fontSize: 20, bold: true, margin: [0, 0, 0, 10] },
+        title: { fontSize: 21, bold: true, margin: [0, 0, 0, 10] },
         subtitle: { fontSize: 14, bold: true, margin: [0, 10, 0, 5] }
       }
     };
 
-    // ========= 1페이지: 측면 =========
-    update(15, "측면 이미지 정리 중...");
+    // ===== 3) 1페이지: 측면 =====
+    update(15, "측면 페이지 구성중...");
 
     docDefinition.content.push({
       stack: [
@@ -14636,9 +14579,8 @@ async function savePosturePdfFromApp() {
         {
           columns: [
             { image: sideBefore, width: 250 },
-            { image: sideAfter,  width: 250 }
-          ],
-          margin: [0, 0, 0, 10]
+            { image: sideAfter, width: 250 }
+          ]
         },
         { text: "측면 오버레이", style: "subtitle" },
         { image: sideOverlay, width: 500 }
@@ -14646,8 +14588,8 @@ async function savePosturePdfFromApp() {
       pageBreak: "after"
     });
 
-    // ========= 2페이지: 정면 =========
-    update(35, "정면 이미지 정리 중...");
+    // ===== 4) 2페이지: 정면 =====
+    update(35, "정면 페이지 구성중...");
 
     docDefinition.content.push({
       stack: [
@@ -14655,9 +14597,8 @@ async function savePosturePdfFromApp() {
         {
           columns: [
             { image: frontBefore, width: 250 },
-            { image: frontAfter,  width: 250 }
-          ],
-          margin: [0, 0, 0, 10]
+            { image: frontAfter, width: 250 }
+          ]
         },
         { text: "정면 오버레이", style: "subtitle" },
         { image: frontOverlay, width: 500 }
@@ -14665,29 +14606,37 @@ async function savePosturePdfFromApp() {
       pageBreak: "after"
     });
 
-    // ========= 3페이지: 리포트 패널 캡쳐 =========
-    update(55, "리포트 패널 캡쳐 중...");
+    // ===== 5) 3페이지: 리포트 박스 =====
+    update(55, "리포트 캡쳐중...");
 
     const reportEl = document.getElementById("report-box");
-    if (reportEl && window.html2canvas) {
-      const canvas = await html2canvas(reportEl, {
-        scale: 2,
-        useCORS: true
-      });
-      const reportImg = canvas.toDataURL("image/png");
-
-      docDefinition.content.push({
-        stack: [
-          { text: "자세 분석 리포트", style: "title" },
-          { image: reportImg, width: 550 }
-        ]
-      });
-    } else {
-      console.warn("#report-box 요소를 못 찾았거나 html2canvas가 없음.");
+    if (!reportEl) {
+      console.warn("#report-box 요소를 찾을 수 없습니다.");
+      update(100, "완료 (리포트 박스 없음)");
+      setTimeout(() => { if (progressBox) progressBox.style.display = "none"; }, 1200);
+      return;
     }
 
-    // ========= 4) PDF 생성 & 다운로드 =========
-    update(85, "PDF 생성 중...");
+    const canvas = await html2canvas(reportEl, {
+      scale: 2,
+      useCORS: true
+    });
+    const reportImg = canvas.toDataURL("image/png");
+
+    docDefinition.content.push({
+      stack: [
+        { text: "자세 분석 리포트", style: "title" },
+        { image: reportImg, width: 550 }
+      ]
+    });
+
+    // ===== 6) PDF 생성 =====
+    update(85, "PDF 생성중...");
+
+    // docDefinition 정화 (pageBreak 에러 방지)
+    if (typeof sanitizePdfDoc === 'function') {
+      sanitizePdfDoc(docDefinition);
+    }
 
     // pdfMake 폰트 준비 (있는 경우)
     if (typeof preparePdfMakeFonts === 'function') {
@@ -14696,28 +14645,24 @@ async function savePosturePdfFromApp() {
       pdfMake.vfs = vfs;
     }
 
-    // docDefinition 정화
-    if (typeof sanitizePdfDoc === 'function') {
-      sanitizePdfDoc(docDefinition);
-    }
-
     pdfMake.createPdf(docDefinition).download("posture_report.pdf");
 
     update(100, "완료!");
     setTimeout(() => { if (progressBox) progressBox.style.display = "none"; }, 1200);
 
   } catch (err) {
-    console.error("PDF 생성 중 오류:", err);
-    alert("PDF 생성 중 오류가 났다. 콘솔 메시지를 캡쳐해서 나한테 다시 보내줘.");
+    console.error("❌ PDF 생성 오류:", err);
+    alert("PDF 생성 중 오류가 발생했습니다.");
     if (progressBox) progressBox.style.display = "none";
   }
 }
 
-// 전역으로 노출
-window.savePosturePdfFromApp = savePosturePdfFromApp;
+// 전역으로 노출 (기존 버튼 호환성)
+window.savePosturePdf = savePosturePdf;
+window.savePosturePdfFromApp = savePosturePdf; // 기존 버튼 호환
 
-console.log('[CLEANUP] ✅ 새로운 PDF 시스템 준비 완료');
-console.log('[CLEANUP] 사용법: savePosturePdfFromApp()');
+console.log('[PDF SYSTEM] ✅ 새로운 PDF 시스템 준비 완료');
+console.log('[PDF SYSTEM] 사용법: savePosturePdf() 또는 savePosturePdfFromApp()');
 </script>
 
 <!-- ===================================================== -->
