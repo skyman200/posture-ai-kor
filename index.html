@@ -372,7 +372,7 @@ canvas {
       <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Q-Angle (대퇴사두근 각도)</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> ASIS-슬개골(Patella)-경골조면(Tibial Tuberosity) 세 점이 이루는 각도<br>
+          <strong>측정 방법:</strong> ASIS-무릎(Knee)-경골조면(Tibial Tuberosity) 세 점이 이루는 각도<br>
           <strong>의미:</strong> 대퇴사두근의 당김 방향을 평가하여 무릎 정렬을 확인합니다.<br>
           <strong>정상 범위:</strong> 남성 10-15°, 여성 15-20°<br>
           <strong>임상적 의미:</strong> &gt;20°는 슬개골 외측 전위 및 슬개대퇴 통증 증후군의 위험 요인입니다.
@@ -742,8 +742,6 @@ const keypointsFront = [
   {key:'R_ankle', color:'#7c9cff'},
   {key:'L_knee', color:'#7c9cff'},
   {key:'R_knee', color:'#7c9cff'},
-  {key:'L_patella', color:'#ff6b6b'},  // Q-angle 측정용: 슬개골 중심
-  {key:'R_patella', color:'#ff6b6b'},  // Q-angle 측정용: 슬개골 중심
   {key:'L_tibial_tub', color:'#ff6b6b'},  // Q-angle 측정용: 경골 결절
   {key:'R_tibial_tub', color:'#ff6b6b'},  // Q-angle 측정용: 경골 결절
 ];
@@ -1564,7 +1562,7 @@ function analyzeFrontPosture(points, pxPerCm = 50.0) {
     result.Q_Angle.meaning = "Q-Angle (10–20° 정상, 여성이 더 큼)";
   }
   
-  // 하위 호환성: patella나 tibial_tub가 없을 때 무릎 중심 사용 (기존 방식)
+  // 하위 호환성: tibial_tub가 없을 때 발목을 사용 (기존 방식)
   if (!result.Q_Angle && L_asis && L_knee && L_ankle) {
     const qAngle = angleAt(L_knee, L_asis, L_ankle);
     result.Q_Angle = {
@@ -3389,15 +3387,13 @@ function ensureDefaultPoints(session) {
       R_acromion: {x:W*0.7, y:H*0.3},
       L_asis: {x:W*0.35, y:H*0.5},
       R_asis: {x:W*0.65, y:H*0.5},
-      L_knee: {x:W*0.4, y:H*0.65},  // 무릎 위치 위로 조정 (0.75 → 0.65)
-      R_knee: {x:W*0.6, y:H*0.65},  // 무릎 위치 위로 조정 (0.75 → 0.65)
-      L_ankle: {x:W*0.4, y:H*0.85},  // 발목 위치 위로 조정 (0.95 → 0.85)
-      R_ankle: {x:W*0.6, y:H*0.85},  // 발목 위치 위로 조정 (0.95 → 0.85)
-      // Q-angle 측정용 dot (무릎 중심 근처)
-      L_patella: {x:W*0.4, y:H*0.65},  // 좌측 슬개골 중심 (무릎과 동일)
-      R_patella: {x:W*0.6, y:H*0.65},  // 우측 슬개골 중심 (무릎과 동일)
-      L_tibial_tub: {x:W*0.4, y:H*0.68},  // 좌측 경골 결절 (슬개골 아래 약간, 0.78 → 0.68)
-      R_tibial_tub: {x:W*0.6, y:H*0.68},  // 우측 경골 결절 (슬개골 아래 약간, 0.78 → 0.68)
+      L_knee: {x:W*0.4, y:H*0.22},  // 무릎 위치 3배 올리기 (0.65 → 0.22)
+      R_knee: {x:W*0.6, y:H*0.22},  // 무릎 위치 3배 올리기 (0.65 → 0.22)
+      L_ankle: {x:W*0.4, y:H*0.28},  // 발목 위치 3배 올리기 (0.85 → 0.28)
+      R_ankle: {x:W*0.6, y:H*0.28},  // 발목 위치 3배 올리기 (0.85 → 0.28)
+      // Q-angle 측정용 dot (ASIS-KNEE-Tibial tub 사용)
+      L_tibial_tub: {x:W*0.4, y:H*0.23},  // 좌측 경골 결절 (무릎 아래 약간, 0.68 → 0.23)
+      R_tibial_tub: {x:W*0.6, y:H*0.23},  // 우측 경골 결절 (무릎 아래 약간, 0.68 → 0.23)
     } : {
       tragus: {x:W*0.35, y:H*0.3},
       c7: {x:W*0.3, y:H*0.35},
@@ -3827,20 +3823,18 @@ function computeAll() {
   const frontMetrics = analysisResult.front;
   
   // 측면 및 정면 분석 결과를 통합하여 fullMetrics에 저장
-  const mergedMetrics = {};
-  
-  // 측면 분석 결과 통합
-  if(sideMetrics.status !== "not_available") {
-    Object.assign(mergedMetrics, sideMetrics);
-  }
-  
-  // 정면 분석 결과 통합 (측면 결과와 병합)
-  if(frontMetrics.status !== "not_available") {
-    Object.assign(mergedMetrics, frontMetrics);
-  }
+  // ✅ 정면 분석만 있을 때는 정면 메트릭만, 측면 분석만 있을 때는 측면 메트릭만 사용
+  let mergedMetrics = {};
   
   // 측면 분석 결과가 있으면 기존 방식으로도 저장
   if(sideMetrics.status !== "not_available") {
+    // 측면 분석 결과 통합
+    mergedMetrics = { ...sideMetrics };
+    
+    // 정면 분석 결과도 있으면 병합 (통합 분석용)
+    if(frontMetrics.status !== "not_available") {
+      Object.assign(mergedMetrics, frontMetrics);
+    }
     const cva = sideMetrics.CVA?.value_deg || null;
     const pelvic = sideMetrics.PTA?.value_deg || null;
     const knee = sideMetrics.KA?.value_deg || null;
@@ -3860,7 +3854,8 @@ function computeAll() {
     S.score = score;
     
     // AI 분석 실행 (통합된 fullMetrics 사용) - 데이터베이스 기반
-    analyzeMusclesWithDB(mergedMetrics).then(analysis => {
+    // ✅ 측면 분석이 있으면 "side" orientation 전달
+    analyzeMusclesWithDB(mergedMetrics, "side").then(analysis => {
       S.analysis = analysis;
       updateDisplay();
       updateCompare();
@@ -3878,20 +3873,22 @@ function computeAll() {
     analyzePelvicTiltAuto();
     
   } else if(frontMetrics.status !== "not_available") {
-    // 정면 분석만 있는 경우
+    // 정면 분석만 있는 경우 - 정면 메트릭만 사용
+    mergedMetrics = { ...frontMetrics };
+    
     S.metrics = { 
-      fullMetrics: mergedMetrics,  // 정면 분석 결과
+      fullMetrics: mergedMetrics,  // 정면 분석 결과만
       orientation: "front",
       frontMetrics: frontMetrics
     };
     window.fullMetrics = mergedMetrics;
     
-    // 정면 분석 점수 계산
+    // 정면 분석 점수 계산 (정면 메트릭만 사용)
     const scoreData = computeScoreFromFullMetrics(mergedMetrics);
     S.score = scoreData;
     
-    // 정면 분석에 대한 DB 기반 분석 실행
-    analyzeMusclesWithDB(mergedMetrics).then(analysis => {
+    // 정면 분석에 대한 DB 기반 분석 실행 (정면 메트릭만 전달)
+    analyzeMusclesWithDB(mergedMetrics, "front").then(analysis => {
       S.analysis = {
         ...analysis,
         fullMetrics: mergedMetrics,
@@ -3990,227 +3987,235 @@ function computeScoreFromFullMetrics(fullMetrics) {
     return { score: null, reasons: [], penalties: 0 };
   }
   
+  // ✅ orientation 확인하여 정면/측면 구분
+  const S = sessions[cur];
+  const orientation = S.metrics?.orientation || fullMetrics?.orientation || "side";
+  
   let penalties = 0;
   let reasons = [];
   
-  // 1. CVA (Craniovertebral Angle) - 정상 ≥50°
-  const cva = fullMetrics.CVA?.value;
-  if(cva != null) {
-    if(cva < 50) {
-      const delta = 50 - cva;
-      const penalty = Math.min(40, delta * 1.6);
-      penalties += penalty;
-      reasons.push(`CVA ${cva.toFixed(1)}° (정상 ≥50°) - ${penalty.toFixed(0)}점 감점`);
-    }
-  }
-  
-  // 2. HPD (Head Protrusion Distance) - 정상 ≤2cm
-  const hpd = fullMetrics.HPD?.value;
-  if(hpd != null && hpd > 2) {
-    const delta = hpd - 2;
-    const penalty = Math.min(20, delta * 5);
-    penalties += penalty;
-    reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  
-  // 4. TIA (Trunk Inclination Angle) - 정상 0-10°
-  const tia = fullMetrics.TIA?.value;
-  if(tia != null && tia > 10) {
-    const delta = tia - 10;
-    const penalty = Math.min(20, delta * 2);
-    penalties += penalty;
-    reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 5. SAA (Scapular Alignment Angle) - 정상 0-10°
-  const saa = fullMetrics.SAA?.value;
-  if(saa != null && saa > 10) {
-    const delta = saa - 10;
-    const penalty = Math.min(15, delta * 1.5);
-    penalties += penalty;
-    reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 6. PTA (Pelvic Tilt Angle) - 정상 0-15° (부호 포함: +전방/-후방)
-  const ptaSigned = fullMetrics.PTA?.value_signed; // 부호 포함 값 사용
-  const pta = fullMetrics.PTA?.value; // 절댓값
-  if(ptaSigned != null && pta != null) {
-    // 목표는 0° (중립)
-    const absPta = Math.abs(ptaSigned);
-    if(absPta > 15) {
-      const delta = absPta - 15;
-      const penalty = Math.min(30, delta * 2);
-      penalties += penalty;
-      // 부호 포함 값으로 표시: 양수=전방경사, 음수=후방경사
-      const sign = ptaSigned > 0 ? '+' : '';
-      reasons.push(`골반 기울기 ${sign}${ptaSigned.toFixed(1)}° (목표 0°) - ${penalty.toFixed(0)}점 감점`);
-    } else if(absPta > 0) {
-      // 0-15도 범위 내에서도 목표 0도에서 벗어나면 감점
-      const penalty = Math.min(30, absPta * 2.0);
-      penalties += penalty;
-      const sign = ptaSigned > 0 ? '+' : '';
-      reasons.push(`골반 기울기 ${sign}${ptaSigned.toFixed(1)}° (목표 0°) - ${penalty.toFixed(0)}점 감점`);
-    }
-  }
-  
-  // 7. KA (Knee Alignment Angle) - 정상 175-185°
-  const ka = fullMetrics.KA?.value;
-  if(ka != null) {
-    if(ka < 175) {
-      const delta = 175 - ka;
-      const penalty = Math.min(25, delta * 2.5);
-      penalties += penalty;
-      reasons.push(`KA ${ka.toFixed(1)}° (정상 175-185°) - ${penalty.toFixed(0)}점 감점`);
-    } else if(ka > 185) {
-      const delta = ka - 185;
-      const penalty = Math.min(25, delta * 2.5);
-      penalties += penalty;
-      reasons.push(`KA ${ka.toFixed(1)}° (정상 175-185°, 과신전) - ${penalty.toFixed(0)}점 감점`);
-    }
-  }
-  
-  // 8. Tibial Angle - 정상 0-10°
-  const tibial = fullMetrics.Tibial_Angle?.value;
-  if(tibial != null && tibial > 10) {
-    const delta = tibial - 10;
-    const penalty = Math.min(15, delta * 1.5);
-    penalties += penalty;
-    reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 9. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°)
-  const qAngle = fullMetrics.Q_Angle?.value;
-  if(qAngle != null && !isNaN(qAngle) && isFinite(qAngle)) {
-    // Q-Angle이 비정상적으로 크면 (예: 90도 이상) 계산 오류로 간주하고 스킵
-    if(qAngle > 90) {
-      console.warn(`⚠️ Q-Angle이 비정상적으로 큼: ${qAngle.toFixed(1)}°, 점수 계산에서 제외`);
-    } else {
-    if(qAngle < 10) {
-      const delta = 10 - qAngle;
-      const penalty = Math.min(15, delta * 1.5);
-      penalties += penalty;
-      reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
-    } else if(qAngle > 20) {
-      const delta = qAngle - 20;
-      const penalty = Math.min(20, delta * 2);
-      penalties += penalty;
-      reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+  // ✅ 측면 항목 계산 (측면 분석이거나 통합 분석일 때만)
+  if(orientation === "side" || orientation === "both") {
+    // 1. CVA (Craniovertebral Angle) - 정상 ≥50°
+    const cva = fullMetrics.CVA?.value;
+    if(cva != null) {
+      if(cva < 50) {
+        const delta = 50 - cva;
+        const penalty = Math.min(40, delta * 1.6);
+        penalties += penalty;
+        reasons.push(`CVA ${cva.toFixed(1)}° (정상 ≥50°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
-  }
-  
-  // 10. Knee Deviation - 정상 0-3°
-  const kneeDev = fullMetrics.Knee_Deviation?.value;
-  if(kneeDev != null && kneeDev > 3) {
-    const delta = kneeDev - 3;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`Knee Dev ${kneeDev.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 11. LLD (Leg Length Discrepancy) - 정상 ≤1cm
-  const lld = fullMetrics.LLD?.value;
-  if(lld != null && lld > 1) {
-    const delta = lld - 1;
-    const penalty = Math.min(25, delta * 10);
-    penalties += penalty;
-    reasons.push(`LLD ${lld.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 12. GSB (Global Sagittal Balance) - 정상 ≤2cm
-  const gsb = fullMetrics.GSB?.value;
-  if(gsb != null && gsb > 2) {
-    const delta = gsb - 2;
-    const penalty = Math.min(20, delta * 5);
-    penalties += penalty;
-    reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 15. HPA (Head–Pelvis Angle) - 정상 0-10°
-  const hpa = fullMetrics.HPA?.value;
-  if(hpa != null && hpa > 10) {
-    const delta = hpa - 10;
-    const penalty = Math.min(15, delta * 1.5);
-    penalties += penalty;
-    reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 정면 항목 (청록색으로 표시되는 항목들)
-  
-  // 16. STA (Shoulder Tilt Angle) - 정상 ≤3°
-  const sta = fullMetrics.STA_F?.value || fullMetrics.STA?.value;
-  if(sta != null && sta > 3) {
-    const delta = sta - 3;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`STA ${sta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 17. POA (Pelvic Obliquity Angle) - 정상 ≤3°
-  const poa = fullMetrics.POA_F?.value || fullMetrics.POA?.value;
-  if(poa != null && poa > 3) {
-    const delta = poa - 3;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 18. LLD_F (Leg Length Discrepancy) - 정상 ≤1cm (측면 LLD와 중복될 수 있으므로 둘 중 하나만 계산)
-  const lld_f = fullMetrics.LLD_F?.value;
-  if(lld_f != null && lld_f > 1) {
-    // 측면 LLD가 이미 계산되지 않았을 때만 계산
-    if(!fullMetrics.LLD || fullMetrics.LLD.value === lld_f) {
-      const delta = lld_f - 1;
+    
+    // 2. HPD (Head Protrusion Distance) - 정상 ≤2cm
+    const hpd = fullMetrics.HPD?.value;
+    if(hpd != null && hpd > 2) {
+      const delta = hpd - 2;
+      const penalty = Math.min(20, delta * 5);
+      penalties += penalty;
+      reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    
+    // 4. TIA (Trunk Inclination Angle) - 정상 0-10°
+    const tia = fullMetrics.TIA?.value;
+    if(tia != null && tia > 10) {
+      const delta = tia - 10;
+      const penalty = Math.min(20, delta * 2);
+      penalties += penalty;
+      reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 5. SAA (Scapular Alignment Angle) - 정상 0-10°
+    const saa = fullMetrics.SAA?.value;
+    if(saa != null && saa > 10) {
+      const delta = saa - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 6. PTA (Pelvic Tilt Angle) - 정상 0-15° (부호 포함: +전방/-후방)
+    const ptaSigned = fullMetrics.PTA?.value_signed; // 부호 포함 값 사용
+    const pta = fullMetrics.PTA?.value; // 절댓값
+    if(ptaSigned != null && pta != null) {
+      // 목표는 0° (중립)
+      const absPta = Math.abs(ptaSigned);
+      if(absPta > 15) {
+        const delta = absPta - 15;
+        const penalty = Math.min(30, delta * 2);
+        penalties += penalty;
+        // 부호 포함 값으로 표시: 양수=전방경사, 음수=후방경사
+        const sign = ptaSigned > 0 ? '+' : '';
+        reasons.push(`골반 기울기 ${sign}${ptaSigned.toFixed(1)}° (목표 0°) - ${penalty.toFixed(0)}점 감점`);
+      } else if(absPta > 0) {
+        // 0-15도 범위 내에서도 목표 0도에서 벗어나면 감점
+        const penalty = Math.min(30, absPta * 2.0);
+        penalties += penalty;
+        const sign = ptaSigned > 0 ? '+' : '';
+        reasons.push(`골반 기울기 ${sign}${ptaSigned.toFixed(1)}° (목표 0°) - ${penalty.toFixed(0)}점 감점`);
+      }
+    }
+    
+    // 7. KA (Knee Alignment Angle) - 정상 175-185°
+    const ka = fullMetrics.KA?.value;
+    if(ka != null) {
+      if(ka < 175) {
+        const delta = 175 - ka;
+        const penalty = Math.min(25, delta * 2.5);
+        penalties += penalty;
+        reasons.push(`KA ${ka.toFixed(1)}° (정상 175-185°) - ${penalty.toFixed(0)}점 감점`);
+      } else if(ka > 185) {
+        const delta = ka - 185;
+        const penalty = Math.min(25, delta * 2.5);
+        penalties += penalty;
+        reasons.push(`KA ${ka.toFixed(1)}° (정상 175-185°, 과신전) - ${penalty.toFixed(0)}점 감점`);
+      }
+    }
+    
+    // 8. Tibial Angle - 정상 0-10°
+    const tibial = fullMetrics.Tibial_Angle?.value;
+    if(tibial != null && tibial > 10) {
+      const delta = tibial - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 9. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°) - 정면 항목이지만 측면 분석에도 포함될 수 있음
+    const qAngle = fullMetrics.Q_Angle?.value;
+    if(qAngle != null && !isNaN(qAngle) && isFinite(qAngle)) {
+      // Q-Angle이 비정상적으로 크면 (예: 90도 이상) 계산 오류로 간주하고 스킵
+      if(qAngle > 90) {
+        console.warn(`⚠️ Q-Angle이 비정상적으로 큼: ${qAngle.toFixed(1)}°, 점수 계산에서 제외`);
+      } else {
+        if(qAngle < 10) {
+          const delta = 10 - qAngle;
+          const penalty = Math.min(15, delta * 1.5);
+          penalties += penalty;
+          reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+        } else if(qAngle > 20) {
+          const delta = qAngle - 20;
+          const penalty = Math.min(20, delta * 2);
+          penalties += penalty;
+          reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+        }
+      }
+    }
+    
+    // 10. Knee Deviation - 정상 0-3° - 정면 항목이지만 측면 분석에도 포함될 수 있음
+    const kneeDev = fullMetrics.Knee_Deviation?.value;
+    if(kneeDev != null && kneeDev > 3) {
+      const delta = kneeDev - 3;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`Knee Dev ${kneeDev.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 11. LLD (Leg Length Discrepancy) - 정상 ≤1cm - 정면 항목이지만 측면 분석에도 포함될 수 있음
+    const lld = fullMetrics.LLD?.value;
+    if(lld != null && lld > 1) {
+      const delta = lld - 1;
       const penalty = Math.min(25, delta * 10);
       penalties += penalty;
-      reasons.push(`LLD_F ${lld_f.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+      reasons.push(`LLD ${lld.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 12. GSB (Global Sagittal Balance) - 정상 ≤2cm
+    const gsb = fullMetrics.GSB?.value;
+    if(gsb != null && gsb > 2) {
+      const delta = gsb - 2;
+      const penalty = Math.min(20, delta * 5);
+      penalties += penalty;
+      reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 15. HPA (Head–Pelvis Angle) - 정상 0-10°
+    const hpa = fullMetrics.HPA?.value;
+    if(hpa != null && hpa > 10) {
+      const delta = hpa - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
     }
   }
   
-  // 19. TD (Trunk Deviation) - 정상 ±2°
-  const td = fullMetrics.TD?.value;
-  if(td != null && td > 2) {
-    const delta = td - 2;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`TD ${td.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 20. HTA (Head Tilt Angle) - 정상 ≤3°
-  const hta = fullMetrics.HTA?.value;
-  if(hta != null && hta > 3) {
-    const delta = hta - 3;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`HTA ${hta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 21. SPP (Shoulder–Pelvis Parallelism) - 정상 0-3°
-  const spp = fullMetrics.SPP?.value;
-  if(spp != null && spp > 3) {
-    const delta = spp - 3;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`SPP ${spp.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 22. KAS (Knee Alignment Symmetry) - 정상 ±2°
-  const kas = fullMetrics.KAS?.value;
-  if(kas != null && kas > 2) {
-    const delta = kas - 2;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`KAS ${kas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
-  }
-  
-  // 23. LLAS (Lower Limb Axis Symmetry) - 정상 ±2°
-  const llas = fullMetrics.LLAS?.value;
-  if(llas != null && llas > 2) {
-    const delta = llas - 2;
-    const penalty = Math.min(15, delta * 3);
-    penalties += penalty;
-    reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+  // ✅ 정면 항목 계산 (정면 분석이거나 통합 분석일 때만)
+  if(orientation === "front" || orientation === "both") {
+    // 16. STA (Shoulder Tilt Angle) - 정상 ≤3°
+    const sta = fullMetrics.STA_F?.value || fullMetrics.STA?.value;
+    if(sta != null && sta > 3) {
+      const delta = sta - 3;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`STA ${sta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 17. POA (Pelvic Obliquity Angle) - 정상 ≤3°
+    const poa = fullMetrics.POA_F?.value || fullMetrics.POA?.value;
+    if(poa != null && poa > 3) {
+      const delta = poa - 3;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 18. LLD_F (Leg Length Discrepancy) - 정상 ≤1cm (측면 LLD와 중복될 수 있으므로 둘 중 하나만 계산)
+    const lld_f = fullMetrics.LLD_F?.value;
+    if(lld_f != null && lld_f > 1) {
+      // 측면 LLD가 이미 계산되지 않았을 때만 계산
+      if(!fullMetrics.LLD || fullMetrics.LLD.value === lld_f) {
+        const delta = lld_f - 1;
+        const penalty = Math.min(25, delta * 10);
+        penalties += penalty;
+        reasons.push(`LLD_F ${lld_f.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+      }
+    }
+    
+    // 19. TD (Trunk Deviation) - 정상 ±2°
+    const td = fullMetrics.TD?.value;
+    if(td != null && td > 2) {
+      const delta = td - 2;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`TD ${td.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 20. HTA (Head Tilt Angle) - 정상 ≤3°
+    const hta = fullMetrics.HTA?.value;
+    if(hta != null && hta > 3) {
+      const delta = hta - 3;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`HTA ${hta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 21. SPP (Shoulder–Pelvis Parallelism) - 정상 0-3°
+    const spp = fullMetrics.SPP?.value;
+    if(spp != null && spp > 3) {
+      const delta = spp - 3;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`SPP ${spp.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 22. KAS (Knee Alignment Symmetry) - 정상 ±2°
+    const kas = fullMetrics.KAS?.value;
+    if(kas != null && kas > 2) {
+      const delta = kas - 2;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`KAS ${kas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+    }
+    
+    // 23. LLAS (Lower Limb Axis Symmetry) - 정상 ±2°
+    const llas = fullMetrics.LLAS?.value;
+    if(llas != null && llas > 2) {
+      const delta = llas - 2;
+      const penalty = Math.min(15, delta * 3);
+      penalties += penalty;
+      reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+    }
   }
   
   // PDS 기반으로 체형 종합 점수 계산 (일관성 유지)
@@ -4291,7 +4296,7 @@ function computeScore(cva, pelvic, knee) {
 }
 
 // 데이터베이스 기반 근육 분석 함수
-async function analyzeMusclesWithDB(fullMetrics = null) {
+async function analyzeMusclesWithDB(fullMetrics = null, orientation = null) {
   if (!fullMetrics) {
     return analyzeMuscles(null, null, null, null);
   }
@@ -4299,6 +4304,11 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
   try {
     // 데이터베이스 로드
     await loadPostureDB();
+    
+    // ✅ orientation이 명시되지 않으면 세션에서 확인
+    if (!orientation) {
+      orientation = sessions[cur]?.poseData?.orientation || sessions[cur]?.metrics?.orientation || fullMetrics?.orientation || "side";
+    }
     
     // fullMetrics를 평탄화하여 analyzeWithDB에 전달
     const flatMetrics = flattenFullMetrics(fullMetrics);
@@ -4326,9 +4336,7 @@ async function analyzeMusclesWithDB(fullMetrics = null) {
     }
     
     // DB 기반 분석 실행
-    // ✅ 현재 세션의 orientation 확인하여 정면/측면 구분
-    const orientation = sessions[cur]?.poseData?.orientation || sessions[cur]?.metrics?.orientation || fullMetrics?.orientation || "side";
-    // ✅ index.html 내부의 analyzeWithDB 함수 사용 (muscles, topRecommendations 반환)
+    // ✅ orientation을 명시적으로 전달하여 정면/측면 구분
     const dbAnalysis = await analyzeWithDB(flatMetrics, orientation);
     
     // 기존 analyzeMuscles 형식으로 변환
@@ -5196,6 +5204,9 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const S = sessions[cur];
   // ✅ 안전 가드: fullMetrics를 여러 소스에서 가져오기
   const fullMetrics = S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+  // ✅ orientation 확인하여 정면/측면 구분
+  const orientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
+  
   if(allMetricsList && fullMetrics) {
     // 측면 항목 (파란색 #7c9cff)
     const sideMetricsOrder = [
@@ -5228,8 +5239,16 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'},
     ];
     
-    // 모든 항목 합치기 (측면 먼저, 정면 나중)
-    const metricsOrder = [...sideMetricsOrder, ...frontMetricsOrder];
+    // ✅ orientation에 따라 항목 필터링
+    // 정면 분석 시에는 정면 항목만, 측면 분석 시에는 측면 항목만 표시
+    let metricsOrder;
+    if(orientation === "front") {
+      metricsOrder = frontMetricsOrder; // 정면 분석: 정면 항목만
+    } else if(orientation === "side") {
+      metricsOrder = sideMetricsOrder; // 측면 분석: 측면 항목만
+    } else {
+      metricsOrder = [...sideMetricsOrder, ...frontMetricsOrder]; // 둘 다: 모든 항목
+    }
     
     let html = '';
     const processedKeys = new Set(); // 중복 방지
@@ -8465,9 +8484,9 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.paddingBottom = "140px";
   container.style.background = "#ffffff";
   container.style.color = "#111";
-  container.style.fontFamily = 'var(--font-body)';
-  container.style.fontSize = "12px";
-  container.style.lineHeight = "1.55";
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
+  container.style.fontSize = "14px"; // 글자 가독성 개선 (12px -> 14px)
+  container.style.lineHeight = "1.6"; // 줄 간격 개선 (1.55 -> 1.6)
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
   container.style.overflow = "visible"; // 텍스트 잘림 방지
@@ -8476,6 +8495,10 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.wordBreak = "break-word"; // 추가: 긴 단어도 줄바꿈
   container.style.whiteSpace = "normal"; // 텍스트가 자연스럽게 줄바꿈되도록
   container.style.minHeight = "1100px";
+  // PDF 안전 폰트 클래스 추가
+  if (!container.classList.contains('pdf-safe')) {
+    container.classList.add('pdf-safe');
+  }
 }
 
 function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeViews = {}, afterViews = {}, overlayImg, frontOverlayImg }) {
@@ -9394,30 +9417,7 @@ if (false && includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
   }
 }
 
-// 공통 페이지 스타일 설정 함수 (안전 폰트 사용, 글자 가독성 개선, 글자 잘림 방지)
-const setPageContainerStyle = (container) => {
-  container.style.position = "fixed";
-  container.style.left = "-9999px";
-  container.style.top = "0";
-  container.style.width = "794px";
-  container.style.padding = "30px 25px";
-  container.style.paddingBottom = "140px";
-  container.style.background = "#ffffff";
-  container.style.color = "#111";
-  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
-  container.style.fontSize = "14px"; // 글자 가독성 개선 (12px -> 14px)
-  container.style.lineHeight = "1.6"; // 줄 간격 개선 (1.55 -> 1.6)
-  container.style.letterSpacing = "0.2px";
-  container.style.boxSizing = "border-box";
-  container.style.overflow = "visible"; // hidden → visible로 변경하여 텍스트 잘림 방지
-  container.style.wordWrap = "break-word";
-  container.style.overflowWrap = "break-word"; // 추가: 텍스트 잘림 방지
-  container.style.wordBreak = "break-word"; // 추가: 긴 단어도 줄바꿈
-  container.style.whiteSpace = "normal"; // 텍스트가 자연스럽게 줄바꿈되도록
-  container.style.minHeight = "1100px";
-  // PDF 안전 폰트 클래스 추가
-  container.classList.add('pdf-safe');
-};
+// ✅ 중복 정의 제거: setPageContainerStyle은 이미 8478번 줄에 정의되어 있음
 
 // ========== 페이지 3: 수치표 + 변화 그래프 (Chart.js) ==========
 const comparison = analyzeBeforeAfterComparison();
@@ -13447,8 +13447,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_knee 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_asis']) {
       const hipY = keypointMap['L_asis'].y;
-      // 정규화된 좌표인 경우 0.18~0.2 정도 아래, 픽셀인 경우 18~20% 아래 (위로 조정)
-      const kneeOffset = hipY < 1 ? 0.18 : (hipY * 0.2);
+      // 정규화된 좌표인 경우 0.06 정도 아래, 픽셀인 경우 6% 아래 (3배 올리기: 0.18 → 0.06)
+      const kneeOffset = hipY < 1 ? 0.06 : (hipY * 0.067);
       keypointMap['L_knee'] = {
         x: keypointMap['L_asis'].x,
         y: hipY + kneeOffset,
@@ -13473,7 +13473,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_knee 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_asis']) {
       const hipY = keypointMap['R_asis'].y;
-      const kneeOffset = hipY < 1 ? 0.18 : (hipY * 0.2);
+      // 정규화된 좌표인 경우 0.06 정도 아래, 픽셀인 경우 6% 아래 (3배 올리기: 0.18 → 0.06)
+      const kneeOffset = hipY < 1 ? 0.06 : (hipY * 0.067);
       keypointMap['R_knee'] = {
         x: keypointMap['R_asis'].x,
         y: hipY + kneeOffset,
@@ -13498,8 +13499,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_knee']) {
       const kneeY = keypointMap['L_knee'].y;
-      // 정규화된 좌표인 경우 0.2~0.22 정도 아래, 픽셀인 경우 20~22% 아래 (위로 조정)
-      const ankleOffset = kneeY < 1 ? 0.2 : (kneeY * 0.22);
+      // 정규화된 좌표인 경우 0.067 정도 아래, 픽셀인 경우 6.7% 아래 (3배 올리기: 0.2 → 0.067)
+      const ankleOffset = kneeY < 1 ? 0.067 : (kneeY * 0.073);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_knee'].x,
         y: kneeY + ankleOffset,
@@ -13534,7 +13535,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_knee']) {
       const kneeY = keypointMap['R_knee'].y;
-      const ankleOffset = kneeY < 1 ? 0.2 : (kneeY * 0.22);
+      // 정규화된 좌표인 경우 0.067 정도 아래, 픽셀인 경우 6.7% 아래 (3배 올리기: 0.2 → 0.067)
+      const ankleOffset = kneeY < 1 ? 0.067 : (kneeY * 0.073);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_knee'].x,
         y: kneeY + ankleOffset,
@@ -13563,11 +13565,11 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     }
     
-    // tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용)
-    // 좌측 tibial tub (무릎 아래 약간, 위로 조정)
+    // tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용: ASIS-KNEE-Tibial tub)
+    // 좌측 tibial tub (무릎 아래 약간, 3배 올리기)
     if (keypointMap['L_knee']) {
       const kneeY = keypointMap['L_knee'].y;
-      const tibialOffset = kneeY < 1 ? 0.03 : (kneeY * 0.05); // 무릎 아래 3~5% (기존보다 위로)
+      const tibialOffset = kneeY < 1 ? 0.01 : (kneeY * 0.017); // 무릎 아래 1~1.7% (3배 올리기: 0.03 → 0.01)
       keypointMap['L_tibial_tub'] = {
         x: keypointMap['L_knee'].x,
         y: kneeY + tibialOffset,
@@ -13576,35 +13578,16 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_tibial_tub 매핑 (L_knee 기준): (${keypointMap['L_tibial_tub'].x.toFixed(3)}, ${keypointMap['L_tibial_tub'].y.toFixed(3)})`);
     }
     
-    // 우측 tibial tub (무릎 아래 약간, 위로 조정)
+    // 우측 tibial tub (무릎 아래 약간, 3배 올리기)
     if (keypointMap['R_knee']) {
       const kneeY = keypointMap['R_knee'].y;
-      const tibialOffset = kneeY < 1 ? 0.03 : (kneeY * 0.05); // 무릎 아래 3~5% (기존보다 위로)
+      const tibialOffset = kneeY < 1 ? 0.01 : (kneeY * 0.017); // 무릎 아래 1~1.7% (3배 올리기: 0.03 → 0.01)
       keypointMap['R_tibial_tub'] = {
         x: keypointMap['R_knee'].x,
         y: kneeY + tibialOffset,
         score: keypointMap['R_knee'].score * 0.9
       };
       console.log(`✅ R_tibial_tub 매핑 (R_knee 기준): (${keypointMap['R_tibial_tub'].x.toFixed(3)}, ${keypointMap['R_tibial_tub'].y.toFixed(3)})`);
-    }
-    
-    // patella 추가: 무릎과 동일한 위치 (Q-angle 측정용)
-    if (keypointMap['L_knee']) {
-      keypointMap['L_patella'] = {
-        x: keypointMap['L_knee'].x,
-        y: keypointMap['L_knee'].y,
-        score: keypointMap['L_knee'].score * 0.95
-      };
-      console.log(`✅ L_patella 매핑 (L_knee와 동일): (${keypointMap['L_patella'].x.toFixed(3)}, ${keypointMap['L_patella'].y.toFixed(3)})`);
-    }
-    
-    if (keypointMap['R_knee']) {
-      keypointMap['R_patella'] = {
-        x: keypointMap['R_knee'].x,
-        y: keypointMap['R_knee'].y,
-        score: keypointMap['R_knee'].score * 0.95
-      };
-      console.log(`✅ R_patella 매핑 (R_knee와 동일): (${keypointMap['R_patella'].x.toFixed(3)}, ${keypointMap['R_patella'].y.toFixed(3)})`);
     }
 
     console.log(`✅ 정면 랜드마크 매핑 완료 (환자 기준): ${Object.keys(keypointMap).length}개 - [${Object.keys(keypointMap).join(', ')}]`);
