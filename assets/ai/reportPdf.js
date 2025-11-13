@@ -887,4 +887,369 @@ export async function exportDetailedPDF({
   console.log(`📋 고객: ${finalMemberName}, 센터: ${finalCenterName}, 담당: ${finalTeacherName || '없음'}`);
 }
 
+/**
+ * 완전체 PDF 생성기 (웹앱 구조 100% 반영)
+ * - 1페이지: 측면 전후 + 오버레이
+ * - 2페이지: 정면 전후 + 오버레이
+ * - 3페이지 이후: 모든 분석 패널 자동 캡쳐
+ * - OCR 포함 (텍스트 검색 가능)
+ * - 진행률 표시
+ */
+export async function saveFullPDF() {
+  // 진행률 UI 생성/확인
+  let progressBox = document.getElementById("pdfProgress");
+  if (!progressBox) {
+    progressBox = document.createElement("div");
+    progressBox.id = "pdfProgress";
+    progressBox.style.cssText = `
+      position: fixed;
+      bottom: 20px; left: 20px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      display: none;
+      z-index: 99999;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border: 1px solid rgba(124,156,255,0.3);
+    `;
+    document.body.appendChild(progressBox);
+  }
+
+  const update = (p) => {
+    progressBox.style.display = "block";
+    progressBox.innerText = `📄 PDF 저장 중... ${p}%`;
+  };
+
+  try {
+    // html2canvas 확인
+    if (typeof html2canvas === 'undefined') {
+      throw new Error('html2canvas 라이브러리가 로드되지 않았습니다.');
+    }
+
+    // pdfMake 확인
+    if (typeof pdfMake === 'undefined') {
+      throw new Error('pdfMake 라이브러리가 로드되지 않았습니다.');
+    }
+
+    // Tesseract 확인 (선택적)
+    const hasTesseract = typeof Tesseract !== 'undefined';
+
+    // HTML → 이미지 캡쳐 함수
+    const capture = async (selector, pctStart, pctEnd) => {
+      update(pctStart);
+      const el = document.querySelector(selector);
+      if (!el || el.offsetParent === null) {
+        // 요소가 없거나 display:none이면 skip
+        update(pctEnd);
+        return null;
+      }
+
+      try {
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#0b0f14',
+          allowTaint: true
+        });
+        update(pctEnd);
+        return canvas.toDataURL("image/png");
+      } catch (err) {
+        console.warn(`캡쳐 실패 (${selector}):`, err);
+        update(pctEnd);
+        return null;
+      }
+    };
+
+    // PDF 문서 객체
+    const doc = {
+      pageSize: "A4",
+      pageMargins: [20, 30, 20, 30],
+      content: [],
+      styles: {
+        title: { 
+          fontSize: 18, 
+          bold: true, 
+          margin: [0, 0, 0, 10],
+          color: '#7c9cff'
+        },
+        subtitle: {
+          fontSize: 14,
+          margin: [0, 10, 0, 5],
+          color: '#9bb0c7'
+        }
+      },
+      defaultStyle: {
+        fontSize: 11,
+        color: '#e7eef7'
+      }
+    };
+
+    // =====================================================
+    // 📄 1페이지 — 측면 사진 (전후 + 오버레이)
+    // =====================================================
+    update(5);
+
+    const sideBefore = window.sideBeforeImg || null;
+    const sideAfter = window.sideAfterImg || null;
+    const sideOverlay = window.sideOverlayImg || null;
+
+    if (sideBefore || sideAfter || sideOverlay) {
+      doc.content.push({
+        text: '📐 측면 비교 (Side View)',
+        style: 'title'
+      });
+
+      if (sideBefore || sideAfter) {
+        const columns = [];
+        if (sideBefore) {
+          columns.push({ 
+            image: sideBefore, 
+            width: 85,
+            margin: [0, 0, 5, 0]
+          });
+        }
+        if (sideAfter) {
+          columns.push({ 
+            image: sideAfter, 
+            width: 85,
+            margin: [5, 0, 0, 0]
+          });
+        }
+        if (columns.length > 0) {
+          doc.content.push({ columns });
+        }
+      }
+
+      if (sideOverlay) {
+        doc.content.push({
+          text: '🔄 측면 오버레이',
+          style: 'subtitle'
+        });
+        doc.content.push({
+          image: sideOverlay,
+          width: 170,
+          margin: [0, 5, 0, 10]
+        });
+      }
+
+      doc.content.push({ text: ' ', pageBreak: 'after' });
+    }
+
+    update(25);
+
+    // =====================================================
+    // 📄 2페이지 — 정면 사진 (전후 + 오버레이)
+    // =====================================================
+    const frontBefore = window.frontBeforeImg || null;
+    const frontAfter = window.frontAfterImg || null;
+    const frontOverlay = window.frontOverlayImg || null;
+
+    if (frontBefore || frontAfter || frontOverlay) {
+      doc.content.push({
+        text: '📷 정면 비교 (Front View)',
+        style: 'title'
+      });
+
+      if (frontBefore || frontAfter) {
+        const columns = [];
+        if (frontBefore) {
+          columns.push({ 
+            image: frontBefore, 
+            width: 85,
+            margin: [0, 0, 5, 0]
+          });
+        }
+        if (frontAfter) {
+          columns.push({ 
+            image: frontAfter, 
+            width: 85,
+            margin: [5, 0, 0, 0]
+          });
+        }
+        if (columns.length > 0) {
+          doc.content.push({ columns });
+        }
+      }
+
+      if (frontOverlay) {
+        doc.content.push({
+          text: '🔄 정면 오버레이',
+          style: 'subtitle'
+        });
+        doc.content.push({
+          image: frontOverlay,
+          width: 170,
+          margin: [0, 5, 0, 10]
+        });
+      }
+
+      doc.content.push({ text: ' ', pageBreak: 'after' });
+    }
+
+    update(45);
+
+    // =====================================================
+    // 📄 3페이지 이후 — 분석 패널 전체 자동 처리
+    // =====================================================
+    const panels = [
+      '#report-box',
+      '#liveAnalysisPanel',
+      '#livePDS',
+      '#livePatterns',
+      '#musclePanel',
+      '#muscleTight',
+      '#muscleTightList',
+      '#muscleWeak',
+      '#muscleWeakList',
+      '#aiCommentPanel',
+      '#aiComment',
+      '#postureTypeDesc',
+      '#postureTypeContent',
+      '#exercisePanel',
+      '#exerciseList',
+      '#pilatesPanel',
+      '#pilatesList',
+      '#pilatesExerciseModal',
+      '#modalExerciseTitle',
+      '#modalExerciseContent',
+      '#conclusionPanel',
+      '#conclusionContent',
+      '#allMetricsPanel',
+      '#allMetricsList',
+      '#totalScore',
+      '#scoreReason',
+      '#pdsScore',
+      '#pdsValue',
+      '#currentSession',
+      '#dispCva',
+      '#dispPel',
+      '#dispKnee',
+      '#metricsDescPanel',
+      '#metricsDescContent',
+      '#pelvicDesc',
+      '#coordEditPanel'
+    ];
+
+    let pct = 45;
+    const pctPerPanel = 50 / panels.length; // 나머지 50%를 패널 수로 나눔
+
+    for (let sel of panels) {
+      const nextPct = Math.min(95, Math.floor(pct + pctPerPanel));
+      const img = await capture(sel, pct, nextPct);
+      
+      if (!img) {
+        pct = nextPct;
+        continue;
+      }
+
+      // OCR 추출 (Tesseract가 있으면)
+      let ocrText = '';
+      if (hasTesseract) {
+        try {
+          update(nextPct);
+          const ocr = await Tesseract.recognize(img, 'kor+eng', {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                const prog = nextPct + Math.floor(m.progress * 2);
+                update(Math.min(95, prog));
+              }
+            }
+          });
+          ocrText = ocr.data.text;
+        } catch (ocrErr) {
+          console.warn('OCR 실패:', ocrErr);
+        }
+      }
+
+      // 이미지 추가
+      doc.content.push({
+        image: img,
+        width: 170,
+        margin: [0, 0, 0, 10],
+        pageBreak: 'after'
+      });
+
+      // OCR 텍스트를 숨겨진 텍스트로 추가 (PDF 검색 가능하게)
+      if (ocrText) {
+        doc.content.push({
+          text: ocrText,
+          fontSize: 1,
+          color: 'white',
+          opacity: 0.0,
+          absolutePosition: { x: -1000, y: -1000 }
+        });
+      }
+
+      pct = nextPct;
+    }
+
+    // Before/After 비교 테이블 캡쳐 (있는 경우)
+    const comparisonTable = document.querySelector('table');
+    if (comparisonTable) {
+      update(95);
+      const tableImg = await capture('table', 95, 97);
+      if (tableImg) {
+        doc.content.push({
+          text: '📊 Before/After 비교',
+          style: 'title'
+        });
+        doc.content.push({
+          image: tableImg,
+          width: 170,
+          margin: [0, 5, 0, 10],
+          pageBreak: 'after'
+        });
+      }
+    }
+
+    // =====================================================
+    // PDF 생성
+    // =====================================================
+    update(98);
+
+    // pdfMake 폰트 준비 (index.html의 preparePdfMakeFonts 함수 사용)
+    let vfs, fonts;
+    if (typeof preparePdfMakeFonts === 'function') {
+      const fontData = await preparePdfMakeFonts();
+      vfs = fontData.vfs;
+      fonts = fontData.fonts;
+    } else {
+      // 폰트 준비 함수가 없으면 기본 폰트 사용
+      vfs = pdfMake.vfs || {};
+      fonts = pdfMake.fonts || {};
+    }
+    pdfMake.fonts = fonts;
+    pdfMake.vfs = vfs;
+
+    // docDefinition 정화
+    sanitizePdfDoc(doc);
+
+    // PDF 생성 및 다운로드
+    const fileName = `posture_full_report_${new Date().toISOString().split('T')[0]}.pdf`;
+    pdfMake.createPdf(doc).download(fileName);
+
+    update(100);
+    
+    setTimeout(() => {
+      progressBox.style.display = 'none';
+    }, 1500);
+
+    console.log('✅ 완전체 PDF 생성 완료:', fileName);
+
+  } catch (err) {
+    console.error('❌ PDF 생성 실패:', err);
+    alert(`PDF 생성에 실패했습니다: ${err.message}`);
+    progressBox.style.display = 'none';
+  }
+}
+
+// 전역으로 노출
+if (typeof window !== 'undefined') {
+  window.saveFullPDF = saveFullPDF;
+}
+
 
