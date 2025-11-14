@@ -8665,13 +8665,40 @@ function normalizeExerciseEntry(entry) {
   }
   const normalized = { ...entry };
   if (!normalized.name) {
-    normalized.name = normalized.exercise_ko || normalized.exercise_en || normalized.en || normalized.ko || '';
+    normalized.name = normalized.exercise_ko || normalized.exercise_en || normalized.Exercise_Name_KR || normalized.Exercise_Name_EN || normalized.en || normalized.ko || '';
   }
   if (!normalized.en && normalized.exercise_en) normalized.en = normalized.exercise_en;
+  if (!normalized.en && normalized.Exercise_Name_EN) normalized.en = normalized.Exercise_Name_EN;
   if (!normalized.ko && normalized.exercise_ko) normalized.ko = normalized.exercise_ko;
+  if (!normalized.ko && normalized.Exercise_Name_KR) normalized.ko = normalized.Exercise_Name_KR;
+  // ✅ CSV DB의 운동 설명 필드 매핑
   if (!normalized.how && normalized.how_to_do) normalized.how = normalized.how_to_do;
+  if (!normalized.how && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)']) normalized.how = normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'];
+  if (!normalized.how && normalized['How_to_Perform_Step_by_Step']) normalized.how = normalized['How_to_Perform_Step_by_Step'];
+  if (!normalized.how && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)']) normalized.how = normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'];
+  if (!normalized.how && normalized.How_to_Perform_Step_by_Step) normalized.how = normalized.How_to_Perform_Step_by_Step;
+  if (!normalized.how && normalized.How_to_Perform) normalized.how = normalized.How_to_Perform;
+  // ✅ 목적 (강화/스트레칭 근육 정보)
   if (!normalized.purpose && normalized.description) normalized.purpose = normalized.description;
+  if (!normalized.purpose && normalized.Main_Strengthen_Muscles) {
+    normalized.purpose = `강화: ${normalized.Main_Strengthen_Muscles}${normalized.Main_Stretch_Muscles ? ` / 스트레칭: ${normalized.Main_Stretch_Muscles}` : ''}`;
+  }
+  // ✅ 세트/반복
   if (!normalized.sets_reps && normalized.reps) normalized.sets_reps = normalized.reps;
+  if (!normalized.sets_reps && normalized.Reps) normalized.sets_reps = normalized.Reps;
+  // ✅ 핵심 큐
+  if (!normalized.key_cues && normalized.Classical_Cues_by_Jay_Grimes_Romana) normalized.key_cues = normalized.Classical_Cues_by_Jay_Grimes_Romana;
+  if (!normalized.key_cues && normalized.Breathing_Pattern) normalized.key_cues = normalized.Breathing_Pattern;
+  if (!normalized.key_cues && normalized.Breathing) normalized.key_cues = normalized.Breathing;
+  // ✅ 스프링
+  if (!normalized.spring && normalized.Spring_Traditional) normalized.spring = normalized.Spring_Traditional;
+  if (!normalized.spring && normalized.Spring) normalized.spring = normalized.Spring;
+  // ✅ 강화/스트레칭 근육
+  if (!normalized.strengthen_muscles && normalized.Main_Strengthen_Muscles) normalized.strengthen_muscles = normalized.Main_Strengthen_Muscles;
+  if (!normalized.strengthen_muscles && normalized['Main_Strengthen_Muscles (주요 강화 근육)']) normalized.strengthen_muscles = normalized['Main_Strengthen_Muscles (주요 강화 근육)'];
+  if (!normalized.stretch_muscles && normalized.Main_Stretch_Muscles) normalized.stretch_muscles = normalized.Main_Stretch_Muscles;
+  if (!normalized.stretch_muscles && normalized['Main_Stretch_Muscles (주요 스트레칭 근육)']) normalized.stretch_muscles = normalized['Main_Stretch_Muscles (주요 스트레칭 근육)'];
+  // ✅ 주의사항
   if (!normalized.precaution && normalized.warning) normalized.precaution = normalized.warning;
   return normalized;
 }
@@ -8700,7 +8727,24 @@ function getExerciseDetailInfo(entry) {
   const cues = detail?.key_cues || normalized.key_cues || normalized.cues || '';
   const sets = detail?.sets_reps || normalized.sets_reps || normalized.reps || '';
   const precaution = detail?.precaution || normalized.precaution || normalized.warning || '';
-  return { title, purpose, how, cues, sets, precaution, enKey: detail?.exercise_en || en, koKey: titleKo || ko };
+  // ✅ CSV DB의 강화/스트레칭 근육 정보
+  const strengthenMuscles = normalized.strengthen_muscles || 
+                             normalized.Main_Strengthen_Muscles || 
+                             normalized['Main_Strengthen_Muscles (주요 강화 근육)'] ||
+                             (normalized.strengthen_targets ? normalized.strengthen_targets.join(', ') : '') ||
+                             '';
+  const stretchMuscles = normalized.stretch_muscles || 
+                          normalized.Main_Stretch_Muscles || 
+                          normalized['Main_Stretch_Muscles (주요 스트레칭 근육)'] ||
+                          (normalized.stretch_targets ? normalized.stretch_targets.join(', ') : '') ||
+                          '';
+  const spring = normalized.spring || normalized.Spring_Traditional || normalized.Spring || '';
+  const breathing = normalized.Breathing_Pattern || normalized.Breathing || '';
+  return { 
+    title, purpose, how, cues, sets, precaution, 
+    strengthenMuscles, stretchMuscles, spring, breathing,
+    enKey: detail?.exercise_en || en, koKey: titleKo || ko 
+  };
 }
 
 function renderExerciseDetailHTML(entry, options = {}) {
@@ -8717,20 +8761,43 @@ function renderExerciseDetailHTML(entry, options = {}) {
   const dataAttrs = isInteractive ? ` data-pilates-detail-card="1" data-exercise-en="${escapeAttr(info.enKey || info.title)}" data-exercise-ko="${escapeAttr(info.koKey || '')}" data-exercise-purpose="${escapeAttr(info.purpose || '')}"` : '';
   let html = `<div${dataAttrs} style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body);${isInteractive ? ' cursor:pointer; transition:background 0.2s ease;' : ''}">`;
   html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px;">${info.title}</div>`;
+  
+  // ✅ 강화/스트레칭 근육 정보 (CSV DB에서)
+  if (info.strengthenMuscles || info.stretchMuscles) {
+    html += `<div style="margin-bottom:6px; font-size:${parseInt(baseFontSize) - 1}px;">`;
+    if (info.strengthenMuscles) {
+      html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 강화:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
+    }
+    if (info.stretchMuscles) {
+      html += `<div><strong style="color:#3b82f6;">🧘 스트레칭:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
+    }
+    html += `</div>`;
+  }
+  
   if (info.purpose) {
     html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">목적</strong><br>${formatMultilineText(info.purpose)}</div>`;
   }
   if (info.how) {
-    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">운동 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
+    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">💡 운동 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
   }
   if (info.cues) {
-    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">핵심 큐</strong><br>${formatMultilineText(info.cues)}</div>`;
+    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">🎯 핵심 큐</strong><br>${formatMultilineText(info.cues)}</div>`;
   }
+  if (info.sets || info.spring || info.breathing) {
+    html += `<div style="margin-bottom:4px; display:flex; gap:8px; flex-wrap:wrap; font-size:${parseInt(baseFontSize) - 1}px;">`;
   if (info.sets) {
-    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">세트/반복</strong> ${formatMultilineText(info.sets)}</div>`;
+      html += `<div><strong style="color:${theme.accent};">횟수:</strong> ${formatMultilineText(info.sets)}</div>`;
+    }
+    if (info.breathing) {
+      html += `<div><strong style="color:${theme.accent};">호흡:</strong> ${formatMultilineText(info.breathing)}</div>`;
+    }
+    if (info.spring) {
+      html += `<div><strong style="color:${theme.accent};">스프링:</strong> ${formatMultilineText(info.spring)}</div>`;
+    }
+    html += `</div>`;
   }
   if (info.precaution) {
-    html += `<div style="margin-bottom:0;"><strong style="color:#ff6b6b;">주의</strong><br>${formatMultilineText(info.precaution)}</div>`;
+    html += `<div style="margin-bottom:0;"><strong style="color:#ff6b6b;">⚠️ 주의</strong><br>${formatMultilineText(info.precaution)}</div>`;
   }
   if (isInteractive) {
     html += `<div style="margin-top:6px; font-size:10px; color:${theme.hint}; display:flex; align-items:center; gap:4px;">
@@ -10425,13 +10492,13 @@ try {
   console.log('📄 Page 5 캔버스 생성:', { width: container5Width, height: container5Height });
   
   canvas5 = await html2canvas(page5Container, {
-    ...html2canvasOptions,
-    windowWidth: container5Width,
-    windowHeight: container5Height,
-    width: container5Width,
+  ...html2canvasOptions,
+  windowWidth: container5Width,
+  windowHeight: container5Height,
+  width: container5Width,
     height: container5Height,
     scale: 1.5  // ✅ 품질 낮춤
-  });
+});
 } catch (err) {
   console.error('❌ canvas5 생성 실패:', err);
   canvas5 = null;
@@ -11765,15 +11832,38 @@ async function buildPilatesExerciseBundle(postureResult, record) {
       const equipment = (p.equipment_ko || p.equipment_en || '')
         .toLowerCase()
         .trim();
+      // ✅ CSV DB의 모든 상세 정보 포함
       const exercise = {
         name: p.exercise_ko || p.exercise_en || p.name || '',
-        en: p.exercise_en || '',
-        ko: p.exercise_ko || '',
-        purpose: p.purpose || '',
-        how_to_do: p.how_to_do || '',
-        sets_reps: p.sets_reps || '',
-        key_cues: p.key_cues || '',
-        precaution: p.precaution || ''
+        en: p.exercise_en || p.Exercise_Name_EN || '',
+        ko: p.exercise_ko || p.Exercise_Name_KR || '',
+        purpose: p.purpose || 
+                 (p.Main_Strengthen_Muscles ? `강화: ${p.Main_Strengthen_Muscles}${p.Main_Stretch_Muscles ? ` / 스트레칭: ${p.Main_Stretch_Muscles}` : ''}` : ''),
+        how_to_do: p.how_to_do || 
+                   p['How_to_Perform_Step_by_Step (상세 동작 설명)'] || 
+                   p['How_to_Perform_Step_by_Step'] ||
+                   p['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] ||
+                   p['How_to_Perform_EASY_FOR_BEGINNERS'] ||
+                   p.How_to_Perform_Step_by_Step ||
+                   p.How_to_Perform ||
+                   '',
+        sets_reps: p.sets_reps || p.Reps || '',
+        key_cues: p.key_cues || 
+                  p.Classical_Cues_by_Jay_Grimes_Romana || 
+                  p.Breathing_Pattern || 
+                  p.Breathing || 
+                  '',
+        spring: p.spring || p.Spring_Traditional || p.Spring || '',
+        references: p.references || p.References || '',
+        strengthen_muscles: p.Main_Strengthen_Muscles || 
+                            p['Main_Strengthen_Muscles (주요 강화 근육)'] || 
+                            (p.strengthen_targets ? p.strengthen_targets.join(', ') : ''),
+        stretch_muscles: p.Main_Stretch_Muscles || 
+                         p['Main_Stretch_Muscles (주요 스트레칭 근육)'] || 
+                         (p.stretch_targets ? p.stretch_targets.join(', ') : ''),
+        precaution: p.precaution || '',
+        // ✅ 원본 CSV 데이터도 보존 (하위 호환성)
+        ...p
       };
       if (!exercise.name && !exercise.ko) return;
       if (equipment.includes('매트') || equipment.includes('mat')) {
@@ -13389,27 +13479,27 @@ function initializeApp() {
       initSessionButtons();
     } else {
       console.error("initSessionButtons 함수를 찾을 수 없습니다.");
-    }
-
-    // Reset 버튼 설정
-    if(typeof setupResetButton === 'function') {
-      setupResetButton();
-    } else {
-      console.error("setupResetButton 함수를 찾을 수 없습니다.");
-    }
-
+  }
+  
+  // Reset 버튼 설정
+  if(typeof setupResetButton === 'function') {
+    setupResetButton();
+  } else {
+    console.error("setupResetButton 함수를 찾을 수 없습니다.");
+  }
+  
     // ✅ 캘리브레이션 버튼들 설정
-    if(typeof setupCalibrateButton === 'function') {
-      setupCalibrateButton();
-    } else {
-      console.error("setupCalibrateButton 함수를 찾을 수 없습니다.");
-    }
-
-    if(typeof setupCalibrationButtons === 'function') {
-      setupCalibrationButtons();
-    } else {
-      console.error("setupCalibrationButtons 함수를 찾을 수 없습니다.");
-    }
+  if(typeof setupCalibrateButton === 'function') {
+    setupCalibrateButton();
+  } else {
+    console.error("setupCalibrateButton 함수를 찾을 수 없습니다.");
+  }
+  
+  if(typeof setupCalibrationButtons === 'function') {
+    setupCalibrationButtons();
+  } else {
+    console.error("setupCalibrationButtons 함수를 찾을 수 없습니다.");
+  }
 
     // ✅ 캘리브레이션 클릭 핸들러 설정 (cv 캔버스가 준비된 후)
     if(typeof setupCalibrationClickHandler === 'function') {
@@ -13418,20 +13508,20 @@ function initializeApp() {
       }, 200); // cv 캔버스 초기화 대기
     } else {
       console.error("setupCalibrationClickHandler 함수를 찾을 수 없습니다.");
-    }
-
-    // PDF 및 이미지 저장 버튼 초기화
-    if(typeof setupPDFButton === 'function') {
-      setupPDFButton();
-    } else {
-      console.error("setupPDFButton 함수를 찾을 수 없습니다.");
-    }
-
-    if(typeof setupImageButton === 'function') {
-      setupImageButton();
-    } else {
-      console.error("setupImageButton 함수를 찾을 수 없습니다.");
-    }
+  }
+  
+  // PDF 및 이미지 저장 버튼 초기화
+  if(typeof setupPDFButton === 'function') {
+    setupPDFButton();
+  } else {
+    console.error("setupPDFButton 함수를 찾을 수 없습니다.");
+  }
+  
+  if(typeof setupImageButton === 'function') {
+    setupImageButton();
+  } else {
+    console.error("setupImageButton 함수를 찾을 수 없습니다.");
+  }
   }, 100); // 모든 함수들이 정의될 때까지 대기
   
   // AI 분석 버튼 초기화
@@ -13507,7 +13597,7 @@ function initializeApp() {
       console.log("✅ sessions 객체 재초기화 완료");
     } else {
       console.error("❌ window 객체가 없습니다. 초기화를 중단합니다.");
-      return;
+    return;
     }
   }
   
@@ -13517,7 +13607,7 @@ function initializeApp() {
   if(!window.sessions.After.poseData) {
     window.sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
-
+  
   // orientation 버튼 상태 설정
   const orientation = window.sessions[cur].poseData?.orientation || "side";
   const btnSide = document.getElementById("btnOrientationSide");
