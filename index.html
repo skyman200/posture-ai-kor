@@ -4953,10 +4953,16 @@ function analyzeMuscles(cva, pelvic, knee, fullMetrics = null) {
 }
 
 // 체형 유형 분석 함수
-function analyzePostureType(metrics) {
+function analyzePostureType(metrics, orientation = null) {
   if(!metrics || Object.keys(metrics).length === 0) {
     console.warn("⚠️ fullMetrics 없음 - 분석 생략");
     return "분석 데이터가 충분하지 않습니다.";
+  }
+  
+  // ✅ orientation 확인 (정면 분석 시 측면 지표 제외)
+  if (!orientation) {
+    const S = sessions[cur];
+    orientation = S?.metrics?.orientation || S?.poseData?.orientation || "side";
   }
   
   let analysis = [];
@@ -4964,24 +4970,155 @@ function analyzePostureType(metrics) {
   let detailSections = [];
   let recommendations = [];
   
-  // 측정값 추출
-  const cva = metrics.CVA?.value;
-  const hpd = metrics.HPD?.value;
-  const nia = metrics.NIA?.value;
-  const pta = metrics.PTA?.value;
-  const tia = metrics.TIA?.value;
-  const ka = metrics.KA?.value;
-  const lld = metrics.LLD?.value;
-  const gsb = metrics.GSB?.value;
-    const hpa = metrics.HPA?.value;
-  const qAngle = metrics['Q_Angle']?.value;
-  const kneeDev = metrics['Knee_Deviation']?.value;
+  // 측정값 추출 (orientation에 따라 필터링)
+  const cva = (orientation === "side") ? metrics.CVA?.value : null;
+  const hpd = (orientation === "side") ? metrics.HPD?.value : null;
+  const nia = (orientation === "side") ? metrics.NIA?.value : null;
+  const pta = (orientation === "side") ? metrics.PTA?.value : null; // ✅ 정면 분석 시 제외
+  const ptaSigned = (orientation === "side") ? metrics.PTA?.value_signed : null; // ✅ 정면 분석 시 제외
+  const tia = (orientation === "side") ? metrics.TIA?.value : null;
+  const ka = (orientation === "side") ? metrics.KA?.value : null;
+  const gsb = (orientation === "side") ? metrics.GSB?.value : null;
+  const hpa = (orientation === "side") ? metrics.HPA?.value : null;
+  
+  // 정면 지표 추출
+  const sta = (orientation === "front") ? (metrics.STA?.value || metrics.STA_F?.value) : null;
+  const poa = (orientation === "front") ? (metrics.POA?.value || metrics.POA_F?.value) : null;
+  const lld = (orientation === "front") ? (metrics.LLD?.value || metrics.LLD_F?.value) : null;
+  const qAngle = (orientation === "front") ? metrics['Q_Angle']?.value : null;
+  const kneeDev = (orientation === "front") ? metrics['Knee_Deviation']?.value : null;
+  const td = (orientation === "front") ? metrics.TD?.value : null;
+  const hta = (orientation === "front") ? metrics.HTA?.value : null;
+  const spp = (orientation === "front") ? metrics.SPP?.value : null;
+  const kas = (orientation === "front") ? metrics.KAS?.value : null;
+  const llas = (orientation === "front") ? metrics.LLAS?.value : null;
+  
   const pds = metrics.PDS?.value;
   const pdsStatus = metrics.PDS?.status;
   
   // 문제 카운트
   let issueCount = 0;
   
+  // ✅ 정면 분석 시 정면 패턴만 표시
+  if (orientation === "front") {
+    // === 정면: 어깨 기울기 (Shoulder Tilt) ===
+    if(sta != null && Math.abs(sta) > 3) {
+      issueCount++;
+      const severity = Math.abs(sta) > 6 ? '심각' : Math.abs(sta) > 4 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 어깨 기울기 (Shoulder Tilt) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> STA ${sta.toFixed(1)}° (정상: ≤3°)<br>
+            <strong>주요 원인:</strong> 한쪽 어깨 근육 불균형, 슬링백 사용, 한쪽으로 치우친 자세<br>
+            <strong>발생 증상:</strong>
+            • 목과 어깨 통증
+            • 척추 측만증 위험 증가
+            • 어깨 높이 차이로 인한 자세 불균형<br>
+            <strong>교정 방향:</strong>
+            ① 어깨 높이 균형 운동
+            ② 상부 승모근 스트레칭
+            ③ 중부/하부 승모근 강화
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 골반 기울기 (Pelvic Obliquity) ===
+    if(poa != null && Math.abs(poa) > 3) {
+      issueCount++;
+      const severity = Math.abs(poa) > 6 ? '심각' : Math.abs(poa) > 4 ? '중등도' : '경미';
+      const side = poa > 0 ? '좌측 하강' : '우측 하강';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 골반 기울기 (Pelvic Obliquity) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> POA ${poa.toFixed(1)}° (정상: ≤3°) - ${side}<br>
+            <strong>주요 원인:</strong> 하지 길이 차이, 한쪽 다리에 체중 부하, 골반 근육 불균형<br>
+            <strong>발생 증상:</strong>
+            • 요통 및 골반 통증
+            • 하지 길이 차이로 인한 보행 이상
+            • 척추 측만증 위험<br>
+            <strong>교정 방향:</strong>
+            ① 골반 정렬 운동
+            ② 측면 코어 강화
+            ③ 하지 길이 차이 보정
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: Q-Angle 문제 ===
+    if(qAngle != null && (qAngle < 10 || qAngle > 20)) {
+      issueCount++;
+      const severity = qAngle < 5 || qAngle > 25 ? '심각' : qAngle < 8 || qAngle > 22 ? '중등도' : '경미';
+      const issue = qAngle < 10 ? 'Q-Angle 과소' : 'Q-Angle 과대';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 ${issue} - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> Q-Angle ${qAngle.toFixed(1)}° (정상: 10-20°)<br>
+            <strong>주요 원인:</strong> 무릎 정렬 문제, 대퇴사두근 불균형, 슬개골 위치 이상<br>
+            <strong>발생 증상:</strong>
+            • 무릎 통증 및 불안정성
+            • 슬개대퇴 통증 증후군 위험
+            • 보행 시 무릎 부담 증가<br>
+            <strong>교정 방향:</strong>
+            ① 무릎 정렬 운동
+            ② 대퇴사두근 균형 강화
+            ③ 슬개골 안정화 운동
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 무릎 편위 (Knee Deviation) ===
+    if(kneeDev != null && Math.abs(kneeDev) > 3) {
+      issueCount++;
+      const severity = Math.abs(kneeDev) > 6 ? '심각' : Math.abs(kneeDev) > 4 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 무릎 편위 (Knee Deviation) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> 무릎 편위 ${kneeDev.toFixed(1)}° (정상: ≤3°)<br>
+            <strong>주요 원인:</strong> 하지 정렬 문제, 무릎 관절 불안정성, 근육 불균형<br>
+            <strong>교정 방향:</strong>
+            ① 무릎 정렬 운동
+            ② 하지 근육 균형 강화
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 머리 기울기 (Head Tilt) ===
+    if(hta != null && Math.abs(hta) > 3) {
+      issueCount++;
+      const severity = Math.abs(hta) > 6 ? '심각' : Math.abs(hta) > 4 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 머리 기울기 (Head Tilt) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> HTA ${hta.toFixed(1)}° (정상: ≤3°)<br>
+            <strong>주요 원인:</strong> 경추 근육 불균형, 목 통증으로 인한 보상 자세<br>
+            <strong>교정 방향:</strong>
+            ① 경추 근육 균형 운동
+            ② 목 정렬 개선
+          </div>
+        </div>
+      `);
+    }
+    
+    // 정면 분석 결과 요약
+    if(issueCount === 0) {
+      summarySection = '<div style="padding:12px; background:#f0fdf4; border-radius:8px; margin-bottom:16px;"><strong style="color:#15803d;">✅ 정면 자세 분석 결과: 모든 지표가 정상 범위 내에 있습니다.</strong></div>';
+    } else {
+      summarySection = `<div style="padding:12px; background:#fff7ed; border-radius:8px; margin-bottom:16px;"><strong style="color:#c2410c;">⚠️ 정면 자세 분석 결과: ${issueCount}개의 문제가 발견되었습니다.</strong></div>`;
+    }
+    
+    return summarySection + detailSections.join('');
+  }
+  
+  // === 측면 분석 패턴 (기존 코드) ===
   // === 1. 거북목 자세 (Forward Head Posture) ===
   if(cva != null && cva < 50) {
     issueCount++;
@@ -5011,9 +5148,9 @@ function analyzePostureType(metrics) {
     `);
   }
   
-  // === 2. 골반 경사 문제 ===
-  const ptaSigned = metrics.PTA?.value_signed;
-  if(pta != null && ptaSigned != null && (ptaSigned > 15 || ptaSigned < 0)) {
+  // === 2. 골반 경사 문제 (측면 분석만) ===
+  const ptaSigned = (orientation === "side") ? metrics.PTA?.value_signed : null;
+  if(orientation === "side" && pta != null && ptaSigned != null && (ptaSigned > 15 || ptaSigned < 0)) {
     issueCount++;
     if(ptaSigned > 15) {
       const severity = ptaSigned > 25 ? '심각' : ptaSigned > 20 ? '중등도' : '경미';
@@ -5428,7 +5565,9 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       // fullMetrics가 없으면 세션에서 가져오기
       const metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
       if(metricsForAnalysis && Object.keys(metricsForAnalysis).length > 0) {
-        let postureType = analyzePostureType(metricsForAnalysis);
+        // ✅ orientation을 전달하여 정면/측면 구분
+        const currentOrientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
+        let postureType = analyzePostureType(metricsForAnalysis, currentOrientation);
         postureTypeContent.innerHTML = postureType;
       } else {
         console.warn("⚠️ fullMetrics 없음 - 체형 유형 분석 생략");
@@ -7298,57 +7437,57 @@ function setupCalibrationClickHandler() {
   
   // ✅ 새 핸들러 생성
   calibrationClickHandler = (e) => {
-    if(!calibrationMode) return;
-    
-    // 다른 이벤트와 충돌 방지
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    
-    const pos = getEventPos(e);
-    const S = sessions[cur];
+  if(!calibrationMode) return;
+  
+  // 다른 이벤트와 충돌 방지
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+  
+  const pos = getEventPos(e);
+  const S = sessions[cur];
     
     if(!S) {
       console.error("현재 세션을 찾을 수 없습니다.");
       return;
     }
-    
-    if(!S.calibrationPoint1) {
-      // 점 1 저장
-      S.calibrationPoint1 = pos;
+  
+  if(!S.calibrationPoint1) {
+    // 점 1 저장
+    S.calibrationPoint1 = pos;
       const calPoint1 = document.getElementById("calPoint1");
       if(calPoint1) calPoint1.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
-      draw(); // 점이 영구적으로 표시됨
+    draw(); // 점이 영구적으로 표시됨
       console.log('✅ 캘리브레이션 점 1:', pos);
-    } else if(!S.calibrationPoint2) {
-      // 점 2 저장
-      S.calibrationPoint2 = pos;
+  } else if(!S.calibrationPoint2) {
+    // 점 2 저장
+    S.calibrationPoint2 = pos;
       const calPoint2 = document.getElementById("calPoint2");
       if(calPoint2) calPoint2.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
-      draw(); // 점과 선이 영구적으로 표시됨
+    draw(); // 점과 선이 영구적으로 표시됨
       console.log('✅ 캘리브레이션 점 2:', pos);
-      
-      // 두 점 사이 거리 계산해서 미리보기 표시
-      if(S.calibrationPoint1 && S.calibrationPoint2) {
-        const distPx = dist(S.calibrationPoint1, S.calibrationPoint2);
+    
+    // 두 점 사이 거리 계산해서 미리보기 표시
+    if(S.calibrationPoint1 && S.calibrationPoint2) {
+      const distPx = dist(S.calibrationPoint1, S.calibrationPoint2);
         const calibrationResult = document.getElementById("calibrationResult");
         if(calibrationResult) {
           calibrationResult.textContent = 
-            `거리: ${distPx.toFixed(1)}px (실제 길이 입력 후 계산 버튼 클릭)`;
+        `거리: ${distPx.toFixed(1)}px (실제 길이 입력 후 계산 버튼 클릭)`;
           calibrationResult.style.color = "var(--muted)";
         }
-      }
-    } else {
-      // 두 점 모두 선택되었으면 다시 시작
-      S.calibrationPoint1 = pos;
-      S.calibrationPoint2 = null;
+    }
+  } else {
+    // 두 점 모두 선택되었으면 다시 시작
+    S.calibrationPoint1 = pos;
+    S.calibrationPoint2 = null;
       const calPoint1 = document.getElementById("calPoint1");
       const calPoint2 = document.getElementById("calPoint2");
       const calibrationResult = document.getElementById("calibrationResult");
       if(calPoint1) calPoint1.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
       if(calPoint2) calPoint2.textContent = "클릭하여 선택";
       if(calibrationResult) calibrationResult.textContent = "";
-      draw();
+    draw();
       console.log('🔄 캘리브레이션 재시작 - 점 1:', pos);
     }
   };
@@ -7417,7 +7556,7 @@ function setupCalibrationButtons() {
         const calibrationResult = document.getElementById("calibrationResult");
         if(calibrationResult) {
           calibrationResult.textContent = 
-            `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+          `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
           calibrationResult.style.color = "#2ec4b6";
         }
         
@@ -7450,8 +7589,8 @@ function setupCalibrationButtons() {
       
       const S = sessions[cur];
       if(S) {
-        S.calibrationPoint1 = null;
-        S.calibrationPoint2 = null;
+      S.calibrationPoint1 = null;
+      S.calibrationPoint2 = null;
       }
       
       if(cv) cv.style.cursor = "default";
@@ -9254,11 +9393,11 @@ if (!sideMetricsSource && sessions[cur]?.metrics) {
 const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
-    const code = METRIC_KEY_ALIASES[key] || key;
-    if (sideMetricKeys.includes(code)) {
+  const code = METRIC_KEY_ALIASES[key] || key;
+  if (sideMetricKeys.includes(code)) {
       sideMetrics[key] = sideMetricsSource[key];
-    }
-  });
+  }
+});
 }
 
 // ✅ 측면 분석임을 명시
@@ -9473,11 +9612,11 @@ if (!frontMetricsSource && sessions[cur]?.metrics) {
 const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
 if (frontMetricsSource) {
   Object.keys(frontMetricsSource).forEach(key => {
-    const code = METRIC_KEY_ALIASES[key] || key;
-    if (frontMetricKeys.includes(code)) {
+  const code = METRIC_KEY_ALIASES[key] || key;
+  if (frontMetricKeys.includes(code)) {
       frontMetrics[key] = frontMetricsSource[key];
-    }
-  });
+  }
+});
 }
 
 // ✅ 정면 분석임을 명시
@@ -12580,8 +12719,8 @@ async function exportAsPdf(options = {}) {
         // GC
         sliceCanvas.width = 1;
         sliceCanvas.height = 1;
-      }
-    } else {
+        }
+      } else {
       // ✅ 한 페이지에 들어가는 경우
       send({
         type: "addImage",
