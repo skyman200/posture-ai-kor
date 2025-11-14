@@ -17,17 +17,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # dist 폴더 생성
       - name: Create dist directory
         run: mkdir dist
 
-      # 리포 모든 파일 dist로 복사 (.git, .github 제외)
       - name: Copy project files into dist
         run: |
           shopt -s extglob dotglob
           cp -R !(dist|.git|.github) dist/
 
-      # GitHub Pages artifact 업로드 (최신)
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
@@ -42,3 +39,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+
