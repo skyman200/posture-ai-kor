@@ -12466,12 +12466,9 @@ function setupPDFButton() {
           ? "❌ PDF Worker 로드 실패: " + error.message
           : "❌ PDF 생성 중 알 수 없는 오류가 발생했습니다: " + (error.message || '알 수 없는 오류');
       
-      alert(errorMsg);
-      const btn = document.getElementById("btnPDF");
-      if (btn) {
-        btn.textContent = "📄 PDF 저장";
-        btn.disabled = false;
-      }
+      alert(userMessage);
+      btn.textContent = "📄 PDF 저장 (오류)";
+      btn.disabled = false;
     }
   });
 }
