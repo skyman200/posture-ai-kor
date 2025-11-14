@@ -4065,16 +4065,34 @@ function computeScoreFromFullMetrics(fullMetrics) {
   
   // ✅ orientation 확인하여 정면/측면 구분
   const S = sessions[cur];
-  const orientation = S.metrics?.orientation || fullMetrics?.orientation || "side";
+  const orientation = fullMetrics?.orientation || S?.metrics?.orientation || "side";
+  
+  // ✅ 실제 측정된 메트릭이 있는지 확인
+  const hasValidMetrics = Object.keys(fullMetrics).some(key => {
+    if (key === 'orientation') return false;
+    const metric = fullMetrics[key];
+    if (!metric || typeof metric !== 'object') return false;
+    const val = metric.value != null ? metric.value : 
+                (metric.value_deg != null ? metric.value_deg : 
+                (metric.value_cm != null ? metric.value_cm : null));
+    return val != null && !isNaN(val) && isFinite(val);
+  });
+  
+  if (!hasValidMetrics) {
+    console.warn('⚠️ 유효한 메트릭이 없습니다. 점수 계산 불가.');
+    return { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
+  }
   
   let penalties = 0;
   let reasons = [];
+  let metricCount = 0; // 실제 계산된 메트릭 개수
   
   // ✅ 측면 항목 계산 (측면 분석이거나 통합 분석일 때만)
   if(orientation === "side" || orientation === "both") {
     // 1. CVA (Craniovertebral Angle) - 정상 ≥50°
     const cva = fullMetrics.CVA?.value;
-    if(cva != null) {
+    if(cva != null && !isNaN(cva) && isFinite(cva)) {
+      metricCount++;
       if(cva < 50) {
         const delta = 50 - cva;
         const penalty = Math.min(40, delta * 1.6);
@@ -4085,36 +4103,46 @@ function computeScoreFromFullMetrics(fullMetrics) {
     
     // 2. HPD (Head Protrusion Distance) - 정상 ≤2cm
     const hpd = fullMetrics.HPD?.value;
-    if(hpd != null && hpd > 2) {
-      const delta = hpd - 2;
-      const penalty = Math.min(20, delta * 5);
-      penalties += penalty;
-      reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+    if(hpd != null && !isNaN(hpd) && isFinite(hpd)) {
+      metricCount++;
+      if(hpd > 2) {
+        const delta = hpd - 2;
+        const penalty = Math.min(20, delta * 5);
+        penalties += penalty;
+        reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     
     // 4. TIA (Trunk Inclination Angle) - 정상 0-10°
     const tia = fullMetrics.TIA?.value;
-    if(tia != null && tia > 10) {
-      const delta = tia - 10;
-      const penalty = Math.min(20, delta * 2);
-      penalties += penalty;
-      reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    if(tia != null && !isNaN(tia) && isFinite(tia)) {
+      metricCount++;
+      if(tia > 10) {
+        const delta = tia - 10;
+        const penalty = Math.min(20, delta * 2);
+        penalties += penalty;
+        reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 5. SAA (Scapular Alignment Angle) - 정상 0-10°
     const saa = fullMetrics.SAA?.value;
-    if(saa != null && saa > 10) {
-      const delta = saa - 10;
-      const penalty = Math.min(15, delta * 1.5);
-      penalties += penalty;
-      reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    if(saa != null && !isNaN(saa) && isFinite(saa)) {
+      metricCount++;
+      if(saa > 10) {
+        const delta = saa - 10;
+        const penalty = Math.min(15, delta * 1.5);
+        penalties += penalty;
+        reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 6. PTA (Pelvic Tilt Angle) - 정상 0-15° (부호 포함: +전방/-후방)
     const ptaSigned = fullMetrics.PTA?.value_signed; // 부호 포함 값 사용
     const pta = fullMetrics.PTA?.value; // 절댓값
-    if(ptaSigned != null && pta != null) {
+    if(ptaSigned != null && pta != null && !isNaN(ptaSigned) && !isNaN(pta) && isFinite(ptaSigned) && isFinite(pta)) {
+      metricCount++;
       // 목표는 0° (중립)
       const absPta = Math.abs(ptaSigned);
       if(absPta > 15) {
@@ -4135,7 +4163,8 @@ function computeScoreFromFullMetrics(fullMetrics) {
     
     // 7. KA (Knee Alignment Angle) - 정상 175-185°
     const ka = fullMetrics.KA?.value;
-    if(ka != null) {
+    if(ka != null && !isNaN(ka) && isFinite(ka)) {
+      metricCount++;
       if(ka < 175) {
         const delta = 175 - ka;
         const penalty = Math.min(25, delta * 2.5);
@@ -4149,13 +4178,16 @@ function computeScoreFromFullMetrics(fullMetrics) {
       }
     }
     
-    // 8. Tibial Angle - 정상 0-10°
+    // 8. Tibial Angle - 정상 0-10° (정면 지표이지만 측면 분석에도 포함될 수 있음)
     const tibial = fullMetrics.Tibial_Angle?.value;
-    if(tibial != null && tibial > 10) {
-      const delta = tibial - 10;
-      const penalty = Math.min(15, delta * 1.5);
-      penalties += penalty;
-      reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    if(tibial != null && !isNaN(tibial) && isFinite(tibial)) {
+      metricCount++;
+      if(tibial > 10) {
+        const delta = tibial - 10;
+        const penalty = Math.min(15, delta * 1.5);
+        penalties += penalty;
+        reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 9. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°) - 정면 항목이지만 측면 분석에도 포함될 수 있음
@@ -4199,21 +4231,33 @@ function computeScoreFromFullMetrics(fullMetrics) {
     
     // 12. GSB (Global Sagittal Balance) - 정상 ≤2cm
     const gsb = fullMetrics.GSB?.value;
-    if(gsb != null && gsb > 2) {
-      const delta = gsb - 2;
-      const penalty = Math.min(20, delta * 5);
-      penalties += penalty;
-      reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+    if(gsb != null && !isNaN(gsb) && isFinite(gsb)) {
+      metricCount++;
+      if(gsb > 2) {
+        const delta = gsb - 2;
+        const penalty = Math.min(20, delta * 5);
+        penalties += penalty;
+        reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
-    // 15. HPA (Head–Pelvis Angle) - 정상 0-10°
+    // 15. HPA (Head–Pelvis Angle) - 정상 0-10° (정면 지표이지만 측면 분석에도 포함될 수 있음)
     const hpa = fullMetrics.HPA?.value;
-    if(hpa != null && hpa > 10) {
-      const delta = hpa - 10;
-      const penalty = Math.min(15, delta * 1.5);
-      penalties += penalty;
-      reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+    if(hpa != null && !isNaN(hpa) && isFinite(hpa)) {
+      metricCount++;
+      if(hpa > 10) {
+        const delta = hpa - 10;
+        const penalty = Math.min(15, delta * 1.5);
+        penalties += penalty;
+        reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
+  }
+  
+  // ✅ 측정된 메트릭이 없으면 null 반환
+  if (metricCount === 0) {
+    console.warn('⚠️ 측정된 메트릭이 없습니다. 점수 계산 불가.');
+    return { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   }
   
   // ✅ 정면 항목 계산 (정면 분석이거나 통합 분석일 때만)
@@ -4298,7 +4342,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
   // 항상 계산된 penalties를 기반으로 점수를 산출하여 감점 근거와 일치시킴
   const score = Math.round(clamp(100 - penalties, 0, 100));
   
-  return { score, reasons, penalties };
+  // ✅ 측정된 메트릭이 있지만 감점이 없으면 100점 (정상)
+  // 측정된 메트릭이 없으면 null 반환 (이미 위에서 처리됨)
+  
+  return { score, reasons, penalties, metricCount };
 }
 
 // 기존 호환성을 위한 함수 (하위 호환)
@@ -8350,11 +8397,68 @@ function generatePilatesSessionText(metrics, pilatesItems = null) {
 
 // ✅ AI 심층 분석 생성 (DB 기반 상세 분석)
 function generateAIDeepAnalysis(metrics) {
-  const g = k => {
-    const m = metrics?.[k];
+  // ✅ Before/After 세션에서 직접 메트릭 가져오기 (개선 버전)
+  const getMetricValue = (key) => {
+    // 1순위: metrics 객체에서 직접 가져오기 (combinedMetrics 형태)
+    if (metrics && metrics[key]) {
+      const m = metrics[key];
+      if (typeof m === 'object' && ('before' in m || 'after' in m)) {
+        return {
+          before: (m.before != null && !isNaN(m.before)) ? Number(m.before) : null,
+          after: (m.after != null && !isNaN(m.after)) ? Number(m.after) : null
+        };
+      }
+      // 숫자 형태면 after로 간주
+      if (typeof m === 'number' && !isNaN(m)) {
+        return { before: null, after: m };
+      }
+    }
+    
+    // 2순위: Before/After 세션에서 직접 가져오기 (개선: 모든 가능한 키 확인)
+    const beforeMetrics = sessions.Before?.metrics?.fullMetrics || {};
+    const afterMetrics = sessions.After?.metrics?.fullMetrics || {};
+    
+    // ✅ 키 별칭 매핑 (METRIC_KEY_ALIASES 사용)
+    const keyAliases = METRIC_KEY_ALIASES || {};
+    const possibleKeys = [key, keyAliases[key], key.toUpperCase(), key.toLowerCase()].filter(Boolean);
+    
+    const getValue = (m, searchKeys) => {
+      if (!m || typeof m !== 'object') return null;
+      
+      // 모든 가능한 키로 시도
+      for (const searchKey of searchKeys) {
+        if (m[searchKey]) {
+          const metric = m[searchKey];
+          if (typeof metric === 'object') {
+            const val = metric.value != null ? metric.value : 
+                        (metric.value_deg != null ? metric.value_deg : 
+                        (metric.value_cm != null ? metric.value_cm : null));
+            if (val != null && !isNaN(val) && isFinite(val)) {
+              return Number(val);
+            }
+          } else if (typeof metric === 'number' && !isNaN(metric) && isFinite(metric)) {
+            return Number(metric);
+          }
+        }
+      }
+      return null;
+    };
+    
+    const beforeValue = getValue(beforeMetrics, possibleKeys);
+    const afterValue = getValue(afterMetrics, possibleKeys);
+    
+    // ✅ 현재 세션도 확인 (Before/After가 없을 때)
+    if (beforeValue == null && afterValue == null) {
+      const currentMetrics = sessions[cur]?.metrics?.fullMetrics || {};
+      const currentValue = getValue(currentMetrics, possibleKeys);
+      if (currentValue != null) {
+        return { before: null, after: currentValue };
+      }
+    }
+    
     return {
-      before: (m && m.before != null) ? m.before : null,
-      after:  (m && m.after != null) ? m.after : (typeof m === 'number' ? m : null)
+      before: beforeValue,
+      after: afterValue
     };
   };
 
@@ -8377,7 +8481,7 @@ function generateAIDeepAnalysis(metrics) {
 
   // ✅ DB에서 각 지표별 상세 정보 가져오기
   seq.forEach(s => {
-    const {before, after} = g(s.k);
+    const {before, after} = getMetricValue(s.k);
     const currentValue = after != null ? after : before;
     const vStr = x => {
       if (x == null || x === undefined || isNaN(x)) return '-';
@@ -8389,14 +8493,19 @@ function generateAIDeepAnalysis(metrics) {
     parts.push(`- ${s.name}: ${beforeStr} → ${afterStr}`);
     
     // ✅ DB 기반 상세 해석 추가
-    if (currentValue != null) {
+    if (currentValue != null && !isNaN(currentValue)) {
       // 정상 범위 확인
       if (typeof s.fn === 'function') {
+        try {
         const ok = s.fn(currentValue);
         parts.push(`  · 해석: ${ok ? '정상 범위' : '정상 범위 이탈'}`);
+        } catch (e) {
+          console.warn(`정상 범위 확인 실패 (${s.k}):`, e);
+        }
       }
       
       // DB에서 해당 지표의 상세 정보 가져오기
+      try {
       const abnormal = classifyAbnormalType(s.k, currentValue, NORMAL_TEXT[s.k] || '');
       const dbItems = POSTURE_DB.filter(r => {
         const dbCode = String(r['지표코드'] || '').toUpperCase();
@@ -8424,19 +8533,42 @@ function generateAIDeepAnalysis(metrics) {
         if(dbItem['교정운동(도수/자가)']) {
           parts.push(`  · 교정 운동: ${dbItem['교정운동(도수/자가)']}`);
         }
+        }
+      } catch (e) {
+        console.warn(`DB 정보 가져오기 실패 (${s.k}):`, e);
       }
     }
     
-    if (before != null && after != null) {
-      const d = +(after - before).toFixed(1);
+    if (before != null && after != null && !isNaN(before) && !isNaN(after)) {
+      const d = +(after - before).toFixed(2);
       if (Math.abs(d) >= 0.1) {
         const sign = d > 0 ? '증가' : '감소';
-        const improvement = (d < 0 && s.k === 'CVA') || (d > 0 && s.k === 'PTA' && after > 15) ? '악화' : 
-                           (d > 0 && s.k === 'CVA') || (d < 0 && s.k === 'PTA' && after > 15) ? '개선' : '변화';
+        // 개선/악화 판단 로직 개선
+        let improvement = '변화';
+        if (s.k === 'CVA') {
+          improvement = d > 0 ? '개선' : '악화'; // CVA는 높을수록 좋음
+        } else if (s.k === 'PTA') {
+          // PTA는 0-15도가 정상이므로, 정상 범위로 가까워지면 개선
+          const beforeOk = before >= 0 && before <= 15;
+          const afterOk = after >= 0 && after <= 15;
+          if (!beforeOk && afterOk) improvement = '개선';
+          else if (beforeOk && !afterOk) improvement = '악화';
+          else if (Math.abs(after - 7.5) < Math.abs(before - 7.5)) improvement = '개선';
+          else if (Math.abs(after - 7.5) > Math.abs(before - 7.5)) improvement = '악화';
+        } else if (['HPD', 'TIA', 'SAA', 'GSB'].includes(s.k)) {
+          improvement = d < 0 ? '개선' : '악화'; // 작을수록 좋음
+        } else if (['KA', 'Tibial_Angle', 'HPA'].includes(s.k)) {
+          // 각 지표의 정상 범위에 따라 판단
+          improvement = '변화';
+        }
         parts.push(`  · 변화: ${Math.abs(d)}${s.unit} ${sign} (${improvement})`);
       } else {
         parts.push(`  · 변화: 유의미한 변화 없음`);
       }
+    } else if (before == null && after != null && !isNaN(after)) {
+      parts.push(`  · 현재 측정값: ${after.toFixed(2)}${s.unit}`);
+    } else if (before != null && after == null && !isNaN(before)) {
+      parts.push(`  · Before 측정값: ${before.toFixed(2)}${s.unit} (After 측정 없음)`);
     }
     lines.push(parts.join('\n'));
   });
@@ -9555,11 +9687,13 @@ if (!sideMetricsSource && sessions[cur]?.metrics) {
 const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
-  const code = METRIC_KEY_ALIASES[key] || key;
-  if (sideMetricKeys.includes(code)) {
+    // ✅ 키 별칭 확인 (METRIC_KEY_ALIASES 사용)
+    const code = METRIC_KEY_ALIASES[key] || key;
+    // ✅ 원본 키와 별칭 모두 확인
+    if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
       sideMetrics[key] = sideMetricsSource[key];
-  }
-});
+    }
+  });
 }
 
 // ✅ 측면 분석임을 명시
@@ -9568,7 +9702,7 @@ sideMetrics.orientation = "side";
 // 측면 분석 수행
 let sideAnalysis = null;
 try {
-  if (Object.keys(sideMetrics).length > 0) {
+  if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실제 메트릭이 있는지 확인
     // ✅ orientation을 전달하여 측면 메트릭만 필터링
     const flatSideMetrics = flattenFullMetrics(sideMetrics, "side");
     sideAnalysis = await analyzeWithDB(flatSideMetrics, "side");
@@ -9578,25 +9712,86 @@ try {
 }
 
 // 측면 리포트 페이지 생성
-if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
+if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외하고 실제 메트릭이 있는지 확인
   const sideReportContainer = document.createElement("div");
   sideReportContainer.id = "sideReportContainer";
   setPageContainerStyle(sideReportContainer);
   sideReportContainer.classList.add('pdf-safe');
   
-  // ✅ 측면 메트릭만으로 점수 계산
-  const sideScoreResult = computeScoreFromFullMetrics(sideMetrics);
+  // ✅ 측면 메트릭만으로 점수 계산 (Before/After 비교) - 개선 버전
+  // Before/After 세션의 측면 메트릭을 비교하여 점수 계산
+  const beforeSideMetrics = sessions.Before?.metrics?.fullMetrics || {};
+  const afterSideMetrics = sessions.After?.metrics?.fullMetrics || {};
+  
+  // ✅ 측면 메트릭만 필터링 (키 별칭 고려)
+  const beforeFiltered = {};
+  const afterFiltered = {};
+  
+  const filterSideMetrics = (source, target) => {
+    Object.keys(source).forEach(key => {
+      if (key === 'orientation') return; // orientation 제외
+      const code = METRIC_KEY_ALIASES[key] || key;
+      // ✅ 원본 키와 별칭 모두 확인
+      if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
+        const metric = source[key];
+        // ✅ 메트릭이 유효한 값이 있는지 확인
+        if (metric && typeof metric === 'object') {
+          const val = metric.value != null ? metric.value : 
+                      (metric.value_deg != null ? metric.value_deg : 
+                      (metric.value_cm != null ? metric.value_cm : null));
+          if (val != null && !isNaN(val) && isFinite(val)) {
+            target[key] = metric;
+          }
+        }
+      }
+    });
+  };
+  
+  filterSideMetrics(beforeSideMetrics, beforeFiltered);
+  filterSideMetrics(afterSideMetrics, afterFiltered);
+  
+  // ✅ 현재 세션 메트릭도 확인 (Before/After가 없을 때)
+  const currentFiltered = {};
+  if (Object.keys(beforeFiltered).length === 0 && Object.keys(afterFiltered).length === 0) {
+    filterSideMetrics(sideMetrics, currentFiltered);
+  }
+  
+  // After 메트릭이 있으면 After 기준으로 점수 계산, 없으면 Before 기준, 둘 다 없으면 현재 세션 기준
+  const metricsForScore = Object.keys(afterFiltered).length > 0 ? afterFiltered : 
+                          (Object.keys(beforeFiltered).length > 0 ? beforeFiltered : 
+                          (Object.keys(currentFiltered).length > 0 ? currentFiltered : sideMetrics));
+  
+  // ✅ 실제 메트릭이 있는지 확인 (orientation 제외)
+  const hasValidMetrics = Object.keys(metricsForScore).some(key => {
+    if (key === 'orientation') return false;
+    const metric = metricsForScore[key];
+    if (!metric || typeof metric !== 'object') return false;
+    const val = metric.value != null ? metric.value : 
+                (metric.value_deg != null ? metric.value_deg : 
+                (metric.value_cm != null ? metric.value_cm : null));
+    return val != null && !isNaN(val) && isFinite(val);
+  });
+  
+  if (hasValidMetrics) {
+    metricsForScore.orientation = "side";
+  }
+  
+  const sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(metricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   
   sideReportContainer.innerHTML = `
     <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 측면 자세 분석 리포트</h2>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
-      ${sideScoreResult ? `
+      ${sideScoreResult && sideScoreResult.score != null ? `
       <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
         <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 측면 점수</div>
         <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${sideScoreResult.score}/100</div>
-        <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons ? sideScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
-      </div>` : ''}
+        <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons && sideScoreResult.reasons.length > 0 ? sideScoreResult.reasons.join(', ') : '모든 지표가 정상 범위입니다'}</div>
+      </div>` : (sideScoreResult && sideScoreResult.score === null ? `
+      <div style="padding:18px; background:#fef2f2; border-radius:12px; border:1px solid #fecaca; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+        <div style="font-size:13px; font-weight:700; color:#dc2626; margin-bottom:8px; word-wrap:break-word;">⚠️ 측면 점수 계산 불가</div>
+        <div style="font-size:12px; color:#991b1b; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons && sideScoreResult.reasons.length > 0 ? sideScoreResult.reasons.join(', ') : '측정 데이터가 없습니다'}</div>
+      </div>` : '')}
 
       ${(sideAnalysis?.muscles?.tight && (sideAnalysis.muscles.tight.size > 0 || sideAnalysis.muscles.tight.length > 0)) || (sideAnalysis?.muscles?.weak && (sideAnalysis.muscles.weak.size > 0 || sideAnalysis.muscles.weak.length > 0)) ? `
       <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
@@ -14053,9 +14248,13 @@ function mapPoseToKeypoints(pose, orientation) {
       const confidence = getKeypointConfidence(kp);
       console.log(`🔍 ${label} 디버깅: confidence=${confidence.toFixed(3)}, x=${kp.x?.toFixed(3)}, y=${kp.y?.toFixed(3)}`);
       
-      // confidence가 아무리 낮아도 좌표가 있으면 매핑 (임계값 제거)
-      // 최소 confidence를 0.1로 설정하여 너무 낮은 값은 기본값 사용
-      const finalConfidence = confidence > 0 ? Math.max(confidence, 0.1) : 0.1;
+      // ✅ confidence 임계값을 낮춰서 더 많은 랜드마크를 매핑 (0.1 → 0.05)
+      // 최소 confidence를 0.05로 설정하여 낮은 confidence도 허용
+      const minConfidence = 0.05;
+      const finalConfidence = confidence > 0 ? Math.max(confidence, minConfidence) : minConfidence;
+      
+      // ✅ 좌표 정확도 향상: 정규화된 좌표인지 픽셀 좌표인지 확인
+      // MediaPipe MoveNet은 정규화된 좌표(0-1)를 반환하므로, 그대로 사용
       // 좌표는 그대로 반환 (applyPoseDetection에서 이미지 크기 기준으로 변환)
       return { x: kp.x, y: kp.y, score: finalConfidence };
     };
@@ -14943,26 +15142,69 @@ async function generateFinalPostureReportPDF() {
           imgHeight = (canvas.height * imgWidth) / canvas.width;
         }
         
+        // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 개선 버전)
         let heightLeft = imgHeight;
-        let pos = 0;
+        let sourceY = 0; // 원본 캔버스에서의 Y 위치 (픽셀 단위)
 
         while (heightLeft > 0) {
-          if (yPos + 100 > pageHeight - margin && heightLeft > 100) {
+          // ✅ 현재 페이지에 사용 가능한 높이 계산
+          const availableHeight = pageHeight - yPos - margin;
+          
+          // ✅ 최소 슬라이스 높이 (너무 작은 조각 방지)
+          const minSliceHeight = 30;
+          
+          // 공간이 부족하면 새 페이지 추가
+          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight) {
             pdf.addPage();
             yPos = margin;
+            continue;
           }
-          const sliceH = Math.min(heightLeft, pageHeight - yPos - margin);
+          
+          // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산
+          const sliceH = Math.min(heightLeft, availableHeight);
+          
+          if (sliceH <= 0) {
+            // 슬라이스 높이가 0 이하면 새 페이지 추가
+            pdf.addPage();
+            yPos = margin;
+            continue;
+          }
+          
+          // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상)
+          const sourceSliceHeight = Math.ceil((sliceH / imgHeight) * canvas.height);
+          
+          // ✅ 캔버스 슬라이스 생성
           const sliceCanvas = document.createElement('canvas');
           sliceCanvas.width = canvas.width;
-          sliceCanvas.height = (sliceH * canvas.width) / imgWidth;
+          sliceCanvas.height = sourceSliceHeight;
           const ctx = sliceCanvas.getContext('2d');
-          ctx.drawImage(canvas, 0, pos, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서)
+          ctx.drawImage(
+            canvas, 
+            0, sourceY, canvas.width, sourceSliceHeight,  // 원본 영역
+            0, 0, canvas.width, sourceSliceHeight         // 대상 영역
+          );
 
           // ✅ PDF에 추가 시 imgWidth 사용 (A4 용지에 맞게 조정된 너비)
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, imgWidth, sliceH, undefined, 'FAST');
+          const actualSliceH = Math.min(sliceH, availableHeight);
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
+          
+          // ✅ 다음 슬라이스 준비
           heightLeft -= sliceH;
-          pos += sliceCanvas.height;
-          yPos += sliceH + 20;
+          sourceY += sourceSliceHeight;
+          yPos += actualSliceH;
+          
+          // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
+          if (heightLeft > minSliceHeight) {
+            const nextAvailableHeight = pageHeight - yPos - margin;
+            if (nextAvailableHeight < minSliceHeight) {
+              pdf.addPage();
+              yPos = margin;
+            }
+          }
           
           // ✅ 메모리 정리
           sliceCanvas.width = 1;
@@ -14973,6 +15215,7 @@ async function generateFinalPostureReportPDF() {
         canvas.width = 1;
         canvas.height = 1;
 
+        // ✅ 다음 컨테이너를 위해 새 페이지 추가 (마지막 컨테이너가 아니면)
         if (i < containers.length - 1) {
           pdf.addPage();
           yPos = margin;
