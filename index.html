@@ -7217,6 +7217,8 @@ if(document.readyState === 'loading') {
 // ✅ 캘리브레이션 기능
 let calibrationMode = false;
 let calibrationButtonHandler = null;
+let calibrationConfirmHandler = null; // ✅ 전역 변수로 선언
+let calibrationCancelHandler = null; // ✅ 전역 변수로 선언
 
 function setupCalibrateButton() {
   const btnCalibrate = document.getElementById("btnCalibrate");
