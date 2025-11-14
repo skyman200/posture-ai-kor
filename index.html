@@ -9057,16 +9057,15 @@ try {
     canvas1 = newCanvas;
   }
 } catch (canvasErr) {
-  if (document.body.contains(page1Container)) {
-    document.body.removeChild(page1Container);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
   console.error('❌ 첫 페이지 캔버스 생성 실패:', canvasErr);
   throw new Error('PDF 생성 실패: 첫 페이지를 생성할 수 없습니다. ' + (canvasErr.message || ''));
 }
 
-if (document.body.contains(page1Container)) {
-  document.body.removeChild(page1Container);
-}
+// PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 captureForPdf로 캡처)
+// if (document.body.contains(page1Container)) {
+//   document.body.removeChild(page1Container);
+// }
 
 // 모바일에서 메모리 정리를 위한 짧은 지연
 if (isMobile) {
@@ -9129,9 +9128,10 @@ if (afterViews.side || beforeViews.side) {
     sideImageCanvas = null;
   }
   
-  if (document.body.contains(sideImageContainer)) {
-    document.body.removeChild(sideImageContainer);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+  // if (document.body.contains(sideImageContainer)) {
+  //   document.body.removeChild(sideImageContainer);
+  // }
   
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -9248,9 +9248,10 @@ if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
     sideReportCanvas = null;
   }
   
-  if (document.body.contains(sideReportContainer)) {
-    document.body.removeChild(sideReportContainer);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+  // if (document.body.contains(sideReportContainer)) {
+  //   document.body.removeChild(sideReportContainer);
+  // }
   
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -9313,9 +9314,10 @@ if (afterViews.front || beforeViews.front) {
     frontImageCanvas = null;
   }
   
-  if (document.body.contains(frontImageContainer)) {
-    document.body.removeChild(frontImageContainer);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+  // if (document.body.contains(frontImageContainer)) {
+  //   document.body.removeChild(frontImageContainer);
+  // }
   
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -9432,9 +9434,10 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
     frontReportCanvas = null;
   }
   
-  if (document.body.contains(frontReportContainer)) {
-    document.body.removeChild(frontReportContainer);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+  // if (document.body.contains(frontReportContainer)) {
+  //   document.body.removeChild(frontReportContainer);
+  // }
   
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -9513,9 +9516,10 @@ if (false && includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
     width: container2Width,
     height: container2Height
   });
-  if (document.body.contains(page2Container)) {
-    document.body.removeChild(page2Container);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+  // if (document.body.contains(page2Container)) {
+  //   document.body.removeChild(page2Container);
+  // }
   
   // 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
   if (canvas2 && (canvas2.width > PDF_MAX_CANVAS_EDGE || canvas2.height > PDF_MAX_CANVAS_EDGE)) {
@@ -9715,9 +9719,10 @@ let canvas3 = await html2canvas(page3Container, {
   height: container3Height
 });
 
-if (document.body.contains(page3Container)) {
-  document.body.removeChild(page3Container);
-}
+// PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+// if (document.body.contains(page3Container)) {
+//   document.body.removeChild(page3Container);
+// }
 
 // 캔버스 즉시 압축 (4개 사진 처리 시 메모리 절약)
 if (canvas3 && (canvas3.width > PDF_MAX_CANVAS_EDGE || canvas3.height > PDF_MAX_CANVAS_EDGE)) {
@@ -9860,9 +9865,10 @@ try {
   combinedReportCanvas = null;
 }
 
-if (document.body.contains(page4Container)) {
-  document.body.removeChild(page4Container);
-}
+// PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+// if (document.body.contains(page4Container)) {
+//   document.body.removeChild(page4Container);
+// }
 
 // ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (combinedReportCanvas && (combinedReportCanvas.width > PDF_MAX_CANVAS_EDGE || combinedReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
@@ -9988,9 +9994,10 @@ try {
   canvas5 = null;
 }
 
-if (document.body.contains(page5Container)) {
-  document.body.removeChild(page5Container);
-}
+// PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+// if (document.body.contains(page5Container)) {
+//   document.body.removeChild(page5Container);
+// }
 
 // ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (canvas5 && (canvas5.width > PDF_MAX_CANVAS_EDGE || canvas5.height > PDF_MAX_CANVAS_EDGE)) {
@@ -10072,9 +10079,10 @@ try {
   canvas6 = null;
 }
 
-if (document.body.contains(page6Container)) {
-  document.body.removeChild(page6Container);
-}
+// PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+// if (document.body.contains(page6Container)) {
+//   document.body.removeChild(page6Container);
+// }
 
 // ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (canvas6 && (canvas6.width > PDF_MAX_CANVAS_EDGE || canvas6.height > PDF_MAX_CANVAS_EDGE)) {
@@ -10140,9 +10148,10 @@ if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분
     canvas8 = null;
   }
   
-  if (document.body.contains(page8Container)) {
-    document.body.removeChild(page8Container);
-  }
+  // PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+  // if (document.body.contains(page8Container)) {
+  //   document.body.removeChild(page8Container);
+  // }
   
   // ✅ 캔버스 즉시 압축 + 이미지 스무딩
   if (canvas8 && (canvas8.width > PDF_MAX_CANVAS_EDGE || canvas8.height > PDF_MAX_CANVAS_EDGE)) {
@@ -10214,9 +10223,10 @@ try {
   canvas7 = null;
 }
 
-if (document.body.contains(page7Container)) {
-  document.body.removeChild(page7Container);
-}
+// PDF 컨테이너는 DOM에 유지 (exportAsPdf에서 사용)
+// if (document.body.contains(page7Container)) {
+//   document.body.removeChild(page7Container);
+// }
 
 // ✅ 캔버스 즉시 압축 + 이미지 스무딩
 if (canvas7 && (canvas7.width > PDF_MAX_CANVAS_EDGE || canvas7.height > PDF_MAX_CANVAS_EDGE)) {
@@ -12267,6 +12277,14 @@ async function exportAsPdf(options = {}) {
   send({ type: "finalize" });
 
   const blob = await pdfPromise;
+
+  // PDF 생성 완료 후 컨테이너 정리
+  for (const item of captureList) {
+    const elem = document.getElementById(item.id);
+    if (elem && document.body.contains(elem)) {
+      document.body.removeChild(elem);
+    }
+  }
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
