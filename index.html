@@ -12933,7 +12933,7 @@ function initializeApp() {
     console.error("setupResetButton 함수를 찾을 수 없습니다.");
   }
   
-  // 캘리브레이션 버튼들 설정
+  // ✅ 캘리브레이션 버튼들 설정
   if(typeof setupCalibrateButton === 'function') {
     setupCalibrateButton();
   } else {
@@ -12944,6 +12944,15 @@ function initializeApp() {
     setupCalibrationButtons();
   } else {
     console.error("setupCalibrationButtons 함수를 찾을 수 없습니다.");
+  }
+  
+  // ✅ 캘리브레이션 클릭 핸들러 설정 (cv 캔버스가 준비된 후)
+  if(typeof setupCalibrationClickHandler === 'function') {
+    setTimeout(() => {
+      setupCalibrationClickHandler();
+    }, 200); // cv 캔버스 초기화 대기
+  } else {
+    console.error("setupCalibrationClickHandler 함수를 찾을 수 없습니다.");
   }
   
   // PDF 및 이미지 저장 버튼 초기화
