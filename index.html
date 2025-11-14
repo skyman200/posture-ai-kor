@@ -19,6 +19,7 @@
 }
 
 /* PDF용 안전 폰트 및 숨김 렌더링 (구글 폰트 제외) */
+/* PDF용 안전 컨테이너 - 보이지 않지만 렌더링은 됨 */
 .pdf-safe {
   position: absolute !important;
   left: -9999px !important;
@@ -27,13 +28,15 @@
   padding: 30px !important;
   background: white !important;
   font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif !important;
-  visibility: hidden !important;
+  opacity: 0 !important;           /* 핵심: visibility → opacity */
   pointer-events: none !important;
   z-index: -1 !important;
   box-sizing: border-box !important;
+  visibility: visible !important;  /* 자식은 보이게 */
 }
 
 .pdf-safe * {
+  opacity: 1 !important;
   visibility: visible !important;
 }
 * { box-sizing: border-box; }
@@ -14541,10 +14544,11 @@ async function generateFinalPostureReportPDF() {
         continue;
       }
 
-      // 임시 래퍼
+      // 임시 래퍼 (opacity 사용으로 html2canvas가 정상 렌더링)
       const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:absolute; left:-9999px; top:0; width:520px; padding:30px; background:white; visibility:visible;';
+      wrapper.style.cssText = 'position:absolute; left:-9999px; top:0; width:520px; padding:30px; background:white; opacity:1; visibility:visible;';
       const clone = el.cloneNode(true);
+      clone.style.opacity = '1';
       clone.style.visibility = 'visible';
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
