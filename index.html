@@ -634,6 +634,7 @@ window.analyzePostureAI = window.analyzePostureAI || function(before, after) {
   return { results: [], findings: [], muscles: { tight: [], weak: [] } };
 };
 
+
 // ---- 파일 업로드 강제 등록 ----
 window.setupFileUploads = window.setupFileUploads || function() {
   console.log("📌 setupFileUploads 강제 활성화");
@@ -680,6 +681,8 @@ if (document.readyState === 'loading') {
     if (window.setupFileUploads) {
       window.setupFileUploads();
     }
+    // 앱 초기화
+    initializeApp();
   });
 } else {
   // 이미 로드 완료된 경우 즉시 실행
@@ -687,6 +690,8 @@ if (document.readyState === 'loading') {
   if (window.setupFileUploads) {
     window.setupFileUploads();
   }
+  // 앱 초기화
+  initializeApp();
 }
 </script>
 
@@ -763,33 +768,7 @@ const keypointsFront = [
 // 기존 호환성을 위해 keypoints 변수 유지 (getKeypoints 함수로 동적 반환)
 let keypoints = keypointsSide; // 기본값
 
-// sessions를 전역으로 노출
-const sessions = {
-  Before: { 
-    imgSide:null, 
-    imgFront:null, 
-    sidePoints:new Map(),  // 측면 키포인트 (tragus, c7, acromion, asis, psis, hip, knee, ankle)
-    frontPoints:new Map(), // 정면 키포인트 (L_acromion, R_acromion, L_asis, R_asis, L_knee, R_knee, L_ankle, R_ankle)
-    metrics:{}, 
-    score:null, 
-    analysis:null 
-  },
-  After: { 
-    imgSide:null, 
-    imgFront:null, 
-    sidePoints:new Map(),
-    frontPoints:new Map(),
-    metrics:{}, 
-    score:null, 
-    analysis:null 
-  }
-};
-
-// sessions를 window에 명시적으로 할당 (전역 접근 가능하도록)
-if(typeof window !== 'undefined') {
-  window.sessions = sessions;
-}
-
+// 현재 세션 설정
 let cur = "Before";
 
 const clamp = (v,min,max) => Math.min(max,Math.max(min,v));
@@ -5149,7 +5128,6 @@ function analyzePostureType(metrics, orientation = null) {
   }
   
   // === 2. 골반 경사 문제 (측면 분석만) ===
-  const ptaSigned = (orientation === "side") ? metrics.PTA?.value_signed : null;
   if(orientation === "side" && pta != null && ptaSigned != null && (ptaSigned > 15 || ptaSigned < 0)) {
     issueCount++;
     if(ptaSigned > 15) {
@@ -13152,11 +13130,35 @@ let detectors = { front: null, side: null };
 // DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
 function initializeApp() {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
-  
-  // sessions가 정의되어 있는지 확인
-  if(typeof sessions === 'undefined') {
-    console.error("sessions가 정의되지 않았습니다. 스크립트 로드 순서를 확인하세요.");
-    return;
+
+  // sessions 객체 초기화 (안전하게)
+  if(typeof window.sessions === 'undefined') {
+    // sessions를 전역으로 노출
+    const sessions = {
+      Before: {
+        imgSide:null,
+        imgFront:null,
+        sidePoints:new Map(),  // 측면 키포인트 (tragus, c7, acromion, asis, psis, hip, knee, ankle)
+        frontPoints:new Map(), // 정면 키포인트 (L_acromion, R_acromion, L_asis, R_asis, L_knee, R_knee, L_ankle, R_ankle)
+        metrics:{},
+        score:null,
+        analysis:null
+      },
+      After: {
+        imgSide:null,
+        imgFront:null,
+        sidePoints:new Map(),
+        frontPoints:new Map(),
+        metrics:{},
+        score:null,
+        analysis:null
+      }
+    };
+
+    // sessions를 window에 명시적으로 할당 (전역 접근 가능하도록)
+    if(typeof window !== 'undefined') {
+      window.sessions = sessions;
+    }
   }
   
   // 파일 업로드 설정 (가장 먼저)
