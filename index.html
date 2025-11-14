@@ -7216,90 +7216,159 @@ if(document.readyState === 'loading') {
 
 // ✅ 캘리브레이션 기능
 let calibrationMode = false;
+let calibrationButtonHandler = null;
+
 function setupCalibrateButton() {
   const btnCalibrate = document.getElementById("btnCalibrate");
   if(!btnCalibrate) {
     console.warn("캘리브레이션 버튼을 찾을 수 없습니다.");
     return;
   }
-  addMobileTouchSupport(btnCalibrate, () => {
+  
+  // ✅ 기존 이벤트 리스너 제거 (중복 방지)
+  if(calibrationButtonHandler) {
+    btnCalibrate.removeEventListener('click', calibrationButtonHandler);
+    btnCalibrate.removeEventListener('touchend', calibrationButtonHandler);
+  }
+  
+  // ✅ 새 핸들러 생성
+  calibrationButtonHandler = () => {
     calibrationMode = !calibrationMode;
     const panel = document.getElementById("calibrationPanel");
+    if(!panel) {
+      console.error("calibrationPanel을 찾을 수 없습니다.");
+      return;
+    }
+    
     const S = sessions[cur];
+    if(!S) {
+      console.error("현재 세션을 찾을 수 없습니다.");
+      return;
+    }
     
     if(calibrationMode) {
       panel.style.display = "block";
       // 세션에 캘리브레이션 점 저장
       S.calibrationPoint1 = null;
       S.calibrationPoint2 = null;
-      document.getElementById("calPoint1").textContent = "클릭하여 선택";
-      document.getElementById("calPoint2").textContent = "클릭하여 선택";
-      document.getElementById("calibrationResult").textContent = "";
+      const calPoint1 = document.getElementById("calPoint1");
+      const calPoint2 = document.getElementById("calPoint2");
+      const calibrationResult = document.getElementById("calibrationResult");
+      if(calPoint1) calPoint1.textContent = "클릭하여 선택";
+      if(calPoint2) calPoint2.textContent = "클릭하여 선택";
+      if(calibrationResult) calibrationResult.textContent = "";
       // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
-      cv.style.cursor = "crosshair";
+      if(cv) cv.style.cursor = "crosshair";
       draw(); // 초기화
+      console.log("✅ 캘리브레이션 모드 활성화");
     } else {
       panel.style.display = "none";
-      cv.style.cursor = "default";
+      if(cv) cv.style.cursor = "default";
       calibrationMode = false;
       // 캘리브레이션 점 초기화
       S.calibrationPoint1 = null;
       S.calibrationPoint2 = null;
       draw();
+      console.log("❌ 캘리브레이션 모드 비활성화");
     }
-  });
+  };
+  
+  // ✅ 이벤트 리스너 등록
+  addMobileTouchSupport(btnCalibrate, calibrationButtonHandler);
+  console.log("✅ 캘리브레이션 버튼 초기화 완료");
 }
 
-// DOM 준비 후 캘리브레이션 버튼 설정
-if(document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupCalibrateButton);
-} else {
-  setupCalibrateButton();
-}
+// ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
-// 캘리브레이션 클릭 핸들러 (다른 이벤트와 충돌 방지)
-cv.addEventListener('click', (e) => {
-  if(!calibrationMode) return;
-  
-  // 다른 이벤트와 충돌 방지
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-  
-  const pos = getEventPos(e);
-  const S = sessions[cur];
-  
-  if(!S.calibrationPoint1) {
-    // 점 1 저장
-    S.calibrationPoint1 = pos;
-    document.getElementById("calPoint1").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
-    draw(); // 점이 영구적으로 표시됨
-    console.log('캘리브레이션 점 1:', pos);
-  } else if(!S.calibrationPoint2) {
-    // 점 2 저장
-    S.calibrationPoint2 = pos;
-    document.getElementById("calPoint2").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
-    draw(); // 점과 선이 영구적으로 표시됨
-    console.log('캘리브레이션 점 2:', pos);
-    
-    // 두 점 사이 거리 계산해서 미리보기 표시
-    if(S.calibrationPoint1 && S.calibrationPoint2) {
-      const distPx = dist(S.calibrationPoint1, S.calibrationPoint2);
-      document.getElementById("calibrationResult").textContent = 
-        `거리: ${distPx.toFixed(1)}px (실제 길이 입력 후 계산 버튼 클릭)`;
-      document.getElementById("calibrationResult").style.color = "var(--muted)";
-    }
-  } else {
-    // 두 점 모두 선택되었으면 다시 시작
-    S.calibrationPoint1 = pos;
-    S.calibrationPoint2 = null;
-    document.getElementById("calPoint1").textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
-    document.getElementById("calPoint2").textContent = "클릭하여 선택";
-    document.getElementById("calibrationResult").textContent = "";
-    draw();
-    console.log('캘리브레이션 재시작 - 점 1:', pos);
+// ✅ 캘리브레이션 클릭 핸들러 (다른 이벤트와 충돌 방지)
+let calibrationClickHandler = null;
+
+function setupCalibrationClickHandler() {
+  if(!cv) {
+    console.warn("캔버스(cv)가 아직 초기화되지 않았습니다.");
+    return;
   }
-}, true); // capture phase에서 먼저 처리
+  
+  // ✅ 기존 핸들러 제거 (중복 방지)
+  if(calibrationClickHandler) {
+    cv.removeEventListener('click', calibrationClickHandler, true);
+  }
+  
+  // ✅ 새 핸들러 생성
+  calibrationClickHandler = (e) => {
+    if(!calibrationMode) return;
+    
+    // 다른 이벤트와 충돌 방지
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    
+    const pos = getEventPos(e);
+    const S = sessions[cur];
+    
+    if(!S) {
+      console.error("현재 세션을 찾을 수 없습니다.");
+      return;
+    }
+    
+    if(!S.calibrationPoint1) {
+      // 점 1 저장
+      S.calibrationPoint1 = pos;
+      const calPoint1 = document.getElementById("calPoint1");
+      if(calPoint1) calPoint1.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+      draw(); // 점이 영구적으로 표시됨
+      console.log('✅ 캘리브레이션 점 1:', pos);
+    } else if(!S.calibrationPoint2) {
+      // 점 2 저장
+      S.calibrationPoint2 = pos;
+      const calPoint2 = document.getElementById("calPoint2");
+      if(calPoint2) calPoint2.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+      draw(); // 점과 선이 영구적으로 표시됨
+      console.log('✅ 캘리브레이션 점 2:', pos);
+      
+      // 두 점 사이 거리 계산해서 미리보기 표시
+      if(S.calibrationPoint1 && S.calibrationPoint2) {
+        const distPx = dist(S.calibrationPoint1, S.calibrationPoint2);
+        const calibrationResult = document.getElementById("calibrationResult");
+        if(calibrationResult) {
+          calibrationResult.textContent = 
+            `거리: ${distPx.toFixed(1)}px (실제 길이 입력 후 계산 버튼 클릭)`;
+          calibrationResult.style.color = "var(--muted)";
+        }
+      }
+    } else {
+      // 두 점 모두 선택되었으면 다시 시작
+      S.calibrationPoint1 = pos;
+      S.calibrationPoint2 = null;
+      const calPoint1 = document.getElementById("calPoint1");
+      const calPoint2 = document.getElementById("calPoint2");
+      const calibrationResult = document.getElementById("calibrationResult");
+      if(calPoint1) calPoint1.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`;
+      if(calPoint2) calPoint2.textContent = "클릭하여 선택";
+      if(calibrationResult) calibrationResult.textContent = "";
+      draw();
+      console.log('🔄 캘리브레이션 재시작 - 점 1:', pos);
+    }
+  };
+  
+  // ✅ 이벤트 리스너 등록 (capture phase에서 먼저 처리)
+  cv.addEventListener('click', calibrationClickHandler, true);
+  console.log("✅ 캘리브레이션 클릭 핸들러 초기화 완료");
+}
+
+// ✅ cv 캔버스가 준비된 후 호출
+if(typeof cv !== 'undefined' && cv) {
+  setupCalibrationClickHandler();
+} else {
+  // cv가 아직 준비되지 않았으면 나중에 호출
+  if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(setupCalibrationClickHandler, 100);
+    });
+  } else {
+    setTimeout(setupCalibrationClickHandler, 100);
+  }
+}
 
 // 캘리브레이션 관련 버튼들 초기화
 function setupCalibrationButtons() {
@@ -7403,12 +7472,7 @@ function setupCalibrationButtons() {
   }
 }
 
-// DOM 준비 후 캘리브레이션 관련 버튼들 설정
-if(document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupCalibrationButtons);
-} else {
-  setupCalibrationButtons();
-}
+// ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
 // Before-After 오버레이 이미지 생성 (Canvas API 사용)
 // 스켈레톤 그리기 함수 (Before-After 오버레이용)
