@@ -5002,9 +5002,11 @@ function analyzePostureType(metrics, orientation = null) {
   const tia = (orientation === "side") ? metrics.TIA?.value : null;
   const ka = (orientation === "side") ? metrics.KA?.value : null;
   const gsb = (orientation === "side") ? metrics.GSB?.value : null;
-  const hpa = (orientation === "side") ? metrics.HPA?.value : null;
+  // ✅ HPA, Tibial은 정면 지표로 처리 (측면 분석 시 제외)
+  const hpa = null; // 측면 분석에서는 제외
+  const tibial = null; // 측면 분석에서는 제외
   
-  // 정면 지표 추출
+  // 정면 지표 추출 (HPA, Tibial 포함)
   const sta = (orientation === "front") ? (metrics.STA?.value || metrics.STA_F?.value) : null;
   const poa = (orientation === "front") ? (metrics.POA?.value || metrics.POA_F?.value) : null;
   const lld = (orientation === "front") ? (metrics.LLD?.value || metrics.LLD_F?.value) : null;
@@ -5015,6 +5017,8 @@ function analyzePostureType(metrics, orientation = null) {
   const spp = (orientation === "front") ? metrics.SPP?.value : null;
   const kas = (orientation === "front") ? metrics.KAS?.value : null;
   const llas = (orientation === "front") ? metrics.LLAS?.value : null;
+  const hpa = (orientation === "front") ? metrics.HPA?.value : null;  // ✅ 정면 지표로 이동
+  const tibial = (orientation === "front") ? (metrics.Tibial_Angle?.value || metrics.Tibial?.value) : null;  // ✅ 정면 지표로 이동
   
   const pds = metrics.PDS?.value;
   const pdsStatus = metrics.PDS?.status;
@@ -5428,7 +5432,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   const orientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
   
   if(allMetricsList && fullMetrics) {
-    // 측면 항목 (파란색 #7c9cff)
+    // 측면 항목 (파란색 #7c9cff) - HPA, Tibial 제외 (정면 지표)
     const sideMetricsOrder = [
       {key: 'CVA', name: 'CVA(두개경추각)', unit: '°', type: 'side'},
       {key: 'HPD', name: 'HPD(두부전방이동)', unit: 'cm', type: 'side'},
@@ -5436,13 +5440,11 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'SAA', name: 'SAA(어깨전방각)', unit: '°', type: 'side'},
       {key: 'PTA', name: 'PTA(골반 전후경사각)', unit: '°', type: 'side'},
       {key: 'KA', name: 'KA(무릎각)', unit: '°', type: 'side'},
-      {key: 'Tibial_Angle', name: 'Tibial(경골경사각)', unit: '°', type: 'side'},
       {key: 'GSB', name: 'GSB(중력중심선)', unit: 'cm', type: 'side'},
-      {key: 'HPA', name: 'HPA(고관절각)', unit: '°', type: 'side'},
       {key: 'PDS', name: 'PDS(자세점수)', unit: 'score', type: 'side'}
     ];
     
-    // 정면 항목 (청록색 #2ec4b6)
+    // 정면 항목 (청록색 #2ec4b6) - HPA, Tibial 포함
     const frontMetricsOrder = [
       {key: 'STA_F', name: 'STA(어깨기울기각)', unit: '°', type: 'front'},
       {key: 'STA', name: 'STA(어깨기울기각)', unit: '°', type: 'front'}, // 하위 호환성
@@ -5457,12 +5459,14 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       {key: 'SPP', name: 'SPP(어깨골반평행도)', unit: '°', type: 'front'},
       {key: 'KAS', name: 'KAS(무릎정렬대칭성)', unit: '°', type: 'front'},
       {key: 'LLAS', name: 'LLAS(하지축대칭성)', unit: '°', type: 'front'},
+      {key: 'HPA', name: 'HPA(골반 회전각)', unit: '°', type: 'front'},  // ✅ 정면 지표로 이동
+      {key: 'Tibial_Angle', name: 'Tibial(경골 회전각)', unit: '°', type: 'front'},  // ✅ 정면 지표로 이동
     ];
     
     // ✅ orientation에 따라 항목 필터링
     // 정면 분석 시에는 정면 항목만, 측면 분석 시에는 측면 항목만 표시
     // 단, 측면 분석이어도 정면 메트릭이 있으면 모든 항목 표시
-    const frontMetricsKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'Q_Angle', 'Knee_Deviation', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS'];
+    const frontMetricsKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'Q_Angle', 'Knee_Deviation', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
     const hasFrontMetrics = (S.metrics?.frontMetrics && Object.keys(S.metrics.frontMetrics).length > 0) ||
                             frontMetricsKeys.some(key => fullMetrics[key] && fullMetrics[key].status !== undefined);
     let metricsOrder;
@@ -9417,8 +9421,8 @@ if (!sideMetricsSource && sessions[cur]?.metrics) {
   }
 }
 
-// 측면 메트릭 키만 필터링
-const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+// 측면 메트릭 키만 필터링 (HPA, Tibial 제외 - 정면 지표)
+const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
   const code = METRIC_KEY_ALIASES[key] || key;
@@ -9659,8 +9663,8 @@ if (!frontMetricsSource && sessions[cur]?.metrics) {
   }
 }
 
-// 정면 메트릭 키만 필터링
-const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
+// 정면 메트릭 키만 필터링 (HPA, Tibial 포함)
+const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
 if (frontMetricsSource) {
   Object.keys(frontMetricsSource).forEach(key => {
   const code = METRIC_KEY_ALIASES[key] || key;
@@ -11445,8 +11449,9 @@ function flattenFullMetrics(fullMetrics, orientation = null) {
   if (!fullMetrics || typeof fullMetrics !== 'object') return flat;
   
   // ✅ orientation에 따라 필터링할 메트릭 키 정의
-  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
-  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+  // HPA, Tibial은 정면 지표로 분류 (측면 분석 시 제외)
+  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
+  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
   
   for (const [rawKey, metric] of Object.entries(fullMetrics)) {
     const value = extractMetricValue(metric);
@@ -11482,8 +11487,9 @@ async function analyzeWithDB(metrics = {}, orientation = null) {
   }
   
   // 정면/측면 항목 정의
-  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
-  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+  // HPA, Tibial은 정면 지표로 분류 (측면 분석 시 제외)
+  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
+  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
   
   // orientation에 따라 필터링
   let filteredMetrics = metrics;
