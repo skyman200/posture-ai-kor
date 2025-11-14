@@ -8717,21 +8717,30 @@ function getExerciseDetailInfo(entry) {
     title = `${title} (${titleKo})`;
   }
   
-  // ✅ CSV DB의 강화/스트레칭 근육 정보 (원본 데이터 우선)
-  const strengthenMuscles = normalized.Main_Strengthen_Muscles || 
-                             normalized['Main_Strengthen_Muscles (주요 강화 근육)'] ||
-                             normalized.strengthen_muscles || 
-                             (normalized.strengthen_targets ? normalized.strengthen_targets.join(', ') : '') ||
-                             detail?.Main_Strengthen_Muscles ||
-                             detail?.strengthen_muscles ||
-                             '';
-  const stretchMuscles = normalized.Main_Stretch_Muscles || 
-                          normalized['Main_Stretch_Muscles (주요 스트레칭 근육)'] ||
-                          normalized.stretch_muscles || 
-                          (normalized.stretch_targets ? normalized.stretch_targets.join(', ') : '') ||
-                          detail?.Main_Stretch_Muscles ||
-                          detail?.stretch_muscles ||
-                          '';
+  // ✅ 기구 정보 확인 (리포머는 다른 필드명 사용)
+  const equipment = normalized.equipment || normalized.equipment_ko || '';
+  const isReformer = equipment === '리포머' || equipment === 'Reformer';
+  
+  // ✅ CSV DB의 강화/스트레칭 근육 정보 (원본 데이터 우선, 문자열이 아닌 경우 제외)
+  const strengthenMusclesRaw = normalized['Main_Strengthen_Muscles (주요 강화 근육)'] || 
+                                normalized.Main_Strengthen_Muscles ||
+                                normalized.strengthen_muscles || 
+                                (normalized.strengthen_targets ? normalized.strengthen_targets.join(', ') : '') ||
+                                detail?.['Main_Strengthen_Muscles (주요 강화 근육)'] ||
+                                detail?.Main_Strengthen_Muscles ||
+                                detail?.strengthen_muscles ||
+                                '';
+  const strengthenMuscles = (typeof strengthenMusclesRaw === 'string' && strengthenMusclesRaw.trim()) ? strengthenMusclesRaw.trim() : '';
+  
+  const stretchMusclesRaw = normalized['Main_Stretch_Muscles (주요 스트레칭 근육)'] || 
+                            normalized.Main_Stretch_Muscles ||
+                            normalized.stretch_muscles || 
+                            (normalized.stretch_targets ? normalized.stretch_targets.join(', ') : '') ||
+                            detail?.['Main_Stretch_Muscles (주요 스트레칭 근육)'] ||
+                            detail?.Main_Stretch_Muscles ||
+                            detail?.stretch_muscles ||
+                            '';
+  const stretchMuscles = (typeof stretchMusclesRaw === 'string' && stretchMusclesRaw.trim()) ? stretchMusclesRaw.trim() : '';
   
   // ✅ 목적: 강화/스트레칭 근육 정보로 재생성 (CSV 원본 데이터 사용)
   let purpose = '';
@@ -8743,54 +8752,53 @@ function getExerciseDetailInfo(entry) {
     purpose = detail?.purpose || normalized.purpose || '';
   }
   
-  // ✅ 운동 설명: CSV 원본 데이터 우선 (모든 가능한 필드명 확인)
-  const how = 
-    (normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'].trim()) ||
-    (normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'].trim()) ||
-    (normalized['How_to_Perform_Step_by_Step'] && normalized['How_to_Perform_Step_by_Step'].trim()) ||
-    (normalized['How_to_Perform_EASY_FOR_BEGINNERS'] && normalized['How_to_Perform_EASY_FOR_BEGINNERS'].trim()) ||
-    (normalized.How_to_Perform_Step_by_Step && normalized.How_to_Perform_Step_by_Step.trim()) ||
-    (normalized.How_to_Perform_EASY_FOR_BEGINNERS && normalized.How_to_Perform_EASY_FOR_BEGINNERS.trim()) ||
-    (normalized.How_to_Perform && normalized.How_to_Perform.trim()) ||
-    (normalized.how && normalized.how.trim()) ||
-    (normalized.how_to_do && normalized.how_to_do.trim()) ||
-    (detail?.how_to_do && detail.how_to_do.trim()) ||
-    (detail?.instructions && detail.instructions.trim()) ||
-    (normalized.instructions && normalized.instructions.trim()) ||
-    '';
+  // ✅ 운동 설명: 기구별로 다른 필드 사용 (리포머는 EASY_FOR_BEGINNERS, 나머지는 Step_by_Step)
+  let how = '';
+  if (isReformer) {
+    // 리포머: How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명) 우선
+    how = (normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'].trim()) ||
+           (normalized['How_to_Perform_EASY_FOR_BEGINNERS'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS'].trim()) ||
+           (normalized.How_to_Perform_EASY_FOR_BEGINNERS && typeof normalized.How_to_Perform_EASY_FOR_BEGINNERS === 'string' && normalized.How_to_Perform_EASY_FOR_BEGINNERS.trim()) ||
+           '';
+  } else {
+    // 매트, 캐딜락, 체어, 바렐 등: How_to_Perform_Step_by_Step (상세 동작 설명) 우선
+    how = (normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] && typeof normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'].trim()) ||
+           (normalized['How_to_Perform_Step_by_Step'] && typeof normalized['How_to_Perform_Step_by_Step'] === 'string' && normalized['How_to_Perform_Step_by_Step'].trim()) ||
+           (normalized.How_to_Perform_Step_by_Step && typeof normalized.How_to_Perform_Step_by_Step === 'string' && normalized.How_to_Perform_Step_by_Step.trim()) ||
+           '';
+  }
+  // 폴백: 기구별 필드가 없으면 다른 필드 확인
+  if (!how) {
+    how = (normalized.How_to_Perform && typeof normalized.How_to_Perform === 'string' && normalized.How_to_Perform.trim()) ||
+          (normalized.how && typeof normalized.how === 'string' && normalized.how.trim()) ||
+          (normalized.how_to_do && typeof normalized.how_to_do === 'string' && normalized.how_to_do.trim()) ||
+          (detail?.how_to_do && typeof detail.how_to_do === 'string' && detail.how_to_do.trim()) ||
+          '';
+  }
   
-  // ✅ 핵심 큐: CSV 원본 데이터 우선 (Classical_Cues_by_Jay_Grimes_Romana 우선)
-  const cues = 
-    (normalized.Classical_Cues_by_Jay_Grimes_Romana && normalized.Classical_Cues_by_Jay_Grimes_Romana.trim()) ||
-    (normalized.key_cues && normalized.key_cues.trim()) ||
-    (normalized.cues && normalized.cues.trim()) ||
-    (detail?.key_cues && detail.key_cues.trim()) ||
-    // Breathing_Pattern은 호흡 정보이므로 큐가 아닌 호흡 필드로 사용
-    '';
+  // ✅ 핵심 큐: Classical_Cues_by_Jay_Grimes_Romana 필드만 사용 (문자열인지 확인)
+  const cues = (normalized.Classical_Cues_by_Jay_Grimes_Romana && typeof normalized.Classical_Cues_by_Jay_Grimes_Romana === 'string' && normalized.Classical_Cues_by_Jay_Grimes_Romana.trim()) ||
+               (normalized.key_cues && typeof normalized.key_cues === 'string' && normalized.key_cues.trim()) ||
+               (normalized.cues && typeof normalized.cues === 'string' && normalized.cues.trim()) ||
+               (detail?.key_cues && typeof detail.key_cues === 'string' && detail.key_cues.trim()) ||
+               '';
   
-  // ✅ 횟수: CSV 원본 데이터 우선 (Reps 필드만 사용)
-  const sets = 
-    (normalized.Reps && String(normalized.Reps).trim()) ||
-    (normalized.reps && String(normalized.reps).trim()) ||
-    (normalized.sets_reps && String(normalized.sets_reps).trim()) ||
-    (detail?.sets_reps && String(detail.sets_reps).trim()) ||
-    (detail?.reps && String(detail.reps).trim()) ||
-    '';
+  // ✅ 횟수: Reps 필드만 사용 (문자열 또는 숫자인지 확인)
+  const setsRaw = normalized.Reps || normalized.reps || normalized.sets_reps || detail?.sets_reps || detail?.reps || '';
+  const sets = (setsRaw && (typeof setsRaw === 'string' || typeof setsRaw === 'number')) ? String(setsRaw).trim() : '';
   
-  // ✅ 스프링: CSV 원본 데이터 우선 (Spring_Traditional 필드만 사용)
-  const spring = 
-    (normalized.Spring_Traditional && normalized.Spring_Traditional.trim()) ||
-    (normalized.Spring && normalized.Spring.trim()) ||
-    (normalized.spring && normalized.spring.trim()) ||
-    (detail?.spring && detail.spring.trim()) ||
-    '';
+  // ✅ 스프링: Spring_Traditional 필드만 사용 (문자열인지 확인)
+  const spring = (normalized.Spring_Traditional && typeof normalized.Spring_Traditional === 'string' && normalized.Spring_Traditional.trim()) ||
+                 (normalized.Spring && typeof normalized.Spring === 'string' && normalized.Spring.trim()) ||
+                 (normalized.spring && typeof normalized.spring === 'string' && normalized.spring.trim()) ||
+                 (detail?.spring && typeof detail.spring === 'string' && detail.spring.trim()) ||
+                 '';
   
-  // ✅ 호흡: CSV 원본 데이터 우선 (Breathing_Pattern 필드만 사용)
-  const breathing = 
-    (normalized.Breathing_Pattern && normalized.Breathing_Pattern.trim()) ||
-    (normalized.Breathing && normalized.Breathing.trim()) ||
-    (detail?.breathing && detail.breathing.trim()) ||
-    '';
+  // ✅ 호흡: Breathing_Pattern 필드만 사용 (문자열인지 확인)
+  const breathing = (normalized.Breathing_Pattern && typeof normalized.Breathing_Pattern === 'string' && normalized.Breathing_Pattern.trim()) ||
+                    (normalized.Breathing && typeof normalized.Breathing === 'string' && normalized.Breathing.trim()) ||
+                    (detail?.breathing && typeof detail.breathing === 'string' && detail.breathing.trim()) ||
+                    '';
   
   const precaution = detail?.precaution || normalized.precaution || normalized.warning || '';
   
@@ -11135,50 +11143,64 @@ function mapPilatesExerciseRow(row, equipmentKo) {
   };
   
   // ✅ CSV 원본 필드명 그대로 저장 (getExerciseDetailInfo에서 우선 사용)
-  // 공백 문자열이 아닌 경우만 저장하여 잘못된 매핑 방지
-  if (row['Main_Strengthen_Muscles (주요 강화 근육)']) {
-    result['Main_Strengthen_Muscles (주요 강화 근육)'] = row['Main_Strengthen_Muscles (주요 강화 근육)'];
-  }
-  if (row['Main_Stretch_Muscles (주요 스트레칭 근육)']) {
-    result['Main_Stretch_Muscles (주요 스트레칭 근육)'] = row['Main_Stretch_Muscles (주요 스트레칭 근육)'];
-  }
-  if (row['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)']) {
-    result['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] = row['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'];
-  }
-  if (row['How_to_Perform_Step_by_Step (상세 동작 설명)']) {
-    result['How_to_Perform_Step_by_Step (상세 동작 설명)'] = row['How_to_Perform_Step_by_Step (상세 동작 설명)'];
-  }
-  if (row['How_to_Perform_Step_by_Step']) {
-    result['How_to_Perform_Step_by_Step'] = row['How_to_Perform_Step_by_Step'];
-  }
-  if (row['How_to_Perform_EASY_FOR_BEGINNERS']) {
-    result['How_to_Perform_EASY_FOR_BEGINNERS'] = row['How_to_Perform_EASY_FOR_BEGINNERS'];
-  }
-  if (row.How_to_Perform_Step_by_Step) {
+  // 모든 가능한 필드명을 명시적으로 저장 (값이 있으면 저장)
+  const saveIfExists = (fieldName) => {
+    if (row[fieldName] !== undefined && row[fieldName] !== null && row[fieldName] !== '') {
+      result[fieldName] = row[fieldName];
+    }
+  };
+  
+  // 강화/스트레칭 근육 필드
+  saveIfExists('Main_Strengthen_Muscles (주요 강화 근육)');
+  saveIfExists('Main_Stretch_Muscles (주요 스트레칭 근육)');
+  
+  // 운동 설명 필드 (리포머용)
+  saveIfExists('How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)');
+  saveIfExists('How_to_Perform_EASY_FOR_BEGINNERS');
+  
+  // 운동 설명 필드 (일반용)
+  saveIfExists('How_to_Perform_Step_by_Step (상세 동작 설명)');
+  saveIfExists('How_to_Perform_Step_by_Step');
+  saveIfExists('How_to_Perform_Step_by_Step_FULL_CLASSICAL');
+  
+  // 기타 운동 설명 필드
+  if (row.How_to_Perform_Step_by_Step !== undefined) {
     result.How_to_Perform_Step_by_Step = row.How_to_Perform_Step_by_Step;
   }
-  if (row.How_to_Perform_EASY_FOR_BEGINNERS) {
+  if (row.How_to_Perform_EASY_FOR_BEGINNERS !== undefined) {
     result.How_to_Perform_EASY_FOR_BEGINNERS = row.How_to_Perform_EASY_FOR_BEGINNERS;
   }
-  if (row.How_to_Perform) {
+  if (row.How_to_Perform !== undefined) {
     result.How_to_Perform = row.How_to_Perform;
   }
-  if (row.Classical_Cues_by_Jay_Grimes_Romana) {
+  
+  // 핵심 큐 필드
+  saveIfExists('Classical_Cues_by_Jay_Grimes_Romana');
+  if (row.Classical_Cues_by_Jay_Grimes_Romana !== undefined) {
     result.Classical_Cues_by_Jay_Grimes_Romana = row.Classical_Cues_by_Jay_Grimes_Romana;
   }
-  if (row.Breathing_Pattern) {
+  
+  // 호흡 필드
+  saveIfExists('Breathing_Pattern');
+  if (row.Breathing_Pattern !== undefined) {
     result.Breathing_Pattern = row.Breathing_Pattern;
   }
-  if (row.Breathing) {
+  if (row.Breathing !== undefined) {
     result.Breathing = row.Breathing;
   }
-  if (row.Reps) {
+  
+  // 횟수 필드
+  saveIfExists('Reps');
+  if (row.Reps !== undefined) {
     result.Reps = row.Reps;
   }
-  if (row.Spring_Traditional) {
+  
+  // 스프링 필드
+  saveIfExists('Spring_Traditional');
+  if (row.Spring_Traditional !== undefined) {
     result.Spring_Traditional = row.Spring_Traditional;
   }
-  if (row.Spring) {
+  if (row.Spring !== undefined) {
     result.Spring = row.Spring;
   }
   
