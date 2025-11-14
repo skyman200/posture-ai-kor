@@ -8665,6 +8665,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
 
 function createCoverPageContainer(params) {
   const container = document.createElement('div');
+  container.id = 'page1Container';
   setPageContainerStyle(container);
   container.classList.add('pdf-safe');
   container.innerHTML = buildCoverPageHTML(params);
@@ -9063,6 +9064,7 @@ if (isMobile) {
 // ========== 페이지 1: 측면 사진 ==========
 if (afterViews.side || beforeViews.side) {
   const sideImageContainer = document.createElement("div");
+  sideImageContainer.id = "sideImageContainer";
   setPageContainerStyle(sideImageContainer);
   sideImageContainer.classList.add('pdf-safe');
   
@@ -9153,6 +9155,7 @@ try {
 // 측면 리포트 페이지 생성
 if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
   const sideReportContainer = document.createElement("div");
+  sideReportContainer.id = "sideReportContainer";
   setPageContainerStyle(sideReportContainer);
   sideReportContainer.classList.add('pdf-safe');
   
@@ -9245,6 +9248,7 @@ if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
 // ========== 페이지 3: 정면 사진 ==========
 if (afterViews.front || beforeViews.front) {
   const frontImageContainer = document.createElement("div");
+  frontImageContainer.id = "frontImageContainer";
   setPageContainerStyle(frontImageContainer);
   frontImageContainer.classList.add('pdf-safe');
   
@@ -9335,6 +9339,7 @@ try {
 // 정면 리포트 페이지 생성
 if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
   const frontReportContainer = document.createElement("div");
+  frontReportContainer.id = "frontReportContainer";
   setPageContainerStyle(frontReportContainer);
   frontReportContainer.classList.add('pdf-safe');
   
@@ -9719,6 +9724,7 @@ if (isMobile) {
 
 // ========== 페이지 5: 종합 리포트 (측면+정면 종합 자세 분석 리포트 및 종합점수) ==========
 const page4Container = document.createElement("div");
+page4Container.id = "page4Container";
 setPageContainerStyle(page4Container);
 
 // After metrics 추출 (DB 기반 분석용)
@@ -9865,6 +9871,7 @@ if (isMobile) {
 
 // ========== 페이지 5: 필라테스 추천 루틴 (쉬운 따라하기) ==========
 const page5Container = document.createElement("div");
+page5Container.id = "page5Container";
 setPageContainerStyle(page5Container);
 
 // metrics 데이터 준비 (Before-After 비교용)
@@ -9992,6 +9999,7 @@ if (isMobile) {
 
 // ========== 페이지 6: AI 심층 분석 ==========
 const page6Container = document.createElement("div");
+page6Container.id = "page6Container";
 setPageContainerStyle(page6Container);
 
 // ✅ AI 심층 분석 텍스트 생성 (DB 기반)
@@ -10082,6 +10090,7 @@ if (fullMetrics && Object.keys(fullMetrics).length > 0) {
 
 if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분석 데이터가 충분하지 않습니다.') {
   const page8Container = document.createElement("div");
+  page8Container.id = "page8Container";
   setPageContainerStyle(page8Container);
   
   page8Container.innerHTML = `
@@ -10143,6 +10152,7 @@ if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분
 
 // ========== 페이지 7: 결론 (기존 페이지 6) ==========
 const page7Container = document.createElement("div");
+page7Container.id = "page7Container";
 setPageContainerStyle(page7Container);
 
     const beforeAfterSummaryHtml = buildBeforeAfterSummaryHTML(comparison);
