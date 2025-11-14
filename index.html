@@ -5002,11 +5002,8 @@ function analyzePostureType(metrics, orientation = null) {
   const tia = (orientation === "side") ? metrics.TIA?.value : null;
   const ka = (orientation === "side") ? metrics.KA?.value : null;
   const gsb = (orientation === "side") ? metrics.GSB?.value : null;
-  // ✅ HPA, Tibial은 정면 지표로 처리 (측면 분석 시 제외)
-  const hpa = null; // 측면 분석에서는 제외
-  const tibial = null; // 측면 분석에서는 제외
   
-  // 정면 지표 추출 (HPA, Tibial 포함)
+  // 정면 지표 추출 (HPA, Tibial 포함 - 측면 분석 시 제외)
   const sta = (orientation === "front") ? (metrics.STA?.value || metrics.STA_F?.value) : null;
   const poa = (orientation === "front") ? (metrics.POA?.value || metrics.POA_F?.value) : null;
   const lld = (orientation === "front") ? (metrics.LLD?.value || metrics.LLD_F?.value) : null;
