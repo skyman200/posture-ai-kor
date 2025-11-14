@@ -5311,9 +5311,15 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     
     // ✅ orientation에 따라 항목 필터링
     // 정면 분석 시에는 정면 항목만, 측면 분석 시에는 측면 항목만 표시
+    // 단, 측면 분석이어도 정면 메트릭이 있으면 모든 항목 표시
+    const frontMetricsKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'Q_Angle', 'Knee_Deviation', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS'];
+    const hasFrontMetrics = (S.metrics?.frontMetrics && Object.keys(S.metrics.frontMetrics).length > 0) ||
+                            frontMetricsKeys.some(key => fullMetrics[key] && fullMetrics[key].status !== undefined);
     let metricsOrder;
     if(orientation === "front") {
       metricsOrder = frontMetricsOrder; // 정면 분석: 정면 항목만
+    } else if(orientation === "side" && hasFrontMetrics) {
+      metricsOrder = [...sideMetricsOrder, ...frontMetricsOrder]; // 측면 분석 + 정면 메트릭 있음: 모든 항목
     } else if(orientation === "side") {
       metricsOrder = sideMetricsOrder; // 측면 분석: 측면 항목만
     } else {
