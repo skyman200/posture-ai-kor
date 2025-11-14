@@ -4408,38 +4408,71 @@ async function analyzeMusclesWithDB(fullMetrics = null, orientation = null) {
         priority: idx < 3 ? 'high' : idx < 6 ? 'medium' : 'low'
       });
       
-      // ✅ 근육 정보 추출 및 Set에 추가 (문자열을 배열로 변환)
-      const recTight = rec?.tight || '';
-      const recWeak = rec?.weak || '';
-      
-      // 문자열을 배열로 변환하여 Set에 추가
-      if (recTight) {
-        const tightArray = typeof recTight === 'string' 
-          ? recTight.split(/[,\s]+/).filter(Boolean)
-          : (Array.isArray(recTight) ? recTight : []);
-        tightArray.forEach(m => tightSet.add(m.trim()));
+      // ✅ 근육 정보 추출 및 Set에 추가 (CSV DB의 배열 직접 사용)
+      // tightMuscles와 weakMuscles 배열을 우선 사용 (이미 CSV에서 파싱된 정확한 근육명)
+      if (rec?.tightMuscles && Array.isArray(rec.tightMuscles)) {
+        rec.tightMuscles.forEach(m => {
+          if (m && typeof m === 'string') {
+            tightSet.add(m.trim());
+          }
+        });
+      } else if (rec?.tight) {
+        // 배열이 없으면 문자열을 쉼표로만 분리 (공백은 유지)
+        const tightArray = typeof rec.tight === 'string' 
+          ? rec.tight.split(',').map(m => m.trim()).filter(Boolean)
+          : (Array.isArray(rec.tight) ? rec.tight : []);
+        tightArray.forEach(m => {
+          if (m && typeof m === 'string') {
+            tightSet.add(m.trim());
+          }
+        });
       }
       
-      if (recWeak) {
-        const weakArray = typeof recWeak === 'string'
-          ? recWeak.split(/[,\s]+/).filter(Boolean)
-          : (Array.isArray(recWeak) ? recWeak : []);
-        weakArray.forEach(m => weakSet.add(m.trim()));
+      if (rec?.weakMuscles && Array.isArray(rec.weakMuscles)) {
+        rec.weakMuscles.forEach(m => {
+          if (m && typeof m === 'string') {
+            weakSet.add(m.trim());
+          }
+        });
+      } else if (rec?.weak) {
+        // 배열이 없으면 문자열을 쉼표로만 분리 (공백은 유지)
+        const weakArray = typeof rec.weak === 'string'
+          ? rec.weak.split(',').map(m => m.trim()).filter(Boolean)
+          : (Array.isArray(rec.weak) ? rec.weak : []);
+        weakArray.forEach(m => {
+          if (m && typeof m === 'string') {
+            weakSet.add(m.trim());
+          }
+        });
       }
       
       // muscles 객체에서도 추가 (이중화 방지)
       if (muscles.tight && Array.isArray(muscles.tight)) {
-        muscles.tight.forEach(m => tightSet.add(m));
+        muscles.tight.forEach(m => {
+          if (m && typeof m === 'string') {
+            tightSet.add(m.trim());
+          }
+        });
       }
       if (muscles.weak && Array.isArray(muscles.weak)) {
-        muscles.weak.forEach(m => weakSet.add(m));
+        muscles.weak.forEach(m => {
+          if (m && typeof m === 'string') {
+            weakSet.add(m.trim());
+          }
+        });
       }
       
       // 코멘트 추가
-      if (recTight || recWeak) {
+      const hasTight = (rec?.tightMuscles && rec.tightMuscles.length > 0) || rec?.tight;
+      const hasWeak = (rec?.weakMuscles && rec.weakMuscles.length > 0) || rec?.weak;
+      if (hasTight || hasWeak) {
         comments.push(`${rec?.name || rec?.code || '알 수 없음'}: ${rec?.abnormal || ''}`);
-        const tightList = typeof recTight === 'string' ? recTight : (Array.isArray(recTight) ? recTight.join(', ') : '—');
-        const weakList = typeof recWeak === 'string' ? recWeak : (Array.isArray(recWeak) ? recWeak.join(', ') : '—');
+        const tightList = rec?.tightMuscles && Array.isArray(rec.tightMuscles) 
+          ? rec.tightMuscles.join(', ')
+          : (rec?.tight || '—');
+        const weakList = rec?.weakMuscles && Array.isArray(rec.weakMuscles)
+          ? rec.weakMuscles.join(', ')
+          : (rec?.weak || '—');
         details.push(`• 긴장 근육: ${tightList || '—'}`);
         details.push(`• 약화 근육: ${weakList || '—'}`);
       }
