@@ -1,6 +1,18 @@
 // pdfWorker.js (완전 통합 버전)
-self.importScripts('./libs/jspdf.umd.min.js');
-self.importScripts('./libs/html2canvas.min.js');
+// GitHub Pages 절대 경로 사용
+const baseUrl = self.location.origin + self.location.pathname.replace(/\/[^/]*$/, '/');
+
+try {
+  self.importScripts(baseUrl + 'libs/jspdf.umd.min.js');
+  self.importScripts(baseUrl + 'libs/html2canvas.min.js');
+} catch (err) {
+  self.postMessage({
+    type: 'error',
+    message: 'Failed to load libraries: ' + err.message,
+    stack: err.stack
+  });
+  throw err;
+}
 
 let pdf = null;
 
