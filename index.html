@@ -12721,7 +12721,12 @@ function setupPDFButton() {
       }
       
       // 라이브러리 확인
-      checkLibraries();
+      if (typeof html2canvas === 'undefined') {
+        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
+      }
       
       // 세션 데이터 확인
       const S = sessions[cur];
