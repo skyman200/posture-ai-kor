@@ -7370,7 +7370,7 @@ if(typeof cv !== 'undefined' && cv) {
   }
 }
 
-// 캘리브레이션 관련 버튼들 초기화
+// ✅ 캘리브레이션 관련 버튼들 초기화
 function setupCalibrationButtons() {
   const btnConfirm = document.getElementById("btnCalibrateConfirm");
   const btnCancel = document.getElementById("btnCalibrateCancel");
@@ -7378,14 +7378,32 @@ function setupCalibrationButtons() {
   const btnLoadJSON = document.getElementById("btnLoadJSON");
   
   if(btnConfirm) {
-    addMobileTouchSupport(btnConfirm, () => {
+    // ✅ 기존 핸들러 제거 (중복 방지)
+    if(calibrationConfirmHandler) {
+      btnConfirm.removeEventListener('click', calibrationConfirmHandler);
+      btnConfirm.removeEventListener('touchend', calibrationConfirmHandler);
+    }
+    
+    // ✅ 새 핸들러 생성
+    calibrationConfirmHandler = () => {
       const S = sessions[cur];
+      if(!S) {
+        alert("세션을 찾을 수 없습니다.");
+        return;
+      }
+      
       if(!S.calibrationPoint1 || !S.calibrationPoint2) {
         alert("두 점을 모두 선택해주세요.");
         return;
       }
       
-      const realLengthCm = parseFloat(document.getElementById("calibrationLength").value);
+      const calibrationLengthInput = document.getElementById("calibrationLength");
+      if(!calibrationLengthInput) {
+        alert("캘리브레이션 입력 필드를 찾을 수 없습니다.");
+        return;
+      }
+      
+      const realLengthCm = parseFloat(calibrationLengthInput.value);
       if(!realLengthCm || realLengthCm <= 0) {
         alert("실제 길이(cm)를 올바르게 입력해주세요.");
         return;
@@ -7394,30 +7412,53 @@ function setupCalibrationButtons() {
       try {
         const pxPerCm = calibratePxPerCm(S.calibrationPoint1, S.calibrationPoint2, realLengthCm);
         S.pxPerCm = pxPerCm;
-        document.getElementById("calibrationResult").textContent = 
-          `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
-        document.getElementById("calibrationResult").style.color = "#2ec4b6";
+        const calibrationResult = document.getElementById("calibrationResult");
+        if(calibrationResult) {
+          calibrationResult.textContent = 
+            `✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`;
+          calibrationResult.style.color = "#2ec4b6";
+        }
         
         // 메트릭 재계산
         computeMetricsOnly();
         
-        console.log(`캘리브레이션: ${pxPerCm.toFixed(2)} px/cm`);
+        console.log(`✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`);
       } catch(err) {
+        console.error("캘리브레이션 오류:", err);
         alert("캘리브레이션 오류: " + err.message);
       }
-    });
+    };
+    
+    addMobileTouchSupport(btnConfirm, calibrationConfirmHandler);
+    console.log("✅ 캘리브레이션 확인 버튼 초기화 완료");
   }
   
   if(btnCancel) {
-    addMobileTouchSupport(btnCancel, () => {
+    // ✅ 기존 핸들러 제거 (중복 방지)
+    if(calibrationCancelHandler) {
+      btnCancel.removeEventListener('click', calibrationCancelHandler);
+      btnCancel.removeEventListener('touchend', calibrationCancelHandler);
+    }
+    
+    // ✅ 새 핸들러 생성
+    calibrationCancelHandler = () => {
       calibrationMode = false;
-      document.getElementById("calibrationPanel").style.display = "none";
+      const panel = document.getElementById("calibrationPanel");
+      if(panel) panel.style.display = "none";
+      
       const S = sessions[cur];
-      S.calibrationPoint1 = null;
-      S.calibrationPoint2 = null;
-      cv.style.cursor = "default";
+      if(S) {
+        S.calibrationPoint1 = null;
+        S.calibrationPoint2 = null;
+      }
+      
+      if(cv) cv.style.cursor = "default";
       draw();
-    });
+      console.log("❌ 캘리브레이션 취소");
+    };
+    
+    addMobileTouchSupport(btnCancel, calibrationCancelHandler);
+    console.log("✅ 캘리브레이션 취소 버튼 초기화 완료");
   }
   
   if(btnSaveJSON) {
