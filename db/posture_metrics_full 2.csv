@@ -1,0 +1,44 @@
+﻿Column1,Column2,Column3,Column4,Column5,Column6,Column7,Column8,Column9
+Index_Code,Metric_Code,Metric_Name_KR,Metric_Name_EN,Deviation_Label,Tight_Muscle,Weak_Muscle,Recommended_Strategy,Notes
+CVA_LOW,CVA,경추 전만각,Craniocervical Angle,낮음,"흉쇄유돌근, 상승모근, 후두하근, 목 신전근","심부 경추 굴곡근, 하승모근, 능형근","흉쇄유돌근, 상승모근, 후두하근 이완",Forward head posture
+CVA_HIGH,CVA,경추 전만각,Craniocervical Angle,높음,"심부 경추 굴곡근, 하승모근, 능형근","흉쇄유돌근, 상승모근, 후두하근, 목 신전근",능형근 이완 + 흉쇄유돌근 강화,과신전 패턴
+HPD_HIGH,HPD,두부 전방 변위,Head Protrusion Distance,높음,"흉쇄유돌근, 사각근","심부 플렉서, 견갑안정근",경추 안정화 + 어깨후인,거북목 경향
+HPD_LOW,HPD,두부 전방 변위,Head Protrusion Distance,낮음,"후두하근, 상부 승모근","전경부 근막, 전거근",균형 재훈련,과도한 두부 후방
+TIA_HIGH,TIA,체간 기울기,Torso Inclination Angle,높음,"흉요근막, 복직근","요추기립근, 둔근",체간 신전/후방 체중 이동,상체 전방 쏠림
+TIA_LOW,TIA,체간 기울기,Torso Inclination Angle,낮음,"요추기립근, 둔근","복직근, 복사근",중립 체간 유지,과신전 체간
+SAA_HIGH,SAA,어깨 전방각,Shoulder Anterior Angle,높음,"대흉근, 소흉근, 전면 삼각근","중부/하부 승모근, 능형근",흉근 이완 + 견갑 후방 안정,라운드 숄더
+SAA_LOW,SAA,어깨 전방각,Shoulder Anterior Angle,낮음,"중부 승모근, 능형근","전면 삼각근, 흉근",견갑 가동성 + 전면 근 활성,과도한 견갑 후인
+PTA_ANT,PTA,골반 전후경사각,Pelvic Tilt,전방경사,"장요근, 대퇴직근, 척추기립근","복직근, 복횡근, 둔근",고관절 굴근 스트레치 + 둔근 강화,Anterior pelvic tilt
+PTA_POST,PTA,골반 전후경사각,Pelvic Tilt,후방경사,"햄스트링, 복직근","장요근, 척추기립근",햄스트링 이완 + 요추 전만 회복,Posterior pelvic tilt
+KA_FLEXTION,KA,무릎 정렬각,Knee Angle,과굴곡,"햄스트링, 비복근, 슬와근, 대퇴이두근","대퇴사두근, 전경골근, 둔근, 고관절 신전근",햄스트링 이완 + 사두근 강화 운동,flexion knee
+KA_EXTENSION,KA,무릎 정렬각,Knee Angle,과신전,"대퇴사두근, 장경인대, 고관절 굴곡근","햄스트링, 비복근, 둔근, 슬와근",햄스트링 강화 + 고유수용성 훈련,extension knee
+TIB_ANT,Tibial,경골 회전각,Tibial Rotation,전방경사,"전경골근, 장지신근, 족저 내재근","비복근, 가자미근, 후경골근, 장비골근",전경골근 이완 +  비복근 강화,flexion pattern
+TIB_EXT,Tibial,경골 회전각,Tibial Rotation,후방경사,"비복근, 가자미근, 후경골근, 장비골근","전경골근, 장지신근, 족저 내재근",비복근 이완 + 전경골근 강화 ,extension pattern
+QANGLE_SMALL,QAngle,Q-각,Q Angle,과소,"내전근, 내측 햄스트링","TFL, 외측 광근",내측 연부조직 이완 + 외측 강화,Genu varum 패턴
+QANGLE_LARGE,QAngle,Q-각,Q Angle,과대,"TFL, 외측 광근","내측 광근, 둔근",외측 이완 + 내측 활성,무릎 외반 경향
+KNEEDEV_MEDIAL,KneeDev,무릎 편위,Knee Deviation,내측,"내전근, 내측 햄스트링","중둔근, 외측 광근",동적 정렬 훈련,Knee medial collapse
+KNEEDEV_LATERAL,KneeDev,무릎 편위,Knee Deviation,외측,"TFL, 외측 광근","내측 광근, 내전근",내측 안정,Lateral shift
+LLD_IMBALANCE,LLD,하지 길이차,Leg Length Discrepancy,불균형,"장요근, QL (짧은측)","둔근, 코어 안정근",골반 정렬 + 단측 강화,측정치 > 1cm
+GSB_FORWARD,GSB,중력선 편위,Global Sagittal Balance,전방,"장요근, 흉요근막","둔근, 후사슬",전체 후사슬 강화,중심 전방 이동
+GSB_BACKWARD,GSB,중력선 편위,Global Sagittal Balance,후방,"둔근, 햄스트링","장요근, 복부",전방 가중 + 복부 이완,중심 후방 이동
+HPA_LEFT,HPA,골반 회전각,Hip Pelvic Angle,좌회전,"좌측 TFL, 좌측 요방형근","우측 둔근, 사선 복근",회전 교정 + 대각선 패턴,Left anterior innominate
+HPA_RIGHT,HPA,골반 회전각,Hip Pelvic Angle,우회전,"우측 TFL, 우측 요방형근","좌측 둔근, 사선 복근",회전 교정 + 대각선 패턴,Right anterior innominate
+PDS_HIGH,PDS,골반 하강, Pelvic Drop Sign,높음,"TFL, QL","중둔근, 둔근",측면 안정화,Trendelenburg sign
+STA_HIGH,STA,견갑 기울기,Scapular Tilt Angle,높음,"상부 승모근, 흉근","하부 승모근, 전거근",견갑 안정화,Scapular anterior tilt
+POA_LEFT,POA,골반 기울기,Pelvic Obliquity,좌하강,"좌측 햄스트링, QL",우측 중둔근,측면 균형,Left hip drop
+POA_RIGHT,POA,골반 기울기,Pelvic Obliquity,우하강,"우측 햄스트링, QL",좌측 중둔근,측면 균형,Right hip drop
+TD_KYPHOSIS,TD,흉추 편위,Thoracic Deviation,후만증,"흉근, 복직근","척추기립근, 중부 승모근",흉추 신전,Thoracic kyphosis
+TD_LORDOSIS,TD,흉추 편위,Thoracic Deviation,전만증,척추기립근,"복근, 늑간근",복근 활성,Flat upper back
+HTA_LEFT,HTA,두부 측굴,Head Tilt Angle,좌측,"좌측 승모근, SCM",우측 심부 굴곡근,측면 밸런스,Left head tilt
+HTA_RIGHT,HTA,두부 측굴,Head Tilt Angle,우측,"우측 승모근, SCM",좌측 심부 굴곡근,측면 밸런스,Right head tilt
+SPP_FORWARD,SPP,견갑 플레인,Scapular Plane Position,전방,"대흉근, 전거근","능형근, 중부 승모근",견갑 후방 안정,Protracted scapula
+SPP_BACKWARD,SPP,견갑 플레인,Scapular Plane Position,후방,"능형근, 중부 승모근","전거근, 전면 삼각근",견갑 전방 가동,Retracted scapula
+KAS_INTERNAL,KAS,무릎 축 정렬,Knee Axial Symmetry,내회전,내측 햄스트링,"외측 햄스트링, 둔근",경골/대퇴 회전 중립,Femoral internal rotation
+KAS_EXTERNAL,KAS,무릎 축 정렬,Knee Axial Symmetry,외회전,외측 햄스트링,내측 햄스트링,회전 안정,Femoral external rotation
+LLAS_LEFT,LLAS,하지 축 편위,Lower Limb Axial Shift,좌측,좌측 내전근,우측 중둔근,중심 교정,Left shift
+LLAS_RIGHT,LLAS,하지 축 편위,Lower Limb Axial Shift,우측,우측 내전근,좌측 중둔근,중심 교정,Right shift
+FBA_PRONATION,FBA,족부 정렬,Foot Balance Angle,회내,"비골근, 종아리","후경골근, 발목 안정근",발궁 회복,Pes planus
+FBA_SUPINATION,FBA,족부 정렬,Foot Balance Angle,회외,"후경골근, 종아리",비골근,측면 가동,High arch
+STA_LOW,STA,견갑 기울기,Scapular Tilt Angle,낮음,"중부 승모근, 능형근","전거근, 소흉근",견갑 전방 가동,과도한 후방 기울기
+PDS_LOW,PDS,골반 하강, Pelvic Drop Sign,낮음,"중둔근, 둔근","TFL, QL",골반 중립 유지,Pelvic hike
+SAA_MIDDLE,SAA,어깨 전방각,Shoulder Anterior Angle,정상,균형,균형,유지,레퍼런스 행

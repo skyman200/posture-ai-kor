@@ -8820,9 +8820,13 @@ document.addEventListener('click', (event) => {
 function setPageContainerStyle(container, { width = 794 } = {}) {
   // position, left, top은 .pdf-safe CSS에서 처리
   container.style.width = `${width}px`;
+  container.style.maxWidth = "100%";
   container.style.padding = "30px 25px";
   container.style.paddingBottom = "140px";
   container.style.background = "#ffffff";
+  container.style.wordWrap = "break-word";
+  container.style.overflowWrap = "break-word";
+  container.style.boxSizing = "border-box";
   container.style.color = "#111";
   container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
   container.style.fontSize = "14px"; // 글자 가독성 개선 (12px -> 14px)
@@ -10256,30 +10260,91 @@ if (combinedAnalysis && combinedAnalysis.combined) {
   );
 }
 
-// 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로)
+// 필라테스 추천 카드 HTML 생성 (웹앱과 동일한 형식으로 + DB 상세 정보 포함)
 let pilatesHtml = '';
 
-// ✅ 1순위: AI 근육 상태 기반 추천 (새로 추가)
+// ✅ 1순위: AI 근육 상태 기반 추천 (DB 상세 정보 포함)
 if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
-  pilatesHtml = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:15px; margin-bottom:20px;">';
-  muscleBasedRecommendations.forEach(rec => {
+  console.log('📄 PDF 필라테스 추천 생성:', muscleBasedRecommendations.length, '개');
+  
+  pilatesHtml = '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">';
+  
+  muscleBasedRecommendations.forEach((rec, idx) => {
+    const exerciseName = rec.exercise_ko || rec.Exercise_Name_KR || rec.name || '필라테스 운동';
+    const exerciseNameEn = rec.exercise_en || rec.Exercise_Name_EN || '';
+    const equipment = rec.equipment_ko || rec.equipment || rec.equip || '매트';
+    const type = rec.type === '강화' ? '💪 강화' : '🧘 스트레치';
+    const target = rec.target || '';
+    const reps = rec.Reps || rec.sets_reps || rec.reps || '3세트';
+    
+    // ✅ 운동 설명 (DB에서 가져옴)
+    const howToDo = rec.how_to_do || 
+                    rec['How_to_Perform_Step_by_Step (상세 동작 설명)'] || 
+                    rec['How_to_Perform_Step_by_Step'] ||
+                    rec['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] ||
+                    rec['How_to_Perform_EASY_FOR_BEGINNERS'] ||
+                    rec.How_to_Perform_Step_by_Step ||
+                    rec.How_to_Perform ||
+                    '';
+    
+    const breathingPattern = rec.Breathing_Pattern || rec.Breathing || '';
+    const spring = rec.Spring_Traditional || rec.Spring || rec.spring || '';
+    const keyCues = rec.Classical_Cues_by_Jay_Grimes_Romana || rec.key_cues || '';
+    
+    // ✅ 강화/스트레치 근육 정보
+    const strengthenMuscles = rec.Main_Strengthen_Muscles || 
+                               rec['Main_Strengthen_Muscles (주요 강화 근육)'] || 
+                               (rec.strengthen_targets ? rec.strengthen_targets.join(', ') : '');
+    const stretchMuscles = rec.Main_Stretch_Muscles || 
+                            rec['Main_Stretch_Muscles (주요 스트레칭 근육)'] || 
+                            (rec.stretch_targets ? rec.stretch_targets.join(', ') : '');
+    
     pilatesHtml += `
-      <div style="padding:15px; background:#f8f9fa; border-radius:10px; border-left:4px solid #9c88ff;">
-        <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:6px;">${rec.name}</div>
-        <div style="font-size:11px; color:#666; margin-bottom:4px;">
-          <strong>유형:</strong> ${rec.type === '강화' ? '💪 강화' : '🧘 스트레치'}
+      <div style="padding:12px; background:#f6f3ff; border-radius:10px; border-left:4px solid #9c88ff; page-break-inside:avoid; max-width:100%; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14px; font-weight:700; color:#5c44b8; margin-bottom:3px; word-wrap:break-word; word-break:break-word;">
+              ${idx + 1}. ${exerciseName}${exerciseNameEn ? ` (${exerciseNameEn})` : ''}
+            </div>
+            <div style="font-size:10px; color:#666; display:flex; flex-wrap:wrap; gap:4px;">
+              <span style="background:#e9d5ff; padding:2px 6px; border-radius:4px;">${equipment}</span>
+              <span style="background:#ddd6fe; padding:2px 6px; border-radius:4px;">${type}</span>
+            </div>
+          </div>
         </div>
-        <div style="font-size:11px; color:#666; margin-bottom:4px;">
-          <strong>타겟:</strong> ${rec.target}
+        
+        ${target ? `<div style="font-size:11px; color:#666; margin-bottom:6px; word-wrap:break-word; word-break:break-word;">
+          <strong style="color:#7c3aed;">타겟 근육:</strong> ${target}
+        </div>` : ''}
+        
+        ${strengthenMuscles ? `<div style="font-size:11px; color:#666; margin-bottom:4px; word-wrap:break-word; word-break:break-word;">
+          <strong style="color:#10b981;">💪 강화:</strong> ${strengthenMuscles}
+        </div>` : ''}
+        
+        ${stretchMuscles ? `<div style="font-size:11px; color:#666; margin-bottom:6px; word-wrap:break-word; word-break:break-word;">
+          <strong style="color:#3b82f6;">🧘 스트레칭:</strong> ${stretchMuscles}
+        </div>` : ''}
+        
+        ${howToDo ? `<div style="font-size:10px; color:#444; margin-bottom:6px; line-height:1.6; background:#fff; padding:8px; border-radius:6px; word-wrap:break-word; word-break:break-word; white-space:pre-wrap; max-width:100%; overflow-wrap:break-word;">
+          <strong style="color:#5c44b8; font-size:11px;">💡 운동 방법</strong><br>
+          ${formatMultilineText(howToDo)}
+        </div>` : ''}
+        
+        <div style="display:flex; gap:8px; flex-wrap:wrap; font-size:10px; color:#666; margin-top:6px;">
+          ${reps ? `<div style="word-wrap:break-word;"><strong>횟수:</strong> ${reps}</div>` : ''}
+          ${breathingPattern ? `<div style="word-wrap:break-word;"><strong>호흡:</strong> ${breathingPattern}</div>` : ''}
+          ${spring ? `<div style="word-wrap:break-word;"><strong>스프링:</strong> ${spring}</div>` : ''}
         </div>
-        <div style="font-size:11px; color:#666;">
-          <strong>횟수:</strong> ${rec.reps}
-        </div>
+        
+        ${keyCues ? `<div style="font-size:10px; color:#7c3aed; margin-top:6px; padding:6px; background:#faf5ff; border-radius:4px; word-wrap:break-word; word-break:break-word; white-space:pre-wrap; overflow-wrap:break-word;">
+          <strong>🎯 핵심 큐:</strong> ${formatMultilineText(keyCues)}
+        </div>` : ''}
       </div>
     `;
   });
+  
   pilatesHtml += '</div>';
-  pilatesHtml += '<div style="font-size:11px; color:#666; margin-top:15px; padding-top:15px; border-top:1px solid #e0e0e0;">* 근육 상태 기반 AI 자동 추천</div>';
+  pilatesHtml += '<div style="font-size:10px; color:#666; margin-top:15px; padding-top:15px; border-top:1px solid #e0e0e0;">* 자세 분석 결과 기반 AI 자동 추천 (DB: Classical Pilates CSV)</div>';
 }
 
 // ✅ 2순위: 웹앱에서 생성된 필라테스 추천
@@ -10328,8 +10393,8 @@ else if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommenda
 }
 
 page5Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6;">
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -10347,18 +10412,20 @@ if (isMobile) {
 }
 
 try {
-  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
-  const container5Width = Math.max(page5Container.scrollWidth, page5Container.offsetWidth, 794);
+  // ✅ 페이지 너비는 794px로 고정하고, 높이만 동적으로 계산
+  const container5Width = 794;  // PDF 표준 너비로 고정
   const container5Height = Math.max(page5Container.scrollHeight, page5Container.offsetHeight);
   
+  console.log('📄 Page 5 캔버스 생성:', { width: container5Width, height: container5Height });
+  
   canvas5 = await html2canvas(page5Container, {
-  ...html2canvasOptions,
-  windowWidth: container5Width,
-  windowHeight: container5Height,
-  width: container5Width,
-  height: container5Height,
-  scale: 1.5  // ✅ 품질 낮춤
-});
+    ...html2canvasOptions,
+    windowWidth: container5Width,
+    windowHeight: container5Height,
+    width: container5Width,
+    height: container5Height,
+    scale: 1.5  // ✅ 품질 낮춤
+  });
 } catch (err) {
   console.error('❌ canvas5 생성 실패:', err);
   canvas5 = null;
@@ -14729,15 +14796,97 @@ function parseCSV(csv) {
 // 메트릭 데이터베이스 파싱
 const METRICS_DB = parseCSV(METRICS_CSV);
 
-// ✅ AI 근육-운동 매칭 함수 (실제 분석 결과 기반)
+// ✅ AI 근육-운동 매칭 함수 (실제 CSV DB 기반)
 function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
   const recommendations = [];
   const seen = new Set();
   
-  // 모든 필라테스 운동 데이터 통합
-  const allPilates = Object.values(PILATES_DB_SAMPLE).flat();
+  // ✅ 실제 로드된 필라테스 DB 사용 (CSV에서 로드됨)
+  const allPilates = window.PilatesDB || PILATES_EXERCISE_DB || [];
+  
+  if (!allPilates || allPilates.length === 0) {
+    console.warn('⚠️ 필라테스 DB가 로드되지 않았습니다. 샘플 데이터 사용');
+    // 폴백: 샘플 데이터
+    const fallbackPilates = Object.values(PILATES_DB_SAMPLE).flat();
+    return recommendPilatesFromMusclesLegacy(tightMuscles, weakMuscles, fallbackPilates);
+  }
+  
+  console.log('✅ 필라테스 추천 시작:', { tight: tightMuscles, weak: weakMuscles, dbSize: allPilates.length });
+  
+  // 근육 이름 정규화
+  const normalizeMuscle = (m) => m.trim().replace(/\s+/g, ' ');
+  const tightSet = new Set((tightMuscles || []).map(normalizeMuscle));
+  const weakSet = new Set((weakMuscles || []).map(normalizeMuscle));
   
   // 1. 약한 근육 강화 운동 추천
+  if (weakSet.size > 0) {
+    allPilates.forEach(ex => {
+      const strengthenStr = ex.Main_Strengthen_Muscles || ex.strengthen_targets?.join(', ') || '';
+      if (!strengthenStr) return;
+      
+      const strengthenMuscles = splitMuscleList(strengthenStr).map(normalizeMuscle);
+      const matched = strengthenMuscles.some(target => 
+        Array.from(weakSet).some(weak => 
+          target.includes(weak) || weak.includes(target) || target === weak
+        )
+      );
+      
+      if (matched) {
+        const key = ex.exercise_ko || ex.Exercise_Name_KR || ex.name;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          recommendations.push({
+            ...ex,  // ✅ 전체 운동 정보 포함
+            name: key,
+            type: '강화',
+            target: strengthenMuscles.find(t => Array.from(weakSet).some(w => t.includes(w) || w.includes(t))) || strengthenMuscles[0],
+            reps: ex.Reps || ex.sets_reps || '3세트',
+            equip: ex.equipment_ko || ex.equipment || '매트'
+          });
+        }
+      }
+    });
+  }
+  
+  // 2. 긴장된 근육 스트레치 운동 추천
+  if (tightSet.size > 0) {
+    allPilates.forEach(ex => {
+      const stretchStr = ex.Main_Stretch_Muscles || ex.stretch_targets?.join(', ') || '';
+      if (!stretchStr) return;
+      
+      const stretchMuscles = splitMuscleList(stretchStr).map(normalizeMuscle);
+      const matched = stretchMuscles.some(target => 
+        Array.from(tightSet).some(tight => 
+          target.includes(tight) || tight.includes(target) || target === tight
+        )
+      );
+      
+      if (matched) {
+        const key = ex.exercise_ko || ex.Exercise_Name_KR || ex.name;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          recommendations.push({
+            ...ex,  // ✅ 전체 운동 정보 포함
+            name: key,
+            type: '스트레치',
+            target: stretchMuscles.find(t => Array.from(tightSet).some(ti => t.includes(ti) || ti.includes(t))) || stretchMuscles[0],
+            reps: ex.Reps || ex.sets_reps || '30초 3세트',
+            equip: ex.equipment_ko || ex.equipment || '매트'
+          });
+        }
+      }
+    });
+  }
+  
+  console.log('✅ 필라테스 추천 완료:', recommendations.length, '개');
+  return recommendations.slice(0, 10); // 최대 10개 추천
+}
+
+// 레거시 샘플 데이터용 함수
+function recommendPilatesFromMusclesLegacy(tightMuscles, weakMuscles, allPilates) {
+  const recommendations = [];
+  const seen = new Set();
+  
   if (weakMuscles && weakMuscles.length > 0) {
     weakMuscles.forEach(muscle => {
       allPilates.forEach(ex => {
@@ -14757,7 +14906,6 @@ function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
     });
   }
   
-  // 2. 긴장된 근육 스트레치 운동 추천
   if (tightMuscles && tightMuscles.length > 0) {
     tightMuscles.forEach(muscle => {
       allPilates.forEach(ex => {
@@ -14777,7 +14925,7 @@ function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
     });
   }
   
-  return recommendations.slice(0, 8); // 최대 8개 추천
+  return recommendations.slice(0, 8);
 }
 
 // ✅ 실제 분석 결과에서 근육 상태 추출
