@@ -7,25 +7,21 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      # 리포 체크아웃
       - name: Checkout
         uses: actions/checkout@v3
 
-      # dist 폴더 생성
       - name: Create dist directory
         run: mkdir dist
 
-      # 🔥 리포지토리 전체 파일을 dist로 복사
-      # dist 자신을 제외하고 모든 파일 및 폴더 복사
       - name: Copy project files into dist
         run: |
           shopt -s extglob dotglob
           cp -R !(dist) dist/
 
-      # GitHub Pages에 올릴 아티팩트 업로드
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v2
         with:
           path: dist
 
@@ -39,4 +35,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v2
