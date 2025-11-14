@@ -18,11 +18,25 @@
   --font-body: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans KR', 'Pretendard', 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* PDF용 안전 폰트 (구글 폰트 제외) */
+/* PDF용 안전 폰트 및 숨김 렌더링 (구글 폰트 제외) */
 .pdf-safe {
   font-family: var(--font-body), sans-serif !important;
   letter-spacing: 0.2px;
   line-height: 1.45;
+
+  /* 모든 PDF 페이지용 컨테이너를 '숨긴 상태인데 렌더 가능한 구조'로 변경 */
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+
+  /* 반드시 필요: html2canvas가 요소 크기를 0으로 계산하는 것을 방지 */
+  transform: scale(1) !important;
+
+  /* 화면에는 안 보이지만, 실제 DOM에는 존재해야 함 */
+  display: block !important;
 }
 
 .pdf-safe * {
@@ -8552,9 +8566,7 @@ document.addEventListener('click', (event) => {
 });
 
 function setPageContainerStyle(container, { width = 794 } = {}) {
-  container.style.position = "fixed";
-  container.style.left = "-9999px";
-  container.style.top = "0";
+  // position, left, top은 .pdf-safe CSS에서 처리
   container.style.width = `${width}px`;
   container.style.padding = "30px 25px";
   container.style.paddingBottom = "140px";
@@ -12143,6 +12155,22 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
   return uniqueRecommendations;
 }
 
+// ✅ html2canvas 최적화 캡처 함수
+async function captureForPdf(elem) {
+  // 렌더링 타이밍 보장
+  await new Promise(res => requestAnimationFrame(res));
+  await new Promise(res => setTimeout(res, 50));
+
+  return await html2canvas(elem, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    allowTaint: false,
+    foreignObjectRendering: true,
+    logging: false,
+  });
+}
+
 // ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
 async function exportAsPdf(options = {}) {
   const {
@@ -12172,47 +12200,37 @@ async function exportAsPdf(options = {}) {
   });
 
   // Worker 생성 (GitHub Pages 절대 URL 사용)
-  const workerUrl = new URL('pdfWorker.js', location.href).href;
-  const worker = new Worker(workerUrl);
+  const workerBase = location.pathname.replace(/\/[^/]*$/, "/");
+  const worker = new Worker(`${workerBase}pdfWorker.js`);
 
   function send(msg) {
     worker.postMessage(msg);
   }
 
   const pdfPromise = new Promise((resolve, reject) => {
-    worker.onmessage = function (e) {
+    worker.onmessage = e => {
       const msg = e.data;
 
-      if (msg.type === 'pdfReady') {
-        const blob = new Blob([msg.buffer], { type: 'application/pdf' });
+      if (msg.type === "pdfReady") {
+        const blob = new Blob([msg.buffer], { type: "application/pdf" });
         resolve(blob);
         worker.terminate();
       }
 
-      if (msg.type === 'error') {
-        console.error('❌ Worker 에러:', msg.message);
-        console.error('❌ Worker 스택:', msg.stack);
-        reject(new Error(msg.message || 'Worker 에러 발생'));
+      if (msg.type === "error") {
+        reject(new Error(msg.message));
         worker.terminate();
       }
     };
 
     worker.onerror = err => {
-      console.error('❌ Worker 로드 실패:', err);
-      console.error('❌ Worker URL:', workerUrl);
-      console.error('❌ 에러 파일:', err.filename);
-      console.error('❌ 에러 라인:', err.lineno);
-      console.error('❌ 에러 메시지:', err.message);
-      reject(new Error(`Worker 로드 실패: ${err.message || 'Worker 파일을 찾을 수 없거나 로드할 수 없습니다.'}`));
+      reject(new Error("Worker 로드 실패: " + err.message));
       worker.terminate();
     };
   });
 
   // PDF 초기화
-  send({
-    type: 'init',
-    options: { orientation: "p", unit: "px", format: "a4" }
-  });
+  send({ type: "init", options: { orientation: "p", unit: "px", format: "a4" } });
 
   const pageW = 595;
   const pageH = 842;
@@ -12225,27 +12243,15 @@ async function exportAsPdf(options = {}) {
     const elem = document.getElementById(item.id);
     if (!elem) continue;
 
-    const canvas = await html2canvas(elem, {
-      scale: 1.2,
-      backgroundColor: null,
-      useCORS: true
-    });
+    // 캡처
+    const canvas = await captureForPdf(elem);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-    // 메모리 해제
-    try {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.width = 1;
-      canvas.height = 1;
-      canvas.remove?.();
-    } catch {}
-
-    // Worker로 전송
+    // Worker에 이미지 전달
     send({
-      type: 'addImage',
+      type: "addImage",
       dataUrl,
+      imageType: "JPEG",
       x: margin,
       y: margin,
       width: imgW,
@@ -12253,21 +12259,21 @@ async function exportAsPdf(options = {}) {
       addPageAfter: item.addPageAfter
     });
 
-    // GC 휴식
-    await new Promise(res => setTimeout(res, 10));
+    // GC
+    canvas.width = 1;
+    canvas.height = 1;
   }
 
-  // 마무리
-  send({ type: 'finalize' });
+  send({ type: "finalize" });
 
-  // PDF 다운로드
   const blob = await pdfPromise;
 
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = finalName;
   a.click();
+
   URL.revokeObjectURL(url);
 }
 
