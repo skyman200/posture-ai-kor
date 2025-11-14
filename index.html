@@ -9221,16 +9221,43 @@ if (afterViews.side || beforeViews.side) {
 }
 
 // ========== 페이지 2: 측면 리포트 ==========
-// 측면 항목만 필터링하여 분석
+// ✅ 측면 메트릭만 독립적으로 추출 (정면 메트릭과 완전 분리)
 const sideMetrics = {};
-const fullMetricsForSide = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
-const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
-Object.keys(fullMetricsForSide).forEach(key => {
-  const code = METRIC_KEY_ALIASES[key] || key;
-  if (sideMetricKeys.includes(code)) {
-    sideMetrics[key] = fullMetricsForSide[key];
+// 측면 분석 시 저장된 독립적인 측면 메트릭 사용
+// Before/After 세션 모두 확인하여 측면 메트릭 추출
+let sideMetricsSource = null;
+
+// 1순위: After 세션의 측면 메트릭 (측면 분석 시 저장된 것)
+if (sessions.After?.metrics) {
+  // 측면 분석만 수행된 경우: fullMetrics가 측면 메트릭만 포함
+  if (sessions.After.metrics.orientation === "side" && sessions.After.metrics.fullMetrics) {
+    sideMetricsSource = sessions.After.metrics.fullMetrics;
   }
-});
+  // 측면과 정면 모두 분석된 경우: fullMetrics에서 측면 메트릭만 필터링
+  else if (sessions.After.metrics.fullMetrics) {
+    sideMetricsSource = sessions.After.metrics.fullMetrics;
+  }
+}
+
+// 2순위: 현재 세션의 측면 메트릭
+if (!sideMetricsSource && sessions[cur]?.metrics) {
+  if (sessions[cur].metrics.orientation === "side" && sessions[cur].metrics.fullMetrics) {
+    sideMetricsSource = sessions[cur].metrics.fullMetrics;
+  } else if (sessions[cur].metrics.fullMetrics) {
+    sideMetricsSource = sessions[cur].metrics.fullMetrics;
+  }
+}
+
+// 측면 메트릭 키만 필터링
+const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+if (sideMetricsSource) {
+  Object.keys(sideMetricsSource).forEach(key => {
+    const code = METRIC_KEY_ALIASES[key] || key;
+    if (sideMetricKeys.includes(code)) {
+      sideMetrics[key] = sideMetricsSource[key];
+    }
+  });
+}
 
 // ✅ 측면 분석임을 명시
 sideMetrics.orientation = "side";
@@ -9407,16 +9434,49 @@ if (afterViews.front || beforeViews.front) {
 }
 
 // ========== 페이지 4: 정면 리포트 ==========
-// 정면 항목만 필터링하여 분석
+// ✅ 정면 메트릭만 독립적으로 추출 (측면 메트릭과 완전 분리)
 const frontMetrics = {};
-const fullMetricsForFront = sessions.After?.metrics?.fullMetrics || sessions[cur]?.metrics?.fullMetrics || {};
-const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
-Object.keys(fullMetricsForFront).forEach(key => {
-  const code = METRIC_KEY_ALIASES[key] || key;
-  if (frontMetricKeys.includes(code)) {
-    frontMetrics[key] = fullMetricsForFront[key];
+// 정면 분석 시 저장된 독립적인 정면 메트릭 사용
+// Before/After 세션 모두 확인하여 정면 메트릭 추출
+let frontMetricsSource = null;
+
+// 1순위: After 세션의 frontMetrics (정면 분석 시 별도 저장된 것)
+if (sessions.After?.metrics?.frontMetrics) {
+  frontMetricsSource = sessions.After.metrics.frontMetrics;
+}
+// 2순위: After 세션의 fullMetrics에서 정면 메트릭만 추출
+else if (sessions.After?.metrics) {
+  // 정면 분석만 수행된 경우: fullMetrics가 정면 메트릭만 포함
+  if (sessions.After.metrics.orientation === "front" && sessions.After.metrics.fullMetrics) {
+    frontMetricsSource = sessions.After.metrics.fullMetrics;
   }
-});
+  // 측면과 정면 모두 분석된 경우: fullMetrics에서 정면 메트릭만 필터링
+  else if (sessions.After.metrics.fullMetrics) {
+    frontMetricsSource = sessions.After.metrics.fullMetrics;
+  }
+}
+
+// 3순위: 현재 세션의 정면 메트릭
+if (!frontMetricsSource && sessions[cur]?.metrics) {
+  if (sessions[cur].metrics.frontMetrics) {
+    frontMetricsSource = sessions[cur].metrics.frontMetrics;
+  } else if (sessions[cur].metrics.orientation === "front" && sessions[cur].metrics.fullMetrics) {
+    frontMetricsSource = sessions[cur].metrics.fullMetrics;
+  } else if (sessions[cur].metrics.fullMetrics) {
+    frontMetricsSource = sessions[cur].metrics.fullMetrics;
+  }
+}
+
+// 정면 메트릭 키만 필터링
+const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
+if (frontMetricsSource) {
+  Object.keys(frontMetricsSource).forEach(key => {
+    const code = METRIC_KEY_ALIASES[key] || key;
+    if (frontMetricKeys.includes(code)) {
+      frontMetrics[key] = frontMetricsSource[key];
+    }
+  });
+}
 
 // ✅ 정면 분석임을 명시
 frontMetrics.orientation = "front";
