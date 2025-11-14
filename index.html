@@ -12155,9 +12155,9 @@ async function exportAsPdf(options = {}) {
     logoUrl
   });
 
-  // Worker 생성 (GitHub Pages 경로 대응)
-  const workerBase = location.pathname.replace(/\/[^/]*$/, "/");
-  const worker = new Worker(`${workerBase}pdfWorker.js`);
+  // Worker 생성 (GitHub Pages 절대 URL 사용)
+  const workerUrl = new URL('pdfWorker.js', location.href).href;
+  const worker = new Worker(workerUrl);
 
   function send(msg) {
     worker.postMessage(msg);
@@ -12174,13 +12174,20 @@ async function exportAsPdf(options = {}) {
       }
 
       if (msg.type === 'error') {
-        reject(msg.message);
+        console.error('❌ Worker 에러:', msg.message);
+        console.error('❌ Worker 스택:', msg.stack);
+        reject(new Error(msg.message || 'Worker 에러 발생'));
         worker.terminate();
       }
     };
 
     worker.onerror = err => {
-      reject(err);
+      console.error('❌ Worker 로드 실패:', err);
+      console.error('❌ Worker URL:', workerUrl);
+      console.error('❌ 에러 파일:', err.filename);
+      console.error('❌ 에러 라인:', err.lineno);
+      console.error('❌ 에러 메시지:', err.message);
+      reject(new Error(`Worker 로드 실패: ${err.message || 'Worker 파일을 찾을 수 없거나 로드할 수 없습니다.'}`));
       worker.terminate();
     };
   });
