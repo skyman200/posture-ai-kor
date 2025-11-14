@@ -12175,24 +12175,47 @@ async function captureForPdf(elem) {
   elem.style.zIndex = '9999';
   elem.style.transform = 'scale(1)'; // ✅ html2canvas가 요소 크기를 0으로 계산하는 것을 방지
   
+  // ✅ 폰트 로드 대기 (html2canvas가 폰트를 제대로 렌더링하도록)
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+  
   // ✅ 이미지 로드 대기
   const images = elem.querySelectorAll('img');
   if (images.length > 0) {
     await Promise.all(Array.from(images).map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = resolve; // 에러가 나도 계속 진행
-        setTimeout(resolve, 2000); // 최대 2초 대기
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise((resolve) => {
+        const timeout = setTimeout(resolve, 3000); // 최대 3초 대기
+        img.onload = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+        img.onerror = () => {
+          clearTimeout(timeout);
+          resolve(); // 에러가 나도 계속 진행
+        };
       });
     }));
   }
   
-  // 렌더링 타이밍 보장
+  // ✅ 컨테이너 내용 검증 (빈 컨테이너 방지)
+  const hasContent = elem.textContent.trim().length > 0 || 
+                     elem.querySelectorAll('img').length > 0 ||
+                     elem.querySelectorAll('canvas').length > 0 ||
+                     elem.innerHTML.trim().length > 50;
+  
+  if (!hasContent) {
+    console.warn(`⚠️ 컨테이너가 비어있습니다: ${elem.id}`);
+  }
+  
+  // ✅ 렌더링 타이밍 보장 (더 긴 대기 시간)
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => requestAnimationFrame(res));
-  await new Promise(res => setTimeout(res, 100));
+  await new Promise(res => requestAnimationFrame(res));
+  await new Promise(res => setTimeout(res, 200)); // 100ms → 200ms로 증가
 
+  // ✅ html2canvas 옵션 최적화
   const canvas = await html2canvas(elem, {
     scale: 2,
     backgroundColor: "#ffffff",
@@ -12202,6 +12225,17 @@ async function captureForPdf(elem) {
     logging: false,
     width: width,
     height: height,
+    removeContainer: false, // 컨테이너 제거 방지
+    imageTimeout: 15000, // 이미지 로드 타임아웃 15초
+    onclone: (clonedDoc) => {
+      // 복제된 문서에서도 스타일 보정
+      const clonedElem = clonedDoc.getElementById(elem.id);
+      if (clonedElem) {
+        clonedElem.style.opacity = '1';
+        clonedElem.style.visibility = 'visible';
+        clonedElem.style.transform = 'scale(1)';
+      }
+    }
   });
   
   // ✅ 캡처 후 원래 스타일로 복원
@@ -12291,6 +12325,8 @@ async function exportAsPdf(options = {}) {
 
   // html2canvas → JPEG → Worker 로 전송
   let capturedCount = 0;
+  console.log(`📄 PDF 생성 시작: ${captureList.length}개 컨테이너 캡처 예정`);
+  
   for (const item of captureList) {
     const elem = document.getElementById(item.id);
     if (!elem) {
@@ -12298,7 +12334,19 @@ async function exportAsPdf(options = {}) {
       continue;
     }
 
+    // ✅ 컨테이너 내용 사전 검증
+    const hasContent = elem.textContent.trim().length > 0 || 
+                       elem.querySelectorAll('img').length > 0 ||
+                       elem.querySelectorAll('canvas').length > 0 ||
+                       elem.innerHTML.trim().length > 50;
+    
+    if (!hasContent) {
+      console.warn(`⚠️ 컨테이너가 비어있습니다: ${item.id}, 스킵합니다`);
+      continue;
+    }
+
     try {
+      console.log(`📸 ${item.id} 캡처 시작...`);
       // 캡처
       const canvas = await captureForPdf(elem);
       
