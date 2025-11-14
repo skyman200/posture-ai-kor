@@ -674,24 +674,29 @@ window.setupFileUploads = window.setupFileUploads || function() {
   });
 };
 
-// DOM 준비되면 즉시 실행
-if (document.readyState === 'loading') {
-  document.addEventListener("DOMContentLoaded", () => {
-    console.log("🔥 DOM 준비됨 → 파일 첨부 기능 주입");
-    if (window.setupFileUploads) {
-      window.setupFileUploads();
-    }
-    // 앱 초기화
-    initializeApp();
-  });
-} else {
-  // 이미 로드 완료된 경우 즉시 실행
-  console.log("🔥 DOM 이미 준비됨 → 파일 첨부 기능 주입");
+// DOM 준비되면 즉시 실행 (중복 실행 방지)
+let appInitialized = false;
+
+function initializeAppOnce() {
+  if (appInitialized) {
+    console.log("🚫 앱이 이미 초기화되었습니다.");
+    return;
+  }
+  appInitialized = true;
+
+  console.log("🔥 DOM 준비됨 → 파일 첨부 기능 주입");
   if (window.setupFileUploads) {
     window.setupFileUploads();
   }
   // 앱 초기화
   initializeApp();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", initializeAppOnce);
+} else {
+  // 이미 로드 완료된 경우 즉시 실행
+  initializeAppOnce();
 }
 </script>
 
@@ -3447,11 +3452,13 @@ function draw() {
     return;
   }
   
-  const S = sessions[cur];
-  if(!S) {
-    console.error("draw() 호출 시 세션이 없습니다.");
+  // sessions가 초기화되지 않았으면 무시
+  if(!sessions || !sessions[cur]) {
+    console.warn("draw() 호출 시 sessions가 초기화되지 않았습니다.");
     return;
   }
+
+  const S = sessions[cur];
   
   const W = cv.width / DPR, H = cv.height / DPR;
   ctx.clearRect(0, 0, cv.width, cv.height);
@@ -13256,23 +13263,23 @@ function initializeApp() {
 
   // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
   // sessions 객체에 orientation과 landmarks 정보 추가
-  if(!sessions || !sessions.Before || !sessions.After) {
+  if(!window.sessions || !window.sessions.Before || !window.sessions.After) {
     console.error("sessions 객체가 아직 초기화되지 않았습니다.");
     return;
   }
   
-  if(!sessions.Before.poseData) {
-    sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
+  if(!window.sessions.Before.poseData) {
+    window.sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
-  if(!sessions.After.poseData) {
-    sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
+  if(!window.sessions.After.poseData) {
+    window.sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
 
   // 버튼 이벤트 핸들러 초기화
   initSessionButtons();
   
   // orientation 버튼 상태 설정
-  const orientation = sessions[cur].poseData?.orientation || "side";
+  const orientation = window.sessions[cur].poseData?.orientation || "side";
   const btnSide = document.getElementById("btnOrientationSide");
   const btnFront = document.getElementById("btnOrientationFront");
   
