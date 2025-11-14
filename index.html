@@ -12540,12 +12540,8 @@ function setupPDFButton() {
         localStorage.setItem('userName', userName);
       }
       
-      await exportAsPdf({
-        userName: userName,
-        centerName: centerName,
-        memberName: memberName,
-        appName: 'DIT 자세 분석 AI'
-      });
+      // ✅ 새로운 8페이지 전문 리포트 함수 사용
+      await generateFinalPostureReportPDF();
       
       btn.textContent = originalText;
       btn.disabled = false;
@@ -13847,6 +13843,241 @@ async function exportAsPdfSimple() {
 if (document.getElementById("downloadPdfBtn")) {
   document.getElementById("downloadPdfBtn").addEventListener("click", exportAsPdfSimple);
 }
+
+/* ================== 전문가용 8페이지 PDF 리포트 (완전 자동 분할) ================== */
+async function generateFinalPostureReportPDF() {
+  try {
+    console.log("PDF 생성 시작 - 8페이지 전문 리포트 (자동 분할)");
+
+    // 라이브러리 확인
+    if (!window.html2canvas || !window.jspdf?.jsPDF) {
+      throw new Error("html2canvas 또는 jsPDF가 로드되지 않았습니다.");
+    }
+    const { jsPDF } = window.jspdf;
+
+    // ✅ 먼저 컨테이너들을 생성
+    const centerName = localStorage.getItem('centerName') || '';
+    const memberName = localStorage.getItem('memberName') || '';
+    const appName = 'DIT 자세 분석 AI';
+    
+    await captureReportCanvases({
+      centerName,
+      memberName,
+      appName,
+      logoUrl: null
+    });
+
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 50;
+    const contentWidth = pageWidth - 2 * margin;
+    let yPos = margin;
+
+    await document.fonts.ready;
+
+    // 헬퍼: 요소 → 캔버스 → PDF (자동 분할)
+    async function addSectionToPDF(element, title = "", options = {}) {
+      if (!element || element.offsetHeight === 0) return 0;
+
+      const { scale = 2, addPageAfter = true } = options;
+
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'absolute';
+      wrapper.style.left = '-9999px';
+      wrapper.style.top = '0';
+      wrapper.style.width = Math.max(element.offsetWidth, 500) + 'px';
+      wrapper.style.padding = '25px';
+      wrapper.style.background = '#ffffff';
+      wrapper.style.fontFamily = 'Pretendard, Apple SD Gothic Neo, sans-serif';
+      wrapper.style.color = '#000';
+      wrapper.style.boxSizing = 'border-box';
+
+      if (title) {
+        const h = document.createElement('h2');
+        h.innerText = title;
+        h.style.margin = '0 0 20px 0';
+        h.style.fontSize = '22px';
+        h.style.fontWeight = 'bold';
+        h.style.textAlign = 'center';
+        h.style.color = '#1a1a1a';
+        wrapper.appendChild(h);
+      }
+
+      const clone = element.cloneNode(true);
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
+      clone.style.background = 'transparent';
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      const canvas = await html2canvas(wrapper, {
+        scale,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: wrapper.scrollWidth,
+        height: wrapper.scrollHeight + 50,
+        windowWidth: wrapper.scrollWidth,
+        windowHeight: wrapper.scrollHeight + 50
+      });
+
+      document.body.removeChild(wrapper);
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      while (heightLeft > 0) {
+        const availableHeight = pageHeight - yPos - margin;
+        if (availableHeight < 100 && heightLeft > 100) {
+          if (addPageAfter) {
+            pdf.addPage();
+            yPos = margin;
+          }
+        }
+
+        const sliceHeight = Math.min(heightLeft, pageHeight - yPos - margin);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = (sliceHeight * canvas.width) / contentWidth;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, position, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+
+        pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, yPos, contentWidth, sliceHeight);
+        heightLeft -= sliceHeight;
+        position += sliceCanvas.height;
+        yPos += sliceHeight + 15;
+      }
+
+      if (addPageAfter) {
+        pdf.addPage();
+        yPos = margin;
+      }
+
+      return imgHeight;
+    }
+
+    // 헬퍼: 이미지 추가
+    async function addImage(imgSrc, maxW = contentWidth, maxH = 400, center = true) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const ratio = Math.min(maxW / img.width, maxH / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          const x = center ? margin + (contentWidth - w) / 2 : margin;
+
+          if (yPos + h > pageHeight - margin) {
+            pdf.addPage();
+            yPos = margin;
+          }
+
+          pdf.addImage(img, 'JPEG', x, yPos, w, h);
+          yPos += h + 25;
+          resolve();
+        };
+        img.src = imgSrc;
+      });
+    }
+
+    // ================== page1Container: 표지 ==================
+    const page1Container = document.getElementById('page1Container');
+    if (page1Container) {
+      await addSectionToPDF(page1Container, "", { addPageAfter: true });
+    } else {
+      // 폴백: 간단한 표지 생성
+      pdf.setFontSize(28);
+      pdf.text("AI 자세 분석 보고서", pageWidth / 2, 120, { align: 'center' });
+      pdf.setFontSize(16);
+      pdf.text(`회원명: ${memberName || '미입력'}`, pageWidth / 2, 170, { align: 'center' });
+      pdf.text(`센터명: ${centerName || '미입력'}`, pageWidth / 2, 200, { align: 'center' });
+      pdf.text(`분석일: ${new Date().toLocaleDateString('ko-KR')}`, pageWidth / 2, 230, { align: 'center' });
+      pdf.addPage();
+      yPos = margin;
+    }
+
+    // ================== sideImageContainer: 측면 사진 ==================
+    const sideImageContainer = document.getElementById('sideImageContainer');
+    if (sideImageContainer) {
+      await addSectionToPDF(sideImageContainer, "", { addPageAfter: true });
+    }
+
+    // ================== sideReportContainer: 측면 리포트 ==================
+    const sideReportContainer = document.getElementById('sideReportContainer');
+    if (sideReportContainer) {
+      await addSectionToPDF(sideReportContainer, "측면 자세 분석 리포트");
+    }
+
+    // ================== frontImageContainer: 정면 사진 ==================
+    const frontImageContainer = document.getElementById('frontImageContainer');
+    if (frontImageContainer) {
+      await addSectionToPDF(frontImageContainer, "", { addPageAfter: true });
+    }
+
+    // ================== frontReportContainer: 정면 리포트 ==================
+    const frontReportContainer = document.getElementById('frontReportContainer');
+    if (frontReportContainer) {
+      await addSectionToPDF(frontReportContainer, "정면 자세 분석 리포트");
+    }
+
+    // ================== page4Container: 종합 분석 ==================
+    const page4Container = document.getElementById('page4Container');
+    if (page4Container) {
+      await addSectionToPDF(page4Container, "종합 자세 분석 리포트");
+    }
+
+    // ================== page5Container: 필라테스 세션 ==================
+    const page5Container = document.getElementById('page5Container');
+    if (page5Container) {
+      await addSectionToPDF(page5Container, "필라테스 세션 추천", { addPageAfter: true });
+    }
+
+    // ================== page6Container: AI 심층 분석 ==================
+    const page6Container = document.getElementById('page6Container');
+    if (page6Container) {
+      await addSectionToPDF(page6Container, "AI 자세 심층 분석");
+    }
+
+    // ================== page8Container: 체형 유형 분석 ==================
+    const page8Container = document.getElementById('page8Container');
+    if (page8Container) {
+      await addSectionToPDF(page8Container, "체형 유형 분석");
+    }
+
+    // ================== page7Container: 최종 전략 (마지막 페이지) ==================
+    const page7Container = document.getElementById('page7Container');
+    if (page7Container) {
+      await addSectionToPDF(page7Container, "", { addPageAfter: false }); // 마지막 페이지
+    }
+
+    // ✅ PDF 생성 완료 후 컨테이너 정리
+    const containerIds = ['page1Container', 'sideImageContainer', 'sideReportContainer', 
+                          'frontImageContainer', 'frontReportContainer', 'page4Container', 
+                          'page5Container', 'page6Container', 'page8Container', 'page7Container'];
+    containerIds.forEach(id => {
+      const elem = document.getElementById(id);
+      if (elem && document.body.contains(elem)) {
+        document.body.removeChild(elem);
+      }
+    });
+
+    // 저장
+    const finalCenterName = centerName || 'DIT';
+    const finalMemberName = memberName || '회원';
+    const filename = `${finalCenterName}_${finalMemberName}_자세분석리포트_${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(filename);
+    alert(`PDF가 성공적으로 생성되었습니다!\n${filename}`);
+
+  } catch (err) {
+    console.error("PDF 생성 실패:", err);
+    alert("PDF 생성 중 오류 발생: " + err.message);
+  }
+}
+
+/* ================== PDF 버튼에 새 함수 연결 ================== */
+// 기존 setupPDFButton에서 새 함수를 사용하도록 수정
+// 또는 setupPDFButton 내부에서 generateFinalPostureReportPDF를 호출하도록 변경 가능
 </script>
   </body>
 </html>
