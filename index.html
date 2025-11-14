@@ -12165,6 +12165,7 @@ async function captureForPdf(elem) {
   const originalTop = elem.style.top;
   const originalLeft = elem.style.left;
   const originalZIndex = elem.style.zIndex;
+  const originalTransform = elem.style.transform;
   
   elem.style.opacity = '1';
   elem.style.visibility = 'visible';
@@ -12172,6 +12173,7 @@ async function captureForPdf(elem) {
   elem.style.top = '0';
   elem.style.left = '0';
   elem.style.zIndex = '9999';
+  elem.style.transform = 'scale(1)'; // ✅ html2canvas가 요소 크기를 0으로 계산하는 것을 방지
   
   // ✅ 이미지 로드 대기
   const images = elem.querySelectorAll('img');
@@ -12209,6 +12211,7 @@ async function captureForPdf(elem) {
   elem.style.top = originalTop;
   elem.style.left = originalLeft;
   elem.style.zIndex = originalZIndex;
+  elem.style.transform = originalTransform;
   
   // ✅ 캔버스 크기 확인
   if (canvas.width === 0 || canvas.height === 0) {
@@ -12287,10 +12290,11 @@ async function exportAsPdf(options = {}) {
   const imgH = pageH - margin * 2;
 
   // html2canvas → JPEG → Worker 로 전송
+  let capturedCount = 0;
   for (const item of captureList) {
     const elem = document.getElementById(item.id);
     if (!elem) {
-      console.warn(`⚠️ 컨테이너를 찾을 수 없습니다: ${item.id}`);
+      console.warn(`⚠️ 컨테이너를 찾을 수 없습니다: ${item.id} (조건부 생성 컨테이너일 수 있음)`);
       continue;
     }
 
@@ -12322,6 +12326,9 @@ async function exportAsPdf(options = {}) {
         addPageAfter: item.addPageAfter
       });
 
+      capturedCount++;
+      console.log(`✅ ${item.id} 캡처 완료`);
+
       // GC
       canvas.width = 1;
       canvas.height = 1;
@@ -12331,6 +12338,13 @@ async function exportAsPdf(options = {}) {
       continue;
     }
   }
+  
+  // ✅ 최소 1개 이상 캡처되었는지 확인
+  if (capturedCount === 0) {
+    throw new Error('PDF 생성 실패: 캡처된 페이지가 없습니다. 모든 컨테이너를 찾을 수 없거나 캡처에 실패했습니다.');
+  }
+  
+  console.log(`✅ 총 ${capturedCount}개 페이지 캡처 완료`);
 
   send({ type: "finalize" });
 
@@ -12445,15 +12459,12 @@ function setupPDFButton() {
         cause: error.cause
       });
       
-      // 더 자세한 에러 메시지
-      let errorMsg = "PDF 생성에 실패했습니다.\n\n";
-      errorMsg += `에러: ${error.message || '알 수 없는 오류'}\n\n`;
-      errorMsg += "가능한 원인:\n";
-      errorMsg += "1. 라이브러리 로드 실패 (jsPDF, html2canvas)\n";
-      errorMsg += "2. 이미지/캔버스 생성 실패\n";
-      errorMsg += "3. 메모리 부족\n";
-      errorMsg += "4. 브라우저 호환성 문제\n\n";
-      errorMsg += "콘솔을 확인하여 자세한 에러 정보를 확인하세요.";
+      // ✅ 더 구체적인 에러 메시지
+      const userMessage = error.message.includes('캔버스 생성 실패') || error.message.includes('Blob') || error.message.includes('캡처된 페이지가 없습니다')
+          ? "❌ PDF 생성에 필요한 이미지 캡처 중 오류가 발생했습니다.\n\n가능한 원인:\n- 이미지 로드 실패\n- 폰트 문제\n- 컨테이너를 찾을 수 없음\n\n콘솔을 확인하여 자세한 정보를 확인하세요."
+          : error.message.includes('Worker')
+          ? "❌ PDF Worker 로드 실패: " + error.message
+          : "❌ PDF 생성 중 알 수 없는 오류가 발생했습니다: " + (error.message || '알 수 없는 오류');
       
       alert(errorMsg);
       const btn = document.getElementById("btnPDF");
