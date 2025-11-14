@@ -4358,7 +4358,8 @@ async function analyzeMusclesWithDB(fullMetrics = null, orientation = null) {
     }
     
     // fullMetrics를 평탄화하여 analyzeWithDB에 전달
-    const flatMetrics = flattenFullMetrics(fullMetrics);
+    // ✅ orientation을 전달하여 측면/정면 메트릭 필터링
+    const flatMetrics = flattenFullMetrics(fullMetrics, orientation);
     if (flatMetrics.PTA == null && fullMetrics.PTA) {
       const ptaSigned = fullMetrics.PTA.value_signed;
       if (typeof ptaSigned === 'number' && !Number.isNaN(ptaSigned)) {
@@ -9431,7 +9432,8 @@ sideMetrics.orientation = "side";
 let sideAnalysis = null;
 try {
   if (Object.keys(sideMetrics).length > 0) {
-    const flatSideMetrics = flattenFullMetrics(sideMetrics);
+    // ✅ orientation을 전달하여 측면 메트릭만 필터링
+    const flatSideMetrics = flattenFullMetrics(sideMetrics, "side");
     sideAnalysis = await analyzeWithDB(flatSideMetrics, "side");
   }
 } catch (err) {
@@ -9672,7 +9674,8 @@ frontMetrics.orientation = "front";
 let frontAnalysis = null;
 try {
   if (Object.keys(frontMetrics).length > 0) {
-    const flatFrontMetrics = flattenFullMetrics(frontMetrics);
+    // ✅ orientation을 전달하여 정면 메트릭만 필터링
+    const flatFrontMetrics = flattenFullMetrics(frontMetrics, "front");
     frontAnalysis = await analyzeWithDB(flatFrontMetrics, "front");
   }
 } catch (err) {
@@ -11434,13 +11437,27 @@ function extractMetricValue(entry) {
   return null;
 }
 
-function flattenFullMetrics(fullMetrics) {
+function flattenFullMetrics(fullMetrics, orientation = null) {
   const flat = {};
   if (!fullMetrics || typeof fullMetrics !== 'object') return flat;
+  
+  // ✅ orientation에 따라 필터링할 메트릭 키 정의
+  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS'];
+  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'Tibial_Angle', 'Tibial', 'GSB', 'HPA', 'PDS'];
+  
   for (const [rawKey, metric] of Object.entries(fullMetrics)) {
     const value = extractMetricValue(metric);
     if (value == null) continue;
     const canonicalKey = METRIC_KEY_ALIASES[rawKey] || rawKey;
+    
+    // ✅ orientation이 지정되면 해당 방향의 메트릭만 포함
+    if (orientation === "front") {
+      if (!frontMetricKeys.includes(canonicalKey)) continue;
+    } else if (orientation === "side") {
+      if (!sideMetricKeys.includes(canonicalKey)) continue;
+    }
+    // orientation이 null이면 모든 메트릭 포함 (하위 호환성)
+    
     flat[canonicalKey] = value;
   }
   return flat;
