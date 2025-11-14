@@ -4302,32 +4302,9 @@ function computeScoreFromFullMetrics(fullMetrics) {
     }
   }
   
-  // PDS 기반으로 체형 종합 점수 계산 (일관성 유지)
-  // PDS는 각 지표의 상태를 합산한 점수 (낮을수록 좋음)
-  // 체형 종합 점수는 높을수록 좋으므로 변환 필요
-  const pds = fullMetrics.PDS?.value;
-  let score;
-  
-  if(pds != null && !isNaN(pds)) {
-    // PDS를 체형 종합 점수로 변환
-    // PDS 0-10: normal → 90-100점
-    // PDS 10-15: mild → 70-90점
-    // PDS 15-20: moderate → 50-70점
-    // PDS 20+: severe → 0-50점
-    if(pds <= 10) {
-      score = Math.round(100 - (pds * 1.0)); // 0-10 → 100-90점
-    } else if(pds <= 15) {
-      score = Math.round(90 - ((pds - 10) * 4)); // 10-15 → 90-70점
-    } else if(pds <= 20) {
-      score = Math.round(70 - ((pds - 15) * 4)); // 15-20 → 70-50점
-    } else {
-      score = Math.round(Math.max(0, 50 - ((pds - 20) * 2.5))); // 20+ → 50-0점
-    }
-    score = clamp(score, 0, 100);
-  } else {
-    // PDS가 없으면 기존 방식 사용 (감점 방식)
-    score = Math.round(clamp(100 - penalties, 0, 100));
-  }
+  // ✅ 감점 근거에 기반하여 체형 종합 점수 계산
+  // 항상 계산된 penalties를 기반으로 점수를 산출하여 감점 근거와 일치시킴
+  const score = Math.round(clamp(100 - penalties, 0, 100));
   
   return { score, reasons, penalties };
 }
