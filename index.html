@@ -13141,11 +13141,24 @@ let detectors = { front: null, side: null };
 
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 // DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
+let initializeAppCalled = false;
+
 function initializeApp() {
-  console.log("=== DOMContentLoaded 이벤트 발생 ===");
+  // 중복 호출 방지
+  if (initializeAppCalled) {
+    console.log("🚫 initializeApp이 이미 호출되었습니다. 중복 호출을 무시합니다.");
+    return;
+  }
+  initializeAppCalled = true;
   
-  // sessions 객체 초기화 (안전하게)
-  if(typeof window.sessions === 'undefined') {
+  console.log("=== initializeApp 시작 ===");
+  
+  // sessions 객체 초기화 (안전하게 - 구조가 없거나 불완전하면 무조건 초기화)
+  if(typeof window.sessions === 'undefined' || 
+     !window.sessions || 
+     !window.sessions.Before || 
+     !window.sessions.After) {
+    console.log("🔄 sessions 객체 초기화 중...");
     // sessions를 전역으로 노출
     const sessions = {
       Before: {
@@ -13171,7 +13184,10 @@ function initializeApp() {
     // sessions를 window에 명시적으로 할당 (전역 접근 가능하도록)
     if(typeof window !== 'undefined') {
       window.sessions = sessions;
+      console.log("✅ sessions 객체 초기화 완료");
     }
+  } else {
+    console.log("ℹ️ sessions 객체가 이미 초기화되어 있습니다.");
   }
   
   // 파일 업로드 설정 (가장 먼저)
@@ -13270,8 +13286,34 @@ function initializeApp() {
   // 세션별 포즈 정보 저장 (기존 sessions 객체와 통합)
   // sessions 객체에 orientation과 landmarks 정보 추가
   if(!window.sessions || !window.sessions.Before || !window.sessions.After) {
-    console.error("sessions 객체가 아직 초기화되지 않았습니다.");
-    return;
+    console.warn("⚠️ sessions 객체가 아직 초기화되지 않았습니다. 재시도 중...");
+    // sessions 재초기화 시도
+    if(typeof window !== 'undefined') {
+      window.sessions = {
+        Before: {
+          imgSide:null,
+          imgFront:null,
+          sidePoints:new Map(),
+          frontPoints:new Map(),
+          metrics:{},
+          score:null,
+          analysis:null
+        },
+        After: {
+          imgSide:null,
+          imgFront:null,
+          sidePoints:new Map(),
+          frontPoints:new Map(),
+          metrics:{},
+          score:null,
+          analysis:null
+        }
+      };
+      console.log("✅ sessions 객체 재초기화 완료");
+    } else {
+      console.error("❌ window 객체가 없습니다. 초기화를 중단합니다.");
+      return;
+    }
   }
   
   if(!window.sessions.Before.poseData) {
