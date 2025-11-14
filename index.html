@@ -3896,7 +3896,7 @@ function computeAll() {
       updateDisplay();
       updateCompare();
       displayFrontAnalysis(frontMetrics);
-      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+      updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     });
     
     // ✅ 정면 분석 시에는 골반 분석 실행하지 않음 (측면 지표 필요)
@@ -3987,7 +3987,7 @@ function computeAll() {
       updateDisplay();
       updateCompare();
       displayFrontAnalysis(frontMetrics);
-      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+      updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     });
     
     // ✅ 정면 분석 시에는 골반 분석 실행하지 않음 (측면 지표 필요)
@@ -5478,6 +5478,29 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   // ✅ orientation 확인하여 정면/측면 구분
   const orientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
   
+  // ✅ scoreData 처리: 객체일 수도 있고 숫자일 수도 있음
+  let scoreResult = null;
+  if (typeof scoreData === 'object' && scoreData !== null) {
+    // scoreData가 객체인 경우 (computeScoreFromFullMetrics 반환값)
+    scoreResult = scoreData;
+  } else if (typeof scoreData === 'number') {
+    // scoreData가 숫자인 경우 (기존 방식)
+    scoreResult = { score: scoreData, reasons: [], penalties: 0 };
+  } else {
+    // scoreData가 null이거나 undefined인 경우, 세션에서 가져오기
+    const sessionScore = S.score;
+    if (typeof sessionScore === 'object' && sessionScore !== null) {
+      scoreResult = sessionScore;
+    } else if (typeof sessionScore === 'number') {
+      scoreResult = { score: sessionScore, reasons: [], penalties: 0 };
+    } else {
+      // fullMetrics에서 점수 계산 시도
+      if (Object.keys(fullMetrics).length > 0) {
+        scoreResult = computeScoreFromFullMetrics(fullMetrics);
+      }
+    }
+  }
+  
   if(allMetricsList && fullMetrics) {
     // 측면 항목 (파란색 #7c9cff) - HPA, Tibial 제외 (정면 지표)
     const sideMetricsOrder = [
@@ -5591,16 +5614,15 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     }
   }
   
-  // 전체 분석 항목 기준으로 점수 재계산 (fullMetrics가 있으면)
-  if(fullMetrics && Object.keys(fullMetrics).length > 0) {
-    const scoreResult = computeScoreFromFullMetrics(fullMetrics);
-    if(scoreResult.score != null) {
-      scoreData = scoreResult;
-    }
+  // ✅ 전체 분석 항목 기준으로 점수 재계산 (fullMetrics가 있으면)
+  // scoreResult가 이미 계산되었으면 사용, 없으면 재계산
+  if (!scoreResult && fullMetrics && Object.keys(fullMetrics).length > 0) {
+    scoreResult = computeScoreFromFullMetrics(fullMetrics);
   }
   
-  if(scoreData && scoreData.score != null) {
-    const score = scoreData.score;
+  // ✅ scoreResult 사용 (scoreData 대신)
+  if(scoreResult && scoreResult.score != null) {
+    const score = scoreResult.score;
     scoreEl.textContent = score;
     
     // 점수 색상
@@ -5613,8 +5635,8 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     }
     
     // 점수 근거
-    if(scoreData.reasons && Array.isArray(scoreData.reasons) && scoreData.reasons.length > 0) {
-      reasonEl.textContent = "감점 근거: " + scoreData.reasons.join(", ");
+    if(scoreResult.reasons && Array.isArray(scoreResult.reasons) && scoreResult.reasons.length > 0) {
+      reasonEl.textContent = "감점 근거: " + scoreResult.reasons.join(", ");
     } else {
       reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
     }
@@ -14360,15 +14382,16 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_asis 추정 (R_acromion 기준): (${keypointMap['R_asis'].x.toFixed(3)}, ${keypointMap['R_asis'].y.toFixed(3)})`);
     }
     
-    // 무릎과 발목은 골반을 기준으로 추정 (이미지 높이에 비례)
+    // ✅ 무릎과 발목은 MediaPipe keypoints를 우선 사용 (정확도 향상)
+    // MediaPipe MoveNet: keypoints[25]=left_knee, keypoints[26]=right_knee, keypoints[27]=left_ankle, keypoints[28]=right_ankle
     const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
-    if (leftKneePoint) {
+    if (leftKneePoint && leftKneePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤 (0.1 → 0.05)
       keypointMap['L_knee'] = leftKneePoint;
       console.log(`✅ L_knee 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_asis']) {
       const hipY = keypointMap['L_asis'].y;
-      // 정규화된 좌표인 경우 0.06 정도 아래, 픽셀인 경우 6% 아래 (3배 올리기: 0.18 → 0.06)
-      const kneeOffset = hipY < 1 ? 0.06 : (hipY * 0.067);
+      // ✅ 골반에서 무릎까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
+      const kneeOffset = hipY < 1 ? 0.30 : (hipY * 0.35);
       keypointMap['L_knee'] = {
         x: keypointMap['L_asis'].x,
         y: hipY + kneeOffset,
@@ -14378,7 +14401,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['L_acromion']) {
       // 골반이 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['L_acromion'].y;
-      const kneeOffset = shoulderY < 1 ? 0.45 : (shoulderY * 0.5);
+      const kneeOffset = shoulderY < 1 ? 0.50 : (shoulderY * 0.55);
       keypointMap['L_knee'] = {
         x: keypointMap['L_acromion'].x,
         y: shoulderY + kneeOffset,
@@ -14388,13 +14411,13 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const rightKneePoint = makePoint(mpScreenRightKnee, 'R_knee');
-    if (rightKneePoint) {
+    if (rightKneePoint && rightKneePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤
       keypointMap['R_knee'] = rightKneePoint;
       console.log(`✅ R_knee 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_asis']) {
       const hipY = keypointMap['R_asis'].y;
-      // 정규화된 좌표인 경우 0.06 정도 아래, 픽셀인 경우 6% 아래 (3배 올리기: 0.18 → 0.06)
-      const kneeOffset = hipY < 1 ? 0.06 : (hipY * 0.067);
+      // ✅ 골반에서 무릎까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
+      const kneeOffset = hipY < 1 ? 0.30 : (hipY * 0.35);
       keypointMap['R_knee'] = {
         x: keypointMap['R_asis'].x,
         y: hipY + kneeOffset,
@@ -14404,7 +14427,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['R_acromion']) {
       // 골반이 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['R_acromion'].y;
-      const kneeOffset = shoulderY < 1 ? 0.45 : (shoulderY * 0.5);
+      const kneeOffset = shoulderY < 1 ? 0.50 : (shoulderY * 0.55);
       keypointMap['R_knee'] = {
         x: keypointMap['R_acromion'].x,
         y: shoulderY + kneeOffset,
@@ -14414,13 +14437,13 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'L_ankle');
-    if (leftAnklePoint) {
+    if (leftAnklePoint && leftAnklePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤
       keypointMap['L_ankle'] = leftAnklePoint;
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['L_knee']) {
       const kneeY = keypointMap['L_knee'].y;
-      // 정규화된 좌표인 경우 0.067 정도 아래, 픽셀인 경우 6.7% 아래 (3배 올리기: 0.2 → 0.067)
-      const ankleOffset = kneeY < 1 ? 0.067 : (kneeY * 0.073);
+      // ✅ 무릎에서 발목까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
+      const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_knee'].x,
         y: kneeY + ankleOffset,
@@ -14430,7 +14453,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['L_asis']) {
       // 무릎이 없으면 골반을 기준으로 추정
       const hipY = keypointMap['L_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.4 : (hipY * 0.45);
+      const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_asis'].x,
         y: hipY + ankleOffset,
@@ -14440,7 +14463,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['L_acromion']) {
       // 골반도 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['L_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.65 : (shoulderY * 0.7);
+      const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
       keypointMap['L_ankle'] = {
         x: keypointMap['L_acromion'].x,
         y: shoulderY + ankleOffset,
@@ -14450,13 +14473,13 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const rightAnklePoint = makePoint(mpScreenRightAnkle, 'R_ankle');
-    if (rightAnklePoint) {
+    if (rightAnklePoint && rightAnklePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤
       keypointMap['R_ankle'] = rightAnklePoint;
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
     } else if (keypointMap['R_knee']) {
       const kneeY = keypointMap['R_knee'].y;
-      // 정규화된 좌표인 경우 0.067 정도 아래, 픽셀인 경우 6.7% 아래 (3배 올리기: 0.2 → 0.067)
-      const ankleOffset = kneeY < 1 ? 0.067 : (kneeY * 0.073);
+      // ✅ 무릎에서 발목까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
+      const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_knee'].x,
         y: kneeY + ankleOffset,
@@ -14466,7 +14489,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['R_asis']) {
       // 무릎이 없으면 골반을 기준으로 추정
       const hipY = keypointMap['R_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.4 : (hipY * 0.45);
+      const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_asis'].x,
         y: hipY + ankleOffset,
@@ -14476,7 +14499,7 @@ function mapPoseToKeypoints(pose, orientation) {
     } else if (keypointMap['R_acromion']) {
       // 골반도 없으면 어깨를 기준으로 추정
       const shoulderY = keypointMap['R_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.65 : (shoulderY * 0.7);
+      const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
       keypointMap['R_ankle'] = {
         x: keypointMap['R_acromion'].x,
         y: shoulderY + ankleOffset,
@@ -14485,11 +14508,13 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     }
     
-    // tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용: ASIS-KNEE-Tibial tub)
-    // 좌측 tibial tub (무릎 아래 약간, 3배 올리기)
+    // ✅ tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용: ASIS-KNEE-Tibial tub)
+    // 경골 결절은 무릎 바로 아래 약 5-8% 위치에 있어야 함
+    // 좌측 tibial tub
     if (keypointMap['L_knee']) {
       const kneeY = keypointMap['L_knee'].y;
-      const tibialOffset = kneeY < 1 ? 0.01 : (kneeY * 0.017); // 무릎 아래 1~1.7% (3배 올리기: 0.03 → 0.01)
+      // ✅ 무릎 아래 5-8% 위치 (더 정확한 비율)
+      const tibialOffset = kneeY < 1 ? 0.06 : (kneeY * 0.07);
       keypointMap['L_tibial_tub'] = {
         x: keypointMap['L_knee'].x,
         y: kneeY + tibialOffset,
@@ -14498,10 +14523,11 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_tibial_tub 매핑 (L_knee 기준): (${keypointMap['L_tibial_tub'].x.toFixed(3)}, ${keypointMap['L_tibial_tub'].y.toFixed(3)})`);
     }
     
-    // 우측 tibial tub (무릎 아래 약간, 3배 올리기)
+    // 우측 tibial tub
     if (keypointMap['R_knee']) {
       const kneeY = keypointMap['R_knee'].y;
-      const tibialOffset = kneeY < 1 ? 0.01 : (kneeY * 0.017); // 무릎 아래 1~1.7% (3배 올리기: 0.03 → 0.01)
+      // ✅ 무릎 아래 5-8% 위치 (더 정확한 비율)
+      const tibialOffset = kneeY < 1 ? 0.06 : (kneeY * 0.07);
       keypointMap['R_tibial_tub'] = {
         x: keypointMap['R_knee'].x,
         y: kneeY + tibialOffset,
