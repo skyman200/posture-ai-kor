@@ -24,7 +24,9 @@
   position: absolute !important;
   left: -9999px !important;
   top: 0 !important;
-  width: 520px !important;
+  /* 🛠️ 수정: 너비 고정(520px) 제거 및 100%로 변경하여 잘림 문제 해결 */
+  width: 100% !important;
+  max-width: 1000px !important; /* PDF 생성 시 최대 너비로 설정하여 안전성 확보 */
   padding: 30px !important;
   background: white !important;
   font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif !important;
@@ -33,6 +35,7 @@
   z-index: -1 !important;
   box-sizing: border-box !important;
   visibility: visible !important;  /* 자식은 보이게 */
+  display: block !important;      /* ✅ display: none 대신 block 사용 (잘림 방지) */
 }
 
 .pdf-safe * {
@@ -12754,6 +12757,9 @@ async function captureForPdf(elem) {
   elem.style.setProperty('z-index', '9999', 'important');
   elem.style.setProperty('transform', 'scale(1)', 'important');
   elem.style.setProperty('display', 'block', 'important');
+  // ✅ A4 용지 너비에 맞게 강제 설정 (794px = A4 너비, CSS !important 우회)
+  elem.style.setProperty('width', `${width}px`, 'important');
+  elem.style.setProperty('max-width', `${width}px`, 'important');
   
   // ✅ 추가: 모든 자식 요소도 opacity 보정
   const allChildren = elem.querySelectorAll('*');
@@ -12809,9 +12815,10 @@ async function captureForPdf(elem) {
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => setTimeout(res, 200)); // 100ms → 200ms로 증가
 
-  // ✅ html2canvas 옵션 최적화
+  // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정)
+  // scale을 1.5로 낮춰서 메모리 절약 및 PDF 크기 최적화
   const canvas = await html2canvas(elem, {
-    scale: 2,
+    scale: 1.5,  // 2 → 1.5로 낮춤 (메모리 절약 + PDF 크기 최적화)
     backgroundColor: "#ffffff",
     useCORS: true,
     allowTaint: false,
@@ -12821,6 +12828,8 @@ async function captureForPdf(elem) {
     height: height,
     removeContainer: false, // 컨테이너 제거 방지
     imageTimeout: 15000, // 이미지 로드 타임아웃 15초
+    windowWidth: width,  // ✅ 명시적 너비 설정
+    windowHeight: height, // ✅ 명시적 높이 설정
     onclone: (clonedDoc) => {
       // 복제된 문서에서도 스타일 보정
       const clonedElem = clonedDoc.getElementById(elem.id);
@@ -12828,6 +12837,13 @@ async function captureForPdf(elem) {
         clonedElem.style.opacity = '1';
         clonedElem.style.visibility = 'visible';
         clonedElem.style.transform = 'scale(1)';
+        clonedElem.style.display = 'block'; // ✅ display: block 보장
+        // ✅ A4 용지 너비에 맞게 설정 (잘림 방지)
+        clonedElem.style.width = `${width}px`;
+        clonedElem.style.maxWidth = `${width}px`;
+        clonedElem.style.position = 'absolute';
+        clonedElem.style.left = '0';
+        clonedElem.style.top = '0';
       }
     }
   });
@@ -14781,9 +14797,25 @@ async function generateFinalPostureReportPDF() {
         
         console.log(`✅ ${id} 캡처 완료 (크기: ${canvas.width}x${canvas.height})`);
 
-        // ✅ 여러 페이지로 나누어서 추가
+        // ✅ 여러 페이지로 나누어서 추가 (A4 용지에 맞게 자동 축소)
         const imgData = canvas.toDataURL('image/jpeg', 0.85); // PNG → JPEG로 변경 (메모리 절약)
-        const imgHeight = (canvas.height * contentWidth) / canvas.width;
+        
+        // ✅ A4 용지 너비에 맞게 이미지 크기 자동 조정 (잘림 방지)
+        // 캔버스 너비가 contentWidth보다 크면 자동으로 축소
+        const canvasAspectRatio = canvas.width / canvas.height;
+        let imgWidth = contentWidth; // 기본값: 여백 제외한 A4 너비
+        let imgHeight = imgWidth / canvasAspectRatio;
+        
+        // ✅ 캔버스가 너무 넓으면 강제로 축소 (잘림 방지)
+        if (canvas.width > contentWidth) {
+          imgWidth = contentWidth;
+          imgHeight = (canvas.height * imgWidth) / canvas.width;
+        } else {
+          // 캔버스가 작으면 원본 크기 유지 (너무 작아지지 않도록)
+          imgWidth = Math.min(canvas.width, contentWidth);
+          imgHeight = (canvas.height * imgWidth) / canvas.width;
+        }
+        
         let heightLeft = imgHeight;
         let pos = 0;
 
@@ -14795,11 +14827,12 @@ async function generateFinalPostureReportPDF() {
           const sliceH = Math.min(heightLeft, pageHeight - yPos - margin);
           const sliceCanvas = document.createElement('canvas');
           sliceCanvas.width = canvas.width;
-          sliceCanvas.height = (sliceH * canvas.width) / contentWidth;
+          sliceCanvas.height = (sliceH * canvas.width) / imgWidth;
           const ctx = sliceCanvas.getContext('2d');
           ctx.drawImage(canvas, 0, pos, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
 
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, contentWidth, sliceH, undefined, 'FAST');
+          // ✅ PDF에 추가 시 imgWidth 사용 (A4 용지에 맞게 조정된 너비)
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, imgWidth, sliceH, undefined, 'FAST');
           heightLeft -= sliceH;
           pos += sliceCanvas.height;
           yPos += sliceH + 20;
