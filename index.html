@@ -12323,6 +12323,82 @@ async function exportAsPdf(options = {}) {
   const imgW = pageW - margin * 2;
   const imgH = pageH - margin * 2;
 
+  // ✅ 긴 컨테이너를 여러 페이지로 나누는 함수
+  async function addImageToPdf(canvas, containerId, addPageAfter) {
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      console.error(`❌ 캔버스가 유효하지 않습니다: ${containerId}`);
+      return;
+    }
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    if (!dataUrl || dataUrl === 'data:,') {
+      console.error(`❌ 이미지 데이터 생성 실패: ${containerId}`);
+      return;
+    }
+
+    // ✅ 캔버스 높이를 PDF 페이지 높이로 스케일링
+    const canvasAspectRatio = canvas.width / canvas.height;
+    const maxHeight = imgH; // 한 페이지에 들어갈 수 있는 최대 높이
+    let scaledWidth = imgW;
+    let scaledHeight = imgW / canvasAspectRatio;
+
+    // ✅ 컨테이너가 한 페이지를 초과하면 여러 페이지로 나누기
+    if (scaledHeight > maxHeight) {
+      const numPages = Math.ceil(scaledHeight / maxHeight);
+      console.log(`📄 ${containerId}: ${numPages}개 페이지로 분할 (높이: ${scaledHeight.toFixed(0)}px)`);
+      
+      const sourceHeight = canvas.height;
+      const sliceHeight = sourceHeight / numPages;
+      
+      for (let pageIndex = 0; pageIndex < numPages; pageIndex++) {
+        const yOffset = pageIndex * sliceHeight;
+        const currentSliceHeight = Math.min(sliceHeight, sourceHeight - yOffset);
+        
+        // ✅ 캔버스 슬라이스 생성
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = currentSliceHeight;
+        const sliceCtx = sliceCanvas.getContext('2d');
+        sliceCtx.drawImage(canvas, 0, yOffset, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
+        
+        const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.92);
+        const sliceScaledHeight = (currentSliceHeight / sourceHeight) * scaledHeight;
+        
+        // ✅ 각 슬라이스를 PDF 페이지로 추가
+        send({
+          type: "addImage",
+          dataUrl: sliceDataUrl,
+          imageType: "JPEG",
+          x: margin,
+          y: margin,
+          width: scaledWidth,
+          height: Math.min(sliceScaledHeight, maxHeight),
+          addPageAfter: pageIndex < numPages - 1 || (pageIndex === numPages - 1 && addPageAfter)
+        });
+        
+        // GC
+        sliceCanvas.width = 1;
+        sliceCanvas.height = 1;
+      }
+    } else {
+      // ✅ 한 페이지에 들어가는 경우
+      send({
+        type: "addImage",
+        dataUrl,
+        imageType: "JPEG",
+        x: margin,
+        y: margin,
+        width: scaledWidth,
+        height: scaledHeight,
+        addPageAfter: addPageAfter
+      });
+    }
+
+    // GC
+    canvas.width = 1;
+    canvas.height = 1;
+  }
+
   // html2canvas → JPEG → Worker 로 전송
   let capturedCount = 0;
   console.log(`📄 PDF 생성 시작: ${captureList.length}개 컨테이너 캡처 예정`);
@@ -12354,32 +12430,12 @@ async function exportAsPdf(options = {}) {
         console.error(`❌ 캔버스 생성 실패: ${item.id}`);
         continue;
       }
-      
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      
-      if (!dataUrl || dataUrl === 'data:,') {
-        console.error(`❌ 이미지 데이터 생성 실패: ${item.id}`);
-        continue;
-      }
 
-      // Worker에 이미지 전달
-      send({
-        type: "addImage",
-        dataUrl,
-        imageType: "JPEG",
-        x: margin,
-        y: margin,
-        width: imgW,
-        height: imgH,
-        addPageAfter: item.addPageAfter
-      });
+      // ✅ 여러 페이지로 나누어서 추가
+      await addImageToPdf(canvas, item.id, item.addPageAfter);
 
       capturedCount++;
       console.log(`✅ ${item.id} 캡처 완료`);
-
-      // GC
-      canvas.width = 1;
-      canvas.height = 1;
     } catch (err) {
       console.error(`❌ ${item.id} 캡처 실패:`, err);
       // 에러가 나도 다음 페이지 계속 진행
@@ -12516,7 +12572,7 @@ function setupPDFButton() {
       
       alert(userMessage);
       btn.textContent = "📄 PDF 저장 (오류)";
-      btn.disabled = false;
+        btn.disabled = false;
     }
   });
 }
