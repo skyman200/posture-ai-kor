@@ -12678,14 +12678,13 @@ async function captureForPdf(elem) {
   if (originalLeft) elem.style.left = originalLeft;
   if (originalZIndex) elem.style.zIndex = originalZIndex;
   if (originalTransform) elem.style.transform = originalTransform;
-  
+
   // ✅ .pdf-safe 클래스 복원
   if (originalClass && originalClass.includes('pdf-safe')) {
     elem.className = originalClass;
   }
-  
-  // ✅ 자식 요소 스타일 복원
-  const allChildren = elem.querySelectorAll('*');
+
+  // ✅ 자식 요소 스타일 복원 (이미 선언된 allChildren 변수 사용)
   allChildren.forEach(child => {
     if (child.hasAttribute('data-original-opacity')) {
       child.style.opacity = child.getAttribute('data-original-opacity');
@@ -13310,47 +13309,57 @@ function initializeApp() {
     console.error("setupFileUploads 함수를 찾을 수 없습니다.");
   }
   
-  // Reset 버튼 설정
-  if(typeof setupResetButton === 'function') {
-    setupResetButton();
-  } else {
-    console.error("setupResetButton 함수를 찾을 수 없습니다.");
-  }
-  
-  // ✅ 캘리브레이션 버튼들 설정
-  if(typeof setupCalibrateButton === 'function') {
-    setupCalibrateButton();
-  } else {
-    console.error("setupCalibrateButton 함수를 찾을 수 없습니다.");
-  }
-  
-  if(typeof setupCalibrationButtons === 'function') {
-    setupCalibrationButtons();
-  } else {
-    console.error("setupCalibrationButtons 함수를 찾을 수 없습니다.");
-  }
-  
-  // ✅ 캘리브레이션 클릭 핸들러 설정 (cv 캔버스가 준비된 후)
-  if(typeof setupCalibrationClickHandler === 'function') {
-    setTimeout(() => {
-      setupCalibrationClickHandler();
-    }, 200); // cv 캔버스 초기화 대기
-  } else {
-    console.error("setupCalibrationClickHandler 함수를 찾을 수 없습니다.");
-  }
-  
-  // PDF 및 이미지 저장 버튼 초기화
-  if(typeof setupPDFButton === 'function') {
-    setupPDFButton();
-  } else {
-    console.error("setupPDFButton 함수를 찾을 수 없습니다.");
-  }
-  
-  if(typeof setupImageButton === 'function') {
-    setupImageButton();
-  } else {
-    console.error("setupImageButton 함수를 찾을 수 없습니다.");
-  }
+  // ✅ 모든 설정 함수들을 지연 실행 (함수 정의 완료 대기)
+  setTimeout(() => {
+    // 버튼 이벤트 핸들러 초기화
+    if(typeof initSessionButtons === 'function') {
+      initSessionButtons();
+    } else {
+      console.error("initSessionButtons 함수를 찾을 수 없습니다.");
+    }
+
+    // Reset 버튼 설정
+    if(typeof setupResetButton === 'function') {
+      setupResetButton();
+    } else {
+      console.error("setupResetButton 함수를 찾을 수 없습니다.");
+    }
+
+    // ✅ 캘리브레이션 버튼들 설정
+    if(typeof setupCalibrateButton === 'function') {
+      setupCalibrateButton();
+    } else {
+      console.error("setupCalibrateButton 함수를 찾을 수 없습니다.");
+    }
+
+    if(typeof setupCalibrationButtons === 'function') {
+      setupCalibrationButtons();
+    } else {
+      console.error("setupCalibrationButtons 함수를 찾을 수 없습니다.");
+    }
+
+    // ✅ 캘리브레이션 클릭 핸들러 설정 (cv 캔버스가 준비된 후)
+    if(typeof setupCalibrationClickHandler === 'function') {
+      setTimeout(() => {
+        setupCalibrationClickHandler();
+      }, 200); // cv 캔버스 초기화 대기
+    } else {
+      console.error("setupCalibrationClickHandler 함수를 찾을 수 없습니다.");
+    }
+
+    // PDF 및 이미지 저장 버튼 초기화
+    if(typeof setupPDFButton === 'function') {
+      setupPDFButton();
+    } else {
+      console.error("setupPDFButton 함수를 찾을 수 없습니다.");
+    }
+
+    if(typeof setupImageButton === 'function') {
+      setupImageButton();
+    } else {
+      console.error("setupImageButton 함수를 찾을 수 없습니다.");
+    }
+  }, 100); // 모든 함수들이 정의될 때까지 대기
   
   // AI 분석 버튼 초기화
   const btnAIAnalysis = document.getElementById("btnAIAnalysis");
@@ -13436,9 +13445,6 @@ function initializeApp() {
     window.sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
   }
 
-  // 버튼 이벤트 핸들러 초기화
-  initSessionButtons();
-  
   // orientation 버튼 상태 설정
   const orientation = window.sessions[cur].poseData?.orientation || "side";
   const btnSide = document.getElementById("btnOrientationSide");
