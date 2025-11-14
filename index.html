@@ -14448,12 +14448,21 @@ async function generateFinalPostureReportPDF() {
     const memberName = localStorage.getItem('memberName') || '';
     const appName = 'DIT 자세 분석 AI';
     
-    await captureReportCanvases({
+    console.log("📄 컨테이너 생성 중...");
+    // 타임아웃 추가 (60초)
+    const capturePromise = captureReportCanvases({
       centerName,
       memberName,
       appName,
       logoUrl: null
     });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("컨테이너 생성 타임아웃 (60초 초과)")), 60000);
+    });
+    
+    await Promise.race([capturePromise, timeoutPromise]);
+    console.log("✅ 컨테이너 생성 완료");
 
     const pdf = new jsPDF('p', 'pt', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -14466,9 +14475,14 @@ async function generateFinalPostureReportPDF() {
 
     // 헬퍼: 요소 → 캔버스 → PDF (자동 분할)
     async function addSectionToPDF(element, title = "", options = {}) {
-      if (!element || element.offsetHeight === 0) return 0;
+      if (!element || element.offsetHeight === 0) {
+        console.warn(`⚠️ 요소가 없거나 높이가 0입니다: ${title || '알 수 없음'}`);
+        return 0;
+      }
 
       const { scale = 2, addPageAfter = true } = options;
+      const elementId = element.id || title || '알 수 없음';
+      console.log(`📸 PDF 캡처 중: ${elementId}`);
 
       const wrapper = document.createElement('div');
       wrapper.style.position = 'absolute';
@@ -14499,17 +14513,33 @@ async function generateFinalPostureReportPDF() {
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
 
-      const canvas = await html2canvas(wrapper, {
-        scale,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: wrapper.scrollWidth,
-        height: wrapper.scrollHeight + 50,
-        windowWidth: wrapper.scrollWidth,
-        windowHeight: wrapper.scrollHeight + 50
-      });
-
-      document.body.removeChild(wrapper);
+      let canvas;
+      try {
+        // html2canvas 타임아웃 추가 (30초)
+        const canvasPromise = html2canvas(wrapper, {
+          scale,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          width: wrapper.scrollWidth,
+          height: wrapper.scrollHeight + 50,
+          windowWidth: wrapper.scrollWidth,
+          windowHeight: wrapper.scrollHeight + 50,
+          logging: false
+        });
+        
+        const canvasTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`html2canvas 타임아웃: ${elementId}`)), 30000);
+        });
+        
+        canvas = await Promise.race([canvasPromise, canvasTimeout]);
+        console.log(`✅ 캡처 완료: ${elementId} (${canvas.width}x${canvas.height})`);
+        
+        document.body.removeChild(wrapper);
+      } catch (err) {
+        document.body.removeChild(wrapper);
+        console.error(`❌ 캡처 실패: ${elementId}`, err);
+        throw err;
+      }
 
       const imgData = canvas.toDataURL('image/png');
       const imgHeight = (canvas.height * contentWidth) / canvas.width;
@@ -14569,74 +14599,46 @@ async function generateFinalPostureReportPDF() {
       });
     }
 
-    // ================== page1Container: 표지 ==================
-    const page1Container = document.getElementById('page1Container');
-    if (page1Container) {
-      await addSectionToPDF(page1Container, "", { addPageAfter: true });
-    } else {
-      // 폴백: 간단한 표지 생성
-      pdf.setFontSize(28);
-      pdf.text("AI 자세 분석 보고서", pageWidth / 2, 120, { align: 'center' });
-      pdf.setFontSize(16);
-      pdf.text(`회원명: ${memberName || '미입력'}`, pageWidth / 2, 170, { align: 'center' });
-      pdf.text(`센터명: ${centerName || '미입력'}`, pageWidth / 2, 200, { align: 'center' });
-      pdf.text(`분석일: ${new Date().toLocaleDateString('ko-KR')}`, pageWidth / 2, 230, { align: 'center' });
-      pdf.addPage();
-      yPos = margin;
-    }
+    // 페이지별 캡처 (각 페이지는 독립적으로 처리하여 하나가 실패해도 계속 진행)
+    const pages = [
+      { id: 'page1Container', title: '', addPageAfter: true, name: '표지' },
+      { id: 'sideImageContainer', title: '', addPageAfter: true, name: '측면 사진' },
+      { id: 'sideReportContainer', title: '측면 자세 분석 리포트', addPageAfter: true, name: '측면 리포트' },
+      { id: 'frontImageContainer', title: '', addPageAfter: true, name: '정면 사진' },
+      { id: 'frontReportContainer', title: '정면 자세 분석 리포트', addPageAfter: true, name: '정면 리포트' },
+      { id: 'page4Container', title: '종합 자세 분석 리포트', addPageAfter: true, name: '종합 분석' },
+      { id: 'page5Container', title: '필라테스 세션 추천', addPageAfter: true, name: '필라테스 추천' },
+      { id: 'page6Container', title: 'AI 자세 심층 분석', addPageAfter: true, name: 'AI 심층 분석' },
+      { id: 'page8Container', title: '체형 유형 분석', addPageAfter: true, name: '체형 유형 분석' },
+      { id: 'page7Container', title: '', addPageAfter: false, name: '최종 전략' }
+    ];
 
-    // ================== sideImageContainer: 측면 사진 ==================
-    const sideImageContainer = document.getElementById('sideImageContainer');
-    if (sideImageContainer) {
-      await addSectionToPDF(sideImageContainer, "", { addPageAfter: true });
-    }
-
-    // ================== sideReportContainer: 측면 리포트 ==================
-    const sideReportContainer = document.getElementById('sideReportContainer');
-    if (sideReportContainer) {
-      await addSectionToPDF(sideReportContainer, "측면 자세 분석 리포트");
-    }
-
-    // ================== frontImageContainer: 정면 사진 ==================
-    const frontImageContainer = document.getElementById('frontImageContainer');
-    if (frontImageContainer) {
-      await addSectionToPDF(frontImageContainer, "", { addPageAfter: true });
-    }
-
-    // ================== frontReportContainer: 정면 리포트 ==================
-    const frontReportContainer = document.getElementById('frontReportContainer');
-    if (frontReportContainer) {
-      await addSectionToPDF(frontReportContainer, "정면 자세 분석 리포트");
-    }
-
-    // ================== page4Container: 종합 분석 ==================
-    const page4Container = document.getElementById('page4Container');
-    if (page4Container) {
-      await addSectionToPDF(page4Container, "종합 자세 분석 리포트");
-    }
-
-    // ================== page5Container: 필라테스 세션 ==================
-    const page5Container = document.getElementById('page5Container');
-    if (page5Container) {
-      await addSectionToPDF(page5Container, "필라테스 세션 추천", { addPageAfter: true });
-    }
-
-    // ================== page6Container: AI 심층 분석 ==================
-    const page6Container = document.getElementById('page6Container');
-    if (page6Container) {
-      await addSectionToPDF(page6Container, "AI 자세 심층 분석");
-    }
-
-    // ================== page8Container: 체형 유형 분석 ==================
-    const page8Container = document.getElementById('page8Container');
-    if (page8Container) {
-      await addSectionToPDF(page8Container, "체형 유형 분석");
-    }
-
-    // ================== page7Container: 최종 전략 (마지막 페이지) ==================
-    const page7Container = document.getElementById('page7Container');
-    if (page7Container) {
-      await addSectionToPDF(page7Container, "", { addPageAfter: false }); // 마지막 페이지
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      try {
+        console.log(`📄 페이지 ${i + 1}/${pages.length}: ${page.name} 처리 중...`);
+        const element = document.getElementById(page.id);
+        if (element) {
+          await addSectionToPDF(element, page.title, { addPageAfter: page.addPageAfter });
+          console.log(`✅ 페이지 ${i + 1}/${pages.length}: ${page.name} 완료`);
+        } else {
+          console.warn(`⚠️ 페이지 ${i + 1}/${pages.length}: ${page.name} 요소를 찾을 수 없습니다. 건너뜁니다.`);
+          if (page.id === 'page1Container') {
+            // 표지 폴백
+            pdf.setFontSize(28);
+            pdf.text("AI 자세 분석 보고서", pageWidth / 2, 120, { align: 'center' });
+            pdf.setFontSize(16);
+            pdf.text(`회원명: ${memberName || '미입력'}`, pageWidth / 2, 170, { align: 'center' });
+            pdf.text(`센터명: ${centerName || '미입력'}`, pageWidth / 2, 200, { align: 'center' });
+            pdf.text(`분석일: ${new Date().toLocaleDateString('ko-KR')}`, pageWidth / 2, 230, { align: 'center' });
+            pdf.addPage();
+            yPos = margin;
+          }
+        }
+      } catch (pageErr) {
+        console.error(`❌ 페이지 ${i + 1}/${pages.length}: ${page.name} 처리 실패`, pageErr);
+        // 계속 진행
+      }
     }
 
     // ✅ PDF 생성 완료 후 컨테이너 정리
@@ -14651,15 +14653,19 @@ async function generateFinalPostureReportPDF() {
     });
 
     // 저장
+    console.log("💾 PDF 저장 중...");
     const finalCenterName = centerName || 'DIT';
     const finalMemberName = memberName || '회원';
     const filename = `${finalCenterName}_${finalMemberName}_자세분석리포트_${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(filename);
+    console.log(`✅ PDF 저장 완료: ${filename}`);
     alert(`PDF가 성공적으로 생성되었습니다!\n${filename}`);
 
   } catch (err) {
-    console.error("PDF 생성 실패:", err);
-    alert("PDF 생성 중 오류 발생: " + err.message);
+    console.error("❌ PDF 생성 실패:", err);
+    console.error("에러 스택:", err.stack);
+    const errorMsg = err.message || '알 수 없는 오류';
+    alert(`PDF 생성 중 오류 발생:\n${errorMsg}\n\n콘솔을 확인하세요.`);
   }
 }
 
