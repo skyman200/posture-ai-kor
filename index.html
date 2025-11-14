@@ -12575,14 +12575,36 @@ async function captureForPdf(elem) {
   const originalLeft = elem.style.left;
   const originalZIndex = elem.style.zIndex;
   const originalTransform = elem.style.transform;
+  const originalClass = elem.className;
   
-  elem.style.opacity = '1';
-  elem.style.visibility = 'visible';
-  elem.style.position = 'absolute';
-  elem.style.top = '0';
-  elem.style.left = '0';
-  elem.style.zIndex = '9999';
-  elem.style.transform = 'scale(1)'; // ✅ html2canvas가 요소 크기를 0으로 계산하는 것을 방지
+  // ✅ .pdf-safe 클래스 제거 (opacity: 0 !important 우회)
+  if (elem.classList.contains('pdf-safe')) {
+    elem.classList.remove('pdf-safe');
+  }
+  
+  // ✅ 인라인 스타일로 강제 설정 (!important 우회)
+  elem.style.setProperty('opacity', '1', 'important');
+  elem.style.setProperty('visibility', 'visible', 'important');
+  elem.style.setProperty('position', 'absolute', 'important');
+  elem.style.setProperty('top', '0', 'important');
+  elem.style.setProperty('left', '0', 'important');
+  elem.style.setProperty('z-index', '9999', 'important');
+  elem.style.setProperty('transform', 'scale(1)', 'important');
+  elem.style.setProperty('display', 'block', 'important');
+  
+  // ✅ 추가: 모든 자식 요소도 opacity 보정
+  const allChildren = elem.querySelectorAll('*');
+  allChildren.forEach(child => {
+    if (child.style) {
+      const childOriginalOpacity = child.style.opacity;
+      const childOriginalVisibility = child.style.visibility;
+      child.style.setProperty('opacity', '1', 'important');
+      child.style.setProperty('visibility', 'visible', 'important');
+      // 나중에 복원하기 위해 data 속성에 저장
+      if (childOriginalOpacity) child.setAttribute('data-original-opacity', childOriginalOpacity);
+      if (childOriginalVisibility) child.setAttribute('data-original-visibility', childOriginalVisibility);
+    }
+  });
   
   // ✅ 폰트 로드 대기 (html2canvas가 폰트를 제대로 렌더링하도록)
   if (document.fonts && document.fonts.ready) {
@@ -12648,13 +12670,32 @@ async function captureForPdf(elem) {
   });
   
   // ✅ 캡처 후 원래 스타일로 복원
-  elem.style.opacity = originalOpacity;
-  elem.style.visibility = originalVisibility;
-  elem.style.position = originalPosition;
-  elem.style.top = originalTop;
-  elem.style.left = originalLeft;
-  elem.style.zIndex = originalZIndex;
-  elem.style.transform = originalTransform;
+  elem.removeAttribute('style');
+  if (originalOpacity) elem.style.opacity = originalOpacity;
+  if (originalVisibility) elem.style.visibility = originalVisibility;
+  if (originalPosition) elem.style.position = originalPosition;
+  if (originalTop) elem.style.top = originalTop;
+  if (originalLeft) elem.style.left = originalLeft;
+  if (originalZIndex) elem.style.zIndex = originalZIndex;
+  if (originalTransform) elem.style.transform = originalTransform;
+  
+  // ✅ .pdf-safe 클래스 복원
+  if (originalClass && originalClass.includes('pdf-safe')) {
+    elem.className = originalClass;
+  }
+  
+  // ✅ 자식 요소 스타일 복원
+  const allChildren = elem.querySelectorAll('*');
+  allChildren.forEach(child => {
+    if (child.hasAttribute('data-original-opacity')) {
+      child.style.opacity = child.getAttribute('data-original-opacity');
+      child.removeAttribute('data-original-opacity');
+    }
+    if (child.hasAttribute('data-original-visibility')) {
+      child.style.visibility = child.getAttribute('data-original-visibility');
+      child.removeAttribute('data-original-visibility');
+    }
+  });
   
   // ✅ 캔버스 크기 확인
   if (canvas.width === 0 || canvas.height === 0) {
@@ -14543,55 +14584,74 @@ async function generateFinalPostureReportPDF() {
       const id = containers[i];
       const el = document.getElementById(id);
       if (!el) {
-        console.warn(`컨테이너 없음: ${id}`);
+        console.warn(`⚠️ 컨테이너 없음: ${id}`);
         continue;
       }
 
-      // 임시 래퍼 (opacity 사용으로 html2canvas가 정상 렌더링)
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:absolute; left:-9999px; top:0; width:520px; padding:30px; background:white; opacity:1; visibility:visible;';
-      const clone = el.cloneNode(true);
-      clone.style.opacity = '1';
-      clone.style.visibility = 'visible';
-      wrapper.appendChild(clone);
-      document.body.appendChild(wrapper);
+      // ✅ 컨테이너 내용 검증
+      const hasContent = el.textContent.trim().length > 0 || 
+                         el.querySelectorAll('img').length > 0 ||
+                         el.querySelectorAll('canvas').length > 0 ||
+                         el.innerHTML.trim().length > 50;
+      
+      if (!hasContent) {
+        console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
+        continue;
+      }
 
-      const canvas = await html2canvas(wrapper, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: wrapper.scrollWidth,
-        height: wrapper.scrollHeight
-      });
+      try {
+        console.log(`📸 ${id} 캡처 시작...`);
+        
+        // ✅ captureForPdf 함수 사용 (이미 최적화된 캡처 로직)
+        const canvas = await captureForPdf(el);
+        
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          console.error(`❌ 캔버스 생성 실패: ${id} (크기: ${canvas?.width}x${canvas?.height})`);
+          continue;
+        }
+        
+        console.log(`✅ ${id} 캡처 완료 (크기: ${canvas.width}x${canvas.height})`);
 
-      document.body.removeChild(wrapper);
+        // ✅ 여러 페이지로 나누어서 추가
+        const imgData = canvas.toDataURL('image/jpeg', 0.85); // PNG → JPEG로 변경 (메모리 절약)
+        const imgHeight = (canvas.height * contentWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let pos = 0;
 
-      const imgData = canvas.toDataURL('image/png');
-      const imgHeight = (canvas.height * contentWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let pos = 0;
+        while (heightLeft > 0) {
+          if (yPos + 100 > pageHeight - margin && heightLeft > 100) {
+            pdf.addPage();
+            yPos = margin;
+          }
+          const sliceH = Math.min(heightLeft, pageHeight - yPos - margin);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = (sliceH * canvas.width) / contentWidth;
+          const ctx = sliceCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, pos, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
 
-      while (heightLeft > 0) {
-        if (yPos + 100 > pageHeight - margin && heightLeft > 100) {
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, contentWidth, sliceH, undefined, 'FAST');
+          heightLeft -= sliceH;
+          pos += sliceCanvas.height;
+          yPos += sliceH + 20;
+          
+          // ✅ 메모리 정리
+          sliceCanvas.width = 1;
+          sliceCanvas.height = 1;
+        }
+
+        // ✅ 메모리 정리
+        canvas.width = 1;
+        canvas.height = 1;
+
+        if (i < containers.length - 1) {
           pdf.addPage();
           yPos = margin;
         }
-        const sliceH = Math.min(heightLeft, pageHeight - yPos - margin);
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = (sliceH * canvas.width) / contentWidth;
-        const ctx = sliceCanvas.getContext('2d');
-        ctx.drawImage(canvas, 0, pos, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
-
-        pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, yPos, contentWidth, sliceH);
-        heightLeft -= sliceH;
-        pos += sliceCanvas.height;
-        yPos += sliceH + 20;
-      }
-
-      if (i < containers.length - 1) {
-        pdf.addPage();
-        yPos = margin;
+      } catch (err) {
+        console.error(`❌ ${id} 캡처 실패:`, err);
+        // 에러가 나도 다음 페이지 계속 진행
+        continue;
       }
     }
 
