@@ -684,10 +684,10 @@ function initializeAppOnce() {
   }
   appInitialized = true;
 
-  console.log("🔥 DOM 준비됨 → 파일 첨부 기능 주입");
-  if (window.setupFileUploads) {
-    window.setupFileUploads();
-  }
+    console.log("🔥 DOM 준비됨 → 파일 첨부 기능 주입");
+    if (window.setupFileUploads) {
+      window.setupFileUploads();
+    }
   // 앱 초기화
   initializeApp();
 }
@@ -3681,6 +3681,12 @@ function drawHandle(x, y, label, color, isSelected = false) {
 
 // 각도와 점수만 계산 (실시간 표시용, AI 분석 없음)
 function computeMetricsOnly() {
+  // sessions가 초기화되지 않았으면 무시
+  if(!window.sessions || !window.sessions[cur]) {
+    console.warn("computeMetricsOnly() 호출 시 sessions가 초기화되지 않았습니다.");
+    return;
+  }
+
   const S = sessions[cur];
   const pxPerCm = S.pxPerCm || 50.0;
   
@@ -5815,6 +5821,12 @@ function deltaStr(b, a, suf = "") {
 }
 
 function updateCompare() {
+  // sessions가 초기화되지 않았으면 무시
+  if(!window.sessions || !window.sessions.Before || !window.sessions.After) {
+    console.warn("updateCompare() 호출 시 sessions가 초기화되지 않았습니다.");
+    return;
+  }
+
   const B = sessions.Before, A = sessions.After;
   
   // fullMetrics에서 16가지 항목 가져오기
@@ -13110,18 +13122,12 @@ document.getElementById("btnShare").onclick = async () => {
 //   console.log("실시간 분석 결과:", result);
 // });
 
-// 초기화
-resizeCanvasFor(null);
-draw();
-computeMetricsOnly(); // 초기화 시에는 AI 분석 안 함
-updateCompare();
-
-// 초기 실시간 분석 실행
-setTimeout(() => {
-  if(typeof liveAnalyzer !== 'undefined') {
-    liveAnalyzer.analyzeCurrentSession();
-  }
-}, 500);
+// ❗ 초기화 코드는 initializeApp 함수 안에서 실행됨
+// resizeCanvasFor(null);
+// draw();
+// computeMetricsOnly();
+// updateCompare();
+// 위 함수들은 sessions 초기화 후 실행되어야 함
 </script>
 
 <!-- ✅ Pose Detection Libraries -->
@@ -13137,7 +13143,7 @@ let detectors = { front: null, side: null };
 // DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
 function initializeApp() {
   console.log("=== DOMContentLoaded 이벤트 발생 ===");
-
+  
   // sessions 객체 초기화 (안전하게)
   if(typeof window.sessions === 'undefined') {
     // sessions를 전역으로 노출
@@ -13291,6 +13297,24 @@ function initializeApp() {
   
   // 좌표 선택 드롭다운 초기화
   updateCoordSelectOptions();
+  
+  // ✅ 캔버스 및 UI 초기 렌더링 (sessions 초기화 후 실행)
+  try {
+    resizeCanvasFor(null);
+    draw();
+    computeMetricsOnly(); // 초기화 시에는 AI 분석 안 함
+    updateCompare();
+    console.log("✅ 초기 렌더링 완료");
+  } catch (err) {
+    console.error("초기 렌더링 중 오류:", err);
+  }
+  
+  // 초기 실시간 분석 실행
+  setTimeout(() => {
+    if(typeof liveAnalyzer !== 'undefined') {
+      liveAnalyzer.analyzeCurrentSession();
+    }
+  }, 500);
   
   console.log("=== 초기화 완료 ===");
 }
