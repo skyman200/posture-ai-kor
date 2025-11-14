@@ -10052,10 +10052,44 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
   }
 });
 
+// ✅ AI 근육 상태 기반 필라테스 추천 (새로운 방식)
+let muscleBasedRecommendations = [];
+const combinedAnalysis = getCombinedAnalysis();
+if (combinedAnalysis && combinedAnalysis.combined) {
+  muscleBasedRecommendations = recommendPilatesFromMuscles(
+    combinedAnalysis.combined.tight,
+    combinedAnalysis.combined.weak
+  );
+}
+
 // 필라테스 추천 카드 HTML 생성 (앱과 동일한 형식으로)
 let pilatesHtml = '';
-// ✅ 웹앱에서 생성된 필라테스 추천을 우선 사용
-if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommendations) && window.PilatesRecommendations.length > 0) {
+
+// ✅ 1순위: AI 근육 상태 기반 추천 (새로 추가)
+if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
+  pilatesHtml = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:15px; margin-bottom:20px;">';
+  muscleBasedRecommendations.forEach(rec => {
+    pilatesHtml += `
+      <div style="padding:15px; background:#f8f9fa; border-radius:10px; border-left:4px solid #9c88ff;">
+        <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:6px;">${rec.name}</div>
+        <div style="font-size:11px; color:#666; margin-bottom:4px;">
+          <strong>유형:</strong> ${rec.type === '강화' ? '💪 강화' : '🧘 스트레치'}
+        </div>
+        <div style="font-size:11px; color:#666; margin-bottom:4px;">
+          <strong>타겟:</strong> ${rec.target}
+        </div>
+        <div style="font-size:11px; color:#666;">
+          <strong>횟수:</strong> ${rec.reps}
+        </div>
+      </div>
+    `;
+  });
+  pilatesHtml += '</div>';
+  pilatesHtml += '<div style="font-size:11px; color:#666; margin-top:15px; padding-top:15px; border-top:1px solid #e0e0e0;">* 근육 상태 기반 AI 자동 추천</div>';
+}
+
+// ✅ 2순위: 웹앱에서 생성된 필라테스 추천
+else if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommendations) && window.PilatesRecommendations.length > 0) {
   // 웹앱 추천 데이터를 analysis.pilates 형식으로 변환
   // 도구별로 그룹화하여 renderPilatesItemCard가 기대하는 형식으로 변환
   const toolMap = {
@@ -14247,6 +14281,160 @@ async function generateFinalPostureReportPDF() {
     console.error("PDF 생성 실패:", err);
     alert("PDF 생성 중 오류 발생: " + err.message);
   }
+}
+
+/* ================== CSV 기반 AI 근육-운동 매칭 엔진 ================== */
+
+// 메트릭 데이터베이스 CSV (간소화 버전)
+const METRICS_CSV = `Index_Code,Metric_Code,Metric_Name_KR,Metric_Name_EN,Deviation_Label,Tight_Muscle,Weak_Muscle,Recommended_Strategy,Notes
+CVA_LOW,CVA,경추 전만각,Craniocervical Angle,낮음,"상부 승모근, 견갑거근, 흉쇄유돌근","심부목굴곡근, 하부 승모근, 전거근","경추 신전근 이완 + 심부 굴곡근 활성","Forward head posture"
+CVA_HIGH,CVA,경추 전만각,Craniocervical Angle,높음,"후경부 단축근, 후두하근","전경부 안정근, 전흉근","경추 정렬 회복, 후두 이완","과신전 패턴"
+PTA_ANT,PTA,골반 전후경사각,Pelvic Tilt,전방경사,"장요근, 대퇴직근, 척추기립근","복직근, 복횡근, 둔근","고관절 굴근 스트레치 + 둔근 강화","Anterior pelvic tilt"
+PTA_POST,PTA,골반 전후경사각,Pelvic Tilt,후방경사,"햄스트링, 복직근","장요근, 척추기립근","햄스트링 이완 + 요추 전만 회복","Posterior pelvic tilt"
+SAA_HIGH,SAA,어깨 전방각,Shoulder Anterior Angle,높음,"대흉근, 소흉근, 전면 삼각근","중부/하부 승모근, 능형근","흉근 이완 + 견갑 후방 안정","라운드 숄더"
+POA_LEFT,POA,골반 기울기,Pelvic Obliquity,좌하강,"좌측 햄스트링, QL","우측 중둔근","측면 균형","Left hip drop"
+POA_RIGHT,POA,골반 기울기,Pelvic Obliquity,우하강,"우측 햄스트링, QL","좌측 중둔근","측면 균형","Right hip drop"`;
+
+// 필라테스 운동 데이터베이스 (간소화 버전 - 실제로는 CSV 파일에서 로드)
+const PILATES_DB_SAMPLE = {
+  mat: [
+    { Exercise_Name_KR: '플랭크', Main_Strengthen_Muscles: '복직근, 복횡근, 전거근', Main_Stretch_Muscles: '', Reps: '30초 3세트' },
+    { Exercise_Name_KR: '데드버그', Main_Strengthen_Muscles: '복횡근, 골반저근', Main_Stretch_Muscles: '', Reps: '10회 3세트' },
+    { Exercise_Name_KR: '힙 쓰러스트', Main_Strengthen_Muscles: '대둔근, 햄스트링', Main_Stretch_Muscles: '', Reps: '15회 3세트' },
+    { Exercise_Name_KR: '고관절 굴곡근 스트레치', Main_Strengthen_Muscles: '', Main_Stretch_Muscles: '장요근, 대퇴직근', Reps: '30초 3세트' },
+    { Exercise_Name_KR: '햄스트링 스트레치', Main_Strengthen_Muscles: '', Main_Stretch_Muscles: '햄스트링', Reps: '30초 3세트' },
+    { Exercise_Name_KR: '흉근 스트레치', Main_Strengthen_Muscles: '', Main_Stretch_Muscles: '대흉근, 소흉근', Reps: '30초 3세트' },
+    { Exercise_Name_KR: '상부 승모근 스트레치', Main_Strengthen_Muscles: '', Main_Stretch_Muscles: '상부 승모근', Reps: '30초 3세트' },
+    { Exercise_Name_KR: '능형근 강화', Main_Strengthen_Muscles: '능형근, 중부 승모근', Main_Stretch_Muscles: '', Reps: '15회 3세트' }
+  ]
+};
+
+// CSV 파싱 함수
+function parseCSV(csv) {
+  const lines = csv.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+  return lines.slice(1).map(line => {
+    const values = line.split(',').map(v => v.replace(/^"|"$/g, '').trim());
+    return headers.reduce((obj, h, i) => {
+      obj[h] = values[i] || '';
+      return obj;
+    }, {});
+  });
+}
+
+// 메트릭 데이터베이스 파싱
+const METRICS_DB = parseCSV(METRICS_CSV);
+
+// ✅ AI 근육-운동 매칭 함수 (실제 분석 결과 기반)
+function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
+  const recommendations = [];
+  const seen = new Set();
+  
+  // 모든 필라테스 운동 데이터 통합
+  const allPilates = Object.values(PILATES_DB_SAMPLE).flat();
+  
+  // 1. 약한 근육 강화 운동 추천
+  if (weakMuscles && weakMuscles.length > 0) {
+    weakMuscles.forEach(muscle => {
+      allPilates.forEach(ex => {
+        if (ex.Main_Strengthen_Muscles && 
+            ex.Main_Strengthen_Muscles.includes(muscle) && 
+            !seen.has(ex.Exercise_Name_KR)) {
+          seen.add(ex.Exercise_Name_KR);
+          recommendations.push({
+            name: ex.Exercise_Name_KR,
+            type: '강화',
+            target: muscle,
+            reps: ex.Reps || '3세트',
+            equip: 'Mat'
+          });
+        }
+      });
+    });
+  }
+  
+  // 2. 긴장된 근육 스트레치 운동 추천
+  if (tightMuscles && tightMuscles.length > 0) {
+    tightMuscles.forEach(muscle => {
+      allPilates.forEach(ex => {
+        if (ex.Main_Stretch_Muscles && 
+            ex.Main_Stretch_Muscles.includes(muscle) && 
+            !seen.has(ex.Exercise_Name_KR)) {
+          seen.add(ex.Exercise_Name_KR);
+          recommendations.push({
+            name: ex.Exercise_Name_KR,
+            type: '스트레치',
+            target: muscle,
+            reps: ex.Reps || '30초 3세트',
+            equip: 'Mat'
+          });
+        }
+      });
+    });
+  }
+  
+  return recommendations.slice(0, 8); // 최대 8개 추천
+}
+
+// ✅ 실제 분석 결과에서 근육 상태 추출
+function extractMuscleStatus(analysis) {
+  const tight = [];
+  const weak = [];
+  
+  if (analysis && analysis.muscles) {
+    // Set 또는 Array 처리
+    if (analysis.muscles.tight) {
+      if (analysis.muscles.tight instanceof Set) {
+        tight.push(...Array.from(analysis.muscles.tight));
+      } else if (Array.isArray(analysis.muscles.tight)) {
+        tight.push(...analysis.muscles.tight);
+      }
+    }
+    
+    if (analysis.muscles.weak) {
+      if (analysis.muscles.weak instanceof Set) {
+        weak.push(...Array.from(analysis.muscles.weak));
+      } else if (Array.isArray(analysis.muscles.weak)) {
+        weak.push(...analysis.muscles.weak);
+      }
+    }
+  }
+  
+  return { tight, weak };
+}
+
+// ✅ 측면/정면 분석 결과 통합
+function getCombinedAnalysis() {
+  const S = sessions[cur] || sessions.After;
+  const sideAnalysis = S?.analysis;
+  const frontAnalysis = S?.metrics?.frontMetrics ? 
+    (S.analysis?.frontAnalysis || S.analysis) : null;
+  
+  const sideMuscles = extractMuscleStatus(sideAnalysis);
+  const frontMuscles = extractMuscleStatus(frontAnalysis);
+  
+  // 통합 근육 상태
+  const combinedTight = [...new Set([...sideMuscles.tight, ...frontMuscles.tight])];
+  const combinedWeak = [...new Set([...sideMuscles.weak, ...frontMuscles.weak])];
+  
+  return {
+    side: {
+      score: sideAnalysis?.score || 0,
+      tight: sideMuscles.tight,
+      weak: sideMuscles.weak,
+      pattern: sideAnalysis?.topRecommendations?.[0]?.name || '분석 중'
+    },
+    front: {
+      score: frontAnalysis?.score || 0,
+      tight: frontMuscles.tight,
+      weak: frontMuscles.weak,
+      pattern: frontAnalysis?.topRecommendations?.[0]?.name || '분석 중'
+    },
+    combined: {
+      tight: combinedTight,
+      weak: combinedWeak
+    }
+  };
 }
 
 /* ================== PDF 버튼에 새 함수 연결 ================== */
