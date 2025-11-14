@@ -3816,20 +3816,20 @@ function computeAll() {
   
   // ✅ 정면 분석만 할 때는 측면 포인트 무시
   if (currentOrientation !== "front") {
-    // 측면 키포인트
-    for(const [key, value] of S.sidePoints.entries()) {
-      if(value && value.x != null && value.y != null) {
-        sidePoints[key] = { x: value.x, y: value.y };
+  // 측면 키포인트
+  for(const [key, value] of S.sidePoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      sidePoints[key] = { x: value.x, y: value.y };
       }
     }
   }
   
   // ✅ 측면 분석만 할 때는 정면 포인트 무시
   if (currentOrientation !== "side") {
-    // 정면 키포인트
-    for(const [key, value] of S.frontPoints.entries()) {
-      if(value && value.x != null && value.y != null) {
-        frontPoints[key] = { x: value.x, y: value.y };
+  // 정면 키포인트
+  for(const [key, value] of S.frontPoints.entries()) {
+    if(value && value.x != null && value.y != null) {
+      frontPoints[key] = { x: value.x, y: value.y };
       }
     }
   }
@@ -3911,7 +3911,7 @@ function computeAll() {
     analyzePelvicTiltAuto();
     
   } else if(sideMetrics.status !== "not_available") {
-    // 측면 분석 결과가 있으면 기존 방식으로도 저장
+  // 측면 분석 결과가 있으면 기존 방식으로도 저장
     // 측면 분석 결과 통합
     mergedMetrics = { ...sideMetrics };
     
@@ -10249,18 +10249,18 @@ if (isMobile) {
 
 
   const textData = {
-    comparison,
-    analysis,
-    dbAnalysis,
-    scoreResult,
-    planTexts,
-    pilatesHtml,
-    deepAnalysisText,
-    beforeAfterSummaryHtml,
-    fullPlanHtml,
-    combinedMetrics,
-    afterMetricsForDB,
-    memberNameForPDF1
+      comparison,
+      analysis,
+      dbAnalysis,
+      scoreResult,
+      planTexts,
+      pilatesHtml,
+      deepAnalysisText,
+      beforeAfterSummaryHtml,
+      fullPlanHtml,
+      combinedMetrics,
+      afterMetricsForDB,
+      memberNameForPDF1
   };
 
   return {
@@ -12167,11 +12167,16 @@ function recommendPilatesFromMetrics(beforeMetrics, afterMetrics) {
 
 // ✅ html2canvas 최적화 캡처 함수
 async function captureForPdf(elem) {
+  // ✅ 캡처 전에 opacity를 1로 변경 (투명 캡처 방지)
+  const originalOpacity = elem.style.opacity;
+  elem.style.opacity = '1';
+  elem.style.visibility = 'visible';
+  
   // 렌더링 타이밍 보장
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => setTimeout(res, 50));
 
-  return await html2canvas(elem, {
+  const canvas = await html2canvas(elem, {
     scale: 2,
     backgroundColor: "#ffffff",
     useCORS: true,
@@ -12179,6 +12184,12 @@ async function captureForPdf(elem) {
     foreignObjectRendering: true,
     logging: false,
   });
+  
+  // ✅ 캡처 후 원래 opacity로 복원
+  elem.style.opacity = originalOpacity;
+  elem.style.visibility = '';
+  
+  return canvas;
 }
 
 // ✅ PDF 내보내기 유틸 (헤더/푸터 포함)
@@ -12190,7 +12201,7 @@ async function exportAsPdf(options = {}) {
     appName = 'DIT 자세 분석 AI',
     logoUrl = null
   } = options;
-
+  
   // 파일명 자동 생성
   let finalName = fileName;
   if (!finalName) {
@@ -12203,12 +12214,12 @@ async function exportAsPdf(options = {}) {
 
   // 캡쳐 리스트만 가져옴 (캔버스 생성 안함)
   const { captureList } = await captureReportCanvases({
-    centerName,
-    memberName,
-    appName,
-    logoUrl
-  });
-
+        centerName,
+        memberName,
+        appName,
+        logoUrl
+      });
+      
   // Worker 생성 (GitHub Pages 절대 URL 사용)
   const workerBase = location.pathname.replace(/\/[^/]*$/, "/");
   const worker = new Worker(`${workerBase}pdfWorker.js`);
@@ -12292,7 +12303,7 @@ async function exportAsPdf(options = {}) {
   a.download = finalName;
   a.click();
 
-  URL.revokeObjectURL(url);
+              URL.revokeObjectURL(url);
 }
 
 // PDF 저장 (모바일 최적화, 페이지 분리) - 개선 버전
