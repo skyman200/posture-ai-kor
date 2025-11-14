@@ -9459,29 +9459,29 @@ if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
   const sideScoreResult = computeScoreFromFullMetrics(sideMetrics);
   
   sideReportContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 측면 자세 분석 리포트</h2>
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 측면 자세 분석 리포트</h2>
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
       ${sideScoreResult ? `
-      <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
-        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 측면 점수</div>
-        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${sideScoreResult.score}/100</div>
-        <div style="font-size:11px; color:#15803d;">${sideScoreResult.reasons ? sideScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
+      <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 측면 점수</div>
+        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${sideScoreResult.score}/100</div>
+        <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons ? sideScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
       </div>` : ''}
 
       ${(sideAnalysis?.muscles?.tight && (sideAnalysis.muscles.tight.size > 0 || sideAnalysis.muscles.tight.length > 0)) || (sideAnalysis?.muscles?.weak && (sideAnalysis.muscles.weak.size > 0 || sideAnalysis.muscles.weak.length > 0)) ? `
-      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
-        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
-        ${(sideAnalysis.muscles.tight?.size > 0 || sideAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${sideAnalysis.muscles.tight instanceof Set ? Array.from(sideAnalysis.muscles.tight).join(', ') : (Array.isArray(sideAnalysis.muscles.tight) ? sideAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
-        ${(sideAnalysis.muscles.weak?.size > 0 || sideAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${sideAnalysis.muscles.weak instanceof Set ? Array.from(sideAnalysis.muscles.weak).join(', ') : (Array.isArray(sideAnalysis.muscles.weak) ? sideAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
+      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
+        ${(sideAnalysis.muscles.tight?.size > 0 || sideAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${sideAnalysis.muscles.tight instanceof Set ? Array.from(sideAnalysis.muscles.tight).join(', ') : (Array.isArray(sideAnalysis.muscles.tight) ? sideAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
+        ${(sideAnalysis.muscles.weak?.size > 0 || sideAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${sideAnalysis.muscles.weak instanceof Set ? Array.from(sideAnalysis.muscles.weak).join(', ') : (Array.isArray(sideAnalysis.muscles.weak) ? sideAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
       </div>` : ''}
     </div>
 
     ${(sideAnalysis?.topRecommendations || []).length ? `
-    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 측면 주요 패턴</div>
-      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
-        ${(sideAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
+        ${(sideAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
           ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
           ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
@@ -9503,8 +9503,11 @@ if (Object.keys(sideMetrics).length > 0 || sideAnalysis) {
   }
   
   try {
-    const containerWidth = Math.max(sideReportContainer.scrollWidth, sideReportContainer.offsetWidth, 794);
+    // ✅ 페이지 너비는 794px로 고정하고, 높이만 동적으로 계산
+    const containerWidth = 794;  // PDF 표준 너비로 고정
     const containerHeight = Math.max(sideReportContainer.scrollHeight, sideReportContainer.offsetHeight);
+    
+    console.log('📄 측면 리포트 캔버스 생성:', { width: containerWidth, height: containerHeight });
     
     sideReportCanvas = await html2canvas(sideReportContainer, {
       ...html2canvasOptions,
@@ -9701,29 +9704,29 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
   const frontScoreResult = computeScoreFromFullMetrics(frontMetrics);
   
   frontReportContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 정면 자세 분석 리포트</h2>
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 정면 자세 분석 리포트</h2>
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
       ${frontScoreResult ? `
-      <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
-        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 정면 점수</div>
-        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${frontScoreResult.score}/100</div>
-        <div style="font-size:11px; color:#15803d;">${frontScoreResult.reasons ? frontScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
+      <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 정면 점수</div>
+        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${frontScoreResult.score}/100</div>
+        <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${frontScoreResult.reasons ? frontScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
       </div>` : ''}
 
       ${(frontAnalysis?.muscles?.tight && (frontAnalysis.muscles.tight.size > 0 || frontAnalysis.muscles.tight.length > 0)) || (frontAnalysis?.muscles?.weak && (frontAnalysis.muscles.weak.size > 0 || frontAnalysis.muscles.weak.length > 0)) ? `
-      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
-        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
-        ${(frontAnalysis.muscles.tight?.size > 0 || frontAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${frontAnalysis.muscles.tight instanceof Set ? Array.from(frontAnalysis.muscles.tight).join(', ') : (Array.isArray(frontAnalysis.muscles.tight) ? frontAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
-        ${(frontAnalysis.muscles.weak?.size > 0 || frontAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${frontAnalysis.muscles.weak instanceof Set ? Array.from(frontAnalysis.muscles.weak).join(', ') : (Array.isArray(frontAnalysis.muscles.weak) ? frontAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
+      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
+        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
+        ${(frontAnalysis.muscles.tight?.size > 0 || frontAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${frontAnalysis.muscles.tight instanceof Set ? Array.from(frontAnalysis.muscles.tight).join(', ') : (Array.isArray(frontAnalysis.muscles.tight) ? frontAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
+        ${(frontAnalysis.muscles.weak?.size > 0 || frontAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${frontAnalysis.muscles.weak instanceof Set ? Array.from(frontAnalysis.muscles.weak).join(', ') : (Array.isArray(frontAnalysis.muscles.weak) ? frontAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
       </div>` : ''}
     </div>
 
     ${(frontAnalysis?.topRecommendations || []).length ? `
-    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 정면 주요 패턴</div>
-      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
-        ${(frontAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 정면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
+        ${(frontAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
           ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
           ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
@@ -9745,8 +9748,11 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
   }
   
   try {
-    const containerWidth = Math.max(frontReportContainer.scrollWidth, frontReportContainer.offsetWidth, 794);
+    // ✅ 페이지 너비는 794px로 고정하고, 높이만 동적으로 계산
+    const containerWidth = 794;  // PDF 표준 너비로 고정
     const containerHeight = Math.max(frontReportContainer.scrollHeight, frontReportContainer.offsetHeight);
+    
+    console.log('📄 정면 리포트 캔버스 생성:', { width: containerWidth, height: containerHeight });
     
     frontReportCanvas = await html2canvas(frontReportContainer, {
       ...html2canvasOptions,
@@ -10132,21 +10138,21 @@ planTexts = buildPlanTexts({
 });
 
 page4Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 종합 자세 분석 리포트 (측면 + 정면)</h2>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 종합 자세 분석 리포트 (측면 + 정면)</h2>
 
-  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
     ${scoreResult ? `
-    <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
-      <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px;">📊 체형 종합 점수</div>
-      <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px;">${scoreResult.score}/100</div>
-      <div style="font-size:11px; color:#15803d;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
+    <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 체형 종합 점수</div>
+      <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${scoreResult.score}/100</div>
+      <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
     </div>` : ''}
 
     ${(analysis.tight && analysis.tight.length) || (analysis.weak && analysis.weak.length) ? `
-    <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa;">
-      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px;">💪 근육 상태</div>
-      ${analysis.tight?.length ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#dc2626;">긴장</strong> ${analysis.tight.join(', ')}</div>` : ''}
-      ${analysis.weak?.length ? `<div style="font-size:11px; color:#334155;"><strong style="color:#2563eb;">약화</strong> ${analysis.weak.join(', ')}</div>` : ''}
+    <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
+      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
+      ${analysis.tight?.length ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${analysis.tight.join(', ')}</div>` : ''}
+      ${analysis.weak?.length ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${analysis.weak.join(', ')}</div>` : ''}
     </div>` : ''}
 
     ${analysis.comments?.length ? `
