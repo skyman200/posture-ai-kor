@@ -9153,34 +9153,34 @@ function renderExerciseDetailHTML(entry, options = {}) {
   let html = `<div style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body);">`;
   html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px;">${info.title}</div>`;
   
-  // ✅ 필라테스 DB 필드명으로만 표시: Main_Strengthen_Muscles, Main_Stretch_Muscles
+  // ✅ 필라테스 DB 필드명을 한글로 표시
   if (info.strengthenMuscles || info.stretchMuscles) {
     html += `<div style="margin-bottom:6px; font-size:${parseInt(baseFontSize) - 1}px;">`;
     if (info.strengthenMuscles) {
-      html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 Main_Strengthen_Muscles:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
+      html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 주요 강화 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
     }
     if (info.stretchMuscles) {
-      html += `<div><strong style="color:#3b82f6;">🧘 Main_Stretch_Muscles:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
+      html += `<div><strong style="color:#3b82f6;">🧘 주요 스트레칭 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
     }
     html += `</div>`;
   }
   
-  // ✅ 필라테스 DB 필드명: How_to_Perform_Step_by_Step (운동 설명을 바로 표시)
+  // ✅ 필라테스 DB 필드: 상세 동작 설명 (운동 설명을 바로 표시)
   if (info.how) {
-    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">💡 How_to_Perform_Step_by_Step</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
+    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">💡 상세 동작 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
   }
   
-  // ✅ 필라테스 DB 필드명: Reps, Breathing_Pattern, Spring_Traditional
+  // ✅ 필라테스 DB 필드: 횟수, 호흡 패턴, 스프링
   if (info.sets || info.spring || info.breathing) {
     html += `<div style="margin-bottom:4px; display:flex; gap:8px; flex-wrap:wrap; font-size:${parseInt(baseFontSize) - 1}px;">`;
     if (info.sets) {
-      html += `<div><strong style="color:${theme.accent};">Reps:</strong> ${formatMultilineText(info.sets)}</div>`;
+      html += `<div><strong style="color:${theme.accent};">횟수:</strong> ${formatMultilineText(info.sets)}</div>`;
     }
     if (info.breathing) {
-      html += `<div><strong style="color:${theme.accent};">Breathing_Pattern:</strong> ${formatMultilineText(info.breathing)}</div>`;
+      html += `<div><strong style="color:${theme.accent};">호흡 패턴:</strong> ${formatMultilineText(info.breathing)}</div>`;
     }
     if (info.spring) {
-      html += `<div><strong style="color:${theme.accent};">Spring_Traditional:</strong> ${formatMultilineText(info.spring)}</div>`;
+      html += `<div><strong style="color:${theme.accent};">스프링:</strong> ${formatMultilineText(info.spring)}</div>`;
     }
     html += `</div>`;
   }
