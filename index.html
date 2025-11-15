@@ -14898,18 +14898,14 @@ async function applyPoseDetection(img, sessionName) {
         continue;
       }
       
-      // ✅ 키포인트 신뢰도 필터링 강화
-      // 정면 분석 시 더 엄격한 필터링 적용 (중요 관절은 더 높은 신뢰도 필요)
-      const MIN_CONFIDENCE_SCORE = 0.3; // 최소 신뢰도 임계값 (0.01 -> 0.3)
-      const CRITICAL_KEYPOINTS = ['R_tibial_tub', 'L_tibial_tub', 'R_knee', 'L_knee', 'R_ankle', 'L_ankle', 'R_hip', 'L_hip'];
-      const CRITICAL_MIN_CONFIDENCE = 0.5; // 중요 관절은 더 높은 신뢰도 필요
-      
+      // ✅ 시각화용 신뢰도 필터링 제거 (추정된 관절도 모두 표시)
+      // 메트릭 계산은 analyzeFrontPosture에서 별도로 처리하므로, 시각화는 모든 키포인트 표시
       const confidence = value.score || value.visibility || 0.5;
-      const isCritical = CRITICAL_KEYPOINTS.includes(key);
-      const minRequired = isCritical ? CRITICAL_MIN_CONFIDENCE : MIN_CONFIDENCE_SCORE;
       
-      if(confidence < minRequired) {
-        console.warn(`⚠️ ${key} confidence가 너무 낮음: ${confidence.toFixed(2)} (최소 요구: ${minRequired.toFixed(2)}), 스킵`);
+      // ✅ 시각화를 위한 필터링 완전 제거: 추정된 관절(발목 등)도 모두 표시
+      // confidence가 0보다 크면 모두 표시 (메트릭 계산은 별도 함수에서 처리)
+      if(confidence <= 0) {
+        console.warn(`⚠️ ${key} confidence가 0 이하: ${confidence.toFixed(2)}, 스킵`);
         continue;
       }
       
@@ -14926,10 +14922,11 @@ async function applyPoseDetection(img, sessionName) {
         imgY = value.y * img.naturalHeight;
       }
       
-      // ✅ 정면 분석 시 y 좌표를 2배 올리기 (y 값을 더 작게 조정하여 위로 올리기)
-      if(activeOrientation === "front") {
-        imgY = imgY * 0.33; // 0.5배 → 0.33배로 더 위로 올리기
-      }
+      // ✅ 정면 분석 시 y 좌표 조정 제거 (정확한 좌표 사용)
+      // 정면 이미지도 측면과 동일하게 정규화된 좌표를 그대로 사용
+      // if(activeOrientation === "front") {
+      //   imgY = imgY * 0.33; // 제거: 정확한 좌표 사용
+      // }
         
         // 캔버스 크기에 맞게 스케일링
         const scaleX = originalCanvasSize.width / img.naturalWidth;
