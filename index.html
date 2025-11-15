@@ -14264,26 +14264,32 @@ function mapPoseToKeypoints(pose, orientation) {
   
   if(orientation === "front") {
     // 정면: 양쪽 모두 표시 (환자 좌/우 인식)
-    // 중요: MediaPipe keypoints는 정규화된 좌표(0-1) 또는 픽셀 좌표를 반환합니다
-    // keypoints[11] = 화면 왼쪽 어깨 → 환자의 왼쪽 어깨 → L_acromion
-    // keypoints[12] = 화면 오른쪽 어깨 → 환자의 오른쪽 어깨 → R_acromion
-    const mpScreenLeft = keypoints[11];   // 화면 왼쪽 어깨 (환자 왼쪽)
-    const mpScreenRight = keypoints[12]; // 화면 오른쪽 어깨 (환자 오른쪽)
-    const mpScreenLeftHip = keypoints[23];   // 화면 왼쪽 골반 (환자 왼쪽)
-    const mpScreenRightHip = keypoints[24]; // 화면 오른쪽 골반 (환자 오른쪽)
-    const mpScreenLeftKnee = keypoints[25];   // 화면 왼쪽 무릎 (환자 왼쪽)
-    const mpScreenRightKnee = keypoints[26]; // 화면 오른쪽 무릎 (환자 오른쪽)
-    const mpScreenLeftAnkle = keypoints[27];   // 화면 왼쪽 발목 (환자 왼쪽)
-    const mpScreenRightAnkle = keypoints[28]; // 화면 오른쪽 발목 (환자 오른쪽)
+    // ✅ MoveNet은 17개 keypoint만 제공 (BlazePose와 인덱스 다름)
+    // MoveNet 인덱스:
+    // 3: left_ear, 4: right_ear
+    // 5: left_shoulder, 6: right_shoulder
+    // 11: left_hip, 12: right_hip
+    // 13: left_knee, 14: right_knee
+    // 15: left_ankle, 16: right_ankle
+    const mpScreenLeft = keypoints[5];   // MoveNet: left_shoulder (환자 왼쪽)
+    const mpScreenRight = keypoints[6]; // MoveNet: right_shoulder (환자 오른쪽)
+    const mpScreenLeftHip = keypoints[11];   // MoveNet: left_hip (환자 왼쪽)
+    const mpScreenRightHip = keypoints[12]; // MoveNet: right_hip (환자 오른쪽)
+    const mpScreenLeftKnee = keypoints[13];   // MoveNet: left_knee (환자 왼쪽)
+    const mpScreenRightKnee = keypoints[14]; // MoveNet: right_knee (환자 오른쪽)
+    const mpScreenLeftAnkle = keypoints[15];   // MoveNet: left_ankle (환자 왼쪽)
+    const mpScreenRightAnkle = keypoints[16]; // MoveNet: right_ankle (환자 오른쪽)
     
-    // 디버깅: keypoints 배열 상태 확인
-    console.log(`🔍 정면 keypoints 디버깅: 총 ${keypoints.length}개`);
-    console.log(`🔍 keypoints[23] (leftHip):`, mpScreenLeftHip ? `존재 (x=${mpScreenLeftHip.x?.toFixed(3)}, y=${mpScreenLeftHip.y?.toFixed(3)})` : 'null');
-    console.log(`🔍 keypoints[24] (rightHip):`, mpScreenRightHip ? `존재 (x=${mpScreenRightHip.x?.toFixed(3)}, y=${mpScreenRightHip.y?.toFixed(3)})` : 'null');
-    console.log(`🔍 keypoints[25] (leftKnee):`, mpScreenLeftKnee ? `존재 (x=${mpScreenLeftKnee.x?.toFixed(3)}, y=${mpScreenLeftKnee.y?.toFixed(3)})` : 'null');
-    console.log(`🔍 keypoints[26] (rightKnee):`, mpScreenRightKnee ? `존재 (x=${mpScreenRightKnee.x?.toFixed(3)}, y=${mpScreenRightKnee.y?.toFixed(3)})` : 'null');
-    console.log(`🔍 keypoints[27] (leftAnkle):`, mpScreenLeftAnkle ? `존재 (x=${mpScreenLeftAnkle.x?.toFixed(3)}, y=${mpScreenLeftAnkle.y?.toFixed(3)})` : 'null');
-    console.log(`🔍 keypoints[28] (rightAnkle):`, mpScreenRightAnkle ? `존재 (x=${mpScreenRightAnkle.x?.toFixed(3)}, y=${mpScreenRightAnkle.y?.toFixed(3)})` : 'null');
+    // 디버깅: keypoints 배열 상태 확인 (MoveNet 인덱스)
+    console.log(`🔍 정면 keypoints 디버깅 (MoveNet): 총 ${keypoints.length}개`);
+    console.log(`🔍 keypoints[5] (leftShoulder):`, mpScreenLeft ? `존재 (x=${mpScreenLeft.x?.toFixed(3)}, y=${mpScreenLeft.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[6] (rightShoulder):`, mpScreenRight ? `존재 (x=${mpScreenRight.x?.toFixed(3)}, y=${mpScreenRight.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[11] (leftHip):`, mpScreenLeftHip ? `존재 (x=${mpScreenLeftHip.x?.toFixed(3)}, y=${mpScreenLeftHip.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[12] (rightHip):`, mpScreenRightHip ? `존재 (x=${mpScreenRightHip.x?.toFixed(3)}, y=${mpScreenRightHip.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[13] (leftKnee):`, mpScreenLeftKnee ? `존재 (x=${mpScreenLeftKnee.x?.toFixed(3)}, y=${mpScreenLeftKnee.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[14] (rightKnee):`, mpScreenRightKnee ? `존재 (x=${mpScreenRightKnee.x?.toFixed(3)}, y=${mpScreenRightKnee.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[15] (leftAnkle):`, mpScreenLeftAnkle ? `존재 (x=${mpScreenLeftAnkle.x?.toFixed(3)}, y=${mpScreenLeftAnkle.y?.toFixed(3)})` : 'null');
+    console.log(`🔍 keypoints[16] (rightAnkle):`, mpScreenRightAnkle ? `존재 (x=${mpScreenRightAnkle.x?.toFixed(3)}, y=${mpScreenRightAnkle.y?.toFixed(3)})` : 'null');
     
     // 좌표 변환 함수: MediaPipe 좌표를 이미지 픽셀 좌표로 변환 (정규화된 좌표인 경우)
     // applyPoseDetection에서 이미지 크기를 알 수 있으므로, 여기서는 좌표를 그대로 반환하고
@@ -14326,10 +14332,10 @@ function mapPoseToKeypoints(pose, orientation) {
       console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
     }
     
-    // L_tragus, R_tragus: MediaPipe의 귀 랜드마크 사용
-    // keypoints[7] = left_ear, keypoints[8] = right_ear
-    const mpLeftEar = keypoints[7];
-    const mpRightEar = keypoints[8];
+    // L_tragus, R_tragus: MoveNet의 귀 랜드마크 사용
+    // MoveNet: keypoints[3] = left_ear, keypoints[4] = right_ear
+    const mpLeftEar = keypoints[3];
+    const mpRightEar = keypoints[4];
     const leftEarPoint = makePoint(mpLeftEar, 'L_tragus');
     if (leftEarPoint) {
       keypointMap['L_tragus'] = leftEarPoint;
@@ -14346,7 +14352,7 @@ function mapPoseToKeypoints(pose, orientation) {
     if(keypointMap['R_acromion'] && keypointMap['L_acromion']) {
       const avgShoulderY = (keypointMap['R_acromion'].y + keypointMap['L_acromion'].y) / 2;
       // 정규화된 좌표인 경우 이미지 높이를 추정 (일반적으로 0.1~0.15 정도 위)
-      const c7Offset = keypoints[11]?.y < 1 ? 0.08 : (avgShoulderY * 0.1); // 정규화된 경우 0.08, 픽셀인 경우 10%
+      const c7Offset = mpScreenLeft?.y < 1 ? 0.08 : (avgShoulderY * 0.1); // 정규화된 경우 0.08, 픽셀인 경우 10%
       keypointMap['c7'] = {
         x: (keypointMap['R_acromion'].x + keypointMap['L_acromion'].x) / 2,
         y: avgShoulderY - c7Offset,
@@ -14354,7 +14360,7 @@ function mapPoseToKeypoints(pose, orientation) {
       };
       console.log(`✅ c7 매핑 (양쪽 어깨 중간): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
     } else if(keypointMap['R_acromion']) {
-      const c7Offset = keypoints[11]?.y < 1 ? 0.08 : (keypointMap['R_acromion'].y * 0.1);
+      const c7Offset = mpScreenRight?.y < 1 ? 0.08 : (keypointMap['R_acromion'].y * 0.1);
       keypointMap['c7'] = {
         x: keypointMap['R_acromion'].x,
         y: keypointMap['R_acromion'].y - c7Offset,
@@ -14362,7 +14368,7 @@ function mapPoseToKeypoints(pose, orientation) {
       };
       console.log(`✅ c7 매핑 (R_acromion 기준): (${keypointMap['c7'].x.toFixed(3)}, ${keypointMap['c7'].y.toFixed(3)}), score: ${keypointMap['c7'].score.toFixed(2)}`);
     } else if(keypointMap['L_acromion']) {
-      const c7Offset = keypoints[11]?.y < 1 ? 0.08 : (keypointMap['L_acromion'].y * 0.1);
+      const c7Offset = mpScreenLeft?.y < 1 ? 0.08 : (keypointMap['L_acromion'].y * 0.1);
       keypointMap['c7'] = {
         x: keypointMap['L_acromion'].x,
         y: keypointMap['L_acromion'].y - c7Offset,
@@ -14408,8 +14414,8 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_asis 추정 (R_acromion 기준): (${keypointMap['R_asis'].x.toFixed(3)}, ${keypointMap['R_asis'].y.toFixed(3)})`);
     }
     
-    // ✅ 무릎과 발목은 MediaPipe keypoints를 우선 사용 (정확도 향상)
-    // MediaPipe MoveNet: keypoints[25]=left_knee, keypoints[26]=right_knee, keypoints[27]=left_ankle, keypoints[28]=right_ankle
+    // ✅ 무릎과 발목은 MoveNet keypoints를 우선 사용 (정확도 향상)
+    // MoveNet: keypoints[13]=left_knee, keypoints[14]=right_knee, keypoints[15]=left_ankle, keypoints[16]=right_ankle
     const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
     if (leftKneePoint && leftKneePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤 (0.1 → 0.05)
       keypointMap['L_knee'] = leftKneePoint;
