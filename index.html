@@ -9149,54 +9149,42 @@ function renderExerciseDetailHTML(entry, options = {}) {
     dark: { detailBg: 'rgba(255,255,255,0.05)', text: '#eef2ff', accent: '#a78bfa', hint: '#cbd5f5' },
     pdf: { detailBg: '#ffffff', text: '#0b0f14', accent: '#5c44b8', hint: '#475569' }
   }[context] || { detailBg: '#ffffff', text: '#1f2933', accent: '#6c4ab6', hint: '#475569' };
-  const isInteractive = context !== 'pdf';
   const baseFontSize = options.compact ? '11px' : '12px';
-  const dataAttrs = isInteractive ? ` data-pilates-detail-card="1" data-exercise-en="${escapeAttr(info.enKey || info.title)}" data-exercise-ko="${escapeAttr(info.koKey || '')}" data-exercise-purpose="${escapeAttr(info.purpose || '')}"` : '';
-  let html = `<div${dataAttrs} style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body);${isInteractive ? ' cursor:pointer; transition:background 0.2s ease;' : ''}">`;
+  let html = `<div style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body);">`;
   html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px;">${info.title}</div>`;
   
-  // ✅ 강화/스트레칭 근육 정보 (CSV DB에서)
+  // ✅ 필라테스 DB 필드명으로만 표시: Main_Strengthen_Muscles, Main_Stretch_Muscles
   if (info.strengthenMuscles || info.stretchMuscles) {
     html += `<div style="margin-bottom:6px; font-size:${parseInt(baseFontSize) - 1}px;">`;
     if (info.strengthenMuscles) {
-      html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 강화:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
+      html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 Main_Strengthen_Muscles:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
     }
     if (info.stretchMuscles) {
-      html += `<div><strong style="color:#3b82f6;">🧘 스트레칭:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
+      html += `<div><strong style="color:#3b82f6;">🧘 Main_Stretch_Muscles:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
     }
     html += `</div>`;
   }
   
-  if (info.purpose) {
-    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">목적</strong><br>${formatMultilineText(info.purpose)}</div>`;
-  }
+  // ✅ 필라테스 DB 필드명: How_to_Perform_Step_by_Step (운동 설명을 바로 표시)
   if (info.how) {
-    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">💡 운동 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
+    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">💡 How_to_Perform_Step_by_Step</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
   }
-  if (info.cues) {
-    html += `<div style="margin-bottom:4px;"><strong style="color:${theme.accent};">🎯 핵심 큐</strong><br>${formatMultilineText(info.cues)}</div>`;
-  }
+  
+  // ✅ 필라테스 DB 필드명: Reps, Breathing_Pattern, Spring_Traditional
   if (info.sets || info.spring || info.breathing) {
     html += `<div style="margin-bottom:4px; display:flex; gap:8px; flex-wrap:wrap; font-size:${parseInt(baseFontSize) - 1}px;">`;
-  if (info.sets) {
-      html += `<div><strong style="color:${theme.accent};">횟수:</strong> ${formatMultilineText(info.sets)}</div>`;
+    if (info.sets) {
+      html += `<div><strong style="color:${theme.accent};">Reps:</strong> ${formatMultilineText(info.sets)}</div>`;
     }
     if (info.breathing) {
-      html += `<div><strong style="color:${theme.accent};">호흡:</strong> ${formatMultilineText(info.breathing)}</div>`;
+      html += `<div><strong style="color:${theme.accent};">Breathing_Pattern:</strong> ${formatMultilineText(info.breathing)}</div>`;
     }
     if (info.spring) {
-      html += `<div><strong style="color:${theme.accent};">스프링:</strong> ${formatMultilineText(info.spring)}</div>`;
+      html += `<div><strong style="color:${theme.accent};">Spring_Traditional:</strong> ${formatMultilineText(info.spring)}</div>`;
     }
     html += `</div>`;
   }
-  if (info.precaution) {
-    html += `<div style="margin-bottom:0;"><strong style="color:#ff6b6b;">⚠️ 주의</strong><br>${formatMultilineText(info.precaution)}</div>`;
-  }
-  if (isInteractive) {
-    html += `<div style="margin-top:6px; font-size:10px; color:${theme.hint}; display:flex; align-items:center; gap:4px;">
-      <span style="font-size:12px;">👆</span> 눌러서 자세한 설명 보기
-    </div>`;
-  }
+  
   html += `</div>`;
   return html;
 }
@@ -9267,15 +9255,16 @@ function renderPilatesItemCard(item, options = {}) {
   `;
 }
 
-document.addEventListener('click', (event) => {
-  const card = event.target.closest('[data-pilates-detail-card="1"]');
-  if (!card || typeof showExerciseModal !== 'function') return;
-  event.preventDefault();
-  const exerciseEn = card.getAttribute('data-exercise-en') || '';
-  const exerciseKo = card.getAttribute('data-exercise-ko') || '';
-  const purpose = card.getAttribute('data-exercise-purpose') || '';
-  showExerciseModal(exerciseEn, exerciseKo, purpose);
-});
+// ✅ 필라테스 운동 설명을 바로 표시하므로 클릭 이벤트 핸들러 제거
+// document.addEventListener('click', (event) => {
+//   const card = event.target.closest('[data-pilates-detail-card="1"]');
+//   if (!card || typeof showExerciseModal !== 'function') return;
+//   event.preventDefault();
+//   const exerciseEn = card.getAttribute('data-exercise-en') || '';
+//   const exerciseKo = card.getAttribute('data-exercise-ko') || '';
+//   const purpose = card.getAttribute('data-exercise-purpose') || '';
+//   showExerciseModal(exerciseEn, exerciseKo, purpose);
+// });
 
 function setPageContainerStyle(container, { width = 794 } = {}) {
   // position, left, top은 .pdf-safe CSS에서 처리
