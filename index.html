@@ -4360,6 +4360,41 @@ function computeScoreFromFullMetrics(fullMetrics) {
         reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
+    
+    // 24. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°)
+    const qAngle = fullMetrics.Q_Angle?.value;
+    if(qAngle != null && !isNaN(qAngle) && isFinite(qAngle)) {
+      metricCount++;
+      // Q-Angle이 비정상적으로 크면 (예: 90도 이상) 계산 오류로 간주하고 스킵
+      if(qAngle > 90) {
+        console.warn(`⚠️ Q-Angle이 비정상적으로 큼: ${qAngle.toFixed(1)}°, 점수 계산에서 제외`);
+        metricCount--; // metricCount 증가를 취소
+      } else {
+        if(qAngle < 10) {
+          const delta = 10 - qAngle;
+          const penalty = Math.min(15, delta * 1.5);
+          penalties += penalty;
+          reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+        } else if(qAngle > 20) {
+          const delta = qAngle - 20;
+          const penalty = Math.min(20, delta * 2);
+          penalties += penalty;
+          reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
+        }
+      }
+    }
+    
+    // 25. Knee Deviation - 정상 0-3°
+    const kneeDev = fullMetrics.Knee_Deviation?.value || fullMetrics['Knee_Deviation']?.value_deg;
+    if(kneeDev != null && !isNaN(kneeDev) && isFinite(kneeDev)) {
+      metricCount++;
+      if(kneeDev > 3) {
+        const delta = kneeDev - 3;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`Knee Dev ${kneeDev.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+      }
+    }
   }
   
   // ✅ 감점 근거에 기반하여 체형 종합 점수 계산
