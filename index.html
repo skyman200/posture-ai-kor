@@ -3375,7 +3375,7 @@ function ensureDefaultPoints(session) {
   const currentKeypoints = orientation === "front" ? keypointsFront : keypointsSide;
   const currentPoints = orientation === "front" ? S.frontPoints : S.sidePoints;
   
-  if(currentPoints.size === 0 && currentImg) {
+  if(currentImg) {
     // Flutter 1:1 매칭 키로 기본값 설정
     const defaults = orientation === "front" ? {
       L_tragus: {x:W*0.25, y:H*0.25},  // 정면: 왼쪽 귀
@@ -3402,8 +3402,11 @@ function ensureDefaultPoints(session) {
       asis: {x:W*0.40, y:H*0.58},
       psis: {x:W*0.35, y:H*0.6},
     };
+    // ✅ 각 점을 개별적으로 확인하여 없는 점만 기본값 설정 (기존 점은 덮어쓰지 않음)
     for(const kp of currentKeypoints) {
-      if(defaults[kp.key]) currentPoints.set(kp.key, {...defaults[kp.key]});
+      if(defaults[kp.key] && !currentPoints.has(kp.key)) {
+        currentPoints.set(kp.key, {...defaults[kp.key]});
+      }
     }
   }
 }
