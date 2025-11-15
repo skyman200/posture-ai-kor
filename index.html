@@ -3882,8 +3882,8 @@ function computeAll() {
       updateDisplay();
       updateCompare();
       displayFrontAnalysis(frontMetrics);
-      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
-      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출 (scoreData 객체 전체 전달)
+      updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     }).catch(err => {
       console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
       S.analysis = { 
@@ -3973,8 +3973,8 @@ function computeAll() {
       updateDisplay();
       updateCompare();
       displayFrontAnalysis(frontMetrics);
-      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출
-      updateScoreAndAnalysis(scoreData.score, null, null, null, S.analysis);
+      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출 (scoreData 객체 전체 전달)
+      updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     }).catch(err => {
       console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
       S.analysis = { 
@@ -13932,7 +13932,9 @@ function initializeApp() {
         // 분석 결과 표시 영역 업데이트
         const S2 = sessions[cur];
         if (S2.analysis && S2.score) {
-          updateScoreAndAnalysis(S2.score.score, S2.metrics?.cva, S2.metrics?.pelvic, S2.metrics?.knee, S2.analysis);
+          // score가 객체인지 숫자인지 확인하여 적절히 전달
+          const scoreData = typeof S2.score === 'object' && S2.score !== null ? S2.score : { score: S2.score, reasons: [], penalties: 0 };
+          updateScoreAndAnalysis(scoreData, S2.metrics?.cva, S2.metrics?.pelvic, S2.metrics?.knee, S2.analysis);
         }
         
         btnAIAnalysis.textContent = "✅ 분석 완료";
