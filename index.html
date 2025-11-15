@@ -8987,33 +8987,69 @@ function getExerciseDetailInfo(entry) {
   
   // ✅ 운동 설명: 필라테스 DB의 How_to_Perform_Step_by_Step 필드를 무조건 그대로 사용
   // 모든 기구에서 동일한 필드명 사용 (표준화된 10개 컬럼 구조)
+  // ✅ 필드값 검증: 운동 설명은 최소 20자 이상이어야 하고, "준비", "시작", "1.", "2." 같은 패턴이 포함되어야 함
+  // 근육 이름(예: "척주기립근", "대둔근")이나 짧은 텍스트는 제외
+  const isValidExerciseDescription = (value) => {
+    if (!value || typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    // 최소 길이 확인
+    if (trimmed.length < 20) return false;
+    // 운동 설명 패턴 확인 (숫자로 시작하거나 "준비", "시작" 같은 키워드 포함)
+    if (!trimmed.match(/^[0-9]\.|준비|시작|세팅|동작|주의|집중|교차|신전|롤|킥|밀어|끌어|서클/i)) {
+      // 근육 이름 패턴 제외 (한글 근육 이름은 보통 2-4자)
+      if (trimmed.match(/^[가-힣]{2,4}$|^[가-힣]{2,4},?\s*[가-힣]{2,4}$/)) return false;
+    }
+    return true;
+  };
+  
   let how = '';
-  // How_to_Perform_Step_by_Step (상세 동작 설명) 우선 사용
-  how = (normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] && typeof normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'].trim()) ||
-         (normalized['How_to_Perform_Step_by_Step'] && typeof normalized['How_to_Perform_Step_by_Step'] === 'string' && normalized['How_to_Perform_Step_by_Step'].trim()) ||
-         (normalized.How_to_Perform_Step_by_Step && typeof normalized.How_to_Perform_Step_by_Step === 'string' && normalized.How_to_Perform_Step_by_Step.trim()) ||
-         '';
+  // How_to_Perform_Step_by_Step (상세 동작 설명) 우선 사용 - 검증 포함
+  const howFieldNames = [
+    'How_to_Perform_Step_by_Step (상세 동작 설명)',
+    'How_to_Perform_Step_by_Step',
+    'How_to_Perform_Step_by_Step_FULL_CLASSICAL'
+  ];
+  
+  for (const fieldName of howFieldNames) {
+    const fieldValue = normalized[fieldName];
+    if (fieldValue && isValidExerciseDescription(fieldValue)) {
+      how = fieldValue.trim();
+      break;
+    }
+  }
+  
   // 폴백: Step_by_Step이 없으면 다른 필드 확인 (하위 호환성)
   if (!how) {
     // 리포머의 경우 이전 필드명도 확인 (하위 호환성)
     if (isReformer) {
-      how = (normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'].trim()) ||
-             (normalized['How_to_Perform_EASY_FOR_BEGINNERS'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS'].trim()) ||
-             (normalized.How_to_Perform_EASY_FOR_BEGINNERS && typeof normalized.How_to_Perform_EASY_FOR_BEGINNERS === 'string' && normalized.How_to_Perform_EASY_FOR_BEGINNERS.trim()) ||
-             '';
+      const easyFieldNames = [
+        'How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)',
+        'How_to_Perform_EASY_FOR_BEGINNERS'
+      ];
+      for (const fieldName of easyFieldNames) {
+        const fieldValue = normalized[fieldName];
+        if (fieldValue && isValidExerciseDescription(fieldValue)) {
+          how = fieldValue.trim();
+          break;
+        }
+      }
     }
     // 최종 폴백
     if (!how) {
-      how = (normalized.How_to_Perform && typeof normalized.How_to_Perform === 'string' && normalized.How_to_Perform.trim()) ||
-            (normalized.how && typeof normalized.how === 'string' && normalized.how.trim()) ||
-            (normalized.how_to_do && typeof normalized.how_to_do === 'string' && normalized.how_to_do.trim()) ||
-            (detail?.how_to_do && typeof detail.how_to_do === 'string' && detail.how_to_do.trim()) ||
-            '';
+      const fallbackFields = ['How_to_Perform', 'how', 'how_to_do'];
+      for (const fieldName of fallbackFields) {
+        const fieldValue = normalized[fieldName] || detail?.[fieldName];
+        if (fieldValue && isValidExerciseDescription(fieldValue)) {
+          how = fieldValue.trim();
+          break;
+        }
+      }
     }
   }
   
   // ✅ 핵심 큐: Classical_Cues_by_Jay_Grimes_Romana 필드만 사용 (문자열인지 확인)
   // ✅ 값이 숫자만 있거나 운동 설명이면 제외 (CSV 파싱 오류 방지)
+  // ✅ 근육 이름이 들어가면 제외
   const cuesRaw = (normalized.Classical_Cues_by_Jay_Grimes_Romana && typeof normalized.Classical_Cues_by_Jay_Grimes_Romana === 'string' && normalized.Classical_Cues_by_Jay_Grimes_Romana.trim()) ||
                (normalized.key_cues && typeof normalized.key_cues === 'string' && normalized.key_cues.trim()) ||
                (normalized.cues && typeof normalized.cues === 'string' && normalized.cues.trim()) ||
@@ -9022,12 +9058,12 @@ function getExerciseDetailInfo(entry) {
   let cues = '';
   if (cuesRaw) {
     const cuesStr = cuesRaw.trim();
-    // ✅ 핵심 큐는 인용구, 지시사항 등이 포함되어야 함
-    // 숫자만 있거나(예: "8"), 운동 설명(50자 이상)이면 제외
-    // "준비:", "당기기:", "돌아오기:" 같은 운동 설명 패턴이면 제외
-    if (cuesStr.length < 50 &&
+    // ✅ 근육 이름 패턴 제외 (한글 근육 이름은 보통 2-4자)
+    if (cuesStr.match(/^[가-힣]{2,4}$|^[가-힣]{2,4},?\s*[가-힣]{2,4}$/)) {
+      cues = '';
+    } else if (cuesStr.length < 50 &&
         !cuesStr.match(/^[\d\-\+\s]+$/) && // 숫자만 있는 경우 제외
-        !cuesStr.match(/^준비:|^당기기:|^돌아오기:|^주의:/i) && // 운동 설명 패턴 제외
+        !cuesStr.match(/^준비:|^당기기:|^돌아오기:|^주의:|^1\.|^2\./i) && // 운동 설명 패턴 제외
         (cuesStr.match(/["'"]|:|!|Grimes|Romana|Jay|Pilates/i) || cuesStr.length > 5)) { // 인용구나 이름이 포함되어야 함
       cues = cuesStr;
     }
@@ -9035,13 +9071,16 @@ function getExerciseDetailInfo(entry) {
   
   // ✅ 횟수: Reps 필드만 사용 (문자열 또는 숫자인지 확인)
   // ✅ 값이 운동 설명처럼 긴 텍스트면 제외 (CSV 파싱 오류 방지)
+  // ✅ 근육 이름이 들어가면 제외 (예: "전면 삼각근", "대둔근" 등)
   const setsRaw = normalized.Reps || normalized.reps || normalized.sets_reps || detail?.sets_reps || detail?.reps || '';
   let sets = '';
   if (setsRaw) {
     const setsStr = String(setsRaw).trim();
-    // ✅ 숫자, 범위(예: "6-8", "10", "3+3", "100"), 또는 짧은 텍스트만 허용
-    // 긴 텍스트(50자 이상)는 운동 설명으로 간주하고 제외
-    if (setsStr.length < 50 && (setsStr.match(/^[\d\-\+\s××]+$/) || setsStr.length < 20)) {
+    // ✅ 근육 이름 패턴 제외 (한글 근육 이름은 보통 2-4자, 쉼표로 구분)
+    if (setsStr.match(/^[가-힣]{2,4}$|^[가-힣]{2,4},?\s*[가-힣]{2,4}$|^[가-힣]{2,4},?\s*[가-힣]{2,4},?\s*[가-힣]{2,4}$/)) {
+      sets = '';
+    } else if (setsStr.length < 50 && (setsStr.match(/^[\d\-\+\s××]+$/) || setsStr.length < 20)) {
+      // ✅ 숫자, 범위(예: "6-8", "10", "3+3", "100"), 또는 짧은 텍스트만 허용
       sets = setsStr;
     } else if (setsStr.length < 20 && !setsStr.match(/^[0-9]/)) {
       // 20자 미만이고 숫자로 시작하지 않으면 제외 (운동 설명일 가능성)
@@ -9073,6 +9112,7 @@ function getExerciseDetailInfo(entry) {
   
   // ✅ 호흡: Breathing_Pattern 필드만 사용 (문자열인지 확인)
   // ✅ 값이 스프링 정보처럼 보이면 제외 (CSV 파싱 오류 방지)
+  // ✅ 근육 이름이 들어가면 제외
   const breathingRaw = (normalized.Breathing_Pattern && typeof normalized.Breathing_Pattern === 'string' && normalized.Breathing_Pattern.trim()) ||
                     (normalized.Breathing && typeof normalized.Breathing === 'string' && normalized.Breathing.trim()) ||
                     (detail?.breathing && typeof detail.breathing === 'string' && detail.breathing.trim()) ||
@@ -9080,13 +9120,13 @@ function getExerciseDetailInfo(entry) {
   let breathing = '';
   if (breathingRaw) {
     const breathingStr = breathingRaw.trim();
-    // ✅ 호흡 정보는 "Inhale", "Exhale", "들어", "내쉬" 등이 포함되어야 함
-    // 스프링 정보(예: "1 Red + 1 Blue")가 들어가면 제외
-    // 운동 설명(50자 이상)이 들어가면 제외
-    // 근육 이름이 들어가면 제외
-    if (breathingStr.length < 50 &&
+    // ✅ 근육 이름 패턴 제외 (한글 근육 이름은 보통 2-4자)
+    if (breathingStr.match(/^[가-힣]{2,4}$|^[가-힣]{2,4},?\s*[가-힣]{2,4}$/)) {
+      breathing = '';
+    } else if (breathingStr.length < 50 &&
         (breathingStr.match(/inhale|exhale|들어|내쉬|들이|숨|breath/i) || breathingStr.length < 30) &&
-        !breathingStr.match(/red|blue|yellow|spring|근|muscle|준비|당기기|돌아오기|주의/i)) {
+        !breathingStr.match(/red|blue|yellow|spring|근|muscle|준비|당기기|돌아오기|주의|^1\.|^2\./i)) {
+      // ✅ 호흡 정보는 "Inhale", "Exhale", "들어", "내쉬" 등이 포함되어야 함
       breathing = breathingStr;
     }
   }
@@ -11702,6 +11742,20 @@ async function loadPilatesDB() {
       const rows = parseCSV(csvText);
       if (rows.length > 0) {
         console.log(`📊 ${file.label} CSV 파싱 완료: ${rows.length}개 행, 헤더:`, Object.keys(rows[0]));
+        // ✅ 첫 번째 행의 필드값 확인 (디버깅)
+        if (rows[0]) {
+          const firstRow = rows[0];
+          console.log(`🔍 ${file.label} 첫 번째 행 필드 확인:`, {
+            Exercise_Name_KR: firstRow.Exercise_Name_KR,
+            Exercise_Name_EN: firstRow.Exercise_Name_EN,
+            'Main_Strengthen_Muscles (주요 강화 근육)': firstRow['Main_Strengthen_Muscles (주요 강화 근육)']?.substring(0, 50),
+            'Main_Stretch_Muscles (주요 스트레칭 근육)': firstRow['Main_Stretch_Muscles (주요 스트레칭 근육)']?.substring(0, 50),
+            'How_to_Perform_Step_by_Step (상세 동작 설명)': firstRow['How_to_Perform_Step_by_Step (상세 동작 설명)']?.substring(0, 50),
+            Reps: firstRow.Reps,
+            Breathing_Pattern: firstRow.Breathing_Pattern,
+            Spring_Traditional: firstRow.Spring_Traditional
+          });
+        }
         // ✅ Chest Expansion 같은 특정 운동의 필드 확인 (디버깅)
         const chestExpansion = rows.find(r => 
           (r.Exercise_Name_EN && r.Exercise_Name_EN.toLowerCase().includes('chest expansion')) ||
