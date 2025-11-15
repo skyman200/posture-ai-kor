@@ -3673,10 +3673,12 @@ function drawHandle(x, y, label, color, isSelected = false) {
   const pad = 4;
   const tw = ctx.measureText(label).width;
   const th = 16;
+  // ✅ dot 간격을 벌리기 위해 label 위치를 더 멀리 배치 (10 -> 18)
+  const labelOffsetX = 18;
   ctx.fillStyle = isSelected ? 'rgba(124,156,255,0.8)' : 'rgba(0,0,0,0.6)';
-  ctx.fillRect(x + 10, y - 12, tw + pad * 2, th);
+  ctx.fillRect(x + labelOffsetX, y - 12, tw + pad * 2, th);
   ctx.fillStyle = '#e7eef7';
-  ctx.fillText(label, x + 10 + pad, y + 1);
+  ctx.fillText(label, x + labelOffsetX + pad, y + 1);
 }
 
 // 각도와 점수만 계산 (실시간 표시용, AI 분석 없음)
@@ -4268,7 +4270,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
       metricCount++;
       if(sta > 3) {
         const delta = sta - 3;
-        const penalty = Math.min(15, delta * 3);
+        // ✅ 심각한 편차에 대해 더 강한 감점 적용 (최대 35점)
+        // 3-10°: 경미 (delta * 2), 10-20°: 중등도 (delta * 2.5), 20° 이상: 심각 (delta * 3)
+        let penaltyMultiplier = delta <= 7 ? 2 : (delta <= 17 ? 2.5 : 3);
+        const penalty = Math.min(35, delta * penaltyMultiplier);
         penalties += penalty;
         reasons.push(`STA ${sta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
       }
@@ -4280,7 +4285,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
       metricCount++;
       if(poa > 3) {
         const delta = poa - 3;
-        const penalty = Math.min(15, delta * 3);
+        // ✅ 심각한 편차에 대해 더 강한 감점 적용 (최대 40점)
+        // 3-10°: 경미 (delta * 2), 10-20°: 중등도 (delta * 2.5), 20° 이상: 심각 (delta * 3)
+        let penaltyMultiplier = delta <= 7 ? 2 : (delta <= 17 ? 2.5 : 3);
+        const penalty = Math.min(40, delta * penaltyMultiplier);
         penalties += penalty;
         reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
       }
@@ -4319,7 +4327,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
       metricCount++;
       if(hta > 3) {
         const delta = hta - 3;
-        const penalty = Math.min(15, delta * 3);
+        // ✅ 심각한 편차에 대해 더 강한 감점 적용 (최대 40점)
+        // 3-10°: 경미 (delta * 2), 10-20°: 중등도 (delta * 2.5), 20° 이상: 심각 (delta * 3)
+        let penaltyMultiplier = delta <= 7 ? 2 : (delta <= 17 ? 2.5 : 3);
+        const penalty = Math.min(40, delta * penaltyMultiplier);
         penalties += penalty;
         reasons.push(`HTA ${hta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
       }
@@ -8996,28 +9007,83 @@ function getExerciseDetailInfo(entry) {
   }
   
   // ✅ 핵심 큐: Classical_Cues_by_Jay_Grimes_Romana 필드만 사용 (문자열인지 확인)
-  const cues = (normalized.Classical_Cues_by_Jay_Grimes_Romana && typeof normalized.Classical_Cues_by_Jay_Grimes_Romana === 'string' && normalized.Classical_Cues_by_Jay_Grimes_Romana.trim()) ||
+  // ✅ 값이 숫자만 있거나 운동 설명이면 제외 (CSV 파싱 오류 방지)
+  const cuesRaw = (normalized.Classical_Cues_by_Jay_Grimes_Romana && typeof normalized.Classical_Cues_by_Jay_Grimes_Romana === 'string' && normalized.Classical_Cues_by_Jay_Grimes_Romana.trim()) ||
                (normalized.key_cues && typeof normalized.key_cues === 'string' && normalized.key_cues.trim()) ||
                (normalized.cues && typeof normalized.cues === 'string' && normalized.cues.trim()) ||
                (detail?.key_cues && typeof detail.key_cues === 'string' && detail.key_cues.trim()) ||
                '';
+  let cues = '';
+  if (cuesRaw) {
+    const cuesStr = cuesRaw.trim();
+    // ✅ 핵심 큐는 인용구, 지시사항 등이 포함되어야 함
+    // 숫자만 있거나(예: "8"), 운동 설명(50자 이상)이면 제외
+    // "준비:", "당기기:", "돌아오기:" 같은 운동 설명 패턴이면 제외
+    if (cuesStr.length < 50 &&
+        !cuesStr.match(/^[\d\-\+\s]+$/) && // 숫자만 있는 경우 제외
+        !cuesStr.match(/^준비:|^당기기:|^돌아오기:|^주의:/i) && // 운동 설명 패턴 제외
+        (cuesStr.match(/["'"]|:|!|Grimes|Romana|Jay|Pilates/i) || cuesStr.length > 5)) { // 인용구나 이름이 포함되어야 함
+      cues = cuesStr;
+    }
+  }
   
   // ✅ 횟수: Reps 필드만 사용 (문자열 또는 숫자인지 확인)
+  // ✅ 값이 운동 설명처럼 긴 텍스트면 제외 (CSV 파싱 오류 방지)
   const setsRaw = normalized.Reps || normalized.reps || normalized.sets_reps || detail?.sets_reps || detail?.reps || '';
-  const sets = (setsRaw && (typeof setsRaw === 'string' || typeof setsRaw === 'number')) ? String(setsRaw).trim() : '';
+  let sets = '';
+  if (setsRaw) {
+    const setsStr = String(setsRaw).trim();
+    // ✅ 숫자, 범위(예: "6-8", "10", "3+3", "100"), 또는 짧은 텍스트만 허용
+    // 긴 텍스트(50자 이상)는 운동 설명으로 간주하고 제외
+    if (setsStr.length < 50 && (setsStr.match(/^[\d\-\+\s××]+$/) || setsStr.length < 20)) {
+      sets = setsStr;
+    } else if (setsStr.length < 20 && !setsStr.match(/^[0-9]/)) {
+      // 20자 미만이고 숫자로 시작하지 않으면 제외 (운동 설명일 가능성)
+      sets = '';
+    } else if (setsStr.length < 50) {
+      sets = setsStr;
+    }
+  }
   
   // ✅ 스프링: Spring_Traditional 필드만 사용 (문자열인지 확인)
-  const spring = (normalized.Spring_Traditional && typeof normalized.Spring_Traditional === 'string' && normalized.Spring_Traditional.trim()) ||
+  // ✅ 값이 근육 이름처럼 보이면 제외 (CSV 파싱 오류 방지)
+  const springRaw = (normalized.Spring_Traditional && typeof normalized.Spring_Traditional === 'string' && normalized.Spring_Traditional.trim()) ||
                  (normalized.Spring && typeof normalized.Spring === 'string' && normalized.Spring.trim()) ||
                  (normalized.spring && typeof normalized.spring === 'string' && normalized.spring.trim()) ||
                  (detail?.spring && typeof detail.spring === 'string' && detail.spring.trim()) ||
                  '';
+  let spring = '';
+  if (springRaw) {
+    const springStr = springRaw.trim();
+    // ✅ 스프링 정보는 "Red", "Blue", "Yellow", 숫자, "+" 등이 포함되어야 함
+    // 근육 이름(예: "소흉근", "능형근", "대흉근")이 들어가면 제외
+    // 운동 설명(50자 이상)이 들어가면 제외
+    if (springStr.length < 50 && 
+        (springStr.match(/red|blue|yellow|spring|\d|\+|top|bottom|light|heavy/i) || springStr.length < 15) &&
+        !springStr.match(/근|muscle|muscles|준비|당기기|돌아오기|주의/i)) {
+      spring = springStr;
+    }
+  }
   
   // ✅ 호흡: Breathing_Pattern 필드만 사용 (문자열인지 확인)
-  const breathing = (normalized.Breathing_Pattern && typeof normalized.Breathing_Pattern === 'string' && normalized.Breathing_Pattern.trim()) ||
+  // ✅ 값이 스프링 정보처럼 보이면 제외 (CSV 파싱 오류 방지)
+  const breathingRaw = (normalized.Breathing_Pattern && typeof normalized.Breathing_Pattern === 'string' && normalized.Breathing_Pattern.trim()) ||
                     (normalized.Breathing && typeof normalized.Breathing === 'string' && normalized.Breathing.trim()) ||
                     (detail?.breathing && typeof detail.breathing === 'string' && detail.breathing.trim()) ||
                     '';
+  let breathing = '';
+  if (breathingRaw) {
+    const breathingStr = breathingRaw.trim();
+    // ✅ 호흡 정보는 "Inhale", "Exhale", "들어", "내쉬" 등이 포함되어야 함
+    // 스프링 정보(예: "1 Red + 1 Blue")가 들어가면 제외
+    // 운동 설명(50자 이상)이 들어가면 제외
+    // 근육 이름이 들어가면 제외
+    if (breathingStr.length < 50 &&
+        (breathingStr.match(/inhale|exhale|들어|내쉬|들이|숨|breath/i) || breathingStr.length < 30) &&
+        !breathingStr.match(/red|blue|yellow|spring|근|muscle|준비|당기기|돌아오기|주의/i)) {
+      breathing = breathingStr;
+    }
+  }
   
   const precaution = detail?.precaution || normalized.precaution || normalized.warning || '';
   
@@ -11321,13 +11387,16 @@ function parseCSV(csvText) {
       });
       records.push(record);
     } else if (values.length > 0) {
-      // 필드 수가 일치하지 않아도 경고만 출력하고 계속 진행
+      // ✅ 필드 수가 일치하지 않을 때: 헤더 수에 맞춰서만 매핑 (나머지는 무시)
       console.warn(`⚠️ CSV 행 ${i + 1}: 필드 수 불일치 (헤더: ${headers.length}, 데이터: ${values.length})`);
-      // 가능한 만큼만 매핑
       const record = {};
       const minLen = Math.min(headers.length, values.length);
       for (let idx = 0; idx < minLen; idx++) {
         record[headers[idx]] = values[idx] || '';
+      }
+      // ✅ 나머지 필드는 빈 문자열로 채움 (필드 밀림 방지)
+      for (let idx = minLen; idx < headers.length; idx++) {
+        record[headers[idx]] = '';
       }
       records.push(record);
     }
@@ -11624,14 +11693,21 @@ async function loadPilatesDB() {
       const rows = parseCSV(csvText);
       if (rows.length > 0) {
         console.log(`📊 ${file.label} CSV 파싱 완료: ${rows.length}개 행, 헤더:`, Object.keys(rows[0]));
-        // 첫 번째 행 샘플 확인 (디버깅)
-        if (rows[0]) {
-          const sample = rows[0];
-          console.log(`📋 ${file.label} 샘플 데이터:`, {
-            Exercise_Name_KR: sample.Exercise_Name_KR,
-            Reps: sample.Reps,
-            Breathing_Pattern: sample.Breathing_Pattern,
-            Spring_Traditional: sample.Spring_Traditional
+        // ✅ Chest Expansion 같은 특정 운동의 필드 확인 (디버깅)
+        const chestExpansion = rows.find(r => 
+          (r.Exercise_Name_EN && r.Exercise_Name_EN.toLowerCase().includes('chest expansion')) ||
+          (r.Exercise_Name_KR && r.Exercise_Name_KR.includes('가슴') || r.Exercise_Name_KR.includes('체스트'))
+        );
+        if (chestExpansion) {
+          console.log(`🔍 ${file.label} Chest Expansion 필드 확인:`, {
+            Exercise_Name_KR: chestExpansion.Exercise_Name_KR,
+            Exercise_Name_EN: chestExpansion.Exercise_Name_EN,
+            Main_Strengthen_Muscles: chestExpansion.Main_Strengthen_Muscles || chestExpansion['Main_Strengthen_Muscles (주요 강화 근육)'],
+            Main_Stretch_Muscles: chestExpansion.Main_Stretch_Muscles || chestExpansion['Main_Stretch_Muscles (주요 스트레칭 근육)'],
+            Reps: chestExpansion.Reps,
+            Breathing_Pattern: chestExpansion.Breathing_Pattern,
+            Spring_Traditional: chestExpansion.Spring_Traditional,
+            Classical_Cues_by_Jay_Grimes_Romana: chestExpansion.Classical_Cues_by_Jay_Grimes_Romana
           });
         }
       }
@@ -11748,7 +11824,60 @@ async function linkPilatesDB(postureResult) {
     return matched;
   });
 
-  const recommended = matchedExercises.slice(0, 10);
+  let recommended = matchedExercises.slice(0, 10);
+  
+  // ✅ 기립근/복직근 문제 감지 시 코어 운동 추가
+  const hasErectorProblem = Array.from(tightSet).some(m => 
+    m.includes('기립근') || m.includes('erector') || m.includes('spine erector')
+  ) || Array.from(weakSet).some(m => 
+    m.includes('기립근') || m.includes('erector') || m.includes('spine erector')
+  );
+  
+  const hasRectusProblem = Array.from(tightSet).some(m => 
+    m.includes('복직근') || m.includes('rectus')
+  ) || Array.from(weakSet).some(m => 
+    m.includes('복직근') || m.includes('rectus')
+  );
+  
+  if (hasErectorProblem || hasRectusProblem) {
+    console.log('🔍 기립근/복직근 문제 감지 → 코어 운동 추가 검색');
+    
+    // ✅ 코어 운동 필터링 (Main_Strengthen_Muscles에 코어 관련 키워드 포함)
+    const coreKeywords = ['코어', 'core', '복직근', '복횡근', '복사근', 'rectus', 'transverse', 'abdominis'];
+    const coreExercises = pilatesDB.filter((ex) => {
+      const strengthenStr = ex.Main_Strengthen_Muscles || 
+                           ex['Main_Strengthen_Muscles (주요 강화 근육)'] || 
+                           (ex.strengthen_targets ? ex.strengthen_targets.join(', ') : '');
+      
+      if (!strengthenStr) return false;
+      
+      // 코어 관련 키워드가 포함되어 있는지 확인
+      const hasCoreKeyword = coreKeywords.some(keyword => 
+        strengthenStr.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return hasCoreKeyword;
+    });
+    
+    // ✅ 이미 추천된 운동 제외하고 코어 운동 추가
+    const recommendedNames = new Set(
+      recommended.map(e => e.exercise_ko || e.exercise_en || e.name)
+    );
+    
+    const additionalCoreExercises = coreExercises
+      .filter(ex => {
+        const exName = ex.exercise_ko || ex.exercise_en || ex.name;
+        return exName && !recommendedNames.has(exName);
+      })
+      .slice(0, 5); // 최소 3-5개 추가
+    
+    if (additionalCoreExercises.length > 0) {
+      recommended = [...recommended, ...additionalCoreExercises];
+      console.log(`✅ 코어 운동 ${additionalCoreExercises.length}개 추가:`, 
+        additionalCoreExercises.map(e => e.exercise_ko || e.exercise_en || e.name).join(', '));
+    }
+  }
+  
   console.log('✅ 필라테스 운동 추천:', recommended.length, '개');
   if (recommended.length > 0) {
     console.log('  -', recommended.map(e => e.exercise_ko || e.exercise_en || e.name).join(', '));
@@ -14582,75 +14711,85 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'L_ankle');
-    if (leftAnklePoint && leftAnklePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤
+    // ✅ 발목 키포인트는 항상 매핑 시도 (confidence 임계값 0.01로 낮춤)
+    if (leftAnklePoint && leftAnklePoint.score >= 0.01) {
       keypointMap['L_ankle'] = leftAnklePoint;
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
-    } else if (keypointMap['L_knee']) {
-      const kneeY = keypointMap['L_knee'].y;
-      // ✅ 무릎에서 발목까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
-      const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
-      keypointMap['L_ankle'] = {
-        x: keypointMap['L_knee'].x,
-        y: kneeY + ankleOffset,
-        score: keypointMap['L_knee'].score * 0.7
-      };
-      console.log(`✅ L_ankle 추정 (L_knee 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['L_asis']) {
-      // 무릎이 없으면 골반을 기준으로 추정
-      const hipY = keypointMap['L_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
-      keypointMap['L_ankle'] = {
-        x: keypointMap['L_asis'].x,
-        y: hipY + ankleOffset,
-        score: keypointMap['L_asis'].score * 0.6
-      };
-      console.log(`✅ L_ankle 추정 (L_asis 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['L_acromion']) {
-      // 골반도 없으면 어깨를 기준으로 추정
-      const shoulderY = keypointMap['L_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
-      keypointMap['L_ankle'] = {
-        x: keypointMap['L_acromion'].x,
-        y: shoulderY + ankleOffset,
-        score: keypointMap['L_acromion'].score * 0.5
-      };
-      console.log(`✅ L_ankle 추정 (L_acromion 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+    }
+    // ✅ 발목이 감지되지 않으면 무조건 추정 (무릎, 골반, 어깨 순으로)
+    if (!keypointMap['L_ankle']) {
+      if (keypointMap['L_knee']) {
+        const kneeY = keypointMap['L_knee'].y;
+        // ✅ 무릎에서 발목까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
+        const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
+        keypointMap['L_ankle'] = {
+          x: keypointMap['L_knee'].x,
+          y: kneeY + ankleOffset,
+          score: keypointMap['L_knee'].score * 0.7
+        };
+        console.log(`✅ L_ankle 추정 (L_knee 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['L_asis']) {
+        // 무릎이 없으면 골반을 기준으로 추정
+        const hipY = keypointMap['L_asis'].y;
+        const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
+        keypointMap['L_ankle'] = {
+          x: keypointMap['L_asis'].x,
+          y: hipY + ankleOffset,
+          score: keypointMap['L_asis'].score * 0.6
+        };
+        console.log(`✅ L_ankle 추정 (L_asis 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['L_acromion']) {
+        // 골반도 없으면 어깨를 기준으로 추정
+        const shoulderY = keypointMap['L_acromion'].y;
+        const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
+        keypointMap['L_ankle'] = {
+          x: keypointMap['L_acromion'].x,
+          y: shoulderY + ankleOffset,
+          score: keypointMap['L_acromion'].score * 0.5
+        };
+        console.log(`✅ L_ankle 추정 (L_acromion 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+      }
     }
     
     const rightAnklePoint = makePoint(mpScreenRightAnkle, 'R_ankle');
-    if (rightAnklePoint && rightAnklePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤
+    // ✅ 발목 키포인트는 항상 매핑 시도 (confidence 임계값 0.01로 낮춤)
+    if (rightAnklePoint && rightAnklePoint.score >= 0.01) {
       keypointMap['R_ankle'] = rightAnklePoint;
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
-    } else if (keypointMap['R_knee']) {
-      const kneeY = keypointMap['R_knee'].y;
-      // ✅ 무릎에서 발목까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
-      const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
-      keypointMap['R_ankle'] = {
-        x: keypointMap['R_knee'].x,
-        y: kneeY + ankleOffset,
-        score: keypointMap['R_knee'].score * 0.7
-      };
-      console.log(`✅ R_ankle 추정 (R_knee 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['R_asis']) {
-      // 무릎이 없으면 골반을 기준으로 추정
-      const hipY = keypointMap['R_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
-      keypointMap['R_ankle'] = {
-        x: keypointMap['R_asis'].x,
-        y: hipY + ankleOffset,
-        score: keypointMap['R_asis'].score * 0.6
-      };
-      console.log(`✅ R_ankle 추정 (R_asis 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['R_acromion']) {
-      // 골반도 없으면 어깨를 기준으로 추정
-      const shoulderY = keypointMap['R_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
-      keypointMap['R_ankle'] = {
-        x: keypointMap['R_acromion'].x,
-        y: shoulderY + ankleOffset,
-        score: keypointMap['R_acromion'].score * 0.5
-      };
-      console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+    }
+    // ✅ 발목이 감지되지 않으면 무조건 추정 (무릎, 골반, 어깨 순으로)
+    if (!keypointMap['R_ankle']) {
+      if (keypointMap['R_knee']) {
+        const kneeY = keypointMap['R_knee'].y;
+        // ✅ 무릎에서 발목까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
+        const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
+        keypointMap['R_ankle'] = {
+          x: keypointMap['R_knee'].x,
+          y: kneeY + ankleOffset,
+          score: keypointMap['R_knee'].score * 0.7
+        };
+        console.log(`✅ R_ankle 추정 (R_knee 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['R_asis']) {
+        // 무릎이 없으면 골반을 기준으로 추정
+        const hipY = keypointMap['R_asis'].y;
+        const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
+        keypointMap['R_ankle'] = {
+          x: keypointMap['R_asis'].x,
+          y: hipY + ankleOffset,
+          score: keypointMap['R_asis'].score * 0.6
+        };
+        console.log(`✅ R_ankle 추정 (R_asis 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['R_acromion']) {
+        // 골반도 없으면 어깨를 기준으로 추정
+        const shoulderY = keypointMap['R_acromion'].y;
+        const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
+        keypointMap['R_ankle'] = {
+          x: keypointMap['R_acromion'].x,
+          y: shoulderY + ankleOffset,
+          score: keypointMap['R_acromion'].score * 0.5
+        };
+        console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+      }
     }
     
     // ✅ tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용: ASIS-KNEE-Tibial tub)
@@ -15561,8 +15700,71 @@ function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
     });
   }
   
+  // ✅ 기립근/복직근 문제 감지 시 코어 운동 추가
+  const hasErectorProblem = Array.from(tightSet).some(m => 
+    m.includes('기립근') || m.includes('erector') || m.includes('spine erector')
+  ) || Array.from(weakSet).some(m => 
+    m.includes('기립근') || m.includes('erector') || m.includes('spine erector')
+  );
+  
+  const hasRectusProblem = Array.from(tightSet).some(m => 
+    m.includes('복직근') || m.includes('rectus')
+  ) || Array.from(weakSet).some(m => 
+    m.includes('복직근') || m.includes('rectus')
+  );
+  
+  if (hasErectorProblem || hasRectusProblem) {
+    console.log('🔍 기립근/복직근 문제 감지 → 코어 운동 추가 검색');
+    
+    // ✅ 코어 운동 필터링 (Main_Strengthen_Muscles에 코어 관련 키워드 포함)
+    const coreKeywords = ['코어', 'core', '복직근', '복횡근', '복사근', 'rectus', 'transverse', 'abdominis'];
+    const coreExercises = allPilates.filter((ex) => {
+      const strengthenStr = ex.Main_Strengthen_Muscles || 
+                           ex['Main_Strengthen_Muscles (주요 강화 근육)'] || 
+                           (ex.strengthen_targets ? ex.strengthen_targets.join(', ') : '');
+      
+      if (!strengthenStr) return false;
+      
+      // 코어 관련 키워드가 포함되어 있는지 확인
+      const hasCoreKeyword = coreKeywords.some(keyword => 
+        strengthenStr.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return hasCoreKeyword;
+    });
+    
+    // ✅ 이미 추천된 운동 제외하고 코어 운동 추가
+    const recommendedNames = new Set(
+      recommendations.map(r => r.name || r.exercise_ko || r.Exercise_Name_KR)
+    );
+    
+    const additionalCoreExercises = coreExercises
+      .filter(ex => {
+        const exName = ex.exercise_ko || ex.Exercise_Name_KR || ex.name;
+        return exName && !recommendedNames.has(exName);
+      })
+      .slice(0, 5) // 최소 3-5개 추가
+      .map(ex => {
+        const key = ex.exercise_ko || ex.Exercise_Name_KR || ex.name;
+        return {
+          ...ex,
+          name: key,
+          type: '코어',
+          target: '코어 안정성',
+          reps: ex.Reps || ex.sets_reps || '3세트',
+          equip: ex.equipment_ko || ex.equipment || '매트'
+        };
+      });
+    
+    if (additionalCoreExercises.length > 0) {
+      recommendations.push(...additionalCoreExercises);
+      console.log(`✅ 코어 운동 ${additionalCoreExercises.length}개 추가:`, 
+        additionalCoreExercises.map(e => e.name).join(', '));
+    }
+  }
+  
   console.log('✅ 필라테스 추천 완료:', recommendations.length, '개');
-  return recommendations.slice(0, 10); // 최대 10개 추천
+  return recommendations.slice(0, 15); // 최대 15개 추천 (기본 10개 + 코어 5개)
 }
 
 // 레거시 샘플 데이터용 함수
