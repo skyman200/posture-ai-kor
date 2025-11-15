@@ -4264,77 +4264,101 @@ function computeScoreFromFullMetrics(fullMetrics) {
   if(orientation === "front" || orientation === "both") {
     // 16. STA (Shoulder Tilt Angle) - 정상 ≤3°
     const sta = fullMetrics.STA_F?.value || fullMetrics.STA?.value;
-    if(sta != null && sta > 3) {
-      const delta = sta - 3;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`STA ${sta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+    if(sta != null && !isNaN(sta) && isFinite(sta)) {
+      metricCount++;
+      if(sta > 3) {
+        const delta = sta - 3;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`STA ${sta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 17. POA (Pelvic Obliquity Angle) - 정상 ≤3°
     const poa = fullMetrics.POA_F?.value || fullMetrics.POA?.value;
-    if(poa != null && poa > 3) {
-      const delta = poa - 3;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+    if(poa != null && !isNaN(poa) && isFinite(poa)) {
+      metricCount++;
+      if(poa > 3) {
+        const delta = poa - 3;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`POA ${poa.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 18. LLD_F (Leg Length Discrepancy) - 정상 ≤1cm (측면 LLD와 중복될 수 있으므로 둘 중 하나만 계산)
     const lld_f = fullMetrics.LLD_F?.value;
-    if(lld_f != null && lld_f > 1) {
-      // 측면 LLD가 이미 계산되지 않았을 때만 계산
-      if(!fullMetrics.LLD || fullMetrics.LLD.value === lld_f) {
-        const delta = lld_f - 1;
-        const penalty = Math.min(25, delta * 10);
-        penalties += penalty;
-        reasons.push(`LLD_F ${lld_f.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+    if(lld_f != null && !isNaN(lld_f) && isFinite(lld_f)) {
+      metricCount++;
+      if(lld_f > 1) {
+        // 측면 LLD가 이미 계산되지 않았을 때만 계산
+        if(!fullMetrics.LLD || fullMetrics.LLD.value === lld_f) {
+          const delta = lld_f - 1;
+          const penalty = Math.min(25, delta * 10);
+          penalties += penalty;
+          reasons.push(`LLD_F ${lld_f.toFixed(1)}cm (정상 ≤1cm) - ${penalty.toFixed(0)}점 감점`);
+        }
       }
     }
     
     // 19. TD (Trunk Deviation) - 정상 ±2°
     const td = fullMetrics.TD?.value;
-    if(td != null && td > 2) {
-      const delta = td - 2;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`TD ${td.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+    if(td != null && !isNaN(td) && isFinite(td)) {
+      metricCount++;
+      if(td > 2) {
+        const delta = td - 2;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`TD ${td.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 20. HTA (Head Tilt Angle) - 정상 ≤3°
     const hta = fullMetrics.HTA?.value;
-    if(hta != null && hta > 3) {
-      const delta = hta - 3;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`HTA ${hta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+    if(hta != null && !isNaN(hta) && isFinite(hta)) {
+      metricCount++;
+      if(hta > 3) {
+        const delta = hta - 3;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`HTA ${hta.toFixed(1)}° (정상 ≤3°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 21. SPP (Shoulder–Pelvis Parallelism) - 정상 0-3°
     const spp = fullMetrics.SPP?.value;
-    if(spp != null && spp > 3) {
-      const delta = spp - 3;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`SPP ${spp.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+    if(spp != null && !isNaN(spp) && isFinite(spp)) {
+      metricCount++;
+      if(spp > 3) {
+        const delta = spp - 3;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`SPP ${spp.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 22. KAS (Knee Alignment Symmetry) - 정상 ±2°
     const kas = fullMetrics.KAS?.value;
-    if(kas != null && kas > 2) {
-      const delta = kas - 2;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`KAS ${kas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+    if(kas != null && !isNaN(kas) && isFinite(kas)) {
+      metricCount++;
+      if(kas > 2) {
+        const delta = kas - 2;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`KAS ${kas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
     
     // 23. LLAS (Lower Limb Axis Symmetry) - 정상 ±2°
     const llas = fullMetrics.LLAS?.value;
-    if(llas != null && llas > 2) {
-      const delta = llas - 2;
-      const penalty = Math.min(15, delta * 3);
-      penalties += penalty;
-      reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+    if(llas != null && !isNaN(llas) && isFinite(llas)) {
+      metricCount++;
+      if(llas > 2) {
+        const delta = llas - 2;
+        const penalty = Math.min(15, delta * 3);
+        penalties += penalty;
+        reasons.push(`LLAS ${llas.toFixed(1)}° (정상 ±2°) - ${penalty.toFixed(0)}점 감점`);
+      }
     }
   }
   
