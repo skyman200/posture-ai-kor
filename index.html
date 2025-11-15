@@ -11798,11 +11798,15 @@ async function linkPilatesDB(postureResult) {
         exKeys.some((exKey) => exKey.includes(key) || key.includes(exKey))
       );
 
-    // 근육 기반 매칭: stretch_targets와 strengthen_targets 확인
+    // ✅ 근육 기반 매칭: 
+    // posture_metrics_full.csv의 Tight_Muscle → 필라테스 DB의 Main_Stretch_Muscles로 연결
+    // posture_metrics_full.csv의 Weak_Muscle → 필라테스 DB의 Main_Strengthen_Muscles로 연결
     if (!matched && tightSet.size > 0) {
-      // 긴장 근육을 스트레칭하는 운동 찾기
-      const stretchTargets = ex.stretch_targets || ex.stretchMuscles || 
-        (ex.Main_Stretch_Muscles ? splitMuscleList(ex.Main_Stretch_Muscles) : []);
+      // 긴장 근육(Tight_Muscle)을 스트레칭하는 운동 찾기 → Main_Stretch_Muscles 매칭
+      const stretchStr = ex.stretch_targets?.join(', ') || ex.stretchMuscles || 
+                         ex.Main_Stretch_Muscles || 
+                         ex['Main_Stretch_Muscles (주요 스트레칭 근육)'] || '';
+      const stretchTargets = stretchStr ? splitMuscleList(stretchStr) : [];
       matched = stretchTargets.some((target) => {
         const normalized = normalizeMuscleName(target);
         return tightSet.has(normalized) || 
@@ -11811,9 +11815,11 @@ async function linkPilatesDB(postureResult) {
     }
 
     if (!matched && weakSet.size > 0) {
-      // 약화 근육을 강화하는 운동 찾기
-      const strengthenTargets = ex.strengthen_targets || ex.strengthenMuscles ||
-        (ex.Main_Strengthen_Muscles ? splitMuscleList(ex.Main_Strengthen_Muscles) : []);
+      // 약화 근육(Weak_Muscle)을 강화하는 운동 찾기 → Main_Strengthen_Muscles 매칭
+      const strengthenStr = ex.strengthen_targets?.join(', ') || ex.strengthenMuscles ||
+                            ex.Main_Strengthen_Muscles || 
+                            ex['Main_Strengthen_Muscles (주요 강화 근육)'] || '';
+      const strengthenTargets = strengthenStr ? splitMuscleList(strengthenStr) : [];
       matched = strengthenTargets.some((target) => {
         const normalized = normalizeMuscleName(target);
         return weakSet.has(normalized) ||
@@ -15637,10 +15643,12 @@ function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
   const tightSet = new Set((tightMuscles || []).map(normalizeMuscle));
   const weakSet = new Set((weakMuscles || []).map(normalizeMuscle));
   
-  // 1. 약한 근육 강화 운동 추천
+  // 1. 약한 근육(Weak_Muscle) 강화 운동 추천 → Main_Strengthen_Muscles 매칭
   if (weakSet.size > 0) {
     allPilates.forEach(ex => {
-      const strengthenStr = ex.Main_Strengthen_Muscles || ex.strengthen_targets?.join(', ') || '';
+      const strengthenStr = ex.Main_Strengthen_Muscles || 
+                            ex['Main_Strengthen_Muscles (주요 강화 근육)'] ||
+                            ex.strengthen_targets?.join(', ') || '';
       if (!strengthenStr) return;
       
       const strengthenMuscles = splitMuscleList(strengthenStr).map(normalizeMuscle);
@@ -15667,10 +15675,12 @@ function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
     });
   }
   
-  // 2. 긴장된 근육 스트레치 운동 추천
+  // 2. 긴장된 근육(Tight_Muscle) 스트레치 운동 추천 → Main_Stretch_Muscles 매칭
   if (tightSet.size > 0) {
     allPilates.forEach(ex => {
-      const stretchStr = ex.Main_Stretch_Muscles || ex.stretch_targets?.join(', ') || '';
+      const stretchStr = ex.Main_Stretch_Muscles || 
+                         ex['Main_Stretch_Muscles (주요 스트레칭 근육)'] ||
+                         ex.stretch_targets?.join(', ') || '';
       if (!stretchStr) return;
       
       const stretchMuscles = splitMuscleList(stretchStr).map(normalizeMuscle);
