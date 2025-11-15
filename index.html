@@ -4106,10 +4106,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
     if(hpd != null && !isNaN(hpd) && isFinite(hpd)) {
       metricCount++;
       if(hpd > 2) {
-        const delta = hpd - 2;
-        const penalty = Math.min(20, delta * 5);
-        penalties += penalty;
-        reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+      const delta = hpd - 2;
+      const penalty = Math.min(20, delta * 5);
+      penalties += penalty;
+      reasons.push(`HPD ${hpd.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
       }
     }
     
@@ -4119,10 +4119,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
     if(tia != null && !isNaN(tia) && isFinite(tia)) {
       metricCount++;
       if(tia > 10) {
-        const delta = tia - 10;
-        const penalty = Math.min(20, delta * 2);
-        penalties += penalty;
-        reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      const delta = tia - 10;
+      const penalty = Math.min(20, delta * 2);
+      penalties += penalty;
+      reasons.push(`TIA ${tia.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
     
@@ -4131,10 +4131,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
     if(saa != null && !isNaN(saa) && isFinite(saa)) {
       metricCount++;
       if(saa > 10) {
-        const delta = saa - 10;
-        const penalty = Math.min(15, delta * 1.5);
-        penalties += penalty;
-        reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      const delta = saa - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`SAA ${saa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
     
@@ -4183,10 +4183,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
     if(tibial != null && !isNaN(tibial) && isFinite(tibial)) {
       metricCount++;
       if(tibial > 10) {
-        const delta = tibial - 10;
-        const penalty = Math.min(15, delta * 1.5);
-        penalties += penalty;
-        reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      const delta = tibial - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`Tibial ${tibial.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
     
@@ -4234,10 +4234,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
     if(gsb != null && !isNaN(gsb) && isFinite(gsb)) {
       metricCount++;
       if(gsb > 2) {
-        const delta = gsb - 2;
-        const penalty = Math.min(20, delta * 5);
-        penalties += penalty;
-        reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
+      const delta = gsb - 2;
+      const penalty = Math.min(20, delta * 5);
+      penalties += penalty;
+      reasons.push(`GSB ${gsb.toFixed(1)}cm (정상 ≤2cm) - ${penalty.toFixed(0)}점 감점`);
       }
     }
     
@@ -4246,10 +4246,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
     if(hpa != null && !isNaN(hpa) && isFinite(hpa)) {
       metricCount++;
       if(hpa > 10) {
-        const delta = hpa - 10;
-        const penalty = Math.min(15, delta * 1.5);
-        penalties += penalty;
-        reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
+      const delta = hpa - 10;
+      const penalty = Math.min(15, delta * 1.5);
+      penalties += penalty;
+      reasons.push(`HPA ${hpa.toFixed(1)}° (정상 0-10°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
   }
@@ -8425,7 +8425,7 @@ function generateAIDeepAnalysis(metrics) {
     if (metrics && metrics[key]) {
       const m = metrics[key];
       if (typeof m === 'object' && ('before' in m || 'after' in m)) {
-        return {
+    return {
           before: (m.before != null && !isNaN(m.before)) ? Number(m.before) : null,
           after: (m.after != null && !isNaN(m.after)) ? Number(m.after) : null
         };
@@ -9710,12 +9710,12 @@ const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
     // ✅ 키 별칭 확인 (METRIC_KEY_ALIASES 사용)
-    const code = METRIC_KEY_ALIASES[key] || key;
+  const code = METRIC_KEY_ALIASES[key] || key;
     // ✅ 원본 키와 별칭 모두 확인
     if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
       sideMetrics[key] = sideMetricsSource[key];
-    }
-  });
+  }
+});
 }
 
 // ✅ 측면 분석임을 명시
@@ -14660,9 +14660,9 @@ async function applyPoseDetection(img, sessionName) {
         imgY = value.y * img.naturalHeight;
       }
       
-      // ✅ 정면 분석 시 y 좌표를 2배 올리기 (y 값을 0.5배로 줄이기)
+      // ✅ 정면 분석 시 y 좌표를 2배 올리기 (y 값을 더 작게 조정하여 위로 올리기)
       if(activeOrientation === "front") {
-        imgY = imgY * 0.5;
+        imgY = imgY * 0.33; // 0.5배 → 0.33배로 더 위로 올리기
       }
         
         // 캔버스 크기에 맞게 스케일링
