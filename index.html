@@ -15657,8 +15657,8 @@ const PILATES_DB_SAMPLE = {
   ]
 };
 
-// CSV 파싱 함수
-function parseCSV(csv) {
+// CSV 파싱 함수 (단순 버전 - 메트릭용)
+function parseCSVSimple(csv) {
   const lines = csv.trim().split('\n');
   const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
   return lines.slice(1).map(line => {
@@ -15671,7 +15671,7 @@ function parseCSV(csv) {
 }
 
 // 메트릭 데이터베이스 파싱
-const METRICS_DB = parseCSV(METRICS_CSV);
+const METRICS_DB = parseCSVSimple(METRICS_CSV);
 
 // ✅ AI 근육-운동 매칭 함수 (실제 CSV DB 기반)
 function recommendPilatesFromMuscles(tightMuscles, weakMuscles) {
