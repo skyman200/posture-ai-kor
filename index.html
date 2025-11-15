@@ -14659,6 +14659,11 @@ async function applyPoseDetection(img, sessionName) {
         imgX = value.x * img.naturalWidth;
         imgY = value.y * img.naturalHeight;
       }
+      
+      // ✅ 정면 분석 시 y 좌표를 2배 올리기 (y 값을 0.5배로 줄이기)
+      if(activeOrientation === "front") {
+        imgY = imgY * 0.5;
+      }
         
         // 캔버스 크기에 맞게 스케일링
         const scaleX = originalCanvasSize.width / img.naturalWidth;
