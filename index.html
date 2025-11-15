@@ -8905,13 +8905,16 @@ function normalizeExerciseEntry(entry) {
   if (!normalized.en && normalized.Exercise_Name_EN) normalized.en = normalized.Exercise_Name_EN;
   if (!normalized.ko && normalized.exercise_ko) normalized.ko = normalized.exercise_ko;
   if (!normalized.ko && normalized.Exercise_Name_KR) normalized.ko = normalized.Exercise_Name_KR;
-  // ✅ CSV DB의 운동 설명 필드 매핑 (하위 호환성용, 원본 필드는 그대로 유지)
-  // 원본 필드명이 있으면 그대로 사용하고, 없을 때만 매핑된 필드 사용
-  if (!normalized.how && normalized.how_to_do) normalized.how = normalized.how_to_do;
-  if (!normalized.how && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)']) normalized.how = normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'];
+  // ✅ CSV DB의 운동 설명 필드 매핑 (필라테스 DB 내용을 그대로 사용)
+  // How_to_Perform_Step_by_Step을 우선 사용 (표준화된 10개 컬럼 구조)
   if (!normalized.how && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)']) normalized.how = normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'];
   if (!normalized.how && normalized['How_to_Perform_Step_by_Step']) normalized.how = normalized['How_to_Perform_Step_by_Step'];
   if (!normalized.how && normalized.How_to_Perform_Step_by_Step) normalized.how = normalized.How_to_Perform_Step_by_Step;
+  // 하위 호환성: 이전 필드명도 확인
+  if (!normalized.how && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)']) normalized.how = normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'];
+  if (!normalized.how && normalized.How_to_Perform_EASY_FOR_BEGINNERS) normalized.how = normalized.How_to_Perform_EASY_FOR_BEGINNERS;
+  // 최종 폴백
+  if (!normalized.how && normalized.how_to_do) normalized.how = normalized.how_to_do;
   if (!normalized.how && normalized.How_to_Perform) normalized.how = normalized.How_to_Perform;
   // ✅ 목적 (강화/스트레칭 근육 정보) - 하위 호환성용
   if (!normalized.purpose && normalized.description) normalized.purpose = normalized.description;
@@ -8982,28 +8985,31 @@ function getExerciseDetailInfo(entry) {
     purpose = detail?.purpose || normalized.purpose || '';
   }
   
-  // ✅ 운동 설명: 기구별로 다른 필드 사용 (리포머는 EASY_FOR_BEGINNERS, 나머지는 Step_by_Step)
+  // ✅ 운동 설명: 필라테스 DB의 How_to_Perform_Step_by_Step 필드를 무조건 그대로 사용
+  // 모든 기구에서 동일한 필드명 사용 (표준화된 10개 컬럼 구조)
   let how = '';
-  if (isReformer) {
-    // 리포머: How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명) 우선
-    how = (normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'].trim()) ||
-           (normalized['How_to_Perform_EASY_FOR_BEGINNERS'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS'].trim()) ||
-           (normalized.How_to_Perform_EASY_FOR_BEGINNERS && typeof normalized.How_to_Perform_EASY_FOR_BEGINNERS === 'string' && normalized.How_to_Perform_EASY_FOR_BEGINNERS.trim()) ||
-           '';
-  } else {
-    // 매트, 캐딜락, 체어, 바렐 등: How_to_Perform_Step_by_Step (상세 동작 설명) 우선
-    how = (normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] && typeof normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'].trim()) ||
-           (normalized['How_to_Perform_Step_by_Step'] && typeof normalized['How_to_Perform_Step_by_Step'] === 'string' && normalized['How_to_Perform_Step_by_Step'].trim()) ||
-           (normalized.How_to_Perform_Step_by_Step && typeof normalized.How_to_Perform_Step_by_Step === 'string' && normalized.How_to_Perform_Step_by_Step.trim()) ||
-           '';
-  }
-  // 폴백: 기구별 필드가 없으면 다른 필드 확인
+  // How_to_Perform_Step_by_Step (상세 동작 설명) 우선 사용
+  how = (normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] && typeof normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_Step_by_Step (상세 동작 설명)'].trim()) ||
+         (normalized['How_to_Perform_Step_by_Step'] && typeof normalized['How_to_Perform_Step_by_Step'] === 'string' && normalized['How_to_Perform_Step_by_Step'].trim()) ||
+         (normalized.How_to_Perform_Step_by_Step && typeof normalized.How_to_Perform_Step_by_Step === 'string' && normalized.How_to_Perform_Step_by_Step.trim()) ||
+         '';
+  // 폴백: Step_by_Step이 없으면 다른 필드 확인 (하위 호환성)
   if (!how) {
-    how = (normalized.How_to_Perform && typeof normalized.How_to_Perform === 'string' && normalized.How_to_Perform.trim()) ||
-          (normalized.how && typeof normalized.how === 'string' && normalized.how.trim()) ||
-          (normalized.how_to_do && typeof normalized.how_to_do === 'string' && normalized.how_to_do.trim()) ||
-          (detail?.how_to_do && typeof detail.how_to_do === 'string' && detail.how_to_do.trim()) ||
-          '';
+    // 리포머의 경우 이전 필드명도 확인 (하위 호환성)
+    if (isReformer) {
+      how = (normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'].trim()) ||
+             (normalized['How_to_Perform_EASY_FOR_BEGINNERS'] && typeof normalized['How_to_Perform_EASY_FOR_BEGINNERS'] === 'string' && normalized['How_to_Perform_EASY_FOR_BEGINNERS'].trim()) ||
+             (normalized.How_to_Perform_EASY_FOR_BEGINNERS && typeof normalized.How_to_Perform_EASY_FOR_BEGINNERS === 'string' && normalized.How_to_Perform_EASY_FOR_BEGINNERS.trim()) ||
+             '';
+    }
+    // 최종 폴백
+    if (!how) {
+      how = (normalized.How_to_Perform && typeof normalized.How_to_Perform === 'string' && normalized.How_to_Perform.trim()) ||
+            (normalized.how && typeof normalized.how === 'string' && normalized.how.trim()) ||
+            (normalized.how_to_do && typeof normalized.how_to_do === 'string' && normalized.how_to_do.trim()) ||
+            (detail?.how_to_do && typeof detail.how_to_do === 'string' && detail.how_to_do.trim()) ||
+            '';
+    }
   }
   
   // ✅ 핵심 큐: Classical_Cues_by_Jay_Grimes_Romana 필드만 사용 (문자열인지 확인)
@@ -11506,15 +11512,18 @@ function mapPilatesExerciseRow(row, equipmentKo) {
   const exerciseKo = row.Exercise_Name_KR || row.exercise_ko || '';
   const exerciseEn = row.Exercise_Name_EN || row.exercise_en || '';
   
-  // ✅ CSV 원본 필드명 그대로 저장 (getExerciseDetailInfo에서 우선 사용)
-  const howToPerform = row['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] || 
-                        row['How_to_Perform_Step_by_Step (상세 동작 설명)'] || 
+  // ✅ CSV 원본 필드명 그대로 저장 (필라테스 DB의 How_to_Perform_Step_by_Step 우선 사용)
+  // 표준화된 10개 컬럼 구조에서 How_to_Perform_Step_by_Step을 우선 사용
+  const howToPerform = row['How_to_Perform_Step_by_Step (상세 동작 설명)'] || 
                         row['How_to_Perform_Step_by_Step'] ||
-                        row['How_to_Perform_EASY_FOR_BEGINNERS'] ||
-                        row['How_to_Perform_Step_by_Step_FULL_CLASSICAL'] ||
                         row.How_to_Perform_Step_by_Step ||
-                        row.How_to_Perform_EASY_FOR_BEGINNERS ||
+                        row['How_to_Perform_Step_by_Step_FULL_CLASSICAL'] ||
                         row.How_to_Perform_Step_by_Step_FULL_CLASSICAL ||
+                        // 하위 호환성: 이전 필드명도 확인
+                        row['How_to_Perform_EASY_FOR_BEGINNERS (상세 동작 설명)'] || 
+                        row['How_to_Perform_EASY_FOR_BEGINNERS'] ||
+                        row.How_to_Perform_EASY_FOR_BEGINNERS ||
+                        // 최종 폴백
                         row.How_to_Perform ||
                         '';
   
