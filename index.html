@@ -3857,6 +3857,8 @@ function computeAll() {
   if(frontMetrics.status !== "not_available" && sideMetrics.status === "not_available") {
     // 정면 분석만 있는 경우 - 정면 메트릭만 사용
     mergedMetrics = { ...frontMetrics };
+    // ✅ orientation을 mergedMetrics에 명시적으로 설정
+    mergedMetrics.orientation = "front";
     
     S.metrics = { 
       fullMetrics: mergedMetrics,  // 정면 분석 결과만
@@ -3951,6 +3953,8 @@ function computeAll() {
   } else if(frontMetrics.status !== "not_available") {
     // 정면 분석만 있는 경우 - 정면 메트릭만 사용
     mergedMetrics = { ...frontMetrics };
+    // ✅ orientation을 mergedMetrics에 명시적으로 설정
+    mergedMetrics.orientation = "front";
     
     S.metrics = { 
       fullMetrics: mergedMetrics,  // 정면 분석 결과만
@@ -4087,6 +4091,7 @@ function computeScoreFromFullMetrics(fullMetrics) {
   let reasons = [];
   let metricCount = 0; // 실제 계산된 메트릭 개수
   
+  // ✅ 정면 분석만 있을 때는 측면 항목 계산 건너뛰기
   // ✅ 측면 항목 계산 (측면 분석이거나 통합 분석일 때만)
   if(orientation === "side" || orientation === "both") {
     // 1. CVA (Craniovertebral Angle) - 정상 ≥50°
@@ -4254,13 +4259,8 @@ function computeScoreFromFullMetrics(fullMetrics) {
     }
   }
   
-  // ✅ 측정된 메트릭이 없으면 null 반환
-  if (metricCount === 0) {
-    console.warn('⚠️ 측정된 메트릭이 없습니다. 점수 계산 불가.');
-    return { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
-  }
-  
   // ✅ 정면 항목 계산 (정면 분석이거나 통합 분석일 때만)
+  // ✅ 정면 분석만 있을 때는 측면 항목 계산을 건너뛰고 바로 정면 항목 계산
   if(orientation === "front" || orientation === "both") {
     // 16. STA (Shoulder Tilt Angle) - 정상 ≤3°
     const sta = fullMetrics.STA_F?.value || fullMetrics.STA?.value;
@@ -4395,6 +4395,12 @@ function computeScoreFromFullMetrics(fullMetrics) {
         reasons.push(`Knee Dev ${kneeDev.toFixed(1)}° (정상 0-3°) - ${penalty.toFixed(0)}점 감점`);
       }
     }
+  }
+  
+  // ✅ 측정된 메트릭이 없으면 null 반환 (정면/측면 항목 계산 후에 체크)
+  if (metricCount === 0) {
+    console.warn('⚠️ 측정된 메트릭이 없습니다. 점수 계산 불가.');
+    return { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   }
   
   // ✅ 감점 근거에 기반하여 체형 종합 점수 계산
@@ -11264,37 +11270,65 @@ function downloadCanvasAsImage(canvas, fileName, btn, originalText) {
   });
 }
 
+// CSV 파싱 함수 (따옴표 처리 개선)
+function parseCSVLine(line) {
+  const values = [];
+  let currentValue = '';
+  let inQuotes = false;
+  
+  for (let j = 0; j < line.length; j++) {
+    const char = line[j];
+    if (char === '"') {
+      if (inQuotes && line[j + 1] === '"') {
+        // 이스케이프된 따옴표 ("")
+        currentValue += '"';
+        j++; // 다음 따옴표 건너뛰기
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      // 따옴표 제거 및 공백 제거
+      const cleaned = currentValue.trim().replace(/^"|"$/g, '');
+      values.push(cleaned);
+      currentValue = '';
+    } else {
+      currentValue += char;
+    }
+  }
+  // 마지막 값 추가
+  const cleaned = currentValue.trim().replace(/^"|"$/g, '');
+  values.push(cleaned);
+  
+  return values;
+}
+
 // CSV 파싱 함수
 function parseCSV(csvText) {
   const lines = csvText.split('\n').filter(line => line.trim());
   if (lines.length < 2) return [];
   
-  const headers = lines[0].split(',').map(h => h.trim());
+  // 헤더도 따옴표 처리하여 파싱
+  const headers = parseCSVLine(lines[0]);
   const records = [];
   
   for (let i = 1; i < lines.length; i++) {
-    const values = [];
-    let currentValue = '';
-    let inQuotes = false;
-    
-    for (let j = 0; j < lines[i].length; j++) {
-      const char = lines[i][j];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        values.push(currentValue.trim());
-        currentValue = '';
-      } else {
-        currentValue += char;
-      }
-    }
-    values.push(currentValue.trim());
+    const values = parseCSVLine(lines[i]);
     
     if (values.length === headers.length) {
       const record = {};
       headers.forEach((header, idx) => {
         record[header] = values[idx] || '';
       });
+      records.push(record);
+    } else if (values.length > 0) {
+      // 필드 수가 일치하지 않아도 경고만 출력하고 계속 진행
+      console.warn(`⚠️ CSV 행 ${i + 1}: 필드 수 불일치 (헤더: ${headers.length}, 데이터: ${values.length})`);
+      // 가능한 만큼만 매핑
+      const record = {};
+      const minLen = Math.min(headers.length, values.length);
+      for (let idx = 0; idx < minLen; idx++) {
+        record[headers[idx]] = values[idx] || '';
+      }
       records.push(record);
     }
   }
@@ -11450,6 +11484,13 @@ function mapPilatesExerciseRow(row, equipmentKo) {
     }
   };
   
+  // ✅ 모든 원본 CSV 필드를 그대로 저장 (원본 데이터 보존)
+  Object.keys(row).forEach(key => {
+    if (!result.hasOwnProperty(key) && row[key] !== undefined && row[key] !== null && row[key] !== '') {
+      result[key] = row[key];
+    }
+  });
+  
   // 강화/스트레칭 근육 필드
   saveIfExists('Main_Strengthen_Muscles (주요 강화 근육)');
   saveIfExists('Main_Stretch_Muscles (주요 스트레칭 근육)');
@@ -11581,6 +11622,19 @@ async function loadPilatesDB() {
     try {
       const csvText = await fetchWithCandidates(buildDataUrlCandidates(file.path));
       const rows = parseCSV(csvText);
+      if (rows.length > 0) {
+        console.log(`📊 ${file.label} CSV 파싱 완료: ${rows.length}개 행, 헤더:`, Object.keys(rows[0]));
+        // 첫 번째 행 샘플 확인 (디버깅)
+        if (rows[0]) {
+          const sample = rows[0];
+          console.log(`📋 ${file.label} 샘플 데이터:`, {
+            Exercise_Name_KR: sample.Exercise_Name_KR,
+            Reps: sample.Reps,
+            Breathing_Pattern: sample.Breathing_Pattern,
+            Spring_Traditional: sample.Spring_Traditional
+          });
+        }
+      }
       rows.forEach((row) => {
         const mapped = mapPilatesExerciseRow(row, file.label);
         merged.push(mapped);
@@ -14705,10 +14759,18 @@ async function applyPoseDetection(img, sessionName) {
         continue;
       }
       
-      // score 체크 (score가 없거나 낮아도 저장) - 임계값을 더 낮춤 (0.05 -> 0.01)
+      // ✅ 키포인트 신뢰도 필터링 강화
+      // 정면 분석 시 더 엄격한 필터링 적용 (중요 관절은 더 높은 신뢰도 필요)
+      const MIN_CONFIDENCE_SCORE = 0.3; // 최소 신뢰도 임계값 (0.01 -> 0.3)
+      const CRITICAL_KEYPOINTS = ['R_tibial_tub', 'L_tibial_tub', 'R_knee', 'L_knee', 'R_ankle', 'L_ankle', 'R_hip', 'L_hip'];
+      const CRITICAL_MIN_CONFIDENCE = 0.5; // 중요 관절은 더 높은 신뢰도 필요
+      
       const confidence = value.score || value.visibility || 0.5;
-      if(confidence < 0.01) {
-        console.warn(`⚠️ ${key} confidence가 너무 낮음: ${confidence.toFixed(2)}, 스킵`);
+      const isCritical = CRITICAL_KEYPOINTS.includes(key);
+      const minRequired = isCritical ? CRITICAL_MIN_CONFIDENCE : MIN_CONFIDENCE_SCORE;
+      
+      if(confidence < minRequired) {
+        console.warn(`⚠️ ${key} confidence가 너무 낮음: ${confidence.toFixed(2)} (최소 요구: ${minRequired.toFixed(2)}), 스킵`);
         continue;
       }
       
