@@ -117,6 +117,21 @@
   break-before: page !important;
 }
 
+/* PDF 생성 시 강제 페이지 분할을 위한 클래스 정의 */
+.pdf-page-break {
+  display: block;
+  /* 페이지 분할 속성을 !important로 강제 적용 */
+  page-break-before: always !important;
+  break-before: page !important;
+  /* 불필요한 높이 방지 */
+  height: 0 !important;
+  line-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+
 * { box-sizing: border-box; }
 html, body {
   margin: 0; 
@@ -10062,6 +10077,11 @@ if (afterViews.side || beforeViews.side) {
         </div>
       `;
       
+      // ✅ 강제 페이지 분할 요소 삽입 (모바일 PDF 사진이 2페이지부터 시작하도록 보장)
+      const sidePageBreak = document.createElement('div');
+      sidePageBreak.className = 'pdf-page-break';
+      document.body.appendChild(sidePageBreak);
+      
       document.body.appendChild(sideImageContainer);
       
       if (isMobile) {
@@ -10441,6 +10461,11 @@ if (afterViews.front || beforeViews.front) {
         </div>
       `;
       
+      // ✅ 강제 페이지 분할 요소 삽입 (모바일 PDF 사진이 새 페이지에서 시작하도록 보장)
+      const frontPageBreak = document.createElement('div');
+      frontPageBreak.className = 'pdf-page-break';
+      document.body.appendChild(frontPageBreak);
+      
       document.body.appendChild(frontImageContainer);
       
       if (isMobile) {
@@ -10505,6 +10530,11 @@ else {
       </div>
     </div>
   `;
+
+  // ✅ 강제 페이지 분할 요소 삽입 (모바일 PDF 사진이 새 페이지에서 시작하도록 보장)
+  const frontPageBreak2 = document.createElement('div');
+  frontPageBreak2.className = 'pdf-page-break';
+  document.body.appendChild(frontPageBreak2);
 
   document.body.appendChild(frontImageContainer);
 }
