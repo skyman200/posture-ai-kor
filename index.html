@@ -14950,16 +14950,33 @@ function initializeApp() {
 let modelsLoading = { front: false, side: false };
 let modelsLoaded = { front: false, side: false };
 
+// ✅ 라이브러리 로드 확인 및 대기
+async function waitForLibraries(maxWait = 100) {
+  let waitCount = 0;
+  while (waitCount < maxWait) {
+    if (window.poseDetection && window.tf && typeof window.poseDetection.createDetector === 'function') {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+    waitCount++;
+  }
+  throw new Error('TensorFlow.js 또는 pose-detection 라이브러리 로드 실패');
+}
+
 // ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
 async function loadPoseModels() {
   try {
+    // ✅ 라이브러리 로드 확인
+    await waitForLibraries();
+    console.log("✅ 라이브러리 로드 확인 완료");
+
     // 정면 모델 로드
     if (!modelsLoading.front && !modelsLoaded.front) {
       modelsLoading.front = true;
-    detectors.front = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-    );
+      detectors.front = await window.poseDetection.createDetector(
+        window.poseDetection.SupportedModels.MoveNet,
+        { modelType: window.poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      );
       modelsLoaded.front = true;
       modelsLoading.front = false;
       console.log("✅ 정면 모델 로드 완료");
@@ -14968,10 +14985,10 @@ async function loadPoseModels() {
     // 옆모습 모델 로드
     if (!modelsLoading.side && !modelsLoaded.side) {
       modelsLoading.side = true;
-    detectors.side = await poseDetection.createDetector(
-      poseDetection.SupportedModels.BlazePose,
-      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
-    );
+      detectors.side = await window.poseDetection.createDetector(
+        window.poseDetection.SupportedModels.BlazePose,
+        { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+      );
       modelsLoaded.side = true;
       modelsLoading.side = false;
       console.log("✅ 옆모습 모델 로드 완료");
@@ -14979,13 +14996,27 @@ async function loadPoseModels() {
     
     console.log("✅ 정면·옆모습 모델 로드 완료");
   } catch(error) {
-    console.error("모델 로드 실패:", error);
+    console.error("❌ 모델 로드 실패:", error);
     modelsLoading.front = false;
     modelsLoading.side = false;
+    // 재시도 로직 추가
+    setTimeout(() => {
+      if (!modelsLoaded.front || !modelsLoaded.side) {
+        console.log("🔄 모델 로드 재시도 중...");
+        loadPoseModels();
+      }
+    }, 2000);
   }
 }
 
-loadPoseModels();
+// ✅ DOMContentLoaded 후 모델 로드 시작 (라이브러리 로드 보장)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => loadPoseModels(), 500); // 라이브러리 로드 대기
+  });
+} else {
+  setTimeout(() => loadPoseModels(), 500); // 이미 로드된 경우
+}
 
 // ✅ 분석 시 orientation에 맞는 모델 사용
 async function detectPose(img, orientation) {
