@@ -78,6 +78,45 @@
 .pdf-safe div {
   max-height: none !important;
 }
+
+/* PDF 생성 시 페이지 나누기 강제 적용 */
+@media print {
+  .page-break {
+    display: block;
+    page-break-before: always;
+    page-break-after: always;
+    break-before: page;
+    break-after: page;
+  }
+  
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  
+  .page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+}
+
+/* pdf-safe 컨테이너 내부의 강제 페이지 분할 */
+.pdf-safe > div[style*="page-break-before: always"],
+.pdf-safe .page-break-before {
+  page-break-before: always !important;
+  break-before: page !important;
+  height: 0 !important; /* 불필요한 공백 방지 */
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 사진 컨테이너는 항상 새 페이지에서 시작 */
+.pdf-safe #sideImageContainer,
+.pdf-safe #frontImageContainer {
+  page-break-before: always !important;
+  break-before: page !important;
+}
+
 * { box-sizing: border-box; }
 html, body {
   margin: 0; 
@@ -9857,6 +9896,9 @@ if (afterViews.side || beforeViews.side) {
   sideImageContainer.id = "sideImageContainer";
   setPageContainerStyle(sideImageContainer);
   sideImageContainer.classList.add('pdf-safe');
+  // ✅ 페이지 나누기 강제 적용 (모바일 PDF 사진/점 누락 방지)
+  sideImageContainer.style.pageBreakBefore = 'always';
+  sideImageContainer.style.breakBefore = 'page';
   
   const sideImg = afterViews.side || beforeViews.side;
   
@@ -10217,6 +10259,9 @@ if (afterViews.front || beforeViews.front) {
   frontImageContainer.id = "frontImageContainer";
   setPageContainerStyle(frontImageContainer);
   frontImageContainer.classList.add('pdf-safe');
+  // ✅ 페이지 나누기 강제 적용 (모바일 PDF 사진/점 누락 방지)
+  frontImageContainer.style.pageBreakBefore = 'always';
+  frontImageContainer.style.breakBefore = 'page';
   
   const frontImg = afterViews.front || beforeViews.front;
   
@@ -13926,7 +13971,7 @@ async function exportAsPdf(options = {}) {
   const imgH = pageH - margin * 2;
 
   // ✅ 긴 컨테이너를 여러 페이지로 나누는 함수
-  async function addImageToPdf(canvas, containerId, addPageAfter) {
+  async function addImageToPdf(canvas, containerId, addPageAfter, forceNewPage = false) {
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
       console.error(`❌ 캔버스가 유효하지 않습니다: ${containerId}`);
       return;
@@ -13936,6 +13981,12 @@ async function exportAsPdf(options = {}) {
     if (!dataUrl || dataUrl === 'data:,') {
       console.error(`❌ 이미지 데이터 생성 실패: ${containerId}`);
       return;
+    }
+
+    // ✅ 새 페이지 강제 시작 (모바일 PDF 사진/점 누락 방지)
+    if (forceNewPage) {
+      send({ type: "addPage" });
+      console.log(`📄 새 페이지 강제 시작: ${containerId}`);
     }
 
     // ✅ 캔버스 높이를 PDF 페이지 높이로 스케일링
@@ -14005,12 +14056,18 @@ async function exportAsPdf(options = {}) {
   let capturedCount = 0;
   console.log(`📄 PDF 생성 시작: ${captureList.length}개 컨테이너 캡처 예정`);
   
-  for (const item of captureList) {
+  for (let i = 0; i < captureList.length; i++) {
+    const item = captureList[i];
     const elem = document.getElementById(item.id);
     if (!elem) {
       console.warn(`⚠️ 컨테이너를 찾을 수 없습니다: ${item.id} (조건부 생성 컨테이너일 수 있음)`);
       continue;
     }
+    
+    // ✅ 첫 페이지 이후 항목은 강제로 새 페이지에서 시작 (모바일 PDF 사진/점 누락 방지)
+    const isFirstPage = i === 0;
+    const isImageContainer = item.id === 'sideImageContainer' || item.id === 'frontImageContainer';
+    const forceNewPage = !isFirstPage || isImageContainer;
 
     // ✅ 컨테이너 내용 사전 검증
     const hasContent = elem.textContent.trim().length > 0 || 
@@ -14033,8 +14090,8 @@ async function exportAsPdf(options = {}) {
         continue;
       }
 
-      // ✅ 여러 페이지로 나누어서 추가
-      await addImageToPdf(canvas, item.id, item.addPageAfter);
+      // ✅ 여러 페이지로 나누어서 추가 (첫 페이지 이후는 강제로 새 페이지 시작)
+      await addImageToPdf(canvas, item.id, item.addPageAfter, forceNewPage);
 
       capturedCount++;
       console.log(`✅ ${item.id} 캡처 완료`);
