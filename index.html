@@ -5890,7 +5890,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     const weakMuscles = analysis && analysis.weak ? analysis.weak : [];
     
     // 결론 작성
-    conclusionText += `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+    conclusionText += `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
@@ -5901,23 +5901,23 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       conclusionText += '특이 패턴 없음\n\n';
     }
     
-    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
+    conclusionText += `위 패턴은 특정 근육군(근육 그룹)의 긴장(짧아짐, 뻣뻣해짐)과 약화(약해짐, 힘이 부족함)가 동반되는 전형적인 임상 소견(일반적으로 많이 나타나는 증상)입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화(통증이나 불편함 감소)와 자세 개선(바른 자세로 교정)이 기대됩니다.\n\n`;
     
     // 단기 권장사항
     conclusionText += `【단기(1~4주)】\n`;
-    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
-    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완(근육 주변 조직 풀어주기), 정적 스트레칭(움직이지 않고 늘리기)) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동(몸통 중심 근육 운동) (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
     conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
     
     // 중기 권장사항
     conclusionText += `【중기(4~8주)】\n`;
-    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `1. 약화 근육 활성화(약한 근육 강화) (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
     conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
     conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
     
     // 장기 권장사항
     conclusionText += `【장기(8~12주 이상)】\n`;
-    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    conclusionText += `통합적 기능 회복(전체적인 몸 기능 되찾기)을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어(근육을 정확하게 움직이는 능력)가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
     
     // 점수 기반 추가 권장사항
     if(scoreData && scoreData.score != null) {
@@ -8804,7 +8804,7 @@ function buildPlanTexts({ memberName = '회원', patterns = [], scoreResult = nu
     ? `<ul style="margin:0; padding-left:18px; font-size:11px; line-height:1.7; color:#1f2937;">${quickItems.map(item => `<li style="margin-bottom:4px;">${escapeHtml(item)}</li>`).join('')}</ul>`
     : `<div style="font-size:11px; color:#475569;">데이터가 충분하지 않습니다. 자세 측정을 완료한 뒤 다시 생성해주세요.</div>`;
 
-  let fullText = `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+  let fullText = `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
   if (uniquePatterns.length > 0) {
     uniquePatterns.forEach((pattern, idx) => {
       fullText += `${idx + 1}. ${pattern}\n`;
@@ -8816,17 +8816,17 @@ function buildPlanTexts({ memberName = '회원', patterns = [], scoreResult = nu
   if (comparisonSummary) {
     fullText += `${comparisonSummary}\n\n`;
   }
-  fullText += '위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n';
+  fullText += '위 패턴은 특정 근육군(근육 그룹)의 긴장(짧아짐, 뻣뻣해짐)과 약화(약해짐, 힘이 부족함)가 동반되는 전형적인 임상 소견(일반적으로 많이 나타나는 증상)입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화(통증이나 불편함 감소)와 자세 개선(바른 자세로 교정)이 기대됩니다.\n\n';
   fullText += '【단기(1~4주)】\n';
-  fullText += '1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n';
-  fullText += '2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n';
+  fullText += '1. 긴장 근육 이완 중심(폼롤러, 근막 이완(근육 주변 조직 풀어주기), 정적 스트레칭(움직이지 않고 늘리기)) — 하루 1회 10~15분\n';
+  fullText += '2. 호흡 조절과 함께하는 코어 기본운동(몸통 중심 근육 운동) (Dead Bug, Pelvic Tilt) — 매일 5~10분\n';
   fullText += '3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n';
   fullText += '【중기(4~8주)】\n';
-  fullText += '1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n';
+  fullText += '1. 약화 근육 활성화(약한 근육 강화) (둔근, 복횡근 등) — 주 3회, 점진적 부하\n';
   fullText += '2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n';
   fullText += '3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n';
   fullText += '【장기(8~12주 이상)】\n';
-  fullText += '통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n';
+  fullText += '통합적 기능 회복(전체적인 몸 기능 되찾기)을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어(근육을 정확하게 움직이는 능력)가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n';
   if (scoreResult?.score != null) {
     const score = scoreResult.score;
     if (score < 70) {
@@ -10203,7 +10203,7 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
 
     ${(sideAnalysis?.topRecommendations || []).length ? `
     <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴(옆모습에서 발견된 자세 문제)</div>
       <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
         ${(sideAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
@@ -10547,7 +10547,7 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
 
     ${(frontAnalysis?.topRecommendations || []).length ? `
     <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 정면 주요 패턴</div>
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 정면 주요 패턴(앞모습에서 발견된 자세 문제)</div>
       <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
         ${(frontAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
@@ -10996,7 +10996,7 @@ page4Container.innerHTML = `
 
   ${(dbAnalysis?.topRecommendations || []).length ? `
   <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
-    <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴 (Top 3)</div>
+    <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴(데이터베이스에서 매칭된 자세 문제) (Top 3)</div>
     <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
       ${(dbAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
         <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
@@ -11032,7 +11032,7 @@ page4Container.innerHTML = `
     const weakMuscles = analysis && analysis.weak ? analysis.weak : [];
     
     // 결론 작성
-    conclusionText += `${memberNameForConclusion}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
+    conclusionText += `${memberNameForConclusion}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
@@ -11043,23 +11043,23 @@ page4Container.innerHTML = `
       conclusionText += '특이 패턴 없음\n\n';
     }
     
-    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
+    conclusionText += `위 패턴은 특정 근육군(근육 그룹)의 긴장(짧아짐, 뻣뻣해짐)과 약화(약해짐, 힘이 부족함)가 동반되는 전형적인 임상 소견(일반적으로 많이 나타나는 증상)입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화(통증이나 불편함 감소)와 자세 개선(바른 자세로 교정)이 기대됩니다.\n\n`;
     
     // 단기 권장사항
     conclusionText += `【단기(1~4주)】\n`;
-    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
-    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완(근육 주변 조직 풀어주기), 정적 스트레칭(움직이지 않고 늘리기)) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동(몸통 중심 근육 운동) (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
     conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
     
     // 중기 권장사항
     conclusionText += `【중기(4~8주)】\n`;
-    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `1. 약화 근육 활성화(약한 근육 강화) (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
     conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
     conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
     
     // 장기 권장사항
     conclusionText += `【장기(8~12주 이상)】\n`;
-    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    conclusionText += `통합적 기능 회복(전체적인 몸 기능 되찾기)을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어(근육을 정확하게 움직이는 능력)가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
     
     // 점수 기반 추가 권장사항
     if(scoreResult && scoreResult.score != null) {
