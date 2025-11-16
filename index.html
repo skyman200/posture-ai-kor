@@ -14090,9 +14090,22 @@ async function captureForPdf(elem) {
           // 결론 섹션 식별 및 높이 제한 해제
           const textContent = el.textContent || '';
           const id = el.id || '';
-          const className = el.className || '';
+          // ✅ className이 DOMTokenList일 수 있으므로 안전하게 처리
+          let hasConclusionClass = false;
+          try {
+            if (el.classList && el.classList.contains) {
+              hasConclusionClass = el.classList.contains('conclusion');
+            } else {
+              const className = typeof el.className === 'string' ? el.className : (el.className?.baseVal || String(el.className || ''));
+              hasConclusionClass = className && className.includes && className.includes('conclusion');
+            }
+          } catch (e) {
+            // className 접근 실패 시 무시
+          }
+          
           if (textContent.includes('결론') || textContent.includes('권장사항') || 
-              id.includes('conclusion') || className.includes('conclusion')) {
+              (id && typeof id === 'string' && id.includes('conclusion')) || 
+              hasConclusionClass) {
             el.style.height = 'auto';
             el.style.maxHeight = 'none';
             el.style.overflow = 'visible';
