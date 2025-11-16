@@ -5880,7 +5880,8 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     if(analysis && analysis.pilates && analysis.pilates.length > 0) {
       analysis.pilates.forEach(item => {
         if(item.name || item.issue) {
-          patterns.push(item.name || item.issue);
+          const patternName = item.name || item.issue;
+          patterns.push(addPatternExplanation(patternName));
         }
       });
     }
@@ -8334,6 +8335,57 @@ function detectPatterns(metrics) {
 }
 
 // 필라테스 데이터베이스 (기존 패턴 DB - 하위 호환성 유지)
+// ✅ 전문용어에 일반인도 이해하기 쉬운 설명 추가 함수 (전역 함수)
+function addPatternExplanation(patternName) {
+  if (!patternName) return patternName;
+  
+  const explanations = {
+    '경추 전만각': '경추 전만각(목 앞으로 나온 각도)',
+    'CVA': '경추 전만각(목 앞으로 나온 각도)',
+    '어깨 전방각': '어깨 전방각(어깨가 앞으로 나온 각도)',
+    'SAA': '어깨 전방각(어깨가 앞으로 나온 각도)',
+    '골반 전후경사각': '골반 전후경사각(골반이 앞뒤로 기울어진 각도)',
+    'PTA': '골반 전후경사각(골반이 앞뒤로 기울어진 각도)',
+    '체간 기울기': '체간 기울기(몸통이 좌우로 기울어진 정도)',
+    'TIA': '체간 기울기(몸통이 좌우로 기울어진 정도)',
+    '체간경사각': '체간 기울기(몸통이 좌우로 기울어진 정도)',
+    '골반 하강': '골반 하강(한쪽 골반이 아래로 내려간 상태)',
+    'PDS': '골반 하강(한쪽 골반이 아래로 내려간 상태)',
+    '골반 거상': '골반 거상(한쪽 골반이 위로 올라간 상태)',
+    '경골 경사각': '경골 경사각(종아리뼈가 기울어진 각도)',
+    'Tibial': '경골 경사각(종아리뼈가 기울어진 각도)',
+    '거북목': '거북목(목이 앞으로 나온 자세)',
+    'Forward Head Posture': '거북목(목이 앞으로 나온 자세)',
+    '라운드 숄더': '라운드 숄더(어깨가 앞으로 둥글게 말린 자세)',
+    'Rounded Shoulder': '라운드 숄더(어깨가 앞으로 둥글게 말린 자세)',
+    '골반 과전경사': '골반 과전경사(골반이 앞으로 과도하게 기울어진 상태)',
+    'Anterior Tilt': '골반 과전경사(골반이 앞으로 과도하게 기울어진 상태)',
+    '골반 후경사': '골반 후경사(골반이 뒤로 과도하게 기울어진 상태)',
+    'Posterior Tilt': '골반 후경사(골반이 뒤로 과도하게 기울어진 상태)',
+    'X자 다리': 'X자 다리(무릎이 안쪽으로 모인 다리 모양)',
+    'Genu Valgum': 'X자 다리(무릎이 안쪽으로 모인 다리 모양)',
+    'O자 다리': 'O자 다리(무릎이 바깥쪽으로 벌어진 다리 모양)',
+    'Genu Varum': 'O자 다리(무릎이 바깥쪽으로 벌어진 다리 모양)',
+    '체중 중심 전방': '체중 중심 전방(몸의 무게 중심이 앞으로 쏠린 상태)',
+    'Forward Center': '체중 중심 전방(몸의 무게 중심이 앞으로 쏠린 상태)',
+  };
+  
+  // 정확한 매칭 시도
+  if (explanations[patternName]) {
+    return explanations[patternName];
+  }
+  
+  // 부분 매칭 시도
+  for (const [key, value] of Object.entries(explanations)) {
+    if (patternName.includes(key) || key.includes(patternName)) {
+      return patternName.replace(key, value);
+    }
+  }
+  
+  // 매칭되지 않으면 원본 반환
+  return patternName;
+}
+
 const PILATES_PATTERN_DB = {
   FHP: {
     title: '거북목(Forward Head Posture)',
@@ -8753,7 +8805,7 @@ function generateAIDeepAnalysis(metrics) {
   const pats = detectPatterns(metrics);
   lines.push('\n▶ 패턴 요약');
   if(pats.length) {
-    lines.push(`- 관찰된 주요 패턴: ${pats.map(p => PILATES_PATTERN_DB[p]?.title || p).join(', ')}`);
+    lines.push(`- 관찰된 주요 패턴: ${pats.map(p => addPatternExplanation(PILATES_PATTERN_DB[p]?.title || p)).join(', ')}`);
     // 각 패턴별 상세 설명 추가
     pats.forEach(p => {
       const dbItem = POSTURE_DB.find(r => {
@@ -8762,8 +8814,9 @@ function generateAIDeepAnalysis(metrics) {
         return dbTitle.includes(patternTitle) || patternTitle.includes(dbTitle);
       });
       if(dbItem) {
-        if(dbItem['원인']) lines.push(`  · ${PILATES_PATTERN_DB[p]?.title || p} 원인: ${dbItem['원인']}`);
-        if(dbItem['증상']) lines.push(`  · ${PILATES_PATTERN_DB[p]?.title || p} 증상: ${dbItem['증상']}`);
+        const patternTitle = addPatternExplanation(PILATES_PATTERN_DB[p]?.title || p);
+        if(dbItem['원인']) lines.push(`  · ${patternTitle} 원인: ${dbItem['원인']}`);
+        if(dbItem['증상']) lines.push(`  · ${patternTitle} 증상: ${dbItem['증상']}`);
       }
     });
   } else {
@@ -8807,7 +8860,7 @@ function buildPlanTexts({ memberName = '회원', patterns = [], scoreResult = nu
   let fullText = `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
   if (uniquePatterns.length > 0) {
     uniquePatterns.forEach((pattern, idx) => {
-      fullText += `${idx + 1}. ${pattern}\n`;
+      fullText += `${idx + 1}. ${addPatternExplanation(pattern)}\n`;
     });
   } else {
     fullText += '특이 패턴 없음\n';
@@ -11036,7 +11089,7 @@ page4Container.innerHTML = `
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
-        conclusionText += `${idx + 1}. ${pattern}\n`;
+        conclusionText += `${idx + 1}. ${addPatternExplanation(pattern)}\n`;
       });
       conclusionText += '\n';
     } else {
