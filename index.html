@@ -14162,10 +14162,23 @@ async function exportAsPdf(options = {}) {
       continue;
     }
     
-    // ✅ 첫 페이지 이후 항목은 강제로 새 페이지에서 시작 (모바일 PDF 사진/점 누락 방지)
-    const isFirstPage = i === 0;
+    // ✅ 모바일 PDF 저장 시 사진은 2페이지부터 시작 (1페이지는 표지용)
+    const isFirstPage = item.id === 'page1Container';
     const isImageContainer = item.id === 'sideImageContainer' || item.id === 'frontImageContainer';
-    const forceNewPage = !isFirstPage || isImageContainer;
+    
+    // ✅ 첫 페이지를 처리한 후 또는 이미지 컨테이너는 무조건 새 페이지에서 시작
+    let forceNewPage = false;
+    if (isFirstPage) {
+      // 첫 페이지는 그냥 처리 (새 페이지 시작 안 함)
+      forceNewPage = false;
+    } else if (isImageContainer) {
+      // 이미지 컨테이너는 항상 새 페이지에서 시작 (2페이지부터)
+      forceNewPage = true;
+      console.log(`📸 이미지 컨테이너 감지: ${item.id} - 새 페이지에서 시작`);
+    } else if (capturedCount > 0) {
+      // 첫 페이지 이후 다른 항목들도 새 페이지에서 시작
+      forceNewPage = true;
+    }
 
     // ✅ 컨테이너 내용 사전 검증
     const hasContent = elem.textContent.trim().length > 0 || 
@@ -14193,6 +14206,12 @@ async function exportAsPdf(options = {}) {
 
       capturedCount++;
       console.log(`✅ ${item.id} 캡처 완료`);
+      
+      // ✅ 첫 페이지 처리 직후 명시적으로 새 페이지 시작 (모바일 PDF 사진이 2페이지부터 시작하도록 보장)
+      if (isFirstPage && capturedCount === 1) {
+        send({ type: "addPage" });
+        console.log(`📄 첫 페이지 완료 - 새 페이지 시작 (사진은 2페이지부터)`);
+      }
     } catch (err) {
       console.error(`❌ ${item.id} 캡처 실패:`, err);
       // 에러가 나도 다음 페이지 계속 진행
