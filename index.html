@@ -16053,19 +16053,13 @@ function recommendPilates(tightMuscles, weakMuscles) {
 /* ================== PDF 생성 (빈 화면 100% 해결) ================== */
 async function generateFinalPostureReportPDF() {
   try {
+    console.log("📄 PDF 생성 시작...");
+
     if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("라이브러리 로드 실패");
     const { jsPDF } = window.jspdf;
 
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 50;
-    const contentWidth = pageWidth - 2 * margin;
-    let yPos = margin;
-
+    // ✅ 컨테이너 생성
     await document.fonts.ready;
-
-    // === 컨테이너 생성 ===
     console.log("📄 컨테이너 생성 중...");
     await captureReportCanvases({
       centerName: localStorage.getItem('centerName') || '',
@@ -16075,156 +16069,133 @@ async function generateFinalPostureReportPDF() {
     });
     console.log("✅ 컨테이너 생성 완료");
 
-    const centerName = localStorage.getItem('centerName') || '';
-    const memberName = localStorage.getItem('memberName') || '';
+    // jsPDF 인스턴스 생성 (A4, 세로, mm 단위)
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    const maxContentHeight = pageHeight - 2 * margin;
 
-    // === PDF 캡처 ===
-    const containers = [
-      'page1Container', 'sideImageContainer', 'sideReportContainer',
-      'frontImageContainer', 'frontReportContainer', 'page4Container',
-      'page5Container', 'page6Container', 'page8Container', 'page7Container'
+    // ✅ 모든 컨테이너 목록 (사진 컨테이너 우선 처리)
+    const containerIds = [
+      'page1Container',
+      'sideImageContainer',
+      'sideReportContainer',
+      'frontImageContainer',
+      'frontReportContainer',
+      'page4Container',
+      'page5Container',
+      'page6Container',
+      'page8Container',
+      'page7Container'
     ];
 
-    for (let i = 0; i < containers.length; i++) {
-      const id = containers[i];
-      const el = document.getElementById(id);
-      if (!el) {
-        console.warn(`⚠️ 컨테이너 없음: ${id}`);
+    let pageIndex = 1;
+
+    for (let i = 0; i < containerIds.length; i++) {
+      const containerId = containerIds[i];
+      const container = document.getElementById(containerId);
+      if (!container) {
+        console.warn(`⚠️ 컨테이너 없음: ${containerId}`);
         continue;
       }
 
       // ✅ 컨테이너 내용 검증
-      const hasContent = el.textContent.trim().length > 0 || 
-                         el.querySelectorAll('img').length > 0 ||
-                         el.querySelectorAll('canvas').length > 0 ||
-                         el.innerHTML.trim().length > 50;
+      const hasContent = container.textContent.trim().length > 0 || 
+                         container.querySelectorAll('img').length > 0 ||
+                         container.querySelectorAll('canvas').length > 0 ||
+                         container.innerHTML.trim().length > 50;
       
       if (!hasContent) {
-        console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
+        console.warn(`⚠️ 컨테이너가 비어있습니다: ${containerId}, 스킵합니다`);
         continue;
       }
 
       try {
-        console.log(`📸 ${id} 캡처 시작...`);
+        console.log(`📸 ${containerId} 캡처 시작...`);
         
-        // ✅ captureForPdf 함수 사용 (이미 최적화된 캡처 로직)
-        const canvas = await captureForPdf(el);
+        // ✅ captureForPdf 함수 사용 (최적화된 캡처 로직)
+        const canvas = await captureForPdf(container);
         
         if (!canvas || canvas.width === 0 || canvas.height === 0) {
-          console.error(`❌ 캔버스 생성 실패: ${id} (크기: ${canvas?.width}x${canvas?.height})`);
+          console.error(`❌ 캔버스 생성 실패: ${containerId} (크기: ${canvas?.width}x${canvas?.height})`);
           continue;
         }
         
-        console.log(`✅ ${id} 캡처 완료 (크기: ${canvas.width}x${canvas.height})`);
+        console.log(`✅ ${containerId} 캡처 완료 (크기: ${canvas.width}x${canvas.height})`);
 
-        // ✅ 여러 페이지로 나누어서 추가 (A4 용지에 맞게 자동 축소)
-        const imgData = canvas.toDataURL('image/jpeg', 0.85); // PNG → JPEG로 변경 (메모리 절약)
+        // ✅ 사진 컨테이너는 고해상도 PNG로 처리 (dot과 선 정확도 보장)
+        const isImageContainer = containerId === 'sideImageContainer' || containerId === 'frontImageContainer';
         
-        // ✅ A4 용지 너비에 맞게 이미지 크기 자동 조정 (잘림 방지)
-        // 캔버스 너비가 contentWidth보다 크면 자동으로 축소
-        const canvasAspectRatio = canvas.width / canvas.height;
-        let imgWidth = contentWidth; // 기본값: 여백 제외한 A4 너비
-        let imgHeight = imgWidth / canvasAspectRatio;
-        
-        // ✅ 캔버스가 너무 넓으면 강제로 축소 (잘림 방지)
-        if (canvas.width > contentWidth) {
-          imgWidth = contentWidth;
-          imgHeight = (canvas.height * imgWidth) / canvas.width;
-        } else {
-          // 캔버스가 작으면 원본 크기 유지 (너무 작아지지 않도록)
-          imgWidth = Math.min(canvas.width, contentWidth);
-          imgHeight = (canvas.height * imgWidth) / canvas.width;
-        }
-        
-        // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 개선 버전)
-        let heightLeft = imgHeight;
-        let sourceY = 0; // 원본 캔버스에서의 Y 위치 (픽셀 단위)
-
-        while (heightLeft > 0) {
-          // ✅ 현재 페이지에 사용 가능한 높이 계산
-          const availableHeight = pageHeight - yPos - margin;
-          
-          // ✅ 최소 슬라이스 높이 (너무 작은 조각 방지)
-          const minSliceHeight = 30;
-          
-          // 공간이 부족하면 새 페이지 추가
-          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight) {
-            pdf.addPage();
-            yPos = margin;
-            continue;
-          }
-          
-          // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산
-          const sliceH = Math.min(heightLeft, availableHeight);
-          
-          if (sliceH <= 0) {
-            // 슬라이스 높이가 0 이하면 새 페이지 추가
-            pdf.addPage();
-            yPos = margin;
-            continue;
-          }
-          
-          // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상)
-          const sourceSliceHeight = Math.ceil((sliceH / imgHeight) * canvas.height);
-          
-          // ✅ 캔버스 슬라이스 생성
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = sourceSliceHeight;
-          const ctx = sliceCanvas.getContext('2d');
+        if (isImageContainer) {
+          // ✅ 고해상도 캔버스 생성 (최소 800px 너비 보장, 모바일에서도 선명하게)
+          const scale = Math.max(2, 800 / canvas.width);
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = canvas.width * scale;
+          exportCanvas.height = canvas.height * scale;
+          const ctx = exportCanvas.getContext('2d');
+          ctx.scale(scale, scale);
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          
-          // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서)
-          ctx.drawImage(
-            canvas, 
-            0, sourceY, canvas.width, sourceSliceHeight,  // 원본 영역
-            0, 0, canvas.width, sourceSliceHeight         // 대상 영역
-          );
+          ctx.drawImage(canvas, 0, 0);
 
-          // ✅ PDF에 추가 시 imgWidth 사용 (A4 용지에 맞게 조정된 너비)
-          const actualSliceH = Math.min(sliceH, availableHeight);
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
-          
-          // ✅ 다음 슬라이스 준비
-          heightLeft -= sliceH;
-          sourceY += sourceSliceHeight;
-          yPos += actualSliceH;
-          
-          // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
-          if (heightLeft > minSliceHeight) {
-            const nextAvailableHeight = pageHeight - yPos - margin;
-            if (nextAvailableHeight < minSliceHeight) {
-              pdf.addPage();
-              yPos = margin;
-            }
+          // ✅ PNG로 고품질 추출 (dot과 선이 정확하게 보존)
+          const imgData = exportCanvas.toDataURL('image/png', 1.0);
+
+          // ✅ 이미지 크기 계산 (비율 유지, 한 페이지에 맞춤)
+          const imgWidth = pageWidth - 2 * margin;
+          let imgHeight = (exportCanvas.height * imgWidth) / exportCanvas.width;
+
+          // ✅ 한 페이지에 맞추기 위해 크기 조정 (잘림 방지)
+          if (imgHeight > maxContentHeight) {
+            const scaledHeight = maxContentHeight;
+            const scaledWidth = (exportCanvas.width * scaledHeight) / exportCanvas.height;
+            pdf.addImage(imgData, 'PNG', margin, margin, scaledWidth, scaledHeight, undefined, 'SLOW');
+            console.log(`📸 ${containerId}: 크기 조정하여 삽입 (${scaledWidth.toFixed(1)}mm x ${scaledHeight.toFixed(1)}mm)`);
+          } else {
+            // 한 페이지에 들어감
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight, undefined, 'SLOW');
+            console.log(`📸 ${containerId}: 전체 삽입 완료 (${imgWidth.toFixed(1)}mm x ${imgHeight.toFixed(1)}mm)`);
           }
+
+          // 메모리 정리
+          exportCanvas.width = 1;
+          exportCanvas.height = 1;
+        } else {
+          // ✅ 다른 컨테이너는 기존 방식 사용 (텍스트 위주)
+          const imgData = canvas.toDataURL('image/jpeg', 0.92);
+          const canvasAspectRatio = canvas.width / canvas.height;
+          const imgWidth = pageWidth - 2 * margin;
+          let imgHeight = imgWidth / canvasAspectRatio;
           
-          // ✅ 메모리 정리
-          sliceCanvas.width = 1;
-          sliceCanvas.height = 1;
+          // 한 페이지에 맞추기
+          if (imgHeight > maxContentHeight) {
+            const scaledHeight = maxContentHeight;
+            const scaledWidth = (canvas.width * scaledHeight) / canvas.height;
+            pdf.addImage(imgData, 'JPEG', margin, margin, scaledWidth, scaledHeight, undefined, 'FAST');
+          } else {
+            pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight, undefined, 'FAST');
+          }
         }
 
         // ✅ 메모리 정리
         canvas.width = 1;
         canvas.height = 1;
 
-        // ✅ 다음 컨테이너를 위해 새 페이지 추가 (마지막 컨테이너가 아니면)
-        if (i < containers.length - 1) {
+        // ✅ 다음 컨테이너가 있으면 새 페이지 추가
+        if (i < containerIds.length - 1) {
           pdf.addPage();
-          yPos = margin;
+          pageIndex++;
         }
+
       } catch (err) {
-        console.error(`❌ ${id} 캡처 실패:`, err);
+        console.error(`❌ ${containerId} 처리 실패:`, err);
         // 에러가 나도 다음 페이지 계속 진행
         continue;
       }
     }
 
     // ✅ PDF 생성 완료 후 컨테이너 정리
-    const containerIds = ['page1Container', 'sideImageContainer', 'sideReportContainer', 
-                          'frontImageContainer', 'frontReportContainer', 'page4Container', 
-                          'page5Container', 'page6Container', 'page8Container', 'page7Container'];
     containerIds.forEach(id => {
       const elem = document.getElementById(id);
       if (elem && document.body.contains(elem)) {
@@ -16233,16 +16204,16 @@ async function generateFinalPostureReportPDF() {
     });
 
     // 저장
-    console.log("💾 PDF 저장 중...");
-    const finalCenterName = centerName || 'DIT';
-    const finalMemberName = memberName || '회원';
-    const filename = `${finalCenterName}_${finalMemberName}_자세분석리포트.pdf`;
+    const centerName = localStorage.getItem('centerName') || 'DIT';
+    const memberName = localStorage.getItem('memberName') || '회원';
+    const filename = `${centerName}_${memberName}_자세분석리포트.pdf`;
+
     pdf.save(filename);
     console.log(`✅ PDF 저장 완료: ${filename}`);
-    alert("PDF 생성 완료! 모든 페이지에 내용이 정상 출력됩니다.");
+    alert("PDF 저장 완료! 점과 선이 정확히 출력됩니다.");
 
   } catch (err) {
-    console.error("PDF 오류:", err);
+    console.error("❌ PDF 생성 실패:", err);
     alert("PDF 생성 실패: " + err.message);
   }
 }
