@@ -132,9 +132,8 @@
   visibility: hidden !important;
 }
 
-/* PDF용 캔버스 고해상도 렌더링 보장 (점 선명도 보장) */
-.pdf-safe canvas,
-canvas {
+/* PDF용 캔버스 고해상도 렌더링 보장 */
+.pdf-safe canvas {
   image-rendering: crisp-edges !important;
   image-rendering: -webkit-optimize-contrast !important;
   image-rendering: pixelated !important;
@@ -14950,33 +14949,16 @@ function initializeApp() {
 let modelsLoading = { front: false, side: false };
 let modelsLoaded = { front: false, side: false };
 
-// ✅ 라이브러리 로드 확인 및 대기
-async function waitForLibraries(maxWait = 100) {
-  let waitCount = 0;
-  while (waitCount < maxWait) {
-    if (window.poseDetection && window.tf && typeof window.poseDetection.createDetector === 'function') {
-      return true;
-    }
-    await new Promise(resolve => setTimeout(resolve, 100));
-    waitCount++;
-  }
-  throw new Error('TensorFlow.js 또는 pose-detection 라이브러리 로드 실패');
-}
-
 // ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
 async function loadPoseModels() {
   try {
-    // ✅ 라이브러리 로드 확인
-    await waitForLibraries();
-    console.log("✅ 라이브러리 로드 확인 완료");
-
     // 정면 모델 로드
     if (!modelsLoading.front && !modelsLoaded.front) {
       modelsLoading.front = true;
-      detectors.front = await window.poseDetection.createDetector(
-        window.poseDetection.SupportedModels.MoveNet,
-        { modelType: window.poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-      );
+    detectors.front = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+    );
       modelsLoaded.front = true;
       modelsLoading.front = false;
       console.log("✅ 정면 모델 로드 완료");
@@ -14985,10 +14967,10 @@ async function loadPoseModels() {
     // 옆모습 모델 로드
     if (!modelsLoading.side && !modelsLoaded.side) {
       modelsLoading.side = true;
-      detectors.side = await window.poseDetection.createDetector(
-        window.poseDetection.SupportedModels.BlazePose,
-        { runtime: "tfjs", modelType: "full", enableSmoothing: true }
-      );
+    detectors.side = await poseDetection.createDetector(
+      poseDetection.SupportedModels.BlazePose,
+      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+    );
       modelsLoaded.side = true;
       modelsLoading.side = false;
       console.log("✅ 옆모습 모델 로드 완료");
@@ -14996,27 +14978,13 @@ async function loadPoseModels() {
     
     console.log("✅ 정면·옆모습 모델 로드 완료");
   } catch(error) {
-    console.error("❌ 모델 로드 실패:", error);
+    console.error("모델 로드 실패:", error);
     modelsLoading.front = false;
     modelsLoading.side = false;
-    // 재시도 로직 추가
-    setTimeout(() => {
-      if (!modelsLoaded.front || !modelsLoaded.side) {
-        console.log("🔄 모델 로드 재시도 중...");
-        loadPoseModels();
-      }
-    }, 2000);
   }
 }
 
-// ✅ DOMContentLoaded 후 모델 로드 시작 (라이브러리 로드 보장)
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => loadPoseModels(), 500); // 라이브러리 로드 대기
-  });
-} else {
-  setTimeout(() => loadPoseModels(), 500); // 이미 로드된 경우
-}
+loadPoseModels();
 
 // ✅ 분석 시 orientation에 맞는 모델 사용
 async function detectPose(img, orientation) {
@@ -16085,13 +16053,12 @@ function recommendPilates(tightMuscles, weakMuscles) {
 /* ================== PDF 생성 (빈 화면 100% 해결) ================== */
 async function generateFinalPostureReportPDF() {
   try {
-    console.log("📄 PDF 생성 시작...");
-
     if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("라이브러리 로드 실패");
     const { jsPDF } = window.jspdf;
 
-    // ✅ 컨테이너 생성
     await document.fonts.ready;
+
+    // === 컨테이너 생성 ===
     console.log("📄 컨테이너 생성 중...");
     await captureReportCanvases({
       centerName: localStorage.getItem('centerName') || '',
@@ -16101,88 +16068,164 @@ async function generateFinalPostureReportPDF() {
     });
     console.log("✅ 컨테이너 생성 완료");
 
-    // jsPDF 인스턴스 생성 (A4, 세로, mm 단위)
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const page = {
-      width: 210,  // A4 너비 (mm)
-      height: 297, // A4 높이 (mm)
-      margin: 0    // 여백 제거 → 최대 크기
-    };
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    const maxContentHeight = pageHeight - 2 * margin;
 
-    // ✅ 사진 컨테이너만 처리 (원래 크기 그대로 출력)
-    const containerIds = ['sideImageContainer', 'frontImageContainer'];
+    const centerName = localStorage.getItem('centerName') || '';
+    const memberName = localStorage.getItem('memberName') || '';
 
-    for (let i = 0; i < containerIds.length; i++) {
-      const containerId = containerIds[i];
-      const container = document.getElementById(containerId);
-      if (!container) {
-        console.warn(`⚠️ 컨테이너 없음: ${containerId}`);
+    // === PDF 캡처 ===
+    const containers = [
+      'page1Container', 'sideImageContainer', 'sideReportContainer',
+      'frontImageContainer', 'frontReportContainer', 'page4Container',
+      'page5Container', 'page6Container', 'page8Container', 'page7Container'
+    ];
+
+    for (let i = 0; i < containers.length; i++) {
+      const id = containers[i];
+      const isImageContainer = id === 'sideImageContainer' || id === 'frontImageContainer';
+      
+      // ✅ 사진 컨테이너는 이미 생성된 Canvas 직접 사용 (모바일 PDF 사진/dot 누락 방지)
+      if (isImageContainer) {
+        let imageCanvas = null;
+        
+        // captureReportCanvases에서 생성된 Canvas 사용
+        if (id === 'sideImageContainer' && typeof sideImageCanvas !== 'undefined' && sideImageCanvas) {
+          imageCanvas = sideImageCanvas;
+          console.log(`✅ ${id}: 이미 생성된 Canvas 사용 (크기: ${imageCanvas.width}x${imageCanvas.height})`);
+        } else if (id === 'frontImageContainer' && typeof frontImageCanvas !== 'undefined' && frontImageCanvas) {
+          imageCanvas = frontImageCanvas;
+          console.log(`✅ ${id}: 이미 생성된 Canvas 사용 (크기: ${imageCanvas.width}x${imageCanvas.height})`);
+        }
+        
+        // Canvas가 없으면 captureForPdf로 대체 시도
+        if (!imageCanvas || imageCanvas.width === 0 || imageCanvas.height === 0) {
+          console.warn(`⚠️ ${id} Canvas가 없습니다. captureForPdf로 대체 시도...`);
+          const el = document.getElementById(id);
+          if (el) {
+            try {
+              imageCanvas = await captureForPdf(el);
+            } catch (err) {
+              console.error(`❌ ${id} captureForPdf 실패:`, err);
+            }
+          }
+        }
+        
+        if (!imageCanvas || imageCanvas.width === 0 || imageCanvas.height === 0) {
+          console.error(`❌ ${id} 캔버스 생성 실패`);
+          continue;
+        }
+        
+        try {
+          // ✅ 고해상도 PNG로 전체 삽입 (슬라이스 없이, dot과 선 보존)
+          const scale = Math.max(2, 1200 / imageCanvas.width);
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = imageCanvas.width * scale;
+          exportCanvas.height = imageCanvas.height * scale;
+          const ctx = exportCanvas.getContext('2d');
+          ctx.imageSmoothingEnabled = false; // 점 선명도 유지
+          ctx.scale(scale, scale);
+          ctx.drawImage(imageCanvas, 0, 0);
+          
+          const imgData = exportCanvas.toDataURL('image/png', 1.0);
+          console.log(`✅ ${id} 고해상도 Canvas 생성 완료 (${exportCanvas.width}x${exportCanvas.height}, scale: ${scale.toFixed(2)})`);
+          
+          // 이미지 크기 계산 (비율 유지)
+          const imgWidth = pageWidth - 2 * margin;
+          let imgHeight = (exportCanvas.height * imgWidth) / exportCanvas.width;
+          
+          // 한 페이지에 맞추기 위해 크기 조정
+          if (imgHeight > maxContentHeight) {
+            const scaledHeight = maxContentHeight;
+            const scaledWidth = (exportCanvas.width * scaledHeight) / exportCanvas.height;
+            pdf.addImage(imgData, 'PNG', margin, margin, scaledWidth, scaledHeight, undefined, 'SLOW');
+            console.log(`📸 ${id}: 크기 조정하여 삽입 (${scaledWidth.toFixed(1)}mm x ${scaledHeight.toFixed(1)}mm)`);
+          } else {
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight, undefined, 'SLOW');
+            console.log(`📸 ${id}: 전체 삽입 완료 (${imgWidth.toFixed(1)}mm x ${imgHeight.toFixed(1)}mm)`);
+          }
+          
+          // 메모리 정리
+          exportCanvas.width = 1;
+          exportCanvas.height = 1;
+          
+          // 다음 컨테이너가 있으면 새 페이지 추가
+          if (i < containers.length - 1) {
+            pdf.addPage();
+          }
+          
+        } catch (err) {
+          console.error(`❌ ${id} PNG 변환 실패:`, err);
+        }
+        
+        continue;
+      }
+      
+      // ✅ 다른 컨테이너는 기존 방식 사용
+      const el = document.getElementById(id);
+      if (!el) {
+        console.warn(`⚠️ 컨테이너 없음: ${id}`);
         continue;
       }
 
-      const canvas = container.querySelector('canvas');
-      if (!canvas || canvas.width === 0 || canvas.height === 0) {
-        console.warn(`⚠️ 캔버스 없음: ${containerId}`);
+      const hasContent = el.textContent.trim().length > 0 || 
+                         el.querySelectorAll('img').length > 0 ||
+                         el.querySelectorAll('canvas').length > 0 ||
+                         el.innerHTML.trim().length > 50;
+      
+      if (!hasContent) {
+        console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
         continue;
       }
 
       try {
-        console.log(`📸 ${containerId} 캡처 시작... (원본 크기: ${canvas.width}x${canvas.height})`);
-
-        // ✅ 고해상도 캔버스 생성 (최소 1200px 너비 보장, 모바일에서도 선명하게)
-        const MIN_WIDTH = 1200;
-        const scale = Math.max(3, MIN_WIDTH / canvas.width); // 최소 3배 스케일
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = canvas.width * scale;
-        exportCanvas.height = canvas.height * scale;
-
-        const ctx = exportCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false; // 점 선명도 유지 (안티앨리어싱 비활성화)
-        ctx.scale(scale, scale);
-        ctx.drawImage(canvas, 0, 0);
-
-        // ✅ PNG 고품질 추출 (dot과 선이 정확하게 보존)
-        const imgData = exportCanvas.toDataURL('image/png', 1.0);
-        console.log(`✅ ${containerId} 고해상도 캔버스 생성 완료 (${exportCanvas.width}x${exportCanvas.height}, scale: ${scale.toFixed(2)})`);
-
-        // ✅ A4에 꽉 차게 삽입 (비율 유지, 원래 크기 그대로)
-        const imgWidth = page.width; // 여백 없이 A4 전체 너비 사용
-        const imgHeight = (exportCanvas.height * imgWidth) / exportCanvas.width;
-
-        if (imgHeight <= page.height) {
-          // 한 페이지에 들어감 → A4 꽉 차게 삽입
-          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'SLOW');
-          console.log(`📸 ${containerId}: A4 꽉 차게 삽입 완료 (${imgWidth.toFixed(1)}mm x ${imgHeight.toFixed(1)}mm)`);
-        } else {
-          // 세로로 너무 길면 가로 맞춤 (중앙 정렬)
-          const scaledHeight = page.height;
-          const scaledWidth = (exportCanvas.width * scaledHeight) / exportCanvas.height;
-          const x = (page.width - scaledWidth) / 2; // 중앙 정렬
-          pdf.addImage(imgData, 'PNG', x, 0, scaledWidth, scaledHeight, undefined, 'SLOW');
-          console.log(`📸 ${containerId}: 가로 맞춤 삽입 완료 (${scaledWidth.toFixed(1)}mm x ${scaledHeight.toFixed(1)}mm)`);
+        console.log(`📸 ${id} 캡처 시작...`);
+        const canvas = await captureForPdf(el);
+        
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          console.error(`❌ 캔버스 생성 실패: ${id}`);
+          continue;
         }
+        
+        console.log(`✅ ${id} 캡처 완료 (크기: ${canvas.width}x${canvas.height})`);
 
-        // ✅ 다음 사진 있으면 새 페이지 추가
-        if (i < containerIds.length - 1) {
+        // 다른 컨테이너는 JPEG로 처리 (메모리 절약)
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const canvasAspectRatio = canvas.width / canvas.height;
+        const imgWidth = pageWidth - 2 * margin;
+        let imgHeight = imgWidth / canvasAspectRatio;
+        
+        // 한 페이지에 맞추기
+        if (imgHeight > maxContentHeight) {
+          const scaledHeight = maxContentHeight;
+          const scaledWidth = (canvas.width * scaledHeight) / canvas.height;
+          pdf.addImage(imgData, 'JPEG', margin, margin, scaledWidth, scaledHeight, undefined, 'FAST');
+        } else {
+          pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight, undefined, 'FAST');
+        }
+        
+        // 메모리 정리
+        canvas.width = 1;
+        canvas.height = 1;
+
+        // 다음 컨테이너가 있으면 새 페이지 추가
+        if (i < containers.length - 1) {
           pdf.addPage();
         }
-
-        // 메모리 정리
-        exportCanvas.width = 1;
-        exportCanvas.height = 1;
-
       } catch (err) {
-        console.error(`❌ ${containerId} 처리 실패:`, err);
-        // 에러가 나도 다음 페이지 계속 진행
+        console.error(`❌ ${id} 캡처 실패:`, err);
         continue;
       }
     }
 
     // ✅ PDF 생성 완료 후 컨테이너 정리
-    const allContainerIds = ['page1Container', 'sideImageContainer', 'sideReportContainer', 
-                             'frontImageContainer', 'frontReportContainer', 'page4Container', 
-                             'page5Container', 'page6Container', 'page8Container', 'page7Container'];
-    allContainerIds.forEach(id => {
+    const containerIds = ['page1Container', 'sideImageContainer', 'sideReportContainer', 
+                          'frontImageContainer', 'frontReportContainer', 'page4Container', 
+                          'page5Container', 'page6Container', 'page8Container', 'page7Container'];
+    containerIds.forEach(id => {
       const elem = document.getElementById(id);
       if (elem && document.body.contains(elem)) {
         document.body.removeChild(elem);
@@ -16190,13 +16233,13 @@ async function generateFinalPostureReportPDF() {
     });
 
     // 저장
-    const centerName = localStorage.getItem('centerName') || 'DIT';
-    const memberName = localStorage.getItem('memberName') || '회원';
-    const filename = `${centerName}_${memberName}_자세분석.pdf`;
-
+    console.log("💾 PDF 저장 중...");
+    const finalCenterName = centerName || 'DIT';
+    const finalMemberName = memberName || '회원';
+    const filename = `${finalCenterName}_${finalMemberName}_자세분석리포트.pdf`;
     pdf.save(filename);
     console.log(`✅ PDF 저장 완료: ${filename}`);
-    alert("PDF 저장 완료! 원본 크기 + 점/선 완벽 출력");
+    alert("PDF 저장 완료! 사진과 점(dot)이 정확히 출력됩니다.");
 
   } catch (err) {
     console.error("❌ PDF 생성 실패:", err);
