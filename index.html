@@ -132,6 +132,13 @@
   visibility: hidden !important;
 }
 
+/* PDF용 캔버스 고해상도 렌더링 보장 */
+.pdf-safe canvas {
+  image-rendering: crisp-edges !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: pixelated !important;
+}
+
 * { box-sizing: border-box; }
 html, body {
   margin: 0; 
@@ -14085,16 +14092,10 @@ async function exportAsPdf(options = {}) {
   const imgW = pageW - margin * 2;
   const imgH = pageH - margin * 2;
 
-  // ✅ 긴 컨테이너를 여러 페이지로 나누는 함수
+  // ✅ 전체 캔버스를 고해상도로 스케일링하여 한 페이지에 넣는 함수 (슬라이스 방식 제거)
   async function addImageToPdf(canvas, containerId, addPageAfter, forceNewPage = false) {
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
       console.error(`❌ 캔버스가 유효하지 않습니다: ${containerId}`);
-      return;
-    }
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    if (!dataUrl || dataUrl === 'data:,') {
-      console.error(`❌ 이미지 데이터 생성 실패: ${containerId}`);
       return;
     }
 
@@ -14107,72 +14108,102 @@ async function exportAsPdf(options = {}) {
     // ✅ 사진 컨테이너는 절대 여러 페이지로 나누지 않음 (페이지 경계에서 잘림 방지)
     const isImageContainer = containerId === 'sideImageContainer' || containerId === 'frontImageContainer';
     
-    // ✅ 캔버스 높이를 PDF 페이지 높이로 스케일링
-    const canvasAspectRatio = canvas.width / canvas.height;
-    // ✅ 사진 컨테이너는 여유 공간을 고려하여 더 작은 높이 사용
-    const maxHeight = isImageContainer ? imgH - 50 : imgH; // 사진은 50px 여유 공간 추가
-    let scaledWidth = imgW;
-    let scaledHeight = imgW / canvasAspectRatio;
-
-    // ✅ 사진 컨테이너는 한 페이지에 맞추기 위해 크기 조정
-    if (isImageContainer && scaledHeight > maxHeight) {
-      // 사진 컨테이너는 크기를 줄여서 한 페이지에 맞춤
-      const scale = maxHeight / scaledHeight;
-      scaledHeight = maxHeight;
-      scaledWidth = scaledWidth * scale;
-      console.log(`📸 ${containerId}: 한 페이지에 맞추기 위해 크기 조정 (scale: ${scale.toFixed(2)})`);
-    }
-
-    // ✅ 컨테이너가 한 페이지를 초과하면 여러 페이지로 나누기 (사진 컨테이너 제외)
-    if (!isImageContainer && scaledHeight > maxHeight) {
-      const numPages = Math.ceil(scaledHeight / maxHeight);
-      console.log(`📄 ${containerId}: ${numPages}개 페이지로 분할 (높이: ${scaledHeight.toFixed(0)}px)`);
+    try {
+      // ✅ 고해상도 캔버스 생성 (모바일에서도 dot과 선이 선명하게 출력)
+      const tempCanvas = document.createElement('canvas');
+      const scale = 2; // 2배 해상도로 dot과 선의 선명도 보장
+      tempCanvas.width = canvas.width * scale;
+      tempCanvas.height = canvas.height * scale;
+      const tctx = tempCanvas.getContext('2d');
       
-      const sourceHeight = canvas.height;
-      const sliceHeight = sourceHeight / numPages;
+      // ✅ 고해상도 렌더링 설정
+      tctx.imageSmoothingEnabled = true;
+      tctx.imageSmoothingQuality = 'high';
+      tctx.scale(scale, scale);
+      tctx.drawImage(canvas, 0, 0);
       
-      for (let pageIndex = 0; pageIndex < numPages; pageIndex++) {
-        const yOffset = pageIndex * sliceHeight;
-        const currentSliceHeight = Math.min(sliceHeight, sourceHeight - yOffset);
-        
-        // ✅ 캔버스 슬라이스 생성
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = currentSliceHeight;
-        const sliceCtx = sliceCanvas.getContext('2d');
-        sliceCtx.drawImage(canvas, 0, yOffset, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
-        
-        const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.92);
-        const sliceScaledHeight = (currentSliceHeight / sourceHeight) * scaledHeight;
-        
-        // ✅ 각 슬라이스를 PDF 페이지로 추가
+      // ✅ 모바일에서 최소 크기 보장 (작은 캔버스에서도 선명하게)
+      if (tempCanvas.width < 800) {
+        const minScale = 800 / tempCanvas.width;
+        const minCanvas = document.createElement('canvas');
+        minCanvas.width = 800;
+        minCanvas.height = tempCanvas.height * minScale;
+        const minCtx = minCanvas.getContext('2d');
+        minCtx.imageSmoothingEnabled = true;
+        minCtx.imageSmoothingQuality = 'high';
+        minCtx.drawImage(tempCanvas, 0, 0, minCanvas.width, minCanvas.height);
+        tempCanvas.width = minCanvas.width;
+        tempCanvas.height = minCanvas.height;
+        const finalCtx = tempCanvas.getContext('2d');
+        finalCtx.drawImage(minCanvas, 0, 0);
+        minCanvas.width = 1;
+        minCanvas.height = 1;
+      }
+      
+      // ✅ PNG 포맷으로 고품질 이미지 생성 (dot과 선이 정확하게 보존)
+      const imgData = tempCanvas.toDataURL('image/png', 1.0);
+      if (!imgData || imgData === 'data:,') {
+        console.error(`❌ 이미지 데이터 생성 실패: ${containerId}`);
+        return;
+      }
+      
+      // ✅ 이미지 비율 유지하며 PDF 페이지 크기에 맞춤
+      const canvasAspectRatio = tempCanvas.width / tempCanvas.height;
+      const maxHeight = isImageContainer ? imgH - 50 : imgH; // 사진은 50px 여유 공간 추가
+      let imgWidth = imgW;
+      let imgHeight = imgW / canvasAspectRatio;
+      
+      // ✅ 한 페이지에 맞추기 위해 크기 조정 (잘림 방지)
+      if (imgHeight > maxHeight) {
+        const scaleDown = maxHeight / imgHeight;
+        imgHeight = maxHeight;
+        imgWidth = imgWidth * scaleDown;
+        console.log(`📸 ${containerId}: 한 페이지에 맞추기 위해 크기 조정 (scale: ${scaleDown.toFixed(2)})`);
+      }
+      
+      // ✅ 전체 캔버스를 한 페이지에 삽입 (슬라이스 없이 - dot과 선이 정확하게 보존)
+      send({
+        type: "addImage",
+        dataUrl: imgData,
+        imageType: "PNG", // PNG 포맷 사용 (고품질, dot과 선의 정확도 보장)
+        x: margin,
+        y: margin,
+        width: imgWidth,
+        height: imgHeight,
+        addPageAfter: addPageAfter,
+        compression: "SLOW" // SLOW 렌더링 모드로 dot과 선의 정확도 보장
+      });
+      
+      console.log(`✅ ${containerId}: 전체 캔버스를 고해상도 PNG로 삽입 완료 (${imgWidth.toFixed(0)}x${imgHeight.toFixed(0)})`);
+      
+      // GC
+      tempCanvas.width = 1;
+      tempCanvas.height = 1;
+    } catch (err) {
+      console.error(`❌ ${containerId} 처리 실패:`, err);
+      // 실패 시 기존 방식으로 폴백
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      if (dataUrl && dataUrl !== 'data:,') {
+        const canvasAspectRatio = canvas.width / canvas.height;
+        const maxHeight = isImageContainer ? imgH - 50 : imgH;
+        let scaledWidth = imgW;
+        let scaledHeight = imgW / canvasAspectRatio;
+        if (scaledHeight > maxHeight) {
+          const scale = maxHeight / scaledHeight;
+          scaledHeight = maxHeight;
+          scaledWidth = scaledWidth * scale;
+        }
         send({
           type: "addImage",
-          dataUrl: sliceDataUrl,
+          dataUrl,
           imageType: "JPEG",
           x: margin,
           y: margin,
           width: scaledWidth,
-          height: Math.min(sliceScaledHeight, maxHeight),
-          addPageAfter: pageIndex < numPages - 1 || (pageIndex === numPages - 1 && addPageAfter)
+          height: scaledHeight,
+          addPageAfter: addPageAfter
         });
-        
-        // GC
-        sliceCanvas.width = 1;
-        sliceCanvas.height = 1;
-        }
-      } else {
-      // ✅ 한 페이지에 들어가는 경우
-      send({
-        type: "addImage",
-        dataUrl,
-        imageType: "JPEG",
-        x: margin,
-        y: margin,
-        width: scaledWidth,
-        height: scaledHeight,
-        addPageAfter: addPageAfter
-      });
+      }
     }
 
     // GC

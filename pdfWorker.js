@@ -37,15 +37,19 @@ self.onmessage = async function (e) {
     if (msg.type === 'addImage') {
       if (!pdf) return;
 
+      // ✅ imageType과 compression 파라미터 지원 (PNG 고품질, SLOW 렌더링)
+      const imageType = msg.imageType || "JPEG";
+      const compression = msg.compression || (imageType === "PNG" ? "SLOW" : "FAST");
+
       pdf.addImage(
         msg.dataUrl,
-        "JPEG",
+        imageType,
         msg.x,
         msg.y,
         msg.width,
         msg.height,
         undefined,
-        "FAST"
+        compression
       );
 
       if (msg.addPageAfter) pdf.addPage();
