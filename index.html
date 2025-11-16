@@ -9937,9 +9937,10 @@ document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
 // 화질 대폭 개선을 위해 scale과 크기 제한 증가
+// ✅ 모바일에서도 데스크톱과 동일한 고해상도 설정 사용 (이미지/dot 잘림 방지)
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = isMobile ? 4000 : 5000; // ✅ 모바일 고해상도 개선 (3500 → 4000)
-const baseCanvasScale = isMobile ? Math.min(window.devicePixelRatio || 2, 3) * 1.5 : 5.0; // ✅ 모바일에서 devicePixelRatio 반영
+const PDF_MAX_CANVAS_EDGE = 5000; // 모바일/데스크톱 동일 (고해상도 보장)
+const baseCanvasScale = 5.0; // 모바일/데스크톱 동일 (고해상도 보장)
 const html2canvasOptions = {
   scale: baseCanvasScale,
   backgroundColor: "#ffffff",
@@ -9949,7 +9950,7 @@ const html2canvasOptions = {
   scrollX: 0,
   scrollY: -window.scrollY,
   imageTimeout: 20000,
-  removeContainer: isMobile,
+  removeContainer: false, // ✅ 모바일에서도 데스크톱과 동일하게 false (컨테이너 유지)
   // ✅ 고품질 렌더링 옵션 추가
   letterRendering: true, // 텍스트 렌더링 개선
   foreignObjectRendering: false, // SVG 렌더링 문제 방지
