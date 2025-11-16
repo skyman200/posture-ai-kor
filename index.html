@@ -9923,18 +9923,34 @@ if (afterViews.side || beforeViews.side) {
       const padding = 30;
       const titleHeight = 40;
       const footerHeight = 30;
-      const imageMaxHeight = 800;
       
-      // 이미지 크기 계산
+      // ✅ 한 페이지에 완전히 들어가도록 높이 제한 (페이지 경계에서 잘림 방지)
+      // PDF 페이지 높이: 842px, margin: 24px * 2 = 48px
+      // 사용 가능한 높이: 842 - 48 = 794px
+      // 여유 공간을 고려하여 최대 높이를 750px로 제한
+      const maxCanvasHeight = 750;
+      const availableImageHeight = maxCanvasHeight - titleHeight - 20 - footerHeight - 20 - (padding * 2);
+      
+      // 이미지 크기 계산 (한 페이지에 완전히 들어가도록)
       const imageAspectRatio = img.width / img.height;
       let imageWidth = containerWidth - (padding * 2);
       let imageHeight = imageWidth / imageAspectRatio;
-      if (imageHeight > imageMaxHeight) {
-        imageHeight = imageMaxHeight;
+      
+      // 사용 가능한 높이를 초과하면 크기 조정
+      if (imageHeight > availableImageHeight) {
+        imageHeight = availableImageHeight;
         imageWidth = imageHeight * imageAspectRatio;
       }
       
-      const canvasHeight = titleHeight + 20 + imageHeight + 20 + footerHeight + (padding * 2);
+      let canvasHeight = titleHeight + 20 + imageHeight + 20 + footerHeight + (padding * 2);
+      
+      // ✅ 최종 높이 검증 (한 페이지를 초과하지 않도록)
+      if (canvasHeight > maxCanvasHeight) {
+        const scale = maxCanvasHeight / canvasHeight;
+        imageHeight = imageHeight * scale;
+        imageWidth = imageHeight * imageAspectRatio;
+        canvasHeight = maxCanvasHeight;
+      }
       
       sideImageCanvas = document.createElement('canvas');
       sideImageCanvas.width = containerWidth;
@@ -10286,18 +10302,34 @@ if (afterViews.front || beforeViews.front) {
       const padding = 30;
       const titleHeight = 40;
       const footerHeight = 30;
-      const imageMaxHeight = 800;
       
-      // 이미지 크기 계산
+      // ✅ 한 페이지에 완전히 들어가도록 높이 제한 (페이지 경계에서 잘림 방지)
+      // PDF 페이지 높이: 842px, margin: 24px * 2 = 48px
+      // 사용 가능한 높이: 842 - 48 = 794px
+      // 여유 공간을 고려하여 최대 높이를 750px로 제한
+      const maxCanvasHeight = 750;
+      const availableImageHeight = maxCanvasHeight - titleHeight - 20 - footerHeight - 20 - (padding * 2);
+      
+      // 이미지 크기 계산 (한 페이지에 완전히 들어가도록)
       const imageAspectRatio = img.width / img.height;
       let imageWidth = containerWidth - (padding * 2);
       let imageHeight = imageWidth / imageAspectRatio;
-      if (imageHeight > imageMaxHeight) {
-        imageHeight = imageMaxHeight;
+      
+      // 사용 가능한 높이를 초과하면 크기 조정
+      if (imageHeight > availableImageHeight) {
+        imageHeight = availableImageHeight;
         imageWidth = imageHeight * imageAspectRatio;
       }
       
-      const canvasHeight = titleHeight + 20 + imageHeight + 20 + footerHeight + (padding * 2);
+      let canvasHeight = titleHeight + 20 + imageHeight + 20 + footerHeight + (padding * 2);
+      
+      // ✅ 최종 높이 검증 (한 페이지를 초과하지 않도록)
+      if (canvasHeight > maxCanvasHeight) {
+        const scale = maxCanvasHeight / canvasHeight;
+        imageHeight = imageHeight * scale;
+        imageWidth = imageHeight * imageAspectRatio;
+        canvasHeight = maxCanvasHeight;
+      }
       
       frontImageCanvas = document.createElement('canvas');
       frontImageCanvas.width = containerWidth;
@@ -13989,14 +14021,27 @@ async function exportAsPdf(options = {}) {
       console.log(`📄 새 페이지 강제 시작: ${containerId}`);
     }
 
+    // ✅ 사진 컨테이너는 절대 여러 페이지로 나누지 않음 (페이지 경계에서 잘림 방지)
+    const isImageContainer = containerId === 'sideImageContainer' || containerId === 'frontImageContainer';
+    
     // ✅ 캔버스 높이를 PDF 페이지 높이로 스케일링
     const canvasAspectRatio = canvas.width / canvas.height;
-    const maxHeight = imgH; // 한 페이지에 들어갈 수 있는 최대 높이
+    // ✅ 사진 컨테이너는 여유 공간을 고려하여 더 작은 높이 사용
+    const maxHeight = isImageContainer ? imgH - 50 : imgH; // 사진은 50px 여유 공간 추가
     let scaledWidth = imgW;
     let scaledHeight = imgW / canvasAspectRatio;
 
-    // ✅ 컨테이너가 한 페이지를 초과하면 여러 페이지로 나누기
-    if (scaledHeight > maxHeight) {
+    // ✅ 사진 컨테이너는 한 페이지에 맞추기 위해 크기 조정
+    if (isImageContainer && scaledHeight > maxHeight) {
+      // 사진 컨테이너는 크기를 줄여서 한 페이지에 맞춤
+      const scale = maxHeight / scaledHeight;
+      scaledHeight = maxHeight;
+      scaledWidth = scaledWidth * scale;
+      console.log(`📸 ${containerId}: 한 페이지에 맞추기 위해 크기 조정 (scale: ${scale.toFixed(2)})`);
+    }
+
+    // ✅ 컨테이너가 한 페이지를 초과하면 여러 페이지로 나누기 (사진 컨테이너 제외)
+    if (!isImageContainer && scaledHeight > maxHeight) {
       const numPages = Math.ceil(scaledHeight / maxHeight);
       console.log(`📄 ${containerId}: ${numPages}개 페이지로 분할 (높이: ${scaledHeight.toFixed(0)}px)`);
       
