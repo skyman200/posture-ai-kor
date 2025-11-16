@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ㅎ<!DOCTYPE html>
 <html lang="ko">
   <head>
 <meta charset="UTF-8">
@@ -58,6 +58,25 @@
   word-wrap: break-word !important;
   overflow-wrap: break-word !important;
   word-break: break-word !important;
+}
+
+/* 결론 및 향후 권장사항 섹션 높이 제한 해제 */
+.pdf-safe div[style*="결론"], 
+.pdf-safe div[style*="권장사항"],
+.pdf-safe #conclusionContent,
+.pdf-safe [id*="conclusion"] {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  text-overflow: clip !important;
+}
+
+/* 모든 div 요소의 높이 제한 해제 (PDF 생성 시) */
+.pdf-safe div {
+  max-height: none !important;
 }
 * { box-sizing: border-box; }
 html, body {
@@ -9506,7 +9525,42 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
       await wait(50);
     }
 
-    const snapshot = cv.toDataURL("image/png");
+    // ✅ Canvas 렌더링 완료 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
+    // 여러 번 렌더링하여 모든 점과 선이 그려지도록 보장
+    if (cv && typeof draw === 'function') {
+      draw(); // 첫 번째 렌더링
+      await new Promise(res => requestAnimationFrame(res));
+      draw(); // 두 번째 렌더링 (모바일에서 렌더링 지연 보정)
+      await new Promise(res => requestAnimationFrame(res));
+      await wait(100); // 추가 대기 시간 (모바일 렌더링 완료 보장)
+    }
+
+    // ✅ Canvas 내용 검증 (빈 캔버스 방지)
+    let snapshot = null;
+    if (cv && cv.toDataURL) {
+      snapshot = cv.toDataURL("image/png", 1.0);
+      // 빈 이미지 확인 (DataURL이 기본값인지 확인)
+      if (snapshot && snapshot !== 'data:,') {
+        // Canvas에 실제 내용이 있는지 확인 (작은 영역 샘플링)
+        try {
+          const ctx = cv.getContext('2d');
+          if (ctx) {
+            const imageData = ctx.getImageData(0, 0, Math.min(cv.width, 10), Math.min(cv.height, 10));
+            const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 || val < 255);
+            if (!hasContent) {
+              console.warn(`⚠️ Canvas가 비어있습니다. 다시 렌더링합니다: ${sessionName} ${orientation}`);
+              draw();
+              await new Promise(res => requestAnimationFrame(res));
+              await wait(100);
+              snapshot = cv.toDataURL("image/png", 1.0);
+            }
+          }
+        } catch (err) {
+          // Canvas 접근 오류는 무시하고 계속 진행
+          console.warn('Canvas 내용 검증 중 오류:', err);
+        }
+      }
+    }
 
     if(originalOrientation !== orientation) {
       setOrientation(originalOrientation);
@@ -9819,8 +9873,31 @@ if (afterViews.side || beforeViews.side) {
   `;
   
   document.body.appendChild(sideImageContainer);
+  
+  // ✅ 이미지 로드 완료 보장 (모바일 PDF 저장 시 사진 누락 방지)
+  if (sideImg) {
+    const img = sideImageContainer.querySelector('img');
+    if (img) {
+      await new Promise((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve();
+        } else {
+          const timeout = setTimeout(resolve, 3000); // 최대 3초 대기
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(); // 에러가 나도 계속 진행
+          };
+        }
+      });
+    }
+  }
+  
   if (isMobile) {
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 150)); // 100ms → 150ms로 증가
   }
   
   try {
@@ -10099,8 +10176,31 @@ if (afterViews.front || beforeViews.front) {
   `;
   
   document.body.appendChild(frontImageContainer);
+  
+  // ✅ 이미지 로드 완료 보장 (모바일 PDF 저장 시 사진 누락 방지)
+  if (frontImg) {
+    const img = frontImageContainer.querySelector('img');
+    if (img) {
+      await new Promise((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve();
+        } else {
+          const timeout = setTimeout(resolve, 3000); // 최대 3초 대기
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(); // 에러가 나도 계속 진행
+          };
+        }
+      });
+    }
+  }
+  
   if (isMobile) {
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 150)); // 100ms → 150ms로 증가
   }
   
   try {
@@ -10785,9 +10885,9 @@ page4Container.innerHTML = `
     conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
     
     return conclusionText ? `
-  <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border-left:4px solid #2ec4b6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-    <div style="font-size:13px; font-weight:700; color:#2ec4b6; margin-bottom:10px; word-wrap:break-word;">✅ 결론 및 향후 권장사항</div>
-    <div style="font-size:11px; line-height:1.8; color:#0f172a; white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word;">${conclusionText}</div>
+  <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border-left:4px solid #2ec4b6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; height:auto !important; max-height:none !important; overflow:visible !important;">
+    <div style="font-size:13px; font-weight:700; color:#2ec4b6; margin-bottom:10px; word-wrap:break-word; overflow-wrap:break-word; white-space:normal !important;">✅ 결론 및 향후 권장사항</div>
+    <div style="font-size:11px; line-height:1.8; color:#0f172a; white-space:pre-wrap !important; word-wrap:break-word !important; overflow-wrap:break-word !important; overflow:visible !important; text-overflow:clip !important; height:auto !important; max-height:none !important;">${conclusionText}</div>
   </div>
     ` : '';
   })()}
@@ -13575,6 +13675,36 @@ async function captureForPdf(elem) {
         clonedElem.style.left = '0';
         clonedElem.style.top = '0';
       }
+      
+      // ✅ 결론 및 향후 권장사항 섹션 높이 제한 해제 (글자 잘림 방지)
+      const allElements = clonedDoc.querySelectorAll('*');
+      allElements.forEach(el => {
+        if (el.style) {
+          // 텍스트 잘림 방지 스타일 강제 적용
+          el.style.wordWrap = 'break-word';
+          el.style.overflowWrap = 'break-word';
+          el.style.wordBreak = 'break-word';
+          el.style.whiteSpace = el.style.whiteSpace === 'pre-wrap' ? 'pre-wrap' : 'normal';
+          el.style.overflow = 'visible';
+          el.style.textOverflow = 'clip';
+          
+          // 결론 섹션 식별 및 높이 제한 해제
+          const textContent = el.textContent || '';
+          const id = el.id || '';
+          const className = el.className || '';
+          if (textContent.includes('결론') || textContent.includes('권장사항') || 
+              id.includes('conclusion') || className.includes('conclusion')) {
+            el.style.height = 'auto';
+            el.style.maxHeight = 'none';
+            el.style.overflow = 'visible';
+          }
+          
+          // 모든 div 요소의 높이 제한 해제
+          if (el.tagName === 'DIV') {
+            el.style.maxHeight = 'none';
+          }
+        }
+      });
     }
   });
   
