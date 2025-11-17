@@ -420,15 +420,6 @@ canvas {
         </div>
       </details>
       <details style="margin-bottom:8px;">
-        <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Q-Angle (대퇴사두근 각도)</summary>
-        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
-          <strong>측정 방법:</strong> ASIS-무릎(Knee)-경골조면(Tibial Tuberosity) 세 점이 이루는 각도<br>
-          <strong>의미:</strong> 대퇴사두근의 당김 방향을 평가하여 무릎 정렬을 확인합니다.<br>
-          <strong>정상 범위:</strong> 남성 10-15°, 여성 15-20°<br>
-          <strong>임상적 의미:</strong> &gt;20°는 슬개골 외측 전위 및 슬개대퇴 통증 증후군의 위험 요인입니다.
-        </div>
-      </details>
-      <details style="margin-bottom:8px;">
         <summary style="cursor:pointer; font-weight:600; color:#7c9cff; padding:4px 0;">Knee Deviation (무릎 높이 차)</summary>
         <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
           <strong>측정 방법:</strong> 좌우 무릎의 높이 차이를 각도로 환산<br>
@@ -524,6 +515,16 @@ canvas {
           <strong>측정 방법:</strong> ① 정면 촬영 시 L/R 어깨와 L/R ASIS가 모두 보여야 함. ② 두 선의 각도 차 계산.<br>
           <strong>정상 범위:</strong> 0–3°<br>
           <strong>해석:</strong> ↑ → 체간 회전 / 골반 비틀림 / 척추 회전성 불균형.
+        </div>
+      </details>
+      
+      <details style="margin-bottom:8px; border-left:3px solid #2ec4b6; padding-left:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:#2ec4b6; padding:4px 0;">Q-Angle (대퇴사두근 각도)</summary>
+        <div style="padding:8px 0 0 12px; color:var(--muted); line-height:1.5;">
+          <strong>측정 방법:</strong> ASIS-무릎(Knee)-경골조면(Tibial Tuberosity) 세 점이 이루는 각도<br>
+          <strong>의미:</strong> 대퇴사두근의 당김 방향을 평가하여 무릎 정렬을 확인합니다.<br>
+          <strong>정상 범위:</strong> 남성 10-15°, 여성 15-20°<br>
+          <strong>임상적 의미:</strong> &gt;20°는 슬개골 외측 전위 및 슬개대퇴 통증 증후군의 위험 요인입니다.
         </div>
       </details>
       
@@ -3915,7 +3916,7 @@ function computeAll() {
       };
       updateDisplay();
       updateCompare();
-      displayFrontAnalysis(frontMetrics);
+      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
       // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출 (scoreData 객체 전체 전달)
       updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     }).catch(err => {
@@ -3929,7 +3930,7 @@ function computeAll() {
       };
       updateDisplay();
       updateCompare();
-      displayFrontAnalysis(frontMetrics);
+      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
       updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     });
     
@@ -3970,6 +3971,7 @@ function computeAll() {
       S.analysis = analysis;
       updateDisplay();
       updateCompare();
+      // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
       updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
     }).catch(err => {
       console.warn('DB 기반 분석 실패, 기존 방식 사용:', err);
@@ -3977,6 +3979,7 @@ function computeAll() {
       S.analysis = analysis;
       updateDisplay();
       updateCompare();
+      // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
       updateScoreAndAnalysis(score, cva, pelvic, knee, analysis);
     });
     
@@ -4009,7 +4012,7 @@ function computeAll() {
       };
       updateDisplay();
       updateCompare();
-      displayFrontAnalysis(frontMetrics);
+      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
       // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출 (scoreData 객체 전체 전달)
       updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     }).catch(err => {
@@ -4023,7 +4026,7 @@ function computeAll() {
       };
       updateDisplay();
       updateCompare();
-      displayFrontAnalysis(frontMetrics);
+      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
       updateScoreAndAnalysis(scoreData, null, null, null, S.analysis);
     });
     
@@ -4091,6 +4094,67 @@ function displayFrontAnalysis(fullMetrics) {
   commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
   commentPanel.style.display = "block";
   
+}
+
+// ✅ 측면 분석 결과 표시
+function displaySideAnalysis(fullMetrics) {
+  const commentEl = document.getElementById("aiComment");
+  const commentPanel = document.getElementById("aiCommentPanel");
+  
+  if(!fullMetrics || Object.keys(fullMetrics).length === 0) {
+    commentPanel.style.display = "none";
+    return;
+  }
+  
+  let commentText = "📐 측면 자세 분석 결과:\n\n";
+  const details = [];
+  
+  // 측면 지표만 필터링 (정면 지표 제외)
+  const sideMetrics = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'HPA', 'Tibial_Angle', 'Tibial'];
+  const frontMetrics = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'Q_Angle', 'Knee_Deviation', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS'];
+  
+  for(const [key, value] of Object.entries(fullMetrics)) {
+    // 정면 지표는 제외
+    if(frontMetrics.some(fm => key === fm || key.startsWith(fm))) {
+      continue;
+    }
+    
+    // 측면 지표만 표시
+    if(!sideMetrics.some(sm => key === sm || key.startsWith(sm))) {
+      continue;
+    }
+    
+    if(value && value.value_deg != null) {
+      const statusText = {
+        "normal": "✅ 정상",
+        "mild": "⚠️ 경미",
+        "moderate": "⚠️ 중등도",
+        "severe": "🔴 심각"
+      }[value.status] || value.status;
+      
+      commentText += `${key}: ${value.value_deg.toFixed(1)}° (${statusText})\n`;
+      details.push(`• ${value.meaning || key}`);
+    } else if(value && value.value_cm != null) {
+      const statusText = {
+        "normal": "✅ 정상",
+        "mild": "⚠️ 경미",
+        "moderate": "⚠️ 중등도",
+        "severe": "🔴 심각"
+      }[value.status] || value.status;
+      
+      commentText += `${key}: ${value.value_cm.toFixed(2)}cm (${statusText})\n`;
+      details.push(`• ${value.meaning || key}`);
+    }
+  }
+  
+  if(details.length > 0) {
+    commentText += "\n" + details.join("\n");
+  } else {
+    commentText += "측면 분석 데이터가 없습니다.";
+  }
+  
+  commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
+  commentPanel.style.display = "block";
 }
 
 
@@ -5504,7 +5568,17 @@ function analyzePostureType(metrics, orientation = null) {
   }
   
   // === 종합 평가 및 요약 ===
-  if(pds != null) {
+  // ✅ 측면 분석 결과 요약 추가 (정면 분석처럼 명확하게)
+  if (orientation === "side") {
+    if(issueCount === 0) {
+      summarySection = '<div style="padding:12px; background:#f0fdf4; border-radius:8px; margin-bottom:16px;"><strong style="color:#15803d;">✅ 측면 자세 분석 결과: 모든 지표가 정상 범위 내에 있습니다.</strong></div>';
+    } else {
+      summarySection = `<div style="padding:12px; background:#fff7ed; border-radius:8px; margin-bottom:16px;"><strong style="color:#c2410c;">⚠️ 측면 자세 분석 결과: ${issueCount}개의 문제가 발견되었습니다.</strong></div>`;
+    }
+  }
+  
+  // PDS 기반 종합 평가 (측면/정면 공통)
+  if(pds != null && !summarySection) {
     if(pdsStatus === 'normal') {
       summarySection = `<div style="background:rgba(46,196,182,0.1); padding:12px; border-radius:8px; margin-bottom:16px;">
         <strong style="color:#2ec4b6; font-size:14px;">✓ 전반적으로 양호한 자세</strong>
@@ -5771,8 +5845,20 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   }
   
   // AI 코멘트 (더 상세하게)
+  // ✅ orientation에 따라 측면/정면 분석 결과 구분 표시
+  const currentOrientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
+  
   if(analysis && analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0) {
-    let commentText = analysis.comments.join(" ");
+    let commentText = "";
+    
+    // ✅ 측면 분석인 경우 측면 분석 헤더 추가
+    if(currentOrientation === "side") {
+      commentText = "📐 측면 자세 분석 결과:\n\n";
+    } else if(currentOrientation === "front") {
+      commentText = "📷 정면 자세 분석 결과:\n\n";
+    }
+    
+    commentText += analysis.comments.join(" ");
     if(analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0) {
       commentText += "\n\n" + analysis.details.join("\n");
     }
@@ -5786,7 +5872,6 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       const metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
       if(metricsForAnalysis && Object.keys(metricsForAnalysis).length > 0) {
         // ✅ orientation을 전달하여 정면/측면 구분
-        const currentOrientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
         let postureType = analyzePostureType(metricsForAnalysis, currentOrientation);
         postureTypeContent.innerHTML = postureType;
       } else {
@@ -5795,7 +5880,14 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       }
     }
   } else {
-    commentPanel.style.display = "none";
+    // ✅ 분석 결과가 없어도 측면/정면 메트릭만 표시
+    if(currentOrientation === "side" && fullMetrics) {
+      displaySideAnalysis(fullMetrics);
+    } else if(currentOrientation === "front" && fullMetrics) {
+      displayFrontAnalysis(fullMetrics);
+    } else {
+      commentPanel.style.display = "none";
+    }
   }
   
   // 근육 분석 (상세)
