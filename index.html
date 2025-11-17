@@ -46,8 +46,13 @@
   overflow-wrap: break-word !important;
   word-break: break-word !important;
   white-space: normal !important; /* nowrap 강제 해제 */
-  overflow: visible !important; /* hidden 강제 해제 */
+  /* overflow: visible은 img/video/canvas에 적용하지 않음 (deprecated 경고 방지) */
   text-overflow: clip !important; /* ellipsis 강제 해제 */
+}
+
+/* img/video/canvas가 아닌 요소에만 overflow: visible 적용 */
+.pdf-safe *:not(img):not(video):not(canvas) {
+  overflow: visible !important; /* hidden 강제 해제 (img/video/canvas 제외) */
 }
 
 /* 테이블 셀에 대한 강제 오버라이드 (가장 중요) */
