@@ -6126,11 +6126,11 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       }
       
       commentText += analysis.comments.join(" ");
-      if(analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0) {
-        commentText += "\n\n" + analysis.details.join("\n");
-      }
-      commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
-      commentPanel.style.display = "block";
+    if(analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0) {
+      commentText += "\n\n" + analysis.details.join("\n");
+    }
+    commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
+    commentPanel.style.display = "block";
     }
     
     // 체형 유형 분석 추가
@@ -10116,6 +10116,12 @@ const html2canvasOptions = {
   letterRendering: true, // 텍스트 렌더링 개선
   // 메모리 절약 및 텍스트 보호 옵션
   onclone: (clonedDoc) => {
+    // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가
+    if (!clonedDoc.doctype) {
+      const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
+      clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
+    }
+    
     // 모든 텍스트 요소에 글자 잘림 방지 스타일 강제 적용
     const allElements = clonedDoc.querySelectorAll('*');
     allElements.forEach(el => {
@@ -13951,6 +13957,12 @@ async function captureForPdf(elem) {
     windowWidth: width,  // ✅ 명시적 너비 설정
     windowHeight: height, // ✅ 명시적 높이 설정
     onclone: (clonedDoc) => {
+      // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가
+      if (!clonedDoc.doctype) {
+        const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
+        clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
+      }
+      
       // 복제된 문서에서도 스타일 보정
       const clonedElem = clonedDoc.getElementById(elem.id);
       if (clonedElem) {
@@ -14441,6 +14453,12 @@ function setupImageButton() {
         windowWidth: 794,
         windowHeight: fullReportContainer.scrollHeight,
         onclone: (clonedDoc) => {
+          // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가
+          if (!clonedDoc.doctype) {
+            const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
+            clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
+          }
+          
           // 텍스트 잘림 방지 스타일 강제 적용
           const allElements = clonedDoc.querySelectorAll('*');
           allElements.forEach(el => {
