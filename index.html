@@ -10169,13 +10169,15 @@ const html2canvasOptions = {
   // ✅ Quirks Mode 방지: foreignObjectRendering 비활성화
   foreignObjectRendering: false, // SVG foreignObject 사용 안 함 (Quirks Mode 방지)
   // 메모리 절약 및 텍스트 보호 옵션
-  onclone: (clonedDoc, clonedWindow) => {
+  onclone: (clonedDoc) => {
     // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (최종 강화)
     try {
-      // 복제된 문서와 window 모두 확인
+      // 복제된 문서와 관련된 모든 문서 확인
       const docsToFix = [clonedDoc];
-      if (clonedWindow && clonedWindow.document && clonedWindow.document !== clonedDoc) {
-        docsToFix.push(clonedWindow.document);
+      
+      // clonedDoc.defaultView를 통해 window에 접근 (iframe 내부 문서일 수 있음)
+      if (clonedDoc.defaultView && clonedDoc.defaultView.document && clonedDoc.defaultView.document !== clonedDoc) {
+        docsToFix.push(clonedDoc.defaultView.document);
       }
       
       docsToFix.forEach(doc => {
