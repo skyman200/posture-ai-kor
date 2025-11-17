@@ -9855,10 +9855,10 @@ if (isMobile) {
 if (afterViews.side || beforeViews.side) {
   const sideImg = afterViews.side || beforeViews.side;
   
-  // ✅ DataURL 이미지를 직접 캔버스로 변환 (모바일에서 dot 누락 방지)
+  // ✅ captureSessionSnapshot이 생성한 DataURL은 이미 dot를 포함하고 있음
+  // DataURL을 Image로 로드하여 캔버스 크기 조정 (dot 포함 보장)
   try {
     const img = new Image();
-    // DataURL은 crossOrigin 불필요 (CORS 문제 없음)
     
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -9874,11 +9874,11 @@ if (afterViews.side || beforeViews.side) {
         console.error('이미지 로드 실패:', e);
         reject(new Error('이미지 로드 실패'));
       };
-      img.src = sideImg;
+      img.src = sideImg; // 이미 dot가 포함된 DataURL
     });
     
-    // ✅ 고해상도 캔버스 직접 생성 (이미지 + dot 포함)
-    const targetWidth = 794;
+    // ✅ PDF 크기에 맞게 캔버스 크기 조정 (dot 포함된 이미지 그대로 사용)
+    const targetWidth = 794; // PDF 표준 너비
     const targetHeight = Math.floor((img.height / img.width) * targetWidth);
     const maxHeight = 1200; // 최대 높이 제한
     const finalHeight = Math.min(targetHeight, maxHeight);
@@ -9893,23 +9893,28 @@ if (afterViews.side || beforeViews.side) {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, finalWidth, finalHeight);
     
-    // 이미지 그리기
+    // ✅ dot가 포함된 이미지 그대로 그리기
     ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
     
-    console.log('✅ 측면 사진 Canvas 직접 생성 완료 (고해상도):', { width: finalWidth, height: finalHeight, pixelRatio: window.devicePixelRatio || 1 });
+    console.log('✅ 측면 사진 Canvas 직접 생성 완료 (dot 포함):', { width: finalWidth, height: finalHeight });
   } catch (err) {
-    console.error('❌ 측면 사진 Canvas 직접 생성 실패, html2canvas로 폴백:', err);
-    
-    // 폴백: html2canvas 사용
-    const sideImageContainer = document.createElement("div");
-    sideImageContainer.id = "sideImageContainer";
-    setPageContainerStyle(sideImageContainer);
-    sideImageContainer.classList.add('pdf-safe');
-    
+    console.error('❌ 측면 사진 Canvas 직접 생성 실패:', err);
+    sideImageCanvas = null;
+  }
+  
+  // ✅ 컨테이너도 생성 (generateFinalPostureReportPDF에서 사용)
+  const sideImageContainer = document.createElement("div");
+  sideImageContainer.id = "sideImageContainer";
+  setPageContainerStyle(sideImageContainer);
+  sideImageContainer.classList.add('pdf-safe');
+  
+  if (sideImageCanvas) {
+    // 캔버스를 이미지로 변환하여 컨테이너에 추가
+    const imgUrl = sideImageCanvas.toDataURL('image/png', 1.0);
     sideImageContainer.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 사진</h2>
       <div style="text-align:center; margin-top:20px;">
-        <img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" crossorigin="anonymous" />
+        <img src="${imgUrl}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
       </div>
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -9918,68 +9923,23 @@ if (afterViews.side || beforeViews.side) {
         </div>
       </div>
     `;
-    
-    document.body.appendChild(sideImageContainer);
-    
-    // ✅ 이미지 로드 완료 보장 (모바일 PDF 저장 시 사진 누락 방지)
-    if (sideImg) {
-      const img = sideImageContainer.querySelector('img');
-      if (img) {
-        await new Promise((resolve) => {
-          if (img.complete && img.naturalWidth > 0) {
-            resolve();
-          } else {
-            const timeout = setTimeout(resolve, 5000); // 최대 5초 대기
-            img.onload = () => {
-              clearTimeout(timeout);
-              resolve();
-            };
-            img.onerror = () => {
-              clearTimeout(timeout);
-              resolve(); // 에러가 나도 계속 진행
-            };
-          }
-        });
-      }
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 300)); // 150ms → 300ms로 증가
-    }
-    
-    try {
-      const containerWidth = Math.max(sideImageContainer.scrollWidth, sideImageContainer.offsetWidth, 794);
-      const containerHeight = Math.max(sideImageContainer.scrollHeight, sideImageContainer.offsetHeight);
-      
-      sideImageCanvas = await html2canvas(sideImageContainer, {
-        ...html2canvasOptions,
-        windowWidth: containerWidth,
-        windowHeight: containerHeight,
-        width: containerWidth,
-        height: containerHeight,
-        scale: 2.0,  // 품질 향상 (1.5 → 2.0)
-        useCORS: true,
-        allowTaint: false,
-        logging: false
-      });
-      
-      // ✅ 캔버스 크기 제한 + 압축
-      if (sideImageCanvas && (sideImageCanvas.width > PDF_MAX_CANVAS_EDGE || sideImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
-        const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideImageCanvas.width, PDF_MAX_CANVAS_EDGE / sideImageCanvas.height);
-        const newCanvas = document.createElement('canvas');
-        newCanvas.width = Math.floor(sideImageCanvas.width * ratio);
-        newCanvas.height = Math.floor(sideImageCanvas.height * ratio);
-        const ctx = newCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'medium';
-        ctx.drawImage(sideImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
-        sideImageCanvas = newCanvas;
-      }
-    } catch (err2) {
-      console.error('❌ 측면 사진 캔버스 생성 실패:', err2);
-      sideImageCanvas = null;
-    }
+  } else {
+    // 폴백: 원본 이미지 사용
+    sideImageContainer.innerHTML = `
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 사진</h2>
+      <div style="text-align:center; margin-top:20px;">
+        <img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
+      </div>
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+          <span>Page 1</span>
+        </div>
+      </div>
+    `;
   }
+  
+  document.body.appendChild(sideImageContainer);
   
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -10204,10 +10164,10 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
 if (afterViews.front || beforeViews.front) {
   const frontImg = afterViews.front || beforeViews.front;
   
-  // ✅ DataURL 이미지를 직접 캔버스로 변환 (모바일에서 dot 누락 방지)
+  // ✅ captureSessionSnapshot이 생성한 DataURL은 이미 dot를 포함하고 있음
+  // DataURL을 Image로 로드하여 캔버스 크기 조정 (dot 포함 보장)
   try {
     const img = new Image();
-    // DataURL은 crossOrigin 불필요 (CORS 문제 없음)
     
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -10223,11 +10183,11 @@ if (afterViews.front || beforeViews.front) {
         console.error('이미지 로드 실패:', e);
         reject(new Error('이미지 로드 실패'));
       };
-      img.src = frontImg;
+      img.src = frontImg; // 이미 dot가 포함된 DataURL
     });
     
-    // ✅ 고해상도 캔버스 직접 생성 (이미지 + dot 포함)
-    const targetWidth = 794;
+    // ✅ PDF 크기에 맞게 캔버스 크기 조정 (dot 포함된 이미지 그대로 사용)
+    const targetWidth = 794; // PDF 표준 너비
     const targetHeight = Math.floor((img.height / img.width) * targetWidth);
     const maxHeight = 1200; // 최대 높이 제한
     const finalHeight = Math.min(targetHeight, maxHeight);
@@ -10242,23 +10202,28 @@ if (afterViews.front || beforeViews.front) {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, finalWidth, finalHeight);
     
-    // 이미지 그리기
+    // ✅ dot가 포함된 이미지 그대로 그리기
     ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
     
-    console.log('✅ 정면 사진 Canvas 직접 생성 완료 (고해상도):', { width: finalWidth, height: finalHeight, pixelRatio: window.devicePixelRatio || 1 });
+    console.log('✅ 정면 사진 Canvas 직접 생성 완료 (dot 포함):', { width: finalWidth, height: finalHeight });
   } catch (err) {
-    console.error('❌ 정면 사진 Canvas 직접 생성 실패, html2canvas로 폴백:', err);
-    
-    // 폴백: html2canvas 사용
-    const frontImageContainer = document.createElement("div");
-    frontImageContainer.id = "frontImageContainer";
-    setPageContainerStyle(frontImageContainer);
-    frontImageContainer.classList.add('pdf-safe');
-    
+    console.error('❌ 정면 사진 Canvas 직접 생성 실패:', err);
+    frontImageCanvas = null;
+  }
+  
+  // ✅ 컨테이너도 생성 (generateFinalPostureReportPDF에서 사용)
+  const frontImageContainer = document.createElement("div");
+  frontImageContainer.id = "frontImageContainer";
+  setPageContainerStyle(frontImageContainer);
+  frontImageContainer.classList.add('pdf-safe');
+  
+  if (frontImageCanvas) {
+    // 캔버스를 이미지로 변환하여 컨테이너에 추가
+    const imgUrl = frontImageCanvas.toDataURL('image/png', 1.0);
     frontImageContainer.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 사진</h2>
       <div style="text-align:center; margin-top:20px;">
-        <img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" crossorigin="anonymous" />
+        <img src="${imgUrl}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
       </div>
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -10267,68 +10232,23 @@ if (afterViews.front || beforeViews.front) {
         </div>
       </div>
     `;
-    
-    document.body.appendChild(frontImageContainer);
-    
-    // ✅ 이미지 로드 완료 보장 (모바일 PDF 저장 시 사진 누락 방지)
-    if (frontImg) {
-      const img = frontImageContainer.querySelector('img');
-      if (img) {
-        await new Promise((resolve) => {
-          if (img.complete && img.naturalWidth > 0) {
-            resolve();
-          } else {
-            const timeout = setTimeout(resolve, 5000); // 최대 5초 대기
-            img.onload = () => {
-              clearTimeout(timeout);
-              resolve();
-            };
-            img.onerror = () => {
-              clearTimeout(timeout);
-              resolve(); // 에러가 나도 계속 진행
-            };
-          }
-        });
-      }
-    }
-    
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 300)); // 150ms → 300ms로 증가
-    }
-    
-    try {
-      const containerWidth = Math.max(frontImageContainer.scrollWidth, frontImageContainer.offsetWidth, 794);
-      const containerHeight = Math.max(frontImageContainer.scrollHeight, frontImageContainer.offsetHeight);
-      
-      frontImageCanvas = await html2canvas(frontImageContainer, {
-        ...html2canvasOptions,
-        windowWidth: containerWidth,
-        windowHeight: containerHeight,
-        width: containerWidth,
-        height: containerHeight,
-        scale: 2.0,  // 품질 향상 (1.5 → 2.0)
-        useCORS: true,
-        allowTaint: false,
-        logging: false
-      });
-      
-      // ✅ 캔버스 크기 제한 + 압축
-      if (frontImageCanvas && (frontImageCanvas.width > PDF_MAX_CANVAS_EDGE || frontImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
-        const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontImageCanvas.width, PDF_MAX_CANVAS_EDGE / frontImageCanvas.height);
-        const newCanvas = document.createElement('canvas');
-        newCanvas.width = Math.floor(frontImageCanvas.width * ratio);
-        newCanvas.height = Math.floor(frontImageCanvas.height * ratio);
-        const ctx = newCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'medium';
-        ctx.drawImage(frontImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
-        frontImageCanvas = newCanvas;
-      }
-    } catch (err2) {
-      console.error('❌ 정면 사진 캔버스 생성 실패:', err2);
-      frontImageCanvas = null;
-    }
+  } else {
+    // 폴백: 원본 이미지 사용
+    frontImageContainer.innerHTML = `
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 사진</h2>
+      <div style="text-align:center; margin-top:20px;">
+        <img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
+      </div>
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+          <span>Page 3</span>
+        </div>
+      </div>
+    `;
   }
+  
+  document.body.appendChild(frontImageContainer);
   
   if (isMobile) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -11479,7 +11399,10 @@ if (isMobile) {
     textData,
     includeHeatmapPage,
     totalPages,
-    pageIndexMap
+    pageIndexMap,
+    // ✅ 생성된 캔버스 반환 (dot 포함 보장)
+    sideImageCanvas,
+    frontImageCanvas
   };
 }
 
@@ -15810,7 +15733,7 @@ async function generateFinalPostureReportPDF() {
 
     // === 컨테이너 생성 ===
     console.log("📄 컨테이너 생성 중...");
-    await captureReportCanvases({
+    const captureResult = await captureReportCanvases({
       centerName: localStorage.getItem('centerName') || '',
       memberName: localStorage.getItem('memberName') || '',
       appName: 'DIT 자세 분석 AI',
@@ -15822,6 +15745,12 @@ async function generateFinalPostureReportPDF() {
     const memberName = localStorage.getItem('memberName') || '';
 
     // === PDF 캡처 ===
+    // ✅ 이미 생성된 캔버스가 있으면 직접 사용 (sideImageCanvas, frontImageCanvas)
+    const preGeneratedCanvases = {
+      'sideImageContainer': captureResult?.sideImageCanvas || null,
+      'frontImageContainer': captureResult?.frontImageCanvas || null
+    };
+    
     const containers = [
       'page1Container', 'sideImageContainer', 'sideReportContainer',
       'frontImageContainer', 'frontReportContainer', 'page4Container',
@@ -15830,6 +15759,52 @@ async function generateFinalPostureReportPDF() {
 
     for (let i = 0; i < containers.length; i++) {
       const id = containers[i];
+      
+      // ✅ 이미 생성된 캔버스가 있으면 직접 사용 (dot 포함 보장)
+      if (preGeneratedCanvases[id]) {
+        const canvas = preGeneratedCanvases[id];
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+          console.log(`✅ ${id} 이미 생성된 캔버스 사용 (크기: ${canvas.width}x${canvas.height})`);
+          
+          // PDF에 추가
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          const canvasAspectRatio = canvas.width / canvas.height;
+          let imgWidth = contentWidth;
+          let imgHeight = imgWidth / canvasAspectRatio;
+          
+          // 여러 페이지로 나누어서 추가
+          let heightLeft = imgHeight;
+          let currentY = yPos;
+          
+          while (heightLeft > 0) {
+            if (currentY + 100 > pageHeight - margin && heightLeft > 100) {
+              pdf.addPage();
+              currentY = margin;
+            }
+            const sliceH = Math.min(heightLeft, pageHeight - currentY - margin);
+            const sliceRatio = sliceH / imgHeight;
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = Math.floor(canvas.height * sliceRatio);
+            const ctx = sliceCanvas.getContext('2d');
+            const sourceY = (imgHeight - heightLeft) * (canvas.height / imgHeight);
+            ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+            
+            pdf.addImage(sliceCanvas.toDataURL('image/png', 1.0), 'PNG', margin, currentY, imgWidth, sliceH);
+            heightLeft -= sliceH;
+            currentY += sliceH + 10;
+          }
+          
+          yPos = currentY;
+          
+          if (i < containers.length - 1) {
+            pdf.addPage();
+            yPos = margin;
+          }
+          continue;
+        }
+      }
+      
       const el = document.getElementById(id);
       if (!el) {
         console.warn(`⚠️ 컨테이너 없음: ${id}`);
