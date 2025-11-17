@@ -742,7 +742,6 @@ if (document.readyState === 'loading') {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://html2pdf.js.org/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <!-- AI 자동 분석 모듈 통합 -->
@@ -14005,74 +14004,23 @@ function setupPDFButton() {
         return;
       }
       
-      // html2pdf 라이브러리 확인
-      if (typeof html2pdf === 'undefined') {
-        throw new Error("html2pdf.js 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
+      // html2canvas와 jsPDF 라이브러리 로드 대기 (최대 5초)
+      let retryCount = 0;
+      while ((typeof html2canvas === 'undefined' || !window.jspdf || !window.jspdf.jsPDF) && retryCount < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retryCount++;
       }
       
-      // 1. 캔버스 강제 redraw (점/선/라벨 보장)
-      await forceRedrawAllCanvases();
-      
-      // 2. 캔버스 → dataURL (고해상도)
-      const beforeDataURL = sessions.Before ? getCanvasDataURL('Before') : '';
-      const afterDataURL = sessions.After ? getCanvasDataURL('After') : '';
-      
-      if (!beforeDataURL && !afterDataURL) {
-        throw new Error("캔버스 이미지를 생성할 수 없습니다.");
+      // 라이브러리 확인
+      if (typeof html2canvas === 'undefined') {
+        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
       }
       
-      // 3. 이미지 로드 대기 (완료 후 삽입)
-      if (beforeDataURL) {
-        await loadImageAsync(beforeDataURL);
-        document.getElementById('pdfBeforeCanvasImg').src = beforeDataURL;
-      } else {
-        document.getElementById('pdfBeforeCanvasImg').style.display = 'none';
-      }
-      
-      if (afterDataURL) {
-        await loadImageAsync(afterDataURL);
-        document.getElementById('pdfAfterCanvasImg').src = afterDataURL;
-      } else {
-        document.getElementById('pdfAfterCanvasImg').style.display = 'none';
-      }
-      
-      // 4. 분석 내용 삽입
-      const combined = getCombinedAnalysis();
-      const content = generatePDFAnalysisHTML(combined);
-      document.getElementById('pdfAnalysisContent').innerHTML = content;
-      
-      // 5. PDF 생성 (html2pdf)
-      const element = document.getElementById('pdfContainer');
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `DIT_자세분석_${new Date().toISOString().slice(0,10)}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
-          letterRendering: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: 1000,
-          width: 1000,
-          height: element.scrollHeight
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait' 
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
-      
-      await html2pdf().set(opt).from(element).save();
-      
-      // 모바일에서 성공 메시지
-      if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        alert("PDF가 저장되었습니다!");
-      }
+      // html2canvas + jsPDF 직접 사용 (html2pdf.js 의존성 제거)
+      await generatePDFWithHtml2Canvas();
       
     } catch (err) {
       console.error('PDF 생성 실패:', err);
@@ -16351,6 +16299,96 @@ function getCombinedAnalysis() {
 }
 
 /* ================== PDF 생성 관련 함수들 ================== */
+
+// html2pdf.js 대체 함수 (html2canvas + jsPDF 직접 사용)
+async function generatePDFWithHtml2Canvas() {
+  // html2canvas와 jsPDF 확인
+  if (typeof html2canvas === 'undefined') {
+    throw new Error("html2canvas 라이브러리가 로드되지 않았습니다.");
+  }
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error("jsPDF 라이브러리가 로드되지 않았습니다.");
+  }
+  
+  const { jsPDF } = window.jspdf;
+  
+  // 1. 캔버스 강제 redraw
+  await forceRedrawAllCanvases();
+  
+  // 2. 캔버스 → dataURL
+  const beforeDataURL = sessions.Before ? getCanvasDataURL('Before') : '';
+  const afterDataURL = sessions.After ? getCanvasDataURL('After') : '';
+  
+  if (!beforeDataURL && !afterDataURL) {
+    throw new Error("캔버스 이미지를 생성할 수 없습니다.");
+  }
+  
+  // 3. 이미지 로드 대기
+  if (beforeDataURL) {
+    await loadImageAsync(beforeDataURL);
+    document.getElementById('pdfBeforeCanvasImg').src = beforeDataURL;
+  } else {
+    document.getElementById('pdfBeforeCanvasImg').style.display = 'none';
+  }
+  
+  if (afterDataURL) {
+    await loadImageAsync(afterDataURL);
+    document.getElementById('pdfAfterCanvasImg').src = afterDataURL;
+  } else {
+    document.getElementById('pdfAfterCanvasImg').style.display = 'none';
+  }
+  
+  // 4. 분석 내용 삽입
+  const combined = getCombinedAnalysis();
+  const content = generatePDFAnalysisHTML(combined);
+  document.getElementById('pdfAnalysisContent').innerHTML = content;
+  
+  // 5. PDF 생성 (html2canvas + jsPDF)
+  const element = document.getElementById('pdfContainer');
+  
+  // html2canvas로 캡처
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    letterRendering: true,
+    allowTaint: false,
+    backgroundColor: '#ffffff',
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: 1000,
+    width: 1000,
+    height: element.scrollHeight
+  });
+  
+  const imgData = canvas.toDataURL('image/jpeg', 0.98);
+  
+  // jsPDF로 PDF 생성
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pdfWidth - 20; // margin 10mm
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  
+  let heightLeft = imgHeight;
+  let position = 10;
+  
+  pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+  heightLeft -= (pdfHeight - 20);
+  
+  while (heightLeft >= 0) {
+    position = heightLeft - imgHeight + 10;
+    pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+    heightLeft -= (pdfHeight - 20);
+  }
+  
+  pdf.save(`DIT_자세분석_${new Date().toISOString().slice(0,10)}.pdf`);
+  
+  // 모바일에서 성공 메시지
+  if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    alert("PDF가 저장되었습니다!");
+  }
+}
 
 // 캔버스 강제 다시 그리기 (Before/After 세션)
 async function forceRedrawAllCanvases() {
