@@ -10541,12 +10541,33 @@ const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
     // ✅ 키 별칭 확인 (METRIC_KEY_ALIASES 사용)
-  const code = METRIC_KEY_ALIASES[key] || key;
+    const code = METRIC_KEY_ALIASES[key] || key;
     // ✅ 원본 키와 별칭 모두 확인
     if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
       sideMetrics[key] = sideMetricsSource[key];
-  }
-});
+    }
+  });
+}
+
+// ✅ sideMetricsSource가 없거나 비어있으면 현재 세션에서 직접 측면 메트릭 추출
+if (Object.keys(sideMetrics).length <= 1) { // orientation만 있거나 비어있으면
+  // 현재 세션의 fullMetrics에서 측면 메트릭 직접 추출
+  const currentFullMetrics = sessions[cur]?.metrics?.fullMetrics || S.metrics?.fullMetrics || {};
+  Object.keys(currentFullMetrics).forEach(key => {
+    if (key === 'orientation') return;
+    const code = METRIC_KEY_ALIASES[key] || key;
+    if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
+      const metric = currentFullMetrics[key];
+      if (metric && typeof metric === 'object') {
+        const val = metric.value != null ? metric.value : 
+                    (metric.value_deg != null ? metric.value_deg : 
+                    (metric.value_cm != null ? metric.value_cm : null));
+        if (val != null && !isNaN(val) && isFinite(val)) {
+          sideMetrics[key] = metric;
+        }
+      }
+    }
+  });
 }
 
 // ✅ 측면 분석임을 명시
@@ -10624,6 +10645,11 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
   // ✅ 현재 세션 메트릭도 확인 (Before/After가 없을 때)
   const currentFiltered = {};
   if (Object.keys(beforeFiltered).length === 0 && Object.keys(afterFiltered).length === 0) {
+    filterSideMetrics(sideMetrics, currentFiltered);
+  }
+  
+  // ✅ sideMetrics에서 직접 필터링 (currentFiltered가 비어있을 때)
+  if (Object.keys(currentFiltered).length === 0 && Object.keys(sideMetrics).length > 1) {
     filterSideMetrics(sideMetrics, currentFiltered);
   }
   
@@ -11585,7 +11611,11 @@ if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommendations
   
   pilatesHtml = renderPilatesItemCard(pilatesData, { context: 'pdf', index: 0, limitPerTool: Infinity });
 } 
-// ✅ 2순위: AI 근육 상태 기반 추천 (웹앱과 동일한 형식으로 변환)
+// ✅ 2순위: 측면 분석 결과에서 필라테스 추천 가져오기
+if (!pilatesHtml && sideAnalysis?.pilates && Array.isArray(sideAnalysis.pilates) && sideAnalysis.pilates.length > 0) {
+  pilatesHtml = sideAnalysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('');
+}
+// ✅ 3순위: AI 근육 상태 기반 추천 (웹앱과 동일한 형식으로 변환)
 else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
   console.log('📄 PDF 필라테스 추천 생성:', muscleBasedRecommendations.length, '개');
   
@@ -11776,10 +11806,44 @@ if (isMobile) {
 }
 
 // ========== 페이지 7.5: 체형 유형 분석 ==========
-const fullMetrics = S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+// ✅ 측면 메트릭과 정면 메트릭을 모두 포함한 fullMetrics 생성
+let fullMetricsForPostureType = S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+
+// ✅ 측면 메트릭이 별도로 있으면 병합
+if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실제 메트릭이 있는지 확인
+  Object.assign(fullMetricsForPostureType, sideMetrics);
+}
+
+// ✅ 정면 메트릭도 확인하여 병합
+const frontMetricsForPostureType = sessions[cur]?.metrics?.frontMetrics || {};
+if (Object.keys(frontMetricsForPostureType).length > 0) {
+  Object.assign(fullMetricsForPostureType, frontMetricsForPostureType);
+}
+
+// ✅ 측면과 정면 분석 결과를 모두 포함한 통합 메트릭 사용
 let postureTypeHtml = '';
-if (fullMetrics && Object.keys(fullMetrics).length > 0) {
-  postureTypeHtml = analyzePostureType(fullMetrics);
+if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length > 0) {
+  // 측면 메트릭이 있으면 측면 분석, 정면 메트릭만 있으면 정면 분석
+  const hasSideMetrics = Object.keys(sideMetrics).length > 1;
+  const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
+  
+  if (hasSideMetrics && hasFrontMetrics) {
+    // 측면과 정면 모두 있으면 측면 우선 (기본값)
+    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
+    // 측면 분석 결과가 없으면 정면 분석도 추가
+    if (!postureTypeHtml || postureTypeHtml.includes('분석 데이터가 충분하지 않습니다')) {
+      const frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
+      if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
+        postureTypeHtml = (postureTypeHtml || '') + '<br><br>' + frontPostureType;
+      }
+    }
+  } else if (hasSideMetrics) {
+    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
+  } else if (hasFrontMetrics) {
+    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "front");
+  } else {
+    postureTypeHtml = analyzePostureType(fullMetricsForPostureType);
+  }
 }
 
 if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분석 데이터가 충분하지 않습니다.') {
@@ -17124,21 +17188,42 @@ function getCombinedAnalysis() {
   let sideScore = 0;
   let sidePattern = '분석 중';
   
-  // 1순위: After 세션의 측면 분석
-  if (sessions.After?.analysis && sessions.After.metrics?.orientation === "side") {
+  // 1순위: After 세션의 sideAnalysis (측면 분석 결과)
+  if (sessions.After?.sideAnalysis && sessions.After.sideAnalysis.orientation === "side") {
+    sideAnalysis = sessions.After.sideAnalysis;
+    sideScore = sessions.After.score?.score || sessions.After.sideAnalysis?.score || 0;
+    sidePattern = sessions.After.sideAnalysis?.topRecommendations?.[0]?.name || 
+                  sessions.After.sideAnalysis?.patterns?.[0]?.name || '분석 중';
+  }
+  // 2순위: Before 세션의 sideAnalysis
+  else if (sessions.Before?.sideAnalysis && sessions.Before.sideAnalysis.orientation === "side") {
+    sideAnalysis = sessions.Before.sideAnalysis;
+    sideScore = sessions.Before.score?.score || sessions.Before.sideAnalysis?.score || 0;
+    sidePattern = sessions.Before.sideAnalysis?.topRecommendations?.[0]?.name || 
+                  sessions.Before.sideAnalysis?.patterns?.[0]?.name || '분석 중';
+  }
+  // 3순위: 현재 세션의 sideAnalysis
+  else if (sessions[cur]?.sideAnalysis && sessions[cur].sideAnalysis.orientation === "side") {
+    sideAnalysis = sessions[cur].sideAnalysis;
+    sideScore = sessions[cur].score?.score || sessions[cur].sideAnalysis?.score || 0;
+    sidePattern = sessions[cur].sideAnalysis?.topRecommendations?.[0]?.name || 
+                  sessions[cur].sideAnalysis?.patterns?.[0]?.name || '분석 중';
+  }
+  // 4순위: After 세션의 analysis (orientation 확인)
+  else if (sessions.After?.analysis && sessions.After.metrics?.orientation === "side") {
     sideAnalysis = sessions.After.analysis;
     sideScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
     sidePattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                   sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
-  // 2순위: 현재 세션의 측면 분석
+  // 5순위: 현재 세션의 analysis (orientation 확인)
   else if (sessions[cur]?.analysis && sessions[cur].metrics?.orientation === "side") {
     sideAnalysis = sessions[cur].analysis;
     sideScore = sessions[cur].score?.score || sessions[cur].analysis?.score || 0;
     sidePattern = sessions[cur].analysis?.topRecommendations?.[0]?.name || 
                   sessions[cur].analysis?.patterns?.[0]?.name || '분석 중';
   }
-  // 3순위: After 세션의 분석 (orientation 불명확)
+  // 6순위: After 세션의 분석 (orientation 불명확)
   else if (sessions.After?.analysis) {
     sideAnalysis = sessions.After.analysis;
     sideScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
@@ -17151,21 +17236,42 @@ function getCombinedAnalysis() {
   let frontScore = 0;
   let frontPattern = '분석 중';
   
-  // 1순위: After 세션의 정면 분석
-  if (sessions.After?.analysis && sessions.After.metrics?.orientation === "front") {
+  // 1순위: After 세션의 frontAnalysis (정면 분석 결과)
+  if (sessions.After?.frontAnalysis && sessions.After.frontAnalysis.orientation === "front") {
+    frontAnalysis = sessions.After.frontAnalysis;
+    frontScore = sessions.After.score?.score || sessions.After.frontAnalysis?.score || 0;
+    frontPattern = sessions.After.frontAnalysis?.topRecommendations?.[0]?.name || 
+                   sessions.After.frontAnalysis?.patterns?.[0]?.name || '분석 중';
+  }
+  // 2순위: Before 세션의 frontAnalysis
+  else if (sessions.Before?.frontAnalysis && sessions.Before.frontAnalysis.orientation === "front") {
+    frontAnalysis = sessions.Before.frontAnalysis;
+    frontScore = sessions.Before.score?.score || sessions.Before.frontAnalysis?.score || 0;
+    frontPattern = sessions.Before.frontAnalysis?.topRecommendations?.[0]?.name || 
+                   sessions.Before.frontAnalysis?.patterns?.[0]?.name || '분석 중';
+  }
+  // 3순위: 현재 세션의 frontAnalysis
+  else if (sessions[cur]?.frontAnalysis && sessions[cur].frontAnalysis.orientation === "front") {
+    frontAnalysis = sessions[cur].frontAnalysis;
+    frontScore = sessions[cur].score?.score || sessions[cur].frontAnalysis?.score || 0;
+    frontPattern = sessions[cur].frontAnalysis?.topRecommendations?.[0]?.name || 
+                   sessions[cur].frontAnalysis?.patterns?.[0]?.name || '분석 중';
+  }
+  // 4순위: After 세션의 analysis (orientation 확인)
+  else if (sessions.After?.analysis && sessions.After.metrics?.orientation === "front") {
     frontAnalysis = sessions.After.analysis;
     frontScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
     frontPattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                    sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
-  // 2순위: After 세션의 frontMetrics가 있는 경우
+  // 5순위: After 세션의 frontMetrics가 있는 경우
   else if (sessions.After?.metrics?.frontMetrics && sessions.After.analysis) {
     frontAnalysis = sessions.After.analysis;
     frontScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
     frontPattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                    sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
-  // 3순위: 현재 세션의 정면 분석
+  // 6순위: 현재 세션의 analysis (orientation 확인)
   else if (sessions[cur]?.analysis && sessions[cur].metrics?.orientation === "front") {
     frontAnalysis = sessions[cur].analysis;
     frontScore = sessions[cur].score?.score || sessions[cur].analysis?.score || 0;
