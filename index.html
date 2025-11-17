@@ -5611,7 +5611,16 @@ function analyzePostureType(metrics, orientation = null) {
       `);
     }
     
-    // 정면 분석 결과 요약
+    // ✅ 정면 분석 결과 요약
+    // 정면 지표가 하나라도 있는지 확인
+    const hasFrontData = sta != null || poa != null || lld != null || qAngle != null || kneeDev != null || 
+                         td != null || hta != null || spp != null || kas != null || llas != null || 
+                         hpa != null || tibial != null;
+    
+    if(!hasFrontData) {
+      return "분석 데이터가 충분하지 않습니다.";
+    }
+    
     if(issueCount === 0) {
       summarySection = '<div style="padding:12px; background:#f0fdf4; border-radius:8px; margin-bottom:16px;"><strong style="color:#15803d;">✅ 정면 자세 분석 결과: 모든 지표가 정상 범위 내에 있습니다.</strong></div>';
     } else {
@@ -5836,6 +5845,14 @@ function analyzePostureType(metrics, orientation = null) {
   // === 종합 평가 및 요약 ===
   // ✅ 측면 분석 결과 요약 추가 (정면 분석처럼 명확하게)
   if (orientation === "side") {
+    // 측면 지표가 하나라도 있는지 확인
+    const hasSideData = cva != null || hpd != null || nia != null || pta != null || tia != null || 
+                        ka != null || gsb != null || metrics.SAA?.value != null;
+    
+    if(!hasSideData) {
+      return "분석 데이터가 충분하지 않습니다.";
+    }
+    
     if(issueCount === 0) {
       summarySection = '<div style="padding:12px; background:#f0fdf4; border-radius:8px; margin-bottom:16px;"><strong style="color:#15803d;">✅ 측면 자세 분석 결과: 모든 지표가 정상 범위 내에 있습니다.</strong></div>';
     } else {
@@ -6184,8 +6201,53 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     // 체형 유형 분석 추가
     const postureTypeContent = document.getElementById("postureTypeContent");
     if(postureTypeContent) {
-      // fullMetrics가 없으면 세션에서 가져오기
-      const metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+      // ✅ 현재 orientation에 맞는 메트릭 가져오기
+      let metricsForAnalysis = {};
+      
+      if(currentOrientation === "side") {
+        // 측면 분석: 측면 분석 결과 우선 확인
+        if(S.sideAnalysis?.fullMetrics) {
+          metricsForAnalysis = S.sideAnalysis.fullMetrics;
+        } else if(S.metrics?.fullMetrics) {
+          // fullMetrics에 측면 메트릭이 있는지 확인
+          const hasSideMetrics = S.metrics.fullMetrics.CVA || S.metrics.fullMetrics.PTA || S.metrics.fullMetrics.KA;
+          if(hasSideMetrics) {
+            metricsForAnalysis = S.metrics.fullMetrics;
+          } else {
+            // 측면 메트릭이 없으면 측면 분석 결과에서 가져오기
+            metricsForAnalysis = {};
+          }
+        } else if(analysis?.fullMetrics && analysis.orientation === "side") {
+          metricsForAnalysis = analysis.fullMetrics;
+        } else {
+          metricsForAnalysis = fullMetrics || window.fullMetrics || {};
+        }
+      } else if(currentOrientation === "front") {
+        // 정면 분석: 정면 분석 결과 우선 확인
+        if(S.frontAnalysis?.fullMetrics) {
+          metricsForAnalysis = S.frontAnalysis.fullMetrics;
+        } else if(S.metrics?.frontMetrics) {
+          // frontMetrics가 별도로 저장되어 있으면 사용
+          metricsForAnalysis = S.metrics.frontMetrics;
+        } else if(S.metrics?.fullMetrics) {
+          // fullMetrics에 정면 메트릭이 있는지 확인
+          const hasFrontMetrics = S.metrics.fullMetrics.STA || S.metrics.fullMetrics.STA_F || S.metrics.fullMetrics.POA || S.metrics.fullMetrics.POA_F;
+          if(hasFrontMetrics) {
+            metricsForAnalysis = S.metrics.fullMetrics;
+          } else {
+            // 정면 메트릭이 없으면 정면 분석 결과에서 가져오기
+            metricsForAnalysis = {};
+          }
+        } else if(analysis?.fullMetrics && analysis.orientation === "front") {
+          metricsForAnalysis = analysis.fullMetrics;
+        } else {
+          metricsForAnalysis = fullMetrics || window.fullMetrics || {};
+        }
+      } else {
+        // 기본: fullMetrics 사용
+        metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+      }
+      
       if(metricsForAnalysis && Object.keys(metricsForAnalysis).length > 0) {
         // ✅ orientation을 전달하여 정면/측면 구분
         let postureType = analyzePostureType(metricsForAnalysis, currentOrientation);
@@ -6207,11 +6269,60 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     
     // 체형 유형 분석 추가 (fullMetrics 기반)
     const postureTypeContent = document.getElementById("postureTypeContent");
-    if(postureTypeContent && fullMetrics && Object.keys(fullMetrics).length > 0) {
-      let postureType = analyzePostureType(fullMetrics, currentOrientation);
-      postureTypeContent.innerHTML = postureType;
-    } else if(postureTypeContent) {
-      postureTypeContent.innerHTML = "분석 데이터가 충분하지 않습니다.";
+    if(postureTypeContent) {
+      // ✅ 현재 orientation에 맞는 메트릭 가져오기
+      let metricsForAnalysis = {};
+      
+      if(currentOrientation === "side") {
+        // 측면 분석: 측면 분석 결과 우선 확인
+        if(S.sideAnalysis?.fullMetrics) {
+          metricsForAnalysis = S.sideAnalysis.fullMetrics;
+        } else if(S.metrics?.fullMetrics) {
+          // fullMetrics에 측면 메트릭이 있는지 확인
+          const hasSideMetrics = S.metrics.fullMetrics.CVA || S.metrics.fullMetrics.PTA || S.metrics.fullMetrics.KA;
+          if(hasSideMetrics) {
+            metricsForAnalysis = S.metrics.fullMetrics;
+          } else {
+            // 측면 메트릭이 없으면 측면 분석 결과에서 가져오기
+            metricsForAnalysis = {};
+          }
+        } else if(analysis?.fullMetrics && analysis.orientation === "side") {
+          metricsForAnalysis = analysis.fullMetrics;
+        } else {
+          metricsForAnalysis = fullMetrics || window.fullMetrics || {};
+        }
+      } else if(currentOrientation === "front") {
+        // 정면 분석: 정면 분석 결과 우선 확인
+        if(S.frontAnalysis?.fullMetrics) {
+          metricsForAnalysis = S.frontAnalysis.fullMetrics;
+        } else if(S.metrics?.frontMetrics) {
+          // frontMetrics가 별도로 저장되어 있으면 사용
+          metricsForAnalysis = S.metrics.frontMetrics;
+        } else if(S.metrics?.fullMetrics) {
+          // fullMetrics에 정면 메트릭이 있는지 확인
+          const hasFrontMetrics = S.metrics.fullMetrics.STA || S.metrics.fullMetrics.STA_F || S.metrics.fullMetrics.POA || S.metrics.fullMetrics.POA_F;
+          if(hasFrontMetrics) {
+            metricsForAnalysis = S.metrics.fullMetrics;
+          } else {
+            // 정면 메트릭이 없으면 정면 분석 결과에서 가져오기
+            metricsForAnalysis = {};
+          }
+        } else if(analysis?.fullMetrics && analysis.orientation === "front") {
+          metricsForAnalysis = analysis.fullMetrics;
+        } else {
+          metricsForAnalysis = fullMetrics || window.fullMetrics || {};
+        }
+      } else {
+        // 기본: fullMetrics 사용
+        metricsForAnalysis = fullMetrics || S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+      }
+      
+      if(metricsForAnalysis && Object.keys(metricsForAnalysis).length > 0) {
+        let postureType = analyzePostureType(metricsForAnalysis, currentOrientation);
+        postureTypeContent.innerHTML = postureType;
+      } else {
+        postureTypeContent.innerHTML = "분석 데이터가 충분하지 않습니다.";
+      }
     }
   }
   
@@ -10407,7 +10518,16 @@ if (sessions.After?.metrics) {
   }
 }
 
-// 2순위: 현재 세션의 측면 메트릭
+// 2순위: Before 세션의 측면 메트릭
+if (!sideMetricsSource && sessions.Before?.metrics) {
+  if (sessions.Before.metrics.orientation === "side" && sessions.Before.metrics.fullMetrics) {
+    sideMetricsSource = sessions.Before.metrics.fullMetrics;
+  } else if (sessions.Before.metrics.fullMetrics) {
+    sideMetricsSource = sessions.Before.metrics.fullMetrics;
+  }
+}
+
+// 3순위: 현재 세션의 측면 메트릭
 if (!sideMetricsSource && sessions[cur]?.metrics) {
   if (sessions[cur].metrics.orientation === "side" && sessions[cur].metrics.fullMetrics) {
     sideMetricsSource = sessions[cur].metrics.fullMetrics;
@@ -10432,16 +10552,34 @@ if (sideMetricsSource) {
 // ✅ 측면 분석임을 명시
 sideMetrics.orientation = "side";
 
-// 측면 분석 수행
+// 측면 분석 수행 - 저장된 분석 결과 우선 사용
 let sideAnalysis = null;
-try {
-  if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실제 메트릭이 있는지 확인
+
+// 1순위: 저장된 측면 분석 결과 확인 (After 세션)
+if (sessions.After?.sideAnalysis && sessions.After.sideAnalysis.orientation === "side") {
+  sideAnalysis = sessions.After.sideAnalysis;
+} 
+// 2순위: Before 세션의 측면 분석 결과
+else if (sessions.Before?.sideAnalysis && sessions.Before.sideAnalysis.orientation === "side") {
+  sideAnalysis = sessions.Before.sideAnalysis;
+}
+// 3순위: 현재 세션의 측면 분석 결과
+else if (sessions[cur]?.sideAnalysis && sessions[cur].sideAnalysis.orientation === "side") {
+  sideAnalysis = sessions[cur].sideAnalysis;
+}
+// 4순위: 기존 analysis가 측면 분석인 경우
+else if (sessions[cur]?.analysis && sessions[cur].analysis.orientation === "side") {
+  sideAnalysis = sessions[cur].analysis;
+}
+// 5순위: 측면 메트릭이 있으면 새로 분석
+else if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실제 메트릭이 있는지 확인
+  try {
     // ✅ orientation을 전달하여 측면 메트릭만 필터링
     const flatSideMetrics = flattenFullMetrics(sideMetrics, "side");
     sideAnalysis = await analyzeWithDB(flatSideMetrics, "side");
+  } catch (err) {
+    console.warn('측면 분석 실패:', err);
   }
-} catch (err) {
-  console.warn('측면 분석 실패:', err);
 }
 
 // 측면 리포트 페이지 생성
@@ -16519,6 +16657,10 @@ async function generateFinalPostureReportPDF() {
       
       const el = document.getElementById(id);
       if (!el) {
+        // ✅ sideReportContainer와 frontReportContainer는 조건부로 생성되므로 경고 없이 건너뛰기
+        if (id === 'sideReportContainer' || id === 'frontReportContainer') {
+          continue;
+        }
         console.warn(`⚠️ 컨테이너 없음: ${id}`);
         continue;
       }
