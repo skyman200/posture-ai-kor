@@ -13420,19 +13420,38 @@ function isMobileDevice() {
  **********************/
 async function savePDFMobileCompatible(fileName, pdfInstance) {
   try {
-    // 모바일에서는 간단한 방식 우선 사용 (메모리 절약)
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isAndroid = /Android/i.test(navigator.userAgent);
+    const isMobile = isMobileDevice();
     
-    // 모바일에서는 직접 save 메서드 우선 시도 (가장 안정적)
-    if (isMobileDevice()) {
+    // 모바일에서는 직접 save 메서드 시도 (하지만 실패 가능성 높음)
+    if (isMobile) {
       try {
-        // 작은 지연으로 UI 블로킹 방지
         await new Promise(resolve => setTimeout(resolve, 100));
         pdfInstance.save(fileName);
         console.log('✅ PDF 저장 성공 (직접 save)');
+        
+        // 모바일에서 성공 여부 확인을 위한 지연
+        setTimeout(() => {
+          if (isIOS) {
+            console.log('📱 iOS: 파일 앱에서 다운로드 폴더를 확인하세요.');
+          }
+        }, 500);
+        
         return;
       } catch (saveErr) {
+        // 에러를 ErrorLogger에 전달
+        if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+          ErrorLogger.log({
+            type: 'PDFSaveDirectError',
+            message: `직접 save 실패: ${saveErr.message || '알 수 없는 오류'}`,
+            stack: saveErr.stack,
+            filename: fileName,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          });
+        }
         console.warn('⚠️ 직접 save 실패:', saveErr);
         // 폴백으로 진행
       }
@@ -13446,6 +13465,18 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
         throw new Error('PDF Blob 생성 실패');
       }
     } catch (blobErr) {
+      // 에러를 ErrorLogger에 전달
+      if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+        ErrorLogger.log({
+          type: 'PDFBlobError',
+          message: `Blob 생성 실패: ${blobErr.message || '알 수 없는 오류'}`,
+          stack: blobErr.stack,
+          filename: fileName,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        });
+      }
       console.error('❌ Blob 생성 실패:', blobErr);
       // 최종 폴백: data URI 사용
       try {
@@ -13463,12 +13494,24 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
         }, 1000);
         return;
       } catch (finalErr) {
+        // 에러를 ErrorLogger에 전달
+        if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+          ErrorLogger.log({
+            type: 'PDFDataURIError',
+            message: `Data URI 저장 실패: ${finalErr.message || '알 수 없는 오류'}`,
+            stack: finalErr.stack,
+            filename: fileName,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          });
+        }
         throw new Error('PDF 저장에 실패했습니다: ' + finalErr.message);
       }
     }
     
     // 모바일에서 Web Share API 사용 (선택적)
-    if (isMobileDevice() && navigator.share && navigator.canShare && blob.size < 50 * 1024 * 1024) {
+    if (isMobile && navigator.share && navigator.canShare && blob.size < 50 * 1024 * 1024) {
       try {
         const file = new File([blob], fileName, { type: 'application/pdf' });
         if (navigator.canShare({ files: [file] })) {
@@ -13483,6 +13526,18 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
         if (shareErr.name === 'AbortError') {
           return; // 사용자 취소
         }
+        // 에러를 ErrorLogger에 전달
+        if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+          ErrorLogger.log({
+            type: 'PDFShareError',
+            message: `Web Share API 실패: ${shareErr.message || '알 수 없는 오류'}`,
+            stack: shareErr.stack,
+            filename: fileName,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          });
+        }
         console.warn('⚠️ Web Share API 실패:', shareErr);
       }
     }
@@ -13495,11 +13550,39 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
     link.style.display = 'none';
     document.body.appendChild(link);
     
+    // 모바일에서도 강제 다운로드 시도
+    if (isMobile) {
+      // 모바일에서는 새 창으로 열기 (다운로드 대신)
+      const newWindow = window.open(fileURL, '_blank');
+      if (newWindow) {
+        setTimeout(() => {
+          URL.revokeObjectURL(fileURL);
+          alert('📱 PDF가 새 창에서 열렸습니다. 길게 눌러 저장하거나 공유하세요.');
+        }, 500);
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        return;
+      }
+    }
+    
     // 안전한 클릭
     requestAnimationFrame(() => {
       try {
         link.click();
       } catch (e) {
+        // 에러를 ErrorLogger에 전달
+        if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+          ErrorLogger.log({
+            type: 'PDFLinkClickError',
+            message: `링크 클릭 실패: ${e.message || '알 수 없는 오류'}`,
+            stack: e.stack,
+            filename: fileName,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          });
+        }
         console.warn('클릭 실패, 대체 방법 사용');
         const event = new MouseEvent('click', {
           bubbles: true,
@@ -13523,8 +13606,20 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
     }, 3000);
     
   } catch (err) {
+    // 에러를 ErrorLogger에 전달
+    if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+      ErrorLogger.log({
+        type: 'PDFSaveCompatibleError',
+        message: `PDF 저장 실패: ${err.message || '알 수 없는 오류'}`,
+        stack: err.stack,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    }
     console.error('❌ PDF 저장 실패:', err);
     alert('⚠️ PDF 저장 중 오류가 발생했습니다.\n페이지를 새로고침하고 다시 시도해주세요.');
+    throw err; // 상위로 에러 전달
   }
 }
 
@@ -14071,10 +14166,10 @@ async function captureForPdf(elem) {
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => setTimeout(res, 200)); // 100ms → 200ms로 증가
 
-  // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정)
-  // scale을 1.5로 낮춰서 메모리 절약 및 PDF 크기 최적화
+  // ✅ html2canvas 옵션 최적화 (크기 유지 + 잘림 방지)
+  // scale을 2로 유지하여 원본 크기와 해상도 보장 (사진과 dot가 잘 보이도록)
   const canvas = await html2canvas(elem, {
-    scale: 1.5,  // 2 → 1.5로 낮춤 (메모리 절약 + PDF 크기 최적화)
+    scale: 2,  // ✅ 원본 크기 유지 (사진과 dot가 잘 보이도록)
     backgroundColor: "#ffffff",
     useCORS: true,
     allowTaint: false,
@@ -14083,9 +14178,11 @@ async function captureForPdf(elem) {
     width: width,
     height: height,
     removeContainer: false, // 컨테이너 제거 방지
-    imageTimeout: 15000, // 이미지 로드 타임아웃 15초
+    imageTimeout: 20000, // 이미지 로드 타임아웃 20초로 증가 (모바일 대응)
     windowWidth: width,  // ✅ 명시적 너비 설정
     windowHeight: height, // ✅ 명시적 높이 설정
+    scrollX: 0, // ✅ 스크롤 위치 고정 (잘림 방지)
+    scrollY: 0, // ✅ 스크롤 위치 고정 (잘림 방지)
     onclone: (clonedDoc) => {
       // 복제된 문서에서도 스타일 보정
       const clonedElem = clonedDoc.getElementById(elem.id);
@@ -16177,11 +16274,24 @@ async function generateFinalPostureReportPDF() {
         if (canvas && canvas.width > 0 && canvas.height > 0) {
           console.log(`✅ ${id} 이미 생성된 캔버스 사용 (크기: ${canvas.width}x${canvas.height})`);
           
-          // PDF에 추가
+          // PDF에 추가 (원본 크기 유지 + 잘림 방지)
+          // PNG 사용하여 사진과 dot가 최고 품질로 보이도록
           const imgData = canvas.toDataURL('image/png', 1.0);
           const canvasAspectRatio = canvas.width / canvas.height;
-          let imgWidth = contentWidth;
+          
+          // ✅ 원본 크기를 최대한 유지 (페이지 너비 제한만 고려)
+          let imgWidth = Math.min(canvas.width, contentWidth); // ✅ 원본 크기 우선
           let imgHeight = imgWidth / canvasAspectRatio;
+          
+          // ✅ 원본이 너무 크면 페이지 너비에 맞추되, 비율은 유지
+          if (canvas.width > contentWidth) {
+            imgWidth = contentWidth;
+            imgHeight = (canvas.height * imgWidth) / canvas.width;
+          } else {
+            // 원본이 작으면 원본 크기 그대로 사용 (크기 작게 하지 않음)
+            imgWidth = canvas.width;
+            imgHeight = canvas.height;
+          }
           
           // 여러 페이지로 나누어서 추가
           let heightLeft = imgHeight;
@@ -16246,23 +16356,28 @@ async function generateFinalPostureReportPDF() {
         
         console.log(`✅ ${id} 캡처 완료 (크기: ${canvas.width}x${canvas.height})`);
 
-        // ✅ 여러 페이지로 나누어서 추가 (A4 용지에 맞게 자동 축소)
-        const imgData = canvas.toDataURL('image/jpeg', 0.85); // PNG → JPEG로 변경 (메모리 절약)
+        // ✅ 여러 페이지로 나누어서 추가 (원본 크기 유지 + 잘림 방지)
+        // JPEG 품질을 0.95로 높여서 사진과 dot가 잘 보이도록 (크기 유지)
+        const imgData = canvas.toDataURL('image/jpeg', 0.95); // ✅ 품질 향상 (0.85 → 0.95)
         
-        // ✅ A4 용지 너비에 맞게 이미지 크기 자동 조정 (잘림 방지)
-        // 캔버스 너비가 contentWidth보다 크면 자동으로 축소
+        // ✅ 원본 비율 유지하면서 페이지 너비에 맞춤 (크기 작게 하지 않음)
+        // PDF 페이지 너비 제한을 고려하되, 원본 해상도는 최대한 유지
         const canvasAspectRatio = canvas.width / canvas.height;
-        let imgWidth = contentWidth; // 기본값: 여백 제외한 A4 너비
+        
+        // ✅ 원본 크기를 최대한 유지 (페이지 너비 제한만 고려)
+        // contentWidth보다 크면 페이지 너비에 맞추되, 작으면 원본 크기 유지
+        let imgWidth = Math.min(canvas.width, contentWidth); // ✅ 원본 크기 우선
         let imgHeight = imgWidth / canvasAspectRatio;
         
-        // ✅ 캔버스가 너무 넓으면 강제로 축소 (잘림 방지)
+        // ✅ 원본이 너무 크면 페이지 너비에 맞추되, 비율은 유지 (잘림 방지)
         if (canvas.width > contentWidth) {
+          // 페이지 너비에 맞추되, 원본 비율 유지
           imgWidth = contentWidth;
           imgHeight = (canvas.height * imgWidth) / canvas.width;
         } else {
-          // 캔버스가 작으면 원본 크기 유지 (너무 작아지지 않도록)
-          imgWidth = Math.min(canvas.width, contentWidth);
-          imgHeight = (canvas.height * imgWidth) / canvas.width;
+          // 원본이 작으면 원본 크기 그대로 사용 (크기 작게 하지 않음)
+          imgWidth = canvas.width;
+          imgHeight = canvas.height;
         }
         
         // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 개선 버전)
@@ -16311,9 +16426,10 @@ async function generateFinalPostureReportPDF() {
             0, 0, canvas.width, sourceSliceHeight         // 대상 영역
           );
 
-          // ✅ PDF에 추가 시 imgWidth 사용 (A4 용지에 맞게 조정된 너비)
+          // ✅ PDF에 추가 시 imgWidth 사용 (원본 크기 유지 + 고품질)
           const actualSliceH = Math.min(sliceH, availableHeight);
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
+          // ✅ JPEG 품질 0.95로 향상 (사진과 dot가 잘 보이도록, 크기 유지)
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
           
           // ✅ 다음 슬라이스 준비
           heightLeft -= sliceH;
@@ -16366,11 +16482,68 @@ async function generateFinalPostureReportPDF() {
     const finalCenterName = centerName || 'DIT';
     const finalMemberName = memberName || '회원';
     const filename = `${finalCenterName}_${finalMemberName}_자세분석리포트.pdf`;
-    pdf.save(filename);
-    console.log(`✅ PDF 저장 완료: ${filename}`);
-    alert("PDF 생성 완료! 모든 페이지에 내용이 정상 출력됩니다.");
+    
+    // ✅ 모바일 호환 저장 함수 사용
+    try {
+      if (typeof savePDFMobileCompatible === 'function') {
+        await savePDFMobileCompatible(filename, pdf);
+        console.log(`✅ PDF 저장 완료: ${filename}`);
+        // 모바일에서는 savePDFMobileCompatible 내부에서 알림 처리
+        if (!isMobileDevice()) {
+          alert("PDF 생성 완료! 모든 페이지에 내용이 정상 출력됩니다.");
+        }
+      } else {
+        // 폴백: 직접 save (에러 처리 강화)
+        try {
+          pdf.save(filename);
+          console.log(`✅ PDF 저장 완료: ${filename}`);
+          if (!isMobileDevice()) {
+            alert("PDF 생성 완료! 모든 페이지에 내용이 정상 출력됩니다.");
+          }
+        } catch (saveErr) {
+          // 에러를 ErrorLogger에 전달
+          if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+            ErrorLogger.log({
+              type: 'PDFSaveError',
+              message: `PDF 저장 실패: ${saveErr.message || '알 수 없는 오류'}`,
+              stack: saveErr.stack,
+              filename: filename,
+              timestamp: new Date().toISOString(),
+              userAgent: navigator.userAgent,
+              url: window.location.href
+            });
+          }
+          throw saveErr;
+        }
+      }
+    } catch (saveErr) {
+      // 에러를 ErrorLogger에 전달
+      if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+        ErrorLogger.log({
+          type: 'PDFSaveError',
+          message: `PDF 저장 실패: ${saveErr.message || '알 수 없는 오류'}`,
+          stack: saveErr.stack,
+          filename: filename,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        });
+      }
+      throw saveErr;
+    }
 
   } catch (err) {
+    // 에러를 ErrorLogger에 전달
+    if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+      ErrorLogger.log({
+        type: 'PDFGenerationError',
+        message: `PDF 생성 실패: ${err.message || '알 수 없는 오류'}`,
+        stack: err.stack,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    }
     console.error("PDF 오류:", err);
     alert("PDF 생성 실패: " + err.message);
   }
