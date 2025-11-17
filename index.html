@@ -659,6 +659,417 @@ canvas {
 
 <!-- ✅ 전역 충돌 방어 및 강제 등록 (최우선 실행) -->
 <script>
+// ========== 모바일 디버그 시스템 (에러 로깅 + 내보내기) ==========
+const ErrorLogger = {
+  errors: [],
+  maxErrors: 50,
+  debugMode: false,
+  
+  init() {
+    // 전역 에러 핸들러
+    window.addEventListener('error', (event) => {
+      this.log({
+        type: 'Error',
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        stack: event.error?.stack,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    });
+    
+    // Promise rejection 핸들러
+    window.addEventListener('unhandledrejection', (event) => {
+      this.log({
+        type: 'UnhandledRejection',
+        message: event.reason?.message || String(event.reason),
+        stack: event.reason?.stack,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    });
+    
+    // console.error 오버라이드
+    const originalError = console.error;
+    console.error = (...args) => {
+      originalError.apply(console, args);
+      this.log({
+        type: 'ConsoleError',
+        message: args.map(a => {
+          if (typeof a === 'object') {
+            try {
+              return JSON.stringify(a);
+            } catch {
+              return String(a);
+            }
+          }
+          return String(a);
+        }).join(' '),
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    };
+    
+    // 로컬 스토리지에서 이전 에러 로드
+    this.loadFromStorage();
+    
+    // 디버그 UI 생성 (DOM 준비 후)
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.createDebugUI());
+    } else {
+      this.createDebugUI();
+    }
+  },
+  
+  log(error) {
+    this.errors.unshift(error);
+    if (this.errors.length > this.maxErrors) {
+      this.errors.pop();
+    }
+    
+    // 로컬 스토리지에 저장
+    try {
+      localStorage.setItem('diposture_errors', JSON.stringify(this.errors));
+    } catch (e) {
+      // 스토리지 가득 참
+    }
+    
+    // 디버그 모드면 화면에 표시
+    if (this.debugMode) {
+      this.updateDebugUI();
+    }
+  },
+  
+  loadFromStorage() {
+    try {
+      const stored = localStorage.getItem('diposture_errors');
+      if (stored) {
+        this.errors = JSON.parse(stored).slice(0, this.maxErrors);
+      }
+    } catch (e) {
+      // 무시
+    }
+  },
+  
+  createDebugUI() {
+    // 이미 생성되었으면 스킵
+    if (document.getElementById('debugPanel')) return;
+    
+    // 디버그 패널 스타일
+    const style = document.createElement('style');
+    style.textContent = `
+      #debugPanel {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 90%;
+        max-width: 400px;
+        max-height: 70vh;
+        background: rgba(20, 20, 30, 0.98);
+        border: 2px solid #ff4444;
+        border-radius: 12px;
+        padding: 16px;
+        z-index: 99999;
+        display: none;
+        overflow-y: auto;
+        font-family: 'Apple SD Gothic Neo', monospace;
+        font-size: 12px;
+        color: #fff;
+        box-shadow: 0 4px 20px rgba(255, 68, 68, 0.3);
+        backdrop-filter: blur(10px);
+      }
+      #debugPanel.visible {
+        display: block;
+      }
+      #debugHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #ff4444;
+      }
+      #debugTitle {
+        font-weight: bold;
+        color: #ff4444;
+        font-size: 14px;
+      }
+      #debugClose {
+        background: #ff4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #debugClose:active {
+        opacity: 0.7;
+      }
+      #debugErrors {
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+      .debugError {
+        background: rgba(255, 68, 68, 0.1);
+        padding: 8px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        border-left: 3px solid #ff4444;
+      }
+      .debugErrorType {
+        color: #ff8888;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+      .debugErrorMsg {
+        color: #fff;
+        margin-bottom: 4px;
+        word-break: break-word;
+      }
+      .debugErrorStack {
+        color: #aaa;
+        font-size: 10px;
+        margin-top: 4px;
+        white-space: pre-wrap;
+        max-height: 100px;
+        overflow-y: auto;
+      }
+      .debugErrorTime {
+        color: #888;
+        font-size: 10px;
+        margin-top: 4px;
+      }
+      #debugToggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #ff4444;
+        color: white;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 99998;
+        box-shadow: 0 2px 10px rgba(255, 68, 68, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+      }
+      #debugToggle:active {
+        transform: scale(0.95);
+      }
+      #debugActions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #444;
+      }
+      .debugBtn {
+        flex: 1;
+        background: #444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px;
+        cursor: pointer;
+        font-size: 11px;
+      }
+      .debugBtn:active {
+        opacity: 0.7;
+      }
+      .debugBtn.primary {
+        background: #7c9cff;
+      }
+      .debugBtn.danger {
+        background: #ff4444;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // 토글 버튼
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'debugToggle';
+    toggleBtn.textContent = '🐛';
+    toggleBtn.title = '디버그 패널 열기';
+    toggleBtn.onclick = () => {
+      this.debugMode = !this.debugMode;
+      const panel = document.getElementById('debugPanel');
+      if (panel) {
+        panel.classList.toggle('visible', this.debugMode);
+        if (this.debugMode) {
+          this.updateDebugUI();
+        }
+      }
+    };
+    document.body.appendChild(toggleBtn);
+    
+    // 디버그 패널
+    const panel = document.createElement('div');
+    panel.id = 'debugPanel';
+    panel.innerHTML = `
+      <div id="debugHeader">
+        <div id="debugTitle">🐛 에러 로그 (${this.errors.length})</div>
+        <button id="debugClose">✕</button>
+      </div>
+      <div id="debugErrors"></div>
+      <div id="debugActions">
+        <button class="debugBtn primary" id="debugExport">📥 내보내기</button>
+        <button class="debugBtn" id="debugShare">📤 공유</button>
+        <button class="debugBtn danger" id="debugClear">🗑️ 지우기</button>
+      </div>
+    `;
+    document.body.appendChild(panel);
+    
+    // 이벤트 리스너
+    document.getElementById('debugClose').onclick = () => {
+      this.debugMode = false;
+      panel.classList.remove('visible');
+    };
+    
+    document.getElementById('debugClear').onclick = () => {
+      if (confirm('모든 에러 로그를 지우시겠습니까?')) {
+        this.errors = [];
+        localStorage.removeItem('diposture_errors');
+        this.updateDebugUI();
+        alert('에러 로그가 삭제되었습니다.');
+      }
+    };
+    
+    document.getElementById('debugExport').onclick = () => {
+      this.exportErrors();
+    };
+    
+    document.getElementById('debugShare').onclick = () => {
+      this.shareErrors();
+    };
+  },
+  
+  updateDebugUI() {
+    const container = document.getElementById('debugErrors');
+    const title = document.getElementById('debugTitle');
+    if (!container || !title) return;
+    
+    title.textContent = `🐛 에러 로그 (${this.errors.length})`;
+    
+    if (this.errors.length === 0) {
+      container.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">에러가 없습니다 ✅</div>';
+      return;
+    }
+    
+    container.innerHTML = this.errors.map((err, idx) => `
+      <div class="debugError">
+        <div class="debugErrorType">[${idx + 1}] ${err.type}</div>
+        <div class="debugErrorMsg">${this.escapeHtml(err.message || 'No message')}</div>
+        ${err.filename ? `<div style="color: #888; font-size: 10px;">${err.filename}:${err.lineno}:${err.colno}</div>` : ''}
+        ${err.stack ? `<div class="debugErrorStack">${this.escapeHtml(err.stack)}</div>` : ''}
+        <div class="debugErrorTime">${new Date(err.timestamp).toLocaleString('ko-KR')}</div>
+      </div>
+    `).join('');
+  },
+  
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  },
+  
+  exportErrors() {
+    if (this.errors.length === 0) {
+      alert('내보낼 에러가 없습니다.');
+      return;
+    }
+    
+    const data = {
+      exportDate: new Date().toISOString(),
+      totalErrors: this.errors.length,
+      errors: this.errors,
+      systemInfo: {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        url: window.location.href,
+        screen: {
+          width: window.screen.width,
+          height: window.screen.height
+        }
+      }
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diposture-errors-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    alert(`에러 로그 ${this.errors.length}개가 다운로드되었습니다.`);
+  },
+  
+  async shareErrors() {
+    if (this.errors.length === 0) {
+      alert('공유할 에러가 없습니다.');
+      return;
+    }
+    
+    const summary = `🐛 DIPosture 에러 로그\n\n` +
+      `총 ${this.errors.length}개의 에러\n` +
+      `기간: ${new Date(this.errors[this.errors.length - 1].timestamp).toLocaleString('ko-KR')} ~ ${new Date(this.errors[0].timestamp).toLocaleString('ko-KR')}\n\n` +
+      `주요 에러:\n${this.errors.slice(0, 5).map((e, i) => `${i + 1}. [${e.type}] ${e.message?.substring(0, 50)}...`).join('\n')}\n\n` +
+      `상세 정보는 내보내기 기능을 사용하세요.`;
+    
+    // Web Share API 사용 (모바일)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'DIPosture 에러 로그',
+          text: summary
+        });
+        return;
+      } catch (e) {
+        // 사용자가 취소했거나 실패
+      }
+    }
+    
+    // 클립보드 복사 (대체 방법)
+    try {
+      await navigator.clipboard.writeText(summary);
+      alert('에러 요약이 클립보드에 복사되었습니다.');
+    } catch (e) {
+      // 클립보드 실패 시 텍스트 표시
+      const textarea = document.createElement('textarea');
+      textarea.value = summary;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        alert('에러 요약이 클립보드에 복사되었습니다.');
+      } catch (e2) {
+        prompt('에러 요약 (복사하세요):', summary);
+      }
+      document.body.removeChild(textarea);
+    }
+  }
+};
+
+// 초기화 (가장 먼저 실행)
+ErrorLogger.init();
+// ========== 디버그 시스템 끝 ==========
+
 // ---- 전역 충돌 방어 ----
 // sessions는 나중에 객체로 정의되므로 여기서는 undefined 체크만
 if (typeof window.sessions === 'undefined') {
