@@ -10180,6 +10180,22 @@ const html2canvasOptions = {
         docsToFix.push(clonedDoc.defaultView.document);
       }
       
+      // ✅ html2canvas가 생성한 모든 iframe 문서도 확인
+      try {
+        const allIframes = clonedDoc.querySelectorAll('iframe');
+        allIframes.forEach(iframe => {
+          try {
+            if (iframe.contentDocument && iframe.contentDocument !== clonedDoc) {
+              docsToFix.push(iframe.contentDocument);
+            }
+          } catch (e) {
+            // Cross-origin iframe은 접근 불가 (무시)
+          }
+        });
+      } catch (e) {
+        // iframe 접근 실패 (무시)
+      }
+      
       docsToFix.forEach(doc => {
         try {
           // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
@@ -10237,13 +10253,16 @@ const html2canvasOptions = {
     const allElements = clonedDoc.querySelectorAll('*');
     allElements.forEach(el => {
       if (el.style) {
+        // img, video, canvas 태그는 overflow: visible 설정하지 않음 (deprecated 경고 방지)
+        const isMediaElement = el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'CANVAS';
+        
         // 텍스트가 잘리지 않도록 스타일 강제 적용
         el.style.wordWrap = 'break-word';
         el.style.overflowWrap = 'break-word';
         el.style.wordBreak = 'break-word';
         el.style.whiteSpace = el.style.whiteSpace || 'normal';
-        // overflow가 hidden이면 visible로 변경 (텍스트 보호)
-        if (el.style.overflow === 'hidden' && el.tagName !== 'CANVAS' && el.tagName !== 'IMG') {
+        // overflow가 hidden이면 visible로 변경 (텍스트 보호, 단 img/video/canvas는 제외)
+        if (el.style.overflow === 'hidden' && !isMediaElement) {
           el.style.overflow = 'visible';
         }
         if (el.style.textOverflow === 'ellipsis') {
@@ -14070,49 +14089,79 @@ async function captureForPdf(elem) {
     onclone: (clonedDoc) => {
       // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (최종 강화)
       try {
-        // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
-        if (!clonedDoc.doctype || clonedDoc.compatMode === 'BackCompat') {
-          // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
-          try {
-            const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
-            // 기존 DOCTYPE이 있으면 제거
-            if (clonedDoc.doctype) {
-              clonedDoc.removeChild(clonedDoc.doctype);
-            }
-            // documentElement 앞에 DOCTYPE 삽입
-            if (clonedDoc.documentElement) {
-              clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
-            } else {
-              // documentElement가 없으면 직접 추가
-              clonedDoc.appendChild(doctype);
-            }
-          } catch (e1) {
-            console.warn('createDocumentType 실패, 대체 방법 시도:', e1);
-            // 방법 2: DOMParser를 사용하여 새 문서 생성
+        // 복제된 문서와 관련된 모든 문서 확인
+        const docsToFix = [clonedDoc];
+        
+        // clonedDoc.defaultView를 통해 window에 접근 (iframe 내부 문서일 수 있음)
+        if (clonedDoc.defaultView && clonedDoc.defaultView.document && clonedDoc.defaultView.document !== clonedDoc) {
+          docsToFix.push(clonedDoc.defaultView.document);
+        }
+        
+        // ✅ html2canvas가 생성한 모든 iframe 문서도 확인
+        try {
+          const allIframes = clonedDoc.querySelectorAll('iframe');
+          allIframes.forEach(iframe => {
             try {
-              const htmlContent = '<!DOCTYPE html>\n' + (clonedDoc.documentElement ? clonedDoc.documentElement.outerHTML : '');
-              const parser = new DOMParser();
-              const newDoc = parser.parseFromString(htmlContent, 'text/html');
-              if (newDoc.doctype) {
-                // 기존 DOCTYPE 제거 후 새 DOCTYPE 추가
-                if (clonedDoc.doctype) {
-                  clonedDoc.removeChild(clonedDoc.doctype);
+              if (iframe.contentDocument && iframe.contentDocument !== clonedDoc) {
+                docsToFix.push(iframe.contentDocument);
+              }
+            } catch (e) {
+              // Cross-origin iframe은 접근 불가 (무시)
+            }
+          });
+        } catch (e) {
+          // iframe 접근 실패 (무시)
+        }
+        
+        docsToFix.forEach(doc => {
+          try {
+            // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
+            if (!doc.doctype || doc.compatMode === 'BackCompat') {
+              // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
+              try {
+                const doctype = doc.implementation.createDocumentType('html', '', '');
+                // 기존 DOCTYPE이 있으면 제거
+                if (doc.doctype) {
+                  doc.removeChild(doc.doctype);
                 }
-                if (clonedDoc.documentElement) {
-                  clonedDoc.insertBefore(newDoc.doctype, clonedDoc.documentElement);
+                // documentElement 앞에 DOCTYPE 삽입
+                if (doc.documentElement) {
+                  doc.insertBefore(doctype, doc.documentElement);
+                } else {
+                  // documentElement가 없으면 직접 추가
+                  doc.appendChild(doctype);
+                }
+              } catch (e1) {
+                console.warn('createDocumentType 실패, 대체 방법 시도:', e1);
+                // 방법 2: DOMParser를 사용하여 새 문서 생성
+                try {
+                  const htmlContent = '<!DOCTYPE html>\n' + (doc.documentElement ? doc.documentElement.outerHTML : '');
+                  const parser = new DOMParser();
+                  const newDoc = parser.parseFromString(htmlContent, 'text/html');
+                  if (newDoc.doctype) {
+                    // 기존 DOCTYPE 제거 후 새 DOCTYPE 추가
+                    if (doc.doctype) {
+                      doc.removeChild(doc.doctype);
+                    }
+                    if (doc.documentElement) {
+                      doc.insertBefore(newDoc.doctype, doc.documentElement);
+                    }
+                  }
+                } catch (e2) {
+                  console.warn('DOMParser 방법도 실패:', e2);
                 }
               }
-            } catch (e2) {
-              console.warn('DOMParser 방법도 실패:', e2);
             }
+            // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
+            if (doc.compatMode === 'BackCompat') {
+              console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE:', doc.doctype);
+            } else {
+              console.log('✅ 복제된 문서가 Standards Mode로 렌더링됩니다.');
+            }
+          } catch (docErr) {
+            console.warn('개별 문서 DOCTYPE 처리 중 오류:', docErr);
           }
-        }
-        // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
-        if (clonedDoc.compatMode === 'BackCompat') {
-          console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE:', clonedDoc.doctype);
-        } else {
-          console.log('✅ 복제된 문서가 Standards Mode로 렌더링됩니다.');
-        }
+        });
       } catch (err) {
         console.warn('onclone DOCTYPE 처리 중 오류:', err);
       }
@@ -14136,12 +14185,18 @@ async function captureForPdf(elem) {
       const allElements = clonedDoc.querySelectorAll('*');
       allElements.forEach(el => {
         if (el.style) {
+          // img, video, canvas 태그는 overflow: visible 설정하지 않음 (deprecated 경고 방지)
+          const isMediaElement = el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'CANVAS';
+          
           // 텍스트 잘림 방지 스타일 강제 적용
           el.style.wordWrap = 'break-word';
           el.style.overflowWrap = 'break-word';
           el.style.wordBreak = 'break-word';
           el.style.whiteSpace = el.style.whiteSpace === 'pre-wrap' ? 'pre-wrap' : 'normal';
-          el.style.overflow = 'visible';
+          // img/video/canvas는 overflow 설정하지 않음
+          if (!isMediaElement) {
+            el.style.overflow = 'visible';
+          }
           el.style.textOverflow = 'clip';
           
           // 결론 섹션 식별 및 높이 제한 해제
@@ -14152,7 +14207,10 @@ async function captureForPdf(elem) {
               id.includes('conclusion') || className.includes('conclusion')) {
             el.style.height = 'auto';
             el.style.maxHeight = 'none';
-            el.style.overflow = 'visible';
+            // img/video/canvas는 overflow 설정하지 않음
+            if (!isMediaElement) {
+              el.style.overflow = 'visible';
+            }
           }
           
           // 모든 div 요소의 높이 제한 해제
@@ -14607,31 +14665,81 @@ function setupImageButton() {
         windowWidth: 794,
         windowHeight: fullReportContainer.scrollHeight,
         onclone: (clonedDoc) => {
-          // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (강화)
+          // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (최종 강화)
           try {
-            if (!clonedDoc.doctype) {
-              // 방법 1: createDocumentType 사용
-              try {
-                const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
-                clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
-              } catch (e1) {
-                // 방법 2: 직접 DOCTYPE 문자열 삽입
+            // 복제된 문서와 관련된 모든 문서 확인
+            const docsToFix = [clonedDoc];
+            
+            // clonedDoc.defaultView를 통해 window에 접근 (iframe 내부 문서일 수 있음)
+            if (clonedDoc.defaultView && clonedDoc.defaultView.document && clonedDoc.defaultView.document !== clonedDoc) {
+              docsToFix.push(clonedDoc.defaultView.document);
+            }
+            
+            // ✅ html2canvas가 생성한 모든 iframe 문서도 확인
+            try {
+              const allIframes = clonedDoc.querySelectorAll('iframe');
+              allIframes.forEach(iframe => {
                 try {
-                  const doctypeString = '<!DOCTYPE html>';
-                  const parser = new DOMParser();
-                  const tempDoc = parser.parseFromString(doctypeString + clonedDoc.documentElement.outerHTML, 'text/html');
-                  if (tempDoc.doctype) {
-                    clonedDoc.replaceChild(tempDoc.doctype, clonedDoc.doctype || clonedDoc.documentElement);
+                  if (iframe.contentDocument && iframe.contentDocument !== clonedDoc) {
+                    docsToFix.push(iframe.contentDocument);
                   }
-                } catch (e2) {
-                  console.warn('DOCTYPE 추가 실패:', e2);
+                } catch (e) {
+                  // Cross-origin iframe은 접근 불가 (무시)
                 }
+              });
+            } catch (e) {
+              // iframe 접근 실패 (무시)
+            }
+            
+            docsToFix.forEach(doc => {
+              try {
+                // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
+                if (!doc.doctype || doc.compatMode === 'BackCompat') {
+                  // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
+                  try {
+                    const doctype = doc.implementation.createDocumentType('html', '', '');
+                    // 기존 DOCTYPE이 있으면 제거
+                    if (doc.doctype) {
+                      doc.removeChild(doc.doctype);
+                    }
+                    // documentElement 앞에 DOCTYPE 삽입
+                    if (doc.documentElement) {
+                      doc.insertBefore(doctype, doc.documentElement);
+                    } else {
+                      // documentElement가 없으면 직접 추가
+                      doc.appendChild(doctype);
+                    }
+                  } catch (e1) {
+                    console.warn('createDocumentType 실패, 대체 방법 시도:', e1);
+                    // 방법 2: DOMParser를 사용하여 새 문서 생성
+                    try {
+                      const htmlContent = '<!DOCTYPE html>\n' + (doc.documentElement ? doc.documentElement.outerHTML : '');
+                      const parser = new DOMParser();
+                      const newDoc = parser.parseFromString(htmlContent, 'text/html');
+                      if (newDoc.doctype) {
+                        // 기존 DOCTYPE 제거 후 새 DOCTYPE 추가
+                        if (doc.doctype) {
+                          doc.removeChild(doc.doctype);
+                        }
+                        if (doc.documentElement) {
+                          doc.insertBefore(newDoc.doctype, doc.documentElement);
+                        }
+                      }
+                    } catch (e2) {
+                      console.warn('DOMParser 방법도 실패:', e2);
+                    }
+                  }
+                }
+                // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
+                if (doc.compatMode === 'BackCompat') {
+                  console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE:', doc.doctype);
+                } else {
+                  console.log('✅ 복제된 문서가 Standards Mode로 렌더링됩니다.');
+                }
+              } catch (docErr) {
+                console.warn('개별 문서 DOCTYPE 처리 중 오류:', docErr);
               }
-            }
-            // DOCTYPE이 있어도 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
-            if (clonedDoc.compatMode === 'BackCompat') {
-              console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다.');
-            }
+            });
           } catch (err) {
             console.warn('onclone DOCTYPE 처리 중 오류:', err);
           }
@@ -14640,11 +14748,17 @@ function setupImageButton() {
           const allElements = clonedDoc.querySelectorAll('*');
           allElements.forEach(el => {
             if (el.style) {
+              // img, video, canvas 태그는 overflow: visible 설정하지 않음 (deprecated 경고 방지)
+              const isMediaElement = el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'CANVAS';
+              
               el.style.wordWrap = 'break-word';
               el.style.overflowWrap = 'break-word';
               el.style.wordBreak = 'break-word';
               el.style.whiteSpace = 'normal';
-              el.style.overflow = 'visible';
+              // img/video/canvas는 overflow 설정하지 않음
+              if (!isMediaElement) {
+                el.style.overflow = 'visible';
+              }
               el.style.textOverflow = 'clip';
             }
           });
@@ -16160,31 +16274,81 @@ document.getElementById('downloadPdfBtn')?.addEventListener('click', async funct
         width: wrapper.scrollWidth,
         height: wrapper.scrollHeight,
         onclone: (clonedDoc) => {
-          // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (강화)
+          // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (최종 강화)
           try {
-            if (!clonedDoc.doctype) {
-              // 방법 1: createDocumentType 사용
-              try {
-                const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
-                clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
-              } catch (e1) {
-                // 방법 2: 직접 DOCTYPE 문자열 삽입
+            // 복제된 문서와 관련된 모든 문서 확인
+            const docsToFix = [clonedDoc];
+            
+            // clonedDoc.defaultView를 통해 window에 접근 (iframe 내부 문서일 수 있음)
+            if (clonedDoc.defaultView && clonedDoc.defaultView.document && clonedDoc.defaultView.document !== clonedDoc) {
+              docsToFix.push(clonedDoc.defaultView.document);
+            }
+            
+            // ✅ html2canvas가 생성한 모든 iframe 문서도 확인
+            try {
+              const allIframes = clonedDoc.querySelectorAll('iframe');
+              allIframes.forEach(iframe => {
                 try {
-                  const doctypeString = '<!DOCTYPE html>';
-                  const parser = new DOMParser();
-                  const tempDoc = parser.parseFromString(doctypeString + clonedDoc.documentElement.outerHTML, 'text/html');
-                  if (tempDoc.doctype) {
-                    clonedDoc.replaceChild(tempDoc.doctype, clonedDoc.doctype || clonedDoc.documentElement);
+                  if (iframe.contentDocument && iframe.contentDocument !== clonedDoc) {
+                    docsToFix.push(iframe.contentDocument);
                   }
-                } catch (e2) {
-                  console.warn('DOCTYPE 추가 실패:', e2);
+                } catch (e) {
+                  // Cross-origin iframe은 접근 불가 (무시)
                 }
+              });
+            } catch (e) {
+              // iframe 접근 실패 (무시)
+            }
+            
+            docsToFix.forEach(doc => {
+              try {
+                // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
+                if (!doc.doctype || doc.compatMode === 'BackCompat') {
+                  // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
+                  try {
+                    const doctype = doc.implementation.createDocumentType('html', '', '');
+                    // 기존 DOCTYPE이 있으면 제거
+                    if (doc.doctype) {
+                      doc.removeChild(doc.doctype);
+                    }
+                    // documentElement 앞에 DOCTYPE 삽입
+                    if (doc.documentElement) {
+                      doc.insertBefore(doctype, doc.documentElement);
+                    } else {
+                      // documentElement가 없으면 직접 추가
+                      doc.appendChild(doctype);
+                    }
+                  } catch (e1) {
+                    console.warn('createDocumentType 실패, 대체 방법 시도:', e1);
+                    // 방법 2: DOMParser를 사용하여 새 문서 생성
+                    try {
+                      const htmlContent = '<!DOCTYPE html>\n' + (doc.documentElement ? doc.documentElement.outerHTML : '');
+                      const parser = new DOMParser();
+                      const newDoc = parser.parseFromString(htmlContent, 'text/html');
+                      if (newDoc.doctype) {
+                        // 기존 DOCTYPE 제거 후 새 DOCTYPE 추가
+                        if (doc.doctype) {
+                          doc.removeChild(doc.doctype);
+                        }
+                        if (doc.documentElement) {
+                          doc.insertBefore(newDoc.doctype, doc.documentElement);
+                        }
+                      }
+                    } catch (e2) {
+                      console.warn('DOMParser 방법도 실패:', e2);
+                    }
+                  }
+                }
+                // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
+                if (doc.compatMode === 'BackCompat') {
+                  console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE:', doc.doctype);
+                } else {
+                  console.log('✅ 복제된 문서가 Standards Mode로 렌더링됩니다.');
+                }
+              } catch (docErr) {
+                console.warn('개별 문서 DOCTYPE 처리 중 오류:', docErr);
               }
-            }
-            // DOCTYPE이 있어도 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
-            if (clonedDoc.compatMode === 'BackCompat') {
-              console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다.');
-            }
+            });
           } catch (err) {
             console.warn('onclone DOCTYPE 처리 중 오류:', err);
           }
