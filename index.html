@@ -7191,6 +7191,12 @@ function getEventPos(e) {
 }
 
 function startDrag(e) {
+  // ✅ 캘리브레이션 모드일 때는 dot 선택 불가
+  if(calibrationMode) {
+    console.log('⚠️ 캘리브레이션 모드 중이므로 dot 선택 불가');
+    return false;
+  }
+  
   // 상태 초기화 (touchstart에서 이미 초기화했을 수 있지만 다시 초기화)
   // 이전 상태가 완전히 정리되었는지 확인
   if(dragKey) {
@@ -7520,6 +7526,11 @@ function endDrag(e) {
 // 마우스 이벤트
 let isMouseDown = false;
 cv.addEventListener('mousedown', (e) => {
+  // ✅ 캘리브레이션 모드일 때는 dot 선택 불가
+  if(calibrationMode) {
+    return; // 캘리브레이션 클릭 핸들러가 처리하도록 함
+  }
+  
   isMouseDown = true;
   
   // 자동 추적 모드 토글 체크 (dot를 클릭하면 토글) - startDrag 전에 체크
@@ -7640,6 +7651,11 @@ window.addEventListener('mousemove', (e) => {
 
 // 터치 이벤트 (모바일 지원)
 cv.addEventListener('touchstart', (e) => {
+  // ✅ 캘리브레이션 모드일 때는 dot 선택 불가
+  if(calibrationMode) {
+    return; // 캘리브레이션 클릭 핸들러가 처리하도록 함
+  }
+  
   const touchCount = e.touches ? e.touches.length : 0;
   
   // 이전 상태가 남아있으면 완전히 초기화 (드래그든 스크롤이든)
@@ -8316,6 +8332,15 @@ function setupCalibrationButtons() {
         
         // 메트릭 재계산
         computeMetricsOnly();
+        
+        // ✅ 캘리브레이션 완료 후 모드 종료 및 마커 숨김
+        calibrationMode = false;
+        const panel = document.getElementById("calibrationPanel");
+        if(panel) panel.style.display = "none";
+        S.calibrationPoint1 = null;
+        S.calibrationPoint2 = null;
+        if(cv) cv.style.cursor = "default";
+        draw(); // 마커 숨김
         
         console.log(`✅ 캘리브레이션 완료: ${pxPerCm.toFixed(2)} px/cm`);
       } catch(err) {
