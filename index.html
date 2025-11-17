@@ -664,6 +664,8 @@ const ErrorLogger = {
   errors: [],
   maxErrors: 50,
   debugMode: false,
+  initRetryCount: 0,
+  maxInitRetries: 50, // 최대 5초 대기 (100ms * 50)
   
   init() {
     // 전역 에러 핸들러
@@ -759,6 +761,19 @@ const ErrorLogger = {
   createDebugUI() {
     // 이미 생성되었으면 스킵
     if (document.getElementById('debugPanel')) return;
+    
+    // ✅ document.body가 준비될 때까지 대기 (무한 재시도 방지)
+    if (!document.body) {
+      if (this.initRetryCount < this.maxInitRetries) {
+        this.initRetryCount++;
+        // body가 없으면 잠시 후 재시도
+        setTimeout(() => this.createDebugUI(), 100);
+        return;
+      } else {
+        console.warn('⚠️ ErrorLogger: document.body를 찾을 수 없습니다. 디버그 UI 생성을 건너뜁니다.');
+        return;
+      }
+    }
     
     // 디버그 패널 스타일
     const style = document.createElement('style');
