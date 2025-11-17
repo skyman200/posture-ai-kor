@@ -3317,7 +3317,34 @@ function setOrientation(orientation, options = {}) {
   if(session.metrics) {
     const fullMetrics = session.metrics.fullMetrics || {};
     const analysis = session.analysis;
-    const scoreData = session.metrics.scoreData || { score: session.score };
+    
+    // ✅ scoreData를 안전하게 처리: 객체인 경우 score 속성 확인
+    let scoreData = null;
+    if(session.metrics.scoreData) {
+      if(typeof session.metrics.scoreData === 'object' && session.metrics.scoreData !== null) {
+        // scoreData가 객체인 경우, score 속성이 있는지 확인
+        if(typeof session.metrics.scoreData.score === 'number') {
+          scoreData = session.metrics.scoreData;
+        } else {
+          // score 속성이 없으면 fullMetrics에서 재계산
+          scoreData = null;
+        }
+      } else if(typeof session.metrics.scoreData === 'number') {
+        scoreData = session.metrics.scoreData;
+      }
+    }
+    
+    // scoreData가 없으면 session.score 확인
+    if(!scoreData) {
+      if(typeof session.score === 'object' && session.score !== null && typeof session.score.score === 'number') {
+        scoreData = session.score;
+      } else if(typeof session.score === 'number') {
+        scoreData = session.score;
+      } else if(Object.keys(fullMetrics).length > 0) {
+        // fullMetrics에서 점수 재계산
+        scoreData = null; // updateScoreAndAnalysis에서 자동으로 계산하도록
+      }
+    }
     
     // orientation에 맞는 분석 결과 업데이트
     if(orientation === "side") {
@@ -4107,7 +4134,7 @@ function computeAll() {
   }
 }
 
-// 정면 분석 결과 표시
+// ✅ 정면 분석 결과 표시
 function displayFrontAnalysis(fullMetrics) {
   const commentEl = document.getElementById("aiComment");
   const commentPanel = document.getElementById("aiCommentPanel");
@@ -4120,7 +4147,21 @@ function displayFrontAnalysis(fullMetrics) {
   let commentText = "📷 정면 자세 분석 결과:\n\n";
   const details = [];
   
+  // 정면 지표만 필터링 (측면 지표 제외)
+  const sideMetrics = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'HPA', 'Tibial_Angle', 'Tibial', 'Tibial_Inclination'];
+  const frontMetrics = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS'];
+  
   for(const [key, value] of Object.entries(fullMetrics)) {
+    // 측면 지표는 제외
+    if(sideMetrics.some(sm => key === sm || key.startsWith(sm))) {
+      continue;
+    }
+    
+    // 정면 지표만 표시
+    if(!frontMetrics.some(fm => key === fm || key.startsWith(fm))) {
+      continue;
+    }
+    
     if(value && value.value_deg != null) {
       const statusText = {
         "normal": "✅ 정상",
@@ -4146,11 +4187,12 @@ function displayFrontAnalysis(fullMetrics) {
   
   if(details.length > 0) {
     commentText += "\n" + details.join("\n");
+  } else {
+    commentText += "정면 분석 데이터가 없습니다.";
   }
   
   commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
   commentPanel.style.display = "block";
-  
 }
 
 // ✅ 측면 분석 결과 표시
@@ -6002,7 +6044,15 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   
   // ✅ scoreResult 사용 (scoreData 대신)
   if(scoreResult && scoreResult.score != null) {
-    const score = scoreResult.score;
+    // ✅ score가 숫자인지 확인 (객체가 아닌지)
+    let score = null;
+    if(typeof scoreResult.score === 'number') {
+      score = scoreResult.score;
+    } else if(typeof scoreResult.score === 'object' && scoreResult.score !== null && typeof scoreResult.score.score === 'number') {
+      score = scoreResult.score.score;
+    }
+    
+    if(score !== null && typeof score === 'number') {
     scoreEl.textContent = score;
     
     // 점수 색상
@@ -6017,8 +6067,35 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     // 점수 근거
     if(scoreResult.reasons && Array.isArray(scoreResult.reasons) && scoreResult.reasons.length > 0) {
       reasonEl.textContent = "감점 근거: " + scoreResult.reasons.join(", ");
+      } else {
+        reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
+      }
+    } else {
+      // score가 유효하지 않으면 fullMetrics에서 재계산
+      if(Object.keys(fullMetrics).length > 0) {
+        const recalculatedScore = computeScoreFromFullMetrics(fullMetrics);
+        if(recalculatedScore && typeof recalculatedScore.score === 'number') {
+          scoreEl.textContent = recalculatedScore.score;
+          if(recalculatedScore.score >= 85) {
+            scoreEl.style.color = "#2ec4b6";
+          } else if(recalculatedScore.score >= 70) {
+            scoreEl.style.color = "#ffd166";
+          } else {
+            scoreEl.style.color = "#ff6b6b";
+          }
+          if(recalculatedScore.reasons && Array.isArray(recalculatedScore.reasons) && recalculatedScore.reasons.length > 0) {
+            reasonEl.textContent = "감점 근거: " + recalculatedScore.reasons.join(", ");
     } else {
       reasonEl.textContent = "모든 측정값이 정상 범위 내에 있습니다.";
+          }
+        } else {
+          scoreEl.textContent = "—";
+          reasonEl.textContent = "";
+        }
+      } else {
+        scoreEl.textContent = "—";
+        reasonEl.textContent = "";
+      }
     }
   } else {
     scoreEl.textContent = "—";
@@ -6034,21 +6111,27 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     : (btnSide?.classList.contains("active") ? "side" : (S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side"));
   
   if(analysis && analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0) {
-    let commentText = "";
-    
-    // ✅ 측면 분석인 경우 측면 분석 헤더 추가
-    if(currentOrientation === "side") {
-      commentText = "📐 측면 자세 분석 결과:\n\n";
-    } else if(currentOrientation === "front") {
-      commentText = "📷 정면 자세 분석 결과:\n\n";
+    // ✅ 정면 분석인 경우 displayFrontAnalysis 사용 (측면 지표 제외)
+    if(currentOrientation === "front" && fullMetrics) {
+      displayFrontAnalysis(fullMetrics);
+    } else {
+      // 측면 분석인 경우 기존 방식 사용
+      let commentText = "";
+      
+      // ✅ 측면 분석인 경우 측면 분석 헤더 추가
+      if(currentOrientation === "side") {
+        commentText = "📐 측면 자세 분석 결과:\n\n";
+      } else if(currentOrientation === "front") {
+        commentText = "📷 정면 자세 분석 결과:\n\n";
+      }
+      
+      commentText += analysis.comments.join(" ");
+      if(analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0) {
+        commentText += "\n\n" + analysis.details.join("\n");
+      }
+      commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
+      commentPanel.style.display = "block";
     }
-    
-    commentText += analysis.comments.join(" ");
-    if(analysis.details && Array.isArray(analysis.details) && analysis.details.length > 0) {
-      commentText += "\n\n" + analysis.details.join("\n");
-    }
-    commentEl.innerHTML = commentText.replace(/\n/g, '<br>');
-    commentPanel.style.display = "block";
     
     // 체형 유형 분석 추가
     const postureTypeContent = document.getElementById("postureTypeContent");
