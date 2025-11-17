@@ -19,28 +19,27 @@
 }
 
 /* PDF용 안전 폰트 및 숨김 렌더링 (구글 폰트 제외) */
-/* PDF용 안전 컨테이너 - 보이지 않지만 렌더링은 됨 */
+/* PDF용 안전 컨테이너 - 수정됨 (렌더링 강제) */
 .pdf-safe {
-  position: absolute !important;
-  left: -9999px !important;
+  position: fixed !important;
+  left: 0 !important;
   top: 0 !important;
-  /* 🛠️ 수정: 너비 고정(520px) 제거 및 100%로 변경하여 잘림 문제 해결 */
   width: 100% !important;
-  max-width: 1000px !important; /* PDF 생성 시 최대 너비로 설정하여 안전성 확보 */
-  padding: 30px !important;
+  max-width: 1000px !important;
+  padding: 0 !important;
   background: white !important;
   font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif !important;
-  opacity: 0 !important;           /* 핵심: visibility → opacity */
+  visibility: hidden !important;   /* 보이지 않지만 렌더링은 됨 */
+  opacity: 0 !important;
   pointer-events: none !important;
-  z-index: -1 !important;
-  box-sizing: border-box !important;
-  visibility: visible !important;  /* 자식은 보이게 */
-  display: block !important;      /* ✅ display: none 대신 block 사용 (잘림 방지) */
+  z-index: -9999 !important;
+  overflow: visible !important;
+  transform: translateZ(0); /* GPU 강제 렌더링 */
 }
 
 .pdf-safe * {
-  opacity: 1 !important;
   visibility: visible !important;
+  opacity: 1 !important;
   /* 텍스트 잘림 방지 강제 적용 */
   word-wrap: break-word !important;
   overflow-wrap: break-word !important;
@@ -48,6 +47,11 @@
   white-space: normal !important; /* nowrap 강제 해제 */
   overflow: visible !important; /* hidden 강제 해제 */
   text-overflow: clip !important; /* ellipsis 강제 해제 */
+}
+
+/* 이미지 강제 로드 */
+.pdf-safe img {
+  image-rendering: -webkit-optimize-contrast !important;
 }
 
 /* 테이블 셀에 대한 강제 오버라이드 (가장 중요) */
@@ -738,6 +742,7 @@ if (document.readyState === 'loading') {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://html2pdf.js.org/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 <!-- AI 자동 분석 모듈 통합 -->
@@ -13555,35 +13560,23 @@ async function captureForPdf(elem) {
   const originalTransform = elem.style.transform;
   const originalClass = elem.className;
   
-  // ✅ .pdf-safe 클래스 제거 및 위치 조정 (모바일 렌더링 엔진 대응)
-  // pdf-safe는 left: -9999px로 화면 밖에 있어 모바일에서 빈 영역으로 인식될 수 있음
-  const wasPdfSafe = elem.classList.contains('pdf-safe');
-  if (wasPdfSafe) {
+  // ✅ .pdf-safe 클래스 제거 (opacity: 0 !important 우회)
+  if (elem.classList.contains('pdf-safe')) {
     elem.classList.remove('pdf-safe');
   }
-  
-  // ✅ 캡처 전에 보이는 영역으로 이동 (모바일 렌더링 엔진이 숨겨진 요소를 놓치지 않도록)
-  // 원래 위치 저장 (복원용)
-  const originalLeftValue = elem.style.left || window.getComputedStyle(elem).left;
-  const originalTopValue = elem.style.top || window.getComputedStyle(elem).top;
   
   // ✅ 인라인 스타일로 강제 설정 (!important 우회)
   elem.style.setProperty('opacity', '1', 'important');
   elem.style.setProperty('visibility', 'visible', 'important');
   elem.style.setProperty('position', 'absolute', 'important');
-  elem.style.setProperty('top', '0', 'important'); // 보이는 영역으로 이동
-  elem.style.setProperty('left', '0', 'important'); // 보이는 영역으로 이동
+  elem.style.setProperty('top', '0', 'important');
+  elem.style.setProperty('left', '0', 'important');
   elem.style.setProperty('z-index', '9999', 'important');
   elem.style.setProperty('transform', 'scale(1)', 'important');
   elem.style.setProperty('display', 'block', 'important');
   // ✅ A4 용지 너비에 맞게 강제 설정 (794px = A4 너비, CSS !important 우회)
   elem.style.setProperty('width', `${width}px`, 'important');
   elem.style.setProperty('max-width', `${width}px`, 'important');
-  
-  // 모바일에서 위치 조정 후 추가 대기 (렌더링 엔진이 위치 변경을 인식할 시간)
-  if (isMobile && wasPdfSafe) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-  }
   
   // ✅ 추가: 모든 자식 요소도 opacity 보정
   const allChildren = elem.querySelectorAll('*');
@@ -13604,78 +13597,23 @@ async function captureForPdf(elem) {
     await document.fonts.ready;
   }
   
-  // ✅ 이미지 로드 대기 (모바일 환경 강화)
+  // ✅ 이미지 로드 대기
   const images = elem.querySelectorAll('img');
   if (images.length > 0) {
-    console.log(`📸 이미지 로드 대기 중: ${images.length}개 이미지`);
-    
-    // 모든 이미지의 complete 속성과 naturalWidth 확인
-    const imageLoadPromises = Array.from(images).map((img, index) => {
+    await Promise.all(Array.from(images).map(img => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
       return new Promise((resolve) => {
-        // 이미 완전히 로드된 이미지 확인
-        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-          // Data URL 이미지도 확인
-          if (img.src && img.src.startsWith('data:')) {
-            resolve();
-            return;
-          }
-          // 외부 이미지는 한 번 더 확인
-          const testImg = new Image();
-          testImg.onload = () => {
-            resolve();
-          };
-          testImg.onerror = () => {
-            console.warn(`⚠️ 이미지 로드 확인 실패 (인덱스 ${index}), 계속 진행`);
-            resolve(); // 에러가 나도 계속 진행
-          };
-          testImg.src = img.src;
-          // 타임아웃 설정
-          setTimeout(() => {
-            if (testImg.complete) {
-              resolve();
-            }
-          }, 2000);
-          return;
-        }
-        
-        // 로드 중인 이미지 대기
-        const timeout = setTimeout(() => {
-          console.warn(`⚠️ 이미지 로드 타임아웃 (인덱스 ${index}), 계속 진행`);
-          resolve(); // 타임아웃되어도 계속 진행
-        }, isMobile ? 10000 : 5000); // 모바일에서 더 긴 대기 시간
-        
+        const timeout = setTimeout(resolve, 3000); // 최대 3초 대기
         img.onload = () => {
           clearTimeout(timeout);
-          // 로드 완료 후 추가 검증
-          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-            resolve();
-          } else {
-            console.warn(`⚠️ 이미지 크기가 0입니다 (인덱스 ${index})`);
-            resolve(); // 크기가 0이어도 계속 진행
-          }
+          resolve();
         };
-        
         img.onerror = () => {
           clearTimeout(timeout);
-          console.warn(`⚠️ 이미지 로드 실패 (인덱스 ${index}), 계속 진행`);
           resolve(); // 에러가 나도 계속 진행
         };
-        
-        // 이미 src가 설정되어 있지 않으면 즉시 resolve
-        if (!img.src || img.src === '') {
-          clearTimeout(timeout);
-          resolve();
-        }
       });
-    });
-    
-    await Promise.all(imageLoadPromises);
-    console.log('✅ 모든 이미지 로드 완료');
-    
-    // 모바일에서 추가 대기 시간 (렌더링 완료 보장)
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+    }));
   }
   
   // ✅ 컨테이너 내용 검증 (빈 컨테이너 방지)
@@ -13688,86 +13626,58 @@ async function captureForPdf(elem) {
     console.warn(`⚠️ 컨테이너가 비어있습니다: ${elem.id}`);
   }
   
-  // ✅ Canvas 렌더링 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지 - 강화 버전)
+  // ✅ Canvas 렌더링 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
   const canvasElements = elem.querySelectorAll('canvas');
   if (canvasElements.length > 0) {
-    console.log(`🎨 Canvas 렌더링 보장: ${canvasElements.length}개 Canvas 요소`);
-    
-    // 메인 Canvas (cv)가 있으면 여러 번 다시 그리기 (모바일에서 렌더링 지연 보정)
+    // 메인 Canvas (cv)가 있으면 다시 그리기
     if (cv && typeof draw === 'function') {
       try {
-        // 첫 번째 렌더링
-        draw();
-        await new Promise(res => requestAnimationFrame(res));
-        
-        // 두 번째 렌더링 (모바일에서 추가 보장)
-        draw();
-        await new Promise(res => requestAnimationFrame(res));
-        
-        // 세 번째 렌더링 (모바일에서 최종 보장)
-        if (isMobile) {
-          draw();
-          await new Promise(res => requestAnimationFrame(res));
-        }
+        draw(); // 모든 점과 선을 다시 그리기
+        await new Promise(res => requestAnimationFrame(res)); // 렌더링 완료 대기
       } catch (err) {
         console.warn('Canvas 렌더링 중 오류:', err);
       }
     }
-    
     // 컨테이너 내의 다른 Canvas 요소들도 렌더링 보장
-    for (const canvas of canvasElements) {
+    canvasElements.forEach(canvas => {
       if (canvas.getContext) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
+          // Canvas가 이미 그려져 있으면 그대로 유지, 아니면 다시 그리기
           try {
             // Canvas 내용이 비어있지 않은지 확인
             const imageData = ctx.getImageData(0, 0, Math.min(canvas.width, 10), Math.min(canvas.height, 10));
             const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 || val < 255); // 알파 채널 확인
-            
-            if (!hasContent) {
-              console.warn(`⚠️ Canvas가 비어있습니다: ${canvas.id || 'unnamed'}, 다시 그리기 시도`);
-              if (typeof draw === 'function') {
-                draw();
-                await new Promise(res => requestAnimationFrame(res));
-              }
+            if (!hasContent && typeof draw === 'function') {
+              draw();
             }
           } catch (err) {
-            // Canvas 접근 오류는 무시 (CORS 등)
-            console.warn('Canvas 내용 확인 중 오류 (무시):', err);
+            // Canvas 접근 오류는 무시
           }
         }
       }
-    }
-    
-    console.log('✅ Canvas 렌더링 완료');
+    });
   }
   
-  // ✅ 렌더링 타이밍 보장 (모바일에서 더 긴 대기 시간)
+  // ✅ 렌더링 타이밍 보장 (더 긴 대기 시간)
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => requestAnimationFrame(res));
-  
-  // 모바일에서 강제 렌더링 지연 (500-1000ms)
-  const renderWaitTime = isMobile ? 1000 : 300; // 모바일: 1000ms, 데스크톱: 300ms
-  console.log(`⏳ 렌더링 완료 대기: ${renderWaitTime}ms`);
-  await new Promise(res => setTimeout(res, renderWaitTime));
+  await new Promise(res => setTimeout(res, 200)); // 100ms → 200ms로 증가
 
-  // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정, 모바일 최적화 강화)
-  // 모바일에서 scale을 더 낮춰서 메모리 절약 및 잘림 방지
-  const mobileScale = isMobile ? 1.2 : 2.0; // 모바일: 1.2 (메모리 절약), 데스크톱: 2.0
-  console.log(`📸 html2canvas 캡처 시작 (scale: ${mobileScale}, 크기: ${width}x${height})`);
-  
+  // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정)
+  // scale을 1.5로 낮춰서 메모리 절약 및 PDF 크기 최적화
   const canvas = await html2canvas(elem, {
-    scale: mobileScale,  // 모바일에서 1.2로 낮춤 (메모리 절약)
+    scale: 1.5,  // 2 → 1.5로 낮춤 (메모리 절약 + PDF 크기 최적화)
     backgroundColor: "#ffffff",
-    useCORS: true, // ✅ CORS 문제 해결
+    useCORS: true,
     allowTaint: false,
-    foreignObjectRendering: true, // Canvas 요소 렌더링 개선
+    foreignObjectRendering: true,
     logging: false,
     width: width,
     height: height,
     removeContainer: false, // 컨테이너 제거 방지
-    imageTimeout: isMobile ? 30000 : 20000, // 모바일에서 이미지 로드 타임아웃 30초
+    imageTimeout: 15000, // 이미지 로드 타임아웃 15초
     windowWidth: width,  // ✅ 명시적 너비 설정
     windowHeight: height, // ✅ 명시적 높이 설정
     onclone: (clonedDoc) => {
@@ -13785,24 +13695,6 @@ async function captureForPdf(elem) {
         clonedElem.style.left = '0';
         clonedElem.style.top = '0';
       }
-      
-      // ✅ Canvas 요소 렌더링 보장 (dot 포함)
-      const canvasElements = clonedDoc.querySelectorAll('canvas');
-      canvasElements.forEach(canvas => {
-        // Canvas가 보이도록 스타일 강제 적용
-        canvas.style.opacity = '1';
-        canvas.style.visibility = 'visible';
-        canvas.style.display = 'block';
-        canvas.style.position = 'relative';
-      });
-      
-      // ✅ 이미지 요소 렌더링 보장
-      const imageElements = clonedDoc.querySelectorAll('img');
-      imageElements.forEach(img => {
-        img.style.opacity = '1';
-        img.style.visibility = 'visible';
-        img.style.display = 'block';
-      });
       
       // ✅ 결론 및 향후 권장사항 섹션 높이 제한 해제 (글자 잘림 방지)
       const allElements = clonedDoc.querySelectorAll('*');
@@ -13841,17 +13733,7 @@ async function captureForPdf(elem) {
   if (originalOpacity) elem.style.opacity = originalOpacity;
   if (originalVisibility) elem.style.visibility = originalVisibility;
   if (originalPosition) elem.style.position = originalPosition;
-  // 원래 위치 복원 (pdf-safe에서 이동한 경우)
-  if (originalLeftValue && originalLeftValue !== '0px') {
-    elem.style.left = originalLeftValue;
-  } else if (originalTop) {
-    elem.style.top = originalTop;
-  }
-  if (originalTopValue && originalTopValue !== '0px') {
-    elem.style.top = originalTopValue;
-  } else if (originalTop) {
-    elem.style.top = originalTop;
-  }
+  if (originalTop) elem.style.top = originalTop;
   if (originalLeft) elem.style.left = originalLeft;
   if (originalZIndex) elem.style.zIndex = originalZIndex;
   if (originalTransform) elem.style.transform = originalTransform;
@@ -13859,8 +13741,6 @@ async function captureForPdf(elem) {
   // ✅ .pdf-safe 클래스 복원
   if (originalClass && originalClass.includes('pdf-safe')) {
     elem.className = originalClass;
-  } else if (wasPdfSafe) {
-    elem.classList.add('pdf-safe');
   }
 
   // ✅ 자식 요소 스타일 복원 (이미 선언된 allChildren 변수 사용)
@@ -14099,7 +13979,7 @@ async function exportAsPdf(options = {}) {
               URL.revokeObjectURL(url);
 }
 
-// PDF 저장 (모바일 최적화, 페이지 분리) - 개선 버전
+// PDF 저장 (수정됨 - 그림 잘림 및 점/라벨 표시 문제 해결)
 function setupPDFButton() {
   const btnPDF = document.getElementById("btnPDF");
   if (!btnPDF) {
@@ -14111,99 +13991,97 @@ function setupPDFButton() {
   const newBtn = btnPDF.cloneNode(true);
   btnPDF.parentNode.replaceChild(newBtn, btnPDF);
   
-  newBtn.addEventListener('click', async () => {
+  newBtn.onclick = async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = 'PDF 생성 중...';
+    
     try {
-      // 모바일에서 로딩 표시
-      const btn = document.getElementById("btnPDF");
-      const originalText = btn.textContent;
-      btn.textContent = "⏳ PDF 생성 중...";
-      btn.disabled = true;
-      
-      // 센터명/회원명 입력 (항상 입력받기)
-      let centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", localStorage.getItem('centerName') || "") || null;
-      if(centerName) {
-        localStorage.setItem('centerName', centerName);
-      }
-      
-      let memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", localStorage.getItem('memberName') || "") || null;
-      if(memberName) {
-        localStorage.setItem('memberName', memberName);
-      }
-      
-      // 둘 다 입력되지 않으면 경고
-      if(!centerName || !memberName) {
-        const confirmContinue = confirm("센터 이름 또는 회원 이름이 입력되지 않았습니다. 계속하시겠습니까?");
-        if(!confirmContinue) {
-          btn.textContent = originalText;
-          btn.disabled = false;
-          return;
-        }
-      }
-      
-      // 라이브러리 로드 대기 (최대 3초)
-      let retryCount = 0;
-      while ((typeof html2canvas === 'undefined' || !window.jspdf) && retryCount < 30) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        retryCount++;
-      }
-      
-      // 라이브러리 확인
-      if (typeof html2canvas === 'undefined') {
-        throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
-      }
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
-      }
-      
       // 세션 데이터 확인
-      const S = sessions[cur];
-      const hasSidePoints = S.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
-      const hasFrontPoints = S.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
-      if (!S || (!hasSidePoints && !hasFrontPoints)) {
+      if (!sessions || (!sessions.Before && !sessions.After)) {
         alert("먼저 이미지를 업로드하고 분석을 완료해주세요.");
-        btn.textContent = originalText;
         btn.disabled = false;
+        btn.textContent = '📄 PDF 저장';
         return;
       }
       
-      // 기존 사용자명 (하위 호환성)
-      let userName = localStorage.getItem('userName');
-      if(!userName && !memberName) {
-        userName = prompt("사용자명을 입력하세요 (나중에 변경 가능):", "사용자") || "사용자";
-        localStorage.setItem('userName', userName);
+      // html2pdf 라이브러리 확인
+      if (typeof html2pdf === 'undefined') {
+        throw new Error("html2pdf.js 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
       }
       
-      // ✅ 새로운 8페이지 전문 리포트 함수 사용
-      await generateFinalPostureReportPDF();
+      // 1. 캔버스 강제 redraw (점/선/라벨 보장)
+      await forceRedrawAllCanvases();
       
-      btn.textContent = originalText;
-      btn.disabled = false;
+      // 2. 캔버스 → dataURL (고해상도)
+      const beforeDataURL = sessions.Before ? getCanvasDataURL('Before') : '';
+      const afterDataURL = sessions.After ? getCanvasDataURL('After') : '';
+      
+      if (!beforeDataURL && !afterDataURL) {
+        throw new Error("캔버스 이미지를 생성할 수 없습니다.");
+      }
+      
+      // 3. 이미지 로드 대기 (완료 후 삽입)
+      if (beforeDataURL) {
+        await loadImageAsync(beforeDataURL);
+        document.getElementById('pdfBeforeCanvasImg').src = beforeDataURL;
+      } else {
+        document.getElementById('pdfBeforeCanvasImg').style.display = 'none';
+      }
+      
+      if (afterDataURL) {
+        await loadImageAsync(afterDataURL);
+        document.getElementById('pdfAfterCanvasImg').src = afterDataURL;
+      } else {
+        document.getElementById('pdfAfterCanvasImg').style.display = 'none';
+      }
+      
+      // 4. 분석 내용 삽입
+      const combined = getCombinedAnalysis();
+      const content = generatePDFAnalysisHTML(combined);
+      document.getElementById('pdfAnalysisContent').innerHTML = content;
+      
+      // 5. PDF 생성 (html2pdf)
+      const element = document.getElementById('pdfContainer');
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `DIT_자세분석_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          letterRendering: true,
+          allowTaint: false,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 1000,
+          width: 1000,
+          height: element.scrollHeight
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' 
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+      
+      await html2pdf().set(opt).from(element).save();
       
       // 모바일에서 성공 메시지
       if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         alert("PDF가 저장되었습니다!");
       }
-    } catch(error) {
-      console.error("❌ PDF 생성 실패:", error);
-      console.error("❌ 에러 스택:", error.stack);
-      console.error("❌ 에러 상세:", {
-        name: error.name,
-        message: error.message,
-        cause: error.cause
-      });
       
-      // ✅ 더 구체적인 에러 메시지
-      const userMessage = error.message.includes('캔버스 생성 실패') || error.message.includes('Blob') || error.message.includes('캡처된 페이지가 없습니다')
-          ? "❌ PDF 생성에 필요한 이미지 캡처 중 오류가 발생했습니다.\n\n가능한 원인:\n- 이미지 로드 실패\n- 폰트 문제\n- 컨테이너를 찾을 수 없음\n\n콘솔을 확인하여 자세한 정보를 확인하세요."
-          : error.message.includes('Worker')
-          ? "❌ PDF Worker 로드 실패: " + error.message
-          : "❌ PDF 생성 중 알 수 없는 오류가 발생했습니다: " + (error.message || '알 수 없는 오류');
-      
-      alert(userMessage);
-      btn.textContent = "📄 PDF 저장 (오류)";
-        btn.disabled = false;
+    } catch (err) {
+      console.error('PDF 생성 실패:', err);
+      alert('PDF 생성 중 오류가 발생했습니다: ' + (err.message || '알 수 없는 오류'));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📄 PDF 저장';
     }
-  });
+  };
 }
 
 // 그림으로 저장 (전체 내용 포함)
@@ -16472,9 +16350,162 @@ function getCombinedAnalysis() {
   };
 }
 
+/* ================== PDF 생성 관련 함수들 ================== */
+
+// 캔버스 강제 다시 그리기 (Before/After 세션)
+async function forceRedrawAllCanvases() {
+  const sessionsToDraw = ['Before', 'After'];
+  const originalCur = cur;
+  
+  for (const sessionId of sessionsToDraw) {
+    if (!sessions[sessionId]) continue;
+    
+    // 세션 전환
+    cur = sessionId;
+    
+    // 캔버스 강제 redraw
+    if (cv && ctx && typeof draw === 'function') {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      await new Promise(r => setTimeout(r, 50)); // DOM 반영 대기
+      
+      // draw 함수 호출
+      draw();
+      
+      await new Promise(r => setTimeout(r, 100)); // 캔버스 렌더링 대기
+    }
+  }
+  
+  // 원래 세션으로 복원
+  cur = originalCur;
+  if (cv && ctx && typeof draw === 'function') {
+    draw();
+  }
+}
+
+// 캔버스 → dataURL (고해상도)
+function getCanvasDataURL(sessionId) {
+  if (!cv || !ctx) return '';
+  
+  // 세션 전환하여 해당 세션의 캔버스 상태 가져오기
+  const originalCur = cur;
+  cur = sessionId;
+  
+  // 캔버스 다시 그리기
+  if (typeof draw === 'function') {
+    draw();
+  }
+  
+  // 고해상도 캔버스 생성
+  const tempCanvas = document.createElement('canvas');
+  const scale = 2;
+  tempCanvas.width = cv.width * scale;
+  tempCanvas.height = cv.height * scale;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.scale(scale, scale);
+  tempCtx.drawImage(cv, 0, 0);
+  
+  // 원래 세션으로 복원
+  cur = originalCur;
+  if (typeof draw === 'function') {
+    draw();
+  }
+  
+  return tempCanvas.toDataURL('image/jpeg', 0.95);
+}
+
+// 이미지 로드 완료 대기
+function loadImageAsync(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.crossOrigin = 'anonymous';
+    img.src = src + '?t=' + Date.now(); // 캐시 방지
+  });
+}
+
+// PDF 분석 내용 HTML 생성
+function generatePDFAnalysisHTML(combined) {
+  const side = combined.side || {};
+  const front = combined.front || {};
+  
+  return `
+    <div style="margin-top:40px; padding:20px; border-top:2px solid #7c9cff;">
+      <h2 style="color:#1e1e1e; border-bottom:1px solid #eee; padding-bottom:8px;">📊 분석 요약</h2>
+      
+      <table style="width:100%; border-collapse:collapse; margin:15px 0; font-size:14px;">
+        <tr><th style="text-align:left; padding:8px; background:#f0f4ff;">항목</th><th style="padding:8px;">측면</th><th style="padding:8px;">정면</th></tr>
+        <tr><td style="padding:8px; font-weight:600;">패턴</td><td style="padding:8px;">${side.pattern || '—'}</td><td style="padding:8px;">${front.pattern || '—'}</td></tr>
+        <tr><td style="padding:8px; font-weight:600;">점수</td><td style="padding:8px;">${side.score?.toFixed(1) || '—'}</td><td style="padding:8px;">${front.score?.toFixed(1) || '—'}</td></tr>
+      </table>
+      <h3 style="margin-top:25px; color:#d35400;">긴장 근육 (Tight)</h3>
+      <p style="background:#ffeaea; padding:12px; border-radius:8px; white-space: pre-line;">
+        ${combined.combined?.tight?.join(', ') || '없음'}
+      </p>
+      <h3 style="margin-top:20px; color:#27ae60;">약화 근육 (Weak)</h3>
+      <p style="background:#eafaf1; padding:12px; border-radius:8px; white-space: pre-line;">
+        ${combined.combined?.weak?.join(', ') || '없음'}
+      </p>
+      <h3 style="margin-top:25px; color:#7c9cff;">권장 필라테스 운동</h3>
+      <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-top:12px;">
+        ${generateExerciseCards(combined)}
+      </div>
+    </div>
+  `;
+}
+
+// 운동 카드 생성
+function generateExerciseCards(combined) {
+  if (typeof recommendPilatesFromMuscles !== 'function') {
+    return '<p>추천 운동 없음</p>';
+  }
+  
+  const recs = recommendPilatesFromMuscles(
+    combined.combined?.tight || [],
+    combined.combined?.weak || []
+  );
+  
+  if (!recs || recs.length === 0) return '<p>추천 운동 없음</p>';
+  
+  return recs.map(ex => `
+    <div style="border:1px solid #ddd; border-radius:10px; padding:12px; background:#f9f9f9;">
+      <div style="font-weight:600; color:#2c3e50; margin-bottom:4px;">${ex.name || '운동'}</div>
+      <div style="font-size:12px; color:#7f8c8d;">
+        <span style="color:#e67e22;">${ex.type || ''}</span> | 
+        <span>${ex.target || ''}</span><br>
+        ${ex.reps || ''} | ${ex.equip || ''}
+      </div>
+    </div>
+  `).join('');
+}
+
 /* ================== PDF 버튼에 새 함수 연결 ================== */
 // 기존 setupPDFButton에서 새 함수를 사용하도록 수정
 // 또는 setupPDFButton 내부에서 generateFinalPostureReportPDF를 호출하도록 변경 가능
 </script>
+
+<!-- PDF용 안전 컨테이너 (수정됨) -->
+<div class="pdf-safe" id="pdfContainer">
+  <div style="padding:40px; background:white; color:black; font-family:'Pretendard',sans-serif; max-width:1000px; margin:0 auto;">
+    <h1 style="text-align:center; margin-bottom:30px; color:#1e1e1e;">DIT 자세 분석 AI 보고서</h1>
+    
+    <div style="display:flex; gap:30px; margin-bottom:40px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:300px;">
+        <h3>Before</h3>
+        <div id="pdfBeforeImg" style="text-align:center;">
+          <img id="pdfBeforeCanvasImg" style="max-width:100%; height:auto; border:1px solid #ddd;" />
+        </div>
+      </div>
+      <div style="flex:1; min-width:300px;">
+        <h3>After</h3>
+        <div id="pdfAfterImg" style="text-align:center;">
+          <img id="pdfAfterCanvasImg" style="max-width:100%; height:auto; border:1px solid #ddd;" />
+        </div>
+      </div>
+    </div>
+    <div id="pdfAnalysisContent"></div>
+  </div>
+</div>
+
   </body>
 </html>
