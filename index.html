@@ -78,67 +78,6 @@
 .pdf-safe div {
   max-height: none !important;
 }
-
-/* PDF 생성 시 페이지 나누기 강제 적용 */
-@media print {
-  .page-break {
-    display: block;
-    page-break-before: always;
-    page-break-after: always;
-    break-before: page;
-    break-after: page;
-  }
-  
-  .page-break-before {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-  
-  .page-break-after {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-}
-
-/* pdf-safe 컨테이너 내부의 강제 페이지 분할 */
-.pdf-safe > div[style*="page-break-before: always"],
-.pdf-safe .page-break-before {
-  page-break-before: always !important;
-  break-before: page !important;
-  height: 0 !important; /* 불필요한 공백 방지 */
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* 사진 컨테이너는 항상 새 페이지에서 시작 */
-.pdf-safe #sideImageContainer,
-.pdf-safe #frontImageContainer {
-  page-break-before: always !important;
-  break-before: page !important;
-}
-
-/* PDF 생성 시 강제 페이지 분할을 위한 클래스 정의 */
-.pdf-page-break {
-  display: block;
-  /* 페이지 분할 속성을 !important로 강제 적용 */
-  page-break-before: always !important;
-  break-before: page !important;
-  /* 불필요한 높이 방지 */
-  height: 0 !important;
-  line-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-}
-
-/* PDF용 캔버스 고해상도 렌더링 보장 */
-.pdf-safe canvas {
-  image-rendering: crisp-edges !important;
-  image-rendering: -webkit-optimize-contrast !important;
-  image-rendering: pixelated !important;
-}
-
 * { box-sizing: border-box; }
 html, body {
   margin: 0; 
@@ -5902,8 +5841,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     if(analysis && analysis.pilates && analysis.pilates.length > 0) {
       analysis.pilates.forEach(item => {
         if(item.name || item.issue) {
-          const patternName = item.name || item.issue;
-          patterns.push(addPatternExplanation(patternName));
+          patterns.push(item.name || item.issue);
         }
       });
     }
@@ -5913,7 +5851,7 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     const weakMuscles = analysis && analysis.weak ? analysis.weak : [];
     
     // 결론 작성
-    conclusionText += `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
+    conclusionText += `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
@@ -5924,23 +5862,23 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
       conclusionText += '특이 패턴 없음\n\n';
     }
     
-    conclusionText += `위 패턴은 특정 근육군(근육 그룹)의 긴장(짧아짐, 뻣뻣해짐)과 약화(약해짐, 힘이 부족함)가 동반되는 전형적인 임상 소견(일반적으로 많이 나타나는 증상)입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화(통증이나 불편함 감소)와 자세 개선(바른 자세로 교정)이 기대됩니다.\n\n`;
+    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
     
     // 단기 권장사항
     conclusionText += `【단기(1~4주)】\n`;
-    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완(근육 주변 조직 풀어주기), 정적 스트레칭(움직이지 않고 늘리기)) — 하루 1회 10~15분\n`;
-    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동(몸통 중심 근육 운동) (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
     conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
     
     // 중기 권장사항
     conclusionText += `【중기(4~8주)】\n`;
-    conclusionText += `1. 약화 근육 활성화(약한 근육 강화) (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
     conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
     conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
     
     // 장기 권장사항
     conclusionText += `【장기(8~12주 이상)】\n`;
-    conclusionText += `통합적 기능 회복(전체적인 몸 기능 되찾기)을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어(근육을 정확하게 움직이는 능력)가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
     
     // 점수 기반 추가 권장사항
     if(scoreData && scoreData.score != null) {
@@ -7935,26 +7873,13 @@ function setupCalibrationButtons() {
 // ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
 // Before-After 오버레이 이미지 생성 (Canvas API 사용)
-// 스켈레톤 그리기 함수 (Before-After 오버레이용) - 모바일 최적화
-function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false, scaleFactor = 1) {
-  // ✅ 모바일에서도 선명하게 보이도록 선 굵기와 점 크기 증가
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const lineWidth = (isMobile ? 5 : 3) * scaleFactor;
-  const dotRadius = (isMobile ? 8 : 6) * scaleFactor;
-  const fontSize = Math.max(13, 13 * scaleFactor);
-  const labelOffsetX = (isMobile ? 15 : 12) * scaleFactor;
-  
+// 스켈레톤 그리기 함수 (Before-After 오버레이용)
+function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false) {
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
-  ctx.lineWidth = lineWidth;
+  ctx.lineWidth = 3;
   ctx.globalAlpha = isDashed ? 0.9 : 0.8;
-  ctx.setLineDash(isDashed ? [8 * scaleFactor, 6 * scaleFactor] : []);
-  
-  // ✅ 고품질 렌더링 설정
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  ctx.setLineDash(isDashed ? [6, 4] : []);
   
   // 키포인트 순서 정의 (측면)
   const keyOrder = ['tragus', 'c7', 'acromion', 'hip', 'knee', 'ankle'];
@@ -7989,97 +7914,50 @@ function drawSkeleton(ctx, points, color, labelPrefix, isDashed = false, scaleFa
     const p = points[key];
     if(!p || p.x == null || p.y == null) return;
     
-    // ✅ 점 그리기 - 더 선명하게
+    // 점 그리기
     ctx.beginPath();
-    ctx.arc(p.x, p.y, dotRadius, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
     ctx.fill();
     
-    // ✅ 점 테두리 추가 (더 선명하게)
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2 * scaleFactor;
-    ctx.stroke();
-    
-    // 라벨 그리기 - 배경과 텍스트
-    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    
-    const labelText = `${labelPrefix}:${key}`;
-    const labelX = p.x + labelOffsetX;
-    const labelY = p.y;
-    
-    // ✅ 라벨 배경 (가독성 향상)
-    const textMetrics = ctx.measureText(labelText);
-    const textWidth = textMetrics.width;
-    const textHeight = fontSize * 1.2;
-    const padding = 4 * scaleFactor;
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(labelX - padding, labelY - textHeight/2 - padding, textWidth + padding*2, textHeight + padding*2);
-    
-    // ✅ 라벨 텍스트 (선명한 흰색)
+    // 라벨 그리기
+    ctx.font = '13px Arial';
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3 * scaleFactor;
-    ctx.strokeText(labelText, labelX, labelY);
-    ctx.fillText(labelText, labelX, labelY);
+    ctx.lineWidth = 2;
+    ctx.strokeText(`${labelPrefix}:${key}`, p.x + 12, p.y);
+    ctx.fillText(`${labelPrefix}:${key}`, p.x + 12, p.y);
   });
   
-  // 스타일 복원
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
   ctx.globalAlpha = 1.0;
 }
 
-// Before-After 오버레이 이미지 생성 (스켈레톤 포함) - 모바일 고해상도 최적화
+// Before-After 오버레이 이미지 생성 (스켈레톤 포함)
 async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, beforePoints, afterPoints, alpha = 0.5) {
   return new Promise((resolve, reject) => {
     try {
       const beforeImg = new Image();
       const afterImg = new Image();
       
-      // ✅ CORS 및 고품질 렌더링 설정
-      beforeImg.crossOrigin = 'anonymous';
-      afterImg.crossOrigin = 'anonymous';
-      
       beforeImg.onload = () => {
         afterImg.onload = () => {
-          // ✅ 모바일에서도 고해상도로 렌더링 (devicePixelRatio 반영)
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          const pixelRatio = isMobile ? Math.min(window.devicePixelRatio || 2, 3) : 2;
+          // 캔버스 생성
+          const overlayCanvas = document.createElement('canvas');
+          const overlayCtx = overlayCanvas.getContext('2d');
           
           // 크기 설정 (더 큰 이미지 기준)
-          const baseWidth = Math.max(beforeImg.width, afterImg.width);
-          const baseHeight = Math.max(beforeImg.height, afterImg.height);
-          
-          // ✅ 고해상도 캔버스 생성
-          const overlayCanvas = document.createElement('canvas');
-          const overlayCtx = overlayCanvas.getContext('2d', { 
-            alpha: true, 
-            desynchronized: false,
-            willReadFrequently: false 
-          });
-          
-          overlayCanvas.width = baseWidth * pixelRatio;
-          overlayCanvas.height = baseHeight * pixelRatio;
-          
-          // ✅ CSS 크기는 원본 크기로 유지
-          overlayCanvas.style.width = baseWidth + 'px';
-          overlayCanvas.style.height = baseHeight + 'px';
-          
-          // ✅ 고품질 렌더링 설정
-          overlayCtx.imageSmoothingEnabled = true;
-          overlayCtx.imageSmoothingQuality = 'high';
-          overlayCtx.scale(pixelRatio, pixelRatio);
+          const width = Math.max(beforeImg.width, afterImg.width);
+          const height = Math.max(beforeImg.height, afterImg.height);
+          overlayCanvas.width = width;
+          overlayCanvas.height = height;
           
           // 배경 이미지 그리기 (Before 이미지 사용)
-          overlayCtx.drawImage(beforeImg, 0, 0, baseWidth, baseHeight);
+          overlayCtx.drawImage(beforeImg, 0, 0, width, height);
           
           // Before 스켈레톤 그리기 (파란색, 점선)
           if(beforePoints) {
             // 이미지 크기에 맞게 좌표 스케일링
-            const scaleX = baseWidth / beforeImg.width;
-            const scaleY = baseHeight / beforeImg.height;
+            const scaleX = width / beforeImg.width;
+            const scaleY = height / beforeImg.height;
             const scaledBeforePoints = {};
             Object.keys(beforePoints).forEach(key => {
               if(beforePoints[key] && beforePoints[key].x != null && beforePoints[key].y != null) {
@@ -8089,8 +7967,7 @@ async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, befor
                 };
               }
             });
-            // ✅ scaleFactor 전달 (고해상도 대응)
-            drawSkeleton(overlayCtx, scaledBeforePoints, '#2E86C1', 'B', true, 1);
+            drawSkeleton(overlayCtx, scaledBeforePoints, '#2E86C1', 'B', true);
           }
           
           // After 이미지 오버레이 (주황색 톤, 투명도 적용)
@@ -8100,15 +7977,11 @@ async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, befor
           // After 이미지를 주황색 톤으로 변환
           const tempCanvas = document.createElement('canvas');
           const tempCtx = tempCanvas.getContext('2d');
-          tempCanvas.width = baseWidth * pixelRatio;
-          tempCanvas.height = baseHeight * pixelRatio;
-          tempCtx.scale(pixelRatio, pixelRatio);
-          tempCtx.drawImage(afterImg, 0, 0, baseWidth, baseHeight);
+          tempCanvas.width = width;
+          tempCanvas.height = height;
+          tempCtx.drawImage(afterImg, 0, 0, width, height);
           
-          // ✅ 고해상도 이미지 데이터 처리
-          const scaledWidth = baseWidth * pixelRatio;
-          const scaledHeight = baseHeight * pixelRatio;
-          const afterImageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+          const afterImageData = tempCtx.getImageData(0, 0, width, height);
           for(let i = 0; i < afterImageData.data.length; i += 4) {
             afterImageData.data[i] = Math.min(255, afterImageData.data[i] * 1.3); // R 증가 (주황색 톤)
             afterImageData.data[i + 1] = Math.min(255, afterImageData.data[i + 1] * 1.1); // G 증가
@@ -8116,13 +7989,13 @@ async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, befor
           }
           tempCtx.putImageData(afterImageData, 0, 0);
           
-          overlayCtx.drawImage(tempCanvas, 0, 0, baseWidth, baseHeight);
+          overlayCtx.drawImage(tempCanvas, 0, 0);
           overlayCtx.globalAlpha = 1.0;
           
           // After 스켈레톤 그리기 (주황색, 실선)
           if(afterPoints) {
-            const scaleX = baseWidth / afterImg.width;
-            const scaleY = baseHeight / afterImg.height;
+            const scaleX = width / afterImg.width;
+            const scaleY = height / afterImg.height;
             const scaledAfterPoints = {};
             Object.keys(afterPoints).forEach(key => {
               if(afterPoints[key] && afterPoints[key].x != null && afterPoints[key].y != null) {
@@ -8132,34 +8005,17 @@ async function createOverlayImageWithSkeleton(beforeImgData, afterImgData, befor
                 };
               }
             });
-            // ✅ scaleFactor 전달 (고해상도 대응)
-            drawSkeleton(overlayCtx, scaledAfterPoints, '#E67E22', 'A', false, 1);
+            drawSkeleton(overlayCtx, scaledAfterPoints, '#E67E22', 'A', false);
           }
           
-          // ✅ PNG 고품질로 변환
-          const dataUrl = overlayCanvas.toDataURL('image/png', 1.0);
-          
-          // 메모리 정리
-          tempCanvas.width = 1;
-          tempCanvas.height = 1;
-          overlayCanvas.width = 1;
-          overlayCanvas.height = 1;
-          
-          resolve(dataUrl);
+          resolve(overlayCanvas.toDataURL('image/png'));
         };
-        afterImg.onerror = (err) => {
-          console.error('After 이미지 로드 실패:', err);
-          reject(err);
-        };
+        afterImg.onerror = reject;
         afterImg.src = afterImgData;
       };
-      beforeImg.onerror = (err) => {
-        console.error('Before 이미지 로드 실패:', err);
-        reject(err);
-      };
+      beforeImg.onerror = reject;
       beforeImg.src = beforeImgData;
     } catch(err) {
-      console.error('오버레이 이미지 생성 오류:', err);
       reject(err);
     }
   });
@@ -8439,57 +8295,6 @@ function detectPatterns(metrics) {
 }
 
 // 필라테스 데이터베이스 (기존 패턴 DB - 하위 호환성 유지)
-// ✅ 전문용어에 일반인도 이해하기 쉬운 설명 추가 함수 (전역 함수)
-function addPatternExplanation(patternName) {
-  if (!patternName) return patternName;
-  
-  const explanations = {
-    '경추 전만각': '경추 전만각(목 앞으로 나온 각도)',
-    'CVA': '경추 전만각(목 앞으로 나온 각도)',
-    '어깨 전방각': '어깨 전방각(어깨가 앞으로 나온 각도)',
-    'SAA': '어깨 전방각(어깨가 앞으로 나온 각도)',
-    '골반 전후경사각': '골반 전후경사각(골반이 앞뒤로 기울어진 각도)',
-    'PTA': '골반 전후경사각(골반이 앞뒤로 기울어진 각도)',
-    '체간 기울기': '체간 기울기(몸통이 좌우로 기울어진 정도)',
-    'TIA': '체간 기울기(몸통이 좌우로 기울어진 정도)',
-    '체간경사각': '체간 기울기(몸통이 좌우로 기울어진 정도)',
-    '골반 하강': '골반 하강(한쪽 골반이 아래로 내려간 상태)',
-    'PDS': '골반 하강(한쪽 골반이 아래로 내려간 상태)',
-    '골반 거상': '골반 거상(한쪽 골반이 위로 올라간 상태)',
-    '경골 경사각': '경골 경사각(종아리뼈가 기울어진 각도)',
-    'Tibial': '경골 경사각(종아리뼈가 기울어진 각도)',
-    '거북목': '거북목(목이 앞으로 나온 자세)',
-    'Forward Head Posture': '거북목(목이 앞으로 나온 자세)',
-    '라운드 숄더': '라운드 숄더(어깨가 앞으로 둥글게 말린 자세)',
-    'Rounded Shoulder': '라운드 숄더(어깨가 앞으로 둥글게 말린 자세)',
-    '골반 과전경사': '골반 과전경사(골반이 앞으로 과도하게 기울어진 상태)',
-    'Anterior Tilt': '골반 과전경사(골반이 앞으로 과도하게 기울어진 상태)',
-    '골반 후경사': '골반 후경사(골반이 뒤로 과도하게 기울어진 상태)',
-    'Posterior Tilt': '골반 후경사(골반이 뒤로 과도하게 기울어진 상태)',
-    'X자 다리': 'X자 다리(무릎이 안쪽으로 모인 다리 모양)',
-    'Genu Valgum': 'X자 다리(무릎이 안쪽으로 모인 다리 모양)',
-    'O자 다리': 'O자 다리(무릎이 바깥쪽으로 벌어진 다리 모양)',
-    'Genu Varum': 'O자 다리(무릎이 바깥쪽으로 벌어진 다리 모양)',
-    '체중 중심 전방': '체중 중심 전방(몸의 무게 중심이 앞으로 쏠린 상태)',
-    'Forward Center': '체중 중심 전방(몸의 무게 중심이 앞으로 쏠린 상태)',
-  };
-  
-  // 정확한 매칭 시도
-  if (explanations[patternName]) {
-    return explanations[patternName];
-  }
-  
-  // 부분 매칭 시도
-  for (const [key, value] of Object.entries(explanations)) {
-    if (patternName.includes(key) || key.includes(patternName)) {
-      return patternName.replace(key, value);
-    }
-  }
-  
-  // 매칭되지 않으면 원본 반환
-  return patternName;
-}
-
 const PILATES_PATTERN_DB = {
   FHP: {
     title: '거북목(Forward Head Posture)',
@@ -8909,7 +8714,7 @@ function generateAIDeepAnalysis(metrics) {
   const pats = detectPatterns(metrics);
   lines.push('\n▶ 패턴 요약');
   if(pats.length) {
-    lines.push(`- 관찰된 주요 패턴: ${pats.map(p => addPatternExplanation(PILATES_PATTERN_DB[p]?.title || p)).join(', ')}`);
+    lines.push(`- 관찰된 주요 패턴: ${pats.map(p => PILATES_PATTERN_DB[p]?.title || p).join(', ')}`);
     // 각 패턴별 상세 설명 추가
     pats.forEach(p => {
       const dbItem = POSTURE_DB.find(r => {
@@ -8918,9 +8723,8 @@ function generateAIDeepAnalysis(metrics) {
         return dbTitle.includes(patternTitle) || patternTitle.includes(dbTitle);
       });
       if(dbItem) {
-        const patternTitle = addPatternExplanation(PILATES_PATTERN_DB[p]?.title || p);
-        if(dbItem['원인']) lines.push(`  · ${patternTitle} 원인: ${dbItem['원인']}`);
-        if(dbItem['증상']) lines.push(`  · ${patternTitle} 증상: ${dbItem['증상']}`);
+        if(dbItem['원인']) lines.push(`  · ${PILATES_PATTERN_DB[p]?.title || p} 원인: ${dbItem['원인']}`);
+        if(dbItem['증상']) lines.push(`  · ${PILATES_PATTERN_DB[p]?.title || p} 증상: ${dbItem['증상']}`);
       }
     });
   } else {
@@ -8961,10 +8765,10 @@ function buildPlanTexts({ memberName = '회원', patterns = [], scoreResult = nu
     ? `<ul style="margin:0; padding-left:18px; font-size:11px; line-height:1.7; color:#1f2937;">${quickItems.map(item => `<li style="margin-bottom:4px;">${escapeHtml(item)}</li>`).join('')}</ul>`
     : `<div style="font-size:11px; color:#475569;">데이터가 충분하지 않습니다. 자세 측정을 완료한 뒤 다시 생성해주세요.</div>`;
 
-  let fullText = `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
+  let fullText = `${memberName}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
   if (uniquePatterns.length > 0) {
     uniquePatterns.forEach((pattern, idx) => {
-      fullText += `${idx + 1}. ${addPatternExplanation(pattern)}\n`;
+      fullText += `${idx + 1}. ${pattern}\n`;
     });
   } else {
     fullText += '특이 패턴 없음\n';
@@ -8973,17 +8777,17 @@ function buildPlanTexts({ memberName = '회원', patterns = [], scoreResult = nu
   if (comparisonSummary) {
     fullText += `${comparisonSummary}\n\n`;
   }
-  fullText += '위 패턴은 특정 근육군(근육 그룹)의 긴장(짧아짐, 뻣뻣해짐)과 약화(약해짐, 힘이 부족함)가 동반되는 전형적인 임상 소견(일반적으로 많이 나타나는 증상)입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화(통증이나 불편함 감소)와 자세 개선(바른 자세로 교정)이 기대됩니다.\n\n';
+  fullText += '위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n';
   fullText += '【단기(1~4주)】\n';
-  fullText += '1. 긴장 근육 이완 중심(폼롤러, 근막 이완(근육 주변 조직 풀어주기), 정적 스트레칭(움직이지 않고 늘리기)) — 하루 1회 10~15분\n';
-  fullText += '2. 호흡 조절과 함께하는 코어 기본운동(몸통 중심 근육 운동) (Dead Bug, Pelvic Tilt) — 매일 5~10분\n';
+  fullText += '1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n';
+  fullText += '2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n';
   fullText += '3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n';
   fullText += '【중기(4~8주)】\n';
-  fullText += '1. 약화 근육 활성화(약한 근육 강화) (둔근, 복횡근 등) — 주 3회, 점진적 부하\n';
+  fullText += '1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n';
   fullText += '2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n';
   fullText += '3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n';
   fullText += '【장기(8~12주 이상)】\n';
-  fullText += '통합적 기능 회복(전체적인 몸 기능 되찾기)을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어(근육을 정확하게 움직이는 능력)가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n';
+  fullText += '통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n';
   if (scoreResult?.score != null) {
     const score = scoreResult.score;
     if (score < 70) {
@@ -9567,12 +9371,12 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
   };
 
   return `
-    <div style="text-align:center; margin-top:0; padding-top:5px;">
-      <h1 style="margin:0; padding:0; font-size:18px; font-weight:800; color:#0b0f14; margin-bottom:8px; line-height:1.2;">📋 AI 자세 분석 보고서</h1>
-      ${memberName ? `<h2 style="margin:0; padding:0; font-size:13px; font-weight:600; color:#333; margin-bottom:5px;">회원명: ${memberName}</h2>` : ''}
-      ${centerName ? `<h3 style="margin:0; padding:0; font-size:12px; font-weight:500; color:#666; margin-bottom:5px;">센터명: ${centerName}</h3>` : ''}
-      <p style="margin:0; padding:0; font-size:11px; color:#999; margin-bottom:5px;">분석일: ${dateStr}</p>
-      <p style="margin:0; padding:0; font-size:9px; color:#999; margin-top:8px;">Generated by ${appName} · ${REPORT_SIGNATURE}</p>
+    <div style="text-align:center; margin-top:60px;">
+      <h1 style="margin:0; padding:0; font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
+      ${memberName ? `<h2 style="margin:0; padding:0; font-size:20px; font-weight:600; color:#333; margin-bottom:15px;">회원명: ${memberName}</h2>` : ''}
+      ${centerName ? `<h3 style="margin:0; padding:0; font-size:18px; font-weight:500; color:#666; margin-bottom:15px;">센터명: ${centerName}</h3>` : ''}
+      <p style="margin:0; padding:0; font-size:14px; color:#999; margin-bottom:10px;">분석일: ${dateStr}</p>
+      <p style="margin:0; padding:0; font-size:12px; color:#999; margin-top:40px;">Generated by ${appName} · ${REPORT_SIGNATURE}</p>
     </div>
     
     ${(hasBefore || hasAfter) ? `
@@ -9596,7 +9400,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
         ${overlayImg ? `
         <div style="flex:1; min-width:280px; max-width:400px;">
       <div style="text-align:center;">
-            <img src="${overlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality; image-rendering:-webkit-optimize-contrast; image-rendering:crisp-edges; -webkit-print-color-adjust:exact; print-color-adjust:exact;" />
+            <img src="${overlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">측면: 파란색(Before) | 주황색(After)</div>
           </div>
         </div>
@@ -9604,7 +9408,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
         ${frontOverlayImg ? `
         <div style="flex:1; min-width:280px; max-width:400px;">
           <div style="text-align:center;">
-            <img src="${frontOverlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality; image-rendering:-webkit-optimize-contrast; image-rendering:crisp-edges; -webkit-print-color-adjust:exact; print-color-adjust:exact;" />
+            <img src="${frontOverlayImg}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:400px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
             <div style="margin-top:8px; font-size:10px; color:#666;">정면: 파란색(Before) | 주황색(After)</div>
           </div>
         </div>
@@ -9709,20 +9513,16 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
     const originalSession = cur;
     const originalOrientation = session.poseData?.orientation || "side";
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
     if(cur !== sessionName) {
       switchSession(sessionName);
-      await wait(isMobile ? 150 : 80); // 모바일: 더 긴 대기
+      await wait(80);
     }
     if(originalOrientation !== orientation) {
       setOrientation(orientation);
-      await wait(isMobile ? 150 : 80); // 모바일: 더 긴 대기
+      await wait(80);
     } else {
-      if (typeof draw === 'function') {
-        draw();
-      }
-      await wait(isMobile ? 100 : 50); // 모바일: 더 긴 대기
+      draw();
+      await wait(50);
     }
 
     // ✅ Canvas 렌더링 완료 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
@@ -9732,11 +9532,7 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
       await new Promise(res => requestAnimationFrame(res));
       draw(); // 두 번째 렌더링 (모바일에서 렌더링 지연 보정)
       await new Promise(res => requestAnimationFrame(res));
-      if (isMobile) {
-        draw(); // 모바일: 세 번째 렌더링 (dot 누락 방지)
-        await new Promise(res => requestAnimationFrame(res));
-      }
-      await wait(isMobile ? 200 : 100); // 모바일: 더 긴 대기 시간
+      await wait(100); // 추가 대기 시간 (모바일 렌더링 완료 보장)
     }
 
     // ✅ Canvas 내용 검증 (빈 캔버스 방지)
@@ -9945,10 +9741,9 @@ document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
 // 화질 대폭 개선을 위해 scale과 크기 제한 증가
-// ✅ 모바일에서도 데스크톱과 동일한 고해상도 설정 사용 (이미지/dot 잘림 방지)
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = 5000; // 모바일/데스크톱 동일 (고해상도 보장)
-const baseCanvasScale = 5.0; // 모바일/데스크톱 동일 (고해상도 보장)
+const PDF_MAX_CANVAS_EDGE = isMobile ? 3500 : 5000; // 고해상도 개선 (2000/3000 → 3500/5000)
+const baseCanvasScale = isMobile ? 4.0 : 5.0; // 고해상도 개선 (2.5/3.0 → 4.0/5.0)
 const html2canvasOptions = {
   scale: baseCanvasScale,
   backgroundColor: "#ffffff",
@@ -9958,10 +9753,9 @@ const html2canvasOptions = {
   scrollX: 0,
   scrollY: -window.scrollY,
   imageTimeout: 20000,
-  removeContainer: false, // ✅ 모바일에서도 데스크톱과 동일하게 false (컨테이너 유지)
-  // ✅ 고품질 렌더링 옵션 추가
+  removeContainer: isMobile,
+  // 텍스트 잘림 방지 옵션
   letterRendering: true, // 텍스트 렌더링 개선
-  foreignObjectRendering: false, // SVG 렌더링 문제 방지
   // 메모리 절약 및 텍스트 보호 옵션
   onclone: (clonedDoc) => {
     // 모든 텍스트 요소에 글자 잘림 방지 스타일 강제 적용
@@ -10059,197 +9853,132 @@ if (isMobile) {
 
 // ========== 페이지 1: 측면 사진 ==========
 if (afterViews.side || beforeViews.side) {
-  const sideImageContainer = document.createElement("div");
-  sideImageContainer.id = "sideImageContainer";
-  setPageContainerStyle(sideImageContainer);
-  sideImageContainer.classList.add('pdf-safe');
-  // ✅ 페이지 나누기 강제 적용 (모바일 PDF 사진/점 누락 방지)
-  sideImageContainer.style.pageBreakBefore = 'always';
-  sideImageContainer.style.breakBefore = 'page';
-  
   const sideImg = afterViews.side || beforeViews.side;
   
-  // ✅ 모바일에서 html2canvas가 DataURL을 제대로 캡처하지 못하는 문제 해결
-  // DataURL을 직접 Canvas로 변환하여 사용 (고해상도 대응)
+  // ✅ DataURL 이미지를 직접 캔버스로 변환 (모바일에서 dot 누락 방지)
   try {
-    if (sideImg && sideImg.startsWith('data:image')) {
-      // DataURL을 Image 객체로 로드
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('이미지 로드 실패'));
-        img.src = sideImg;
-        // 타임아웃 설정
-        setTimeout(() => {
-          if (!img.complete) reject(new Error('이미지 로드 타임아웃'));
-        }, 5000);
-      });
+    const img = new Image();
+    // DataURL은 crossOrigin 불필요 (CORS 문제 없음)
+    
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('이미지 로드 타임아웃'));
+      }, 5000);
       
-      // ✅ 모바일 고해상도 대응
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const pixelRatio = isMobile ? Math.min(window.devicePixelRatio || 2, 3) : 2;
-      
-      // Canvas에 이미지와 텍스트를 직접 그리기
-      const containerWidth = 794; // PDF 표준 너비
-      const padding = 30;
-      const titleHeight = 40;
-      const footerHeight = 30;
-      
-      // ✅ 한 페이지에 완전히 들어가도록 높이 제한 (페이지 경계에서 잘림 방지)
-      // PDF 페이지 높이: 842px, margin: 24px * 2 = 48px
-      // 사용 가능한 높이: 842 - 48 = 794px
-      // 여유 공간을 고려하여 최대 높이를 730px로 제한 (더 안전하게)
-      const maxCanvasHeight = 730;
-      const availableImageHeight = maxCanvasHeight - titleHeight - 20 - footerHeight - 20 - (padding * 2);
-      
-      // 이미지 크기 계산 (한 페이지에 완전히 들어가도록)
-      const imageAspectRatio = img.width / img.height;
-      let imageWidth = containerWidth - (padding * 2);
-      let imageHeight = imageWidth / imageAspectRatio;
-      
-      // 사용 가능한 높이를 초과하면 크기 조정
-      if (imageHeight > availableImageHeight) {
-        imageHeight = availableImageHeight;
-        imageWidth = imageHeight * imageAspectRatio;
-      }
-      
-      let canvasHeight = titleHeight + 20 + imageHeight + 20 + footerHeight + (padding * 2);
-      
-      // ✅ 최종 높이 검증 (한 페이지를 초과하지 않도록)
-      if (canvasHeight > maxCanvasHeight) {
-        const scale = maxCanvasHeight / canvasHeight;
-        imageHeight = imageHeight * scale;
-        imageWidth = imageHeight * imageAspectRatio;
-        canvasHeight = maxCanvasHeight;
-      }
-      
-      // ✅ 고해상도 캔버스 생성
-      sideImageCanvas = document.createElement('canvas');
-      sideImageCanvas.width = containerWidth * pixelRatio;
-      sideImageCanvas.height = canvasHeight * pixelRatio;
-      
-      const ctx = sideImageCanvas.getContext('2d', {
-        alpha: false,
-        desynchronized: false
-      });
-      
-      // ✅ 고품질 렌더링 설정
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.scale(pixelRatio, pixelRatio);
-      
-      // 배경
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, containerWidth, canvasHeight);
-      
-      // 제목
-      ctx.fillStyle = '#0b0f14';
-      ctx.font = 'bold 20px "Pretendard", "Apple SD Gothic Neo", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('📸 측면 사진', padding, padding);
-      
-      // ✅ 이미지 중앙 정렬 및 고품질 그리기
-      const imageX = (containerWidth - imageWidth) / 2;
-      const imageY = padding + titleHeight + 20;
-      ctx.drawImage(img, imageX, imageY, imageWidth, imageHeight);
-      
-      // 테두리
-      ctx.strokeStyle = '#ddd';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(imageX, imageY, imageWidth, imageHeight);
-      
-      // 푸터
-      ctx.fillStyle = '#666';
-      ctx.font = '9px "Pretendard", "Apple SD Gothic Neo", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(`Generated by ${appName} · ${REPORT_SIGNATURE}`, padding, canvasHeight - footerHeight);
-      ctx.textAlign = 'right';
-      ctx.fillText('Page 1', containerWidth - padding, canvasHeight - footerHeight);
-      
-      // 구분선
-      ctx.strokeStyle = '#e0e0e0';
-      ctx.beginPath();
-      ctx.moveTo(padding, canvasHeight - footerHeight - 10);
-      ctx.lineTo(containerWidth - padding, canvasHeight - footerHeight - 10);
-      ctx.stroke();
-      
-      console.log('✅ 측면 사진 Canvas 직접 생성 완료 (고해상도):', { 
-        width: sideImageCanvas.width, 
-        height: sideImageCanvas.height,
-        pixelRatio: pixelRatio
-      });
-      
-      // ✅ Canvas를 컨테이너에 추가하여 DOM에 존재하도록 보장 (모바일에서 컨테이너 찾기 실패 방지)
-      sideImageContainer.innerHTML = '';
-      sideImageContainer.appendChild(sideImageCanvas);
-      if (!document.body.contains(sideImageContainer)) {
-        document.body.appendChild(sideImageContainer);
-      }
-    } else {
-      // DataURL이 아닌 경우 기존 방식 사용
-      sideImageContainer.innerHTML = `
-        <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 사진</h2>
-        <div style="text-align:center; margin-top:20px;">
-          <img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      img.onerror = (e) => {
+        clearTimeout(timeout);
+        console.error('이미지 로드 실패:', e);
+        reject(new Error('이미지 로드 실패'));
+      };
+      img.src = sideImg;
+    });
+    
+    // ✅ 고해상도 캔버스 직접 생성 (이미지 + dot 포함)
+    const targetWidth = 794;
+    const targetHeight = Math.floor((img.height / img.width) * targetWidth);
+    const maxHeight = 1200; // 최대 높이 제한
+    const finalHeight = Math.min(targetHeight, maxHeight);
+    const finalWidth = Math.floor((img.width / img.height) * finalHeight);
+    
+    sideImageCanvas = document.createElement('canvas');
+    sideImageCanvas.width = finalWidth;
+    sideImageCanvas.height = finalHeight;
+    const ctx = sideImageCanvas.getContext('2d');
+    
+    // 배경 흰색
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, finalWidth, finalHeight);
+    
+    // 이미지 그리기
+    ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+    
+    console.log('✅ 측면 사진 Canvas 직접 생성 완료 (고해상도):', { width: finalWidth, height: finalHeight, pixelRatio: window.devicePixelRatio || 1 });
+  } catch (err) {
+    console.error('❌ 측면 사진 Canvas 직접 생성 실패, html2canvas로 폴백:', err);
+    
+    // 폴백: html2canvas 사용
+    const sideImageContainer = document.createElement("div");
+    sideImageContainer.id = "sideImageContainer";
+    setPageContainerStyle(sideImageContainer);
+    sideImageContainer.classList.add('pdf-safe');
+    
+    sideImageContainer.innerHTML = `
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 사진</h2>
+      <div style="text-align:center; margin-top:20px;">
+        <img src="${sideImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" crossorigin="anonymous" />
+      </div>
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+          <span>Page 1</span>
         </div>
-        <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-          <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-            <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
-            <span>Page 1</span>
-          </div>
-        </div>
-      `;
-      
-      // ✅ 강제 페이지 분할 요소 삽입 (모바일 PDF 사진이 2페이지부터 시작하도록 보장)
-      const sidePageBreak = document.createElement('div');
-      sidePageBreak.className = 'pdf-page-break';
-      document.body.appendChild(sidePageBreak);
-      
-      if (!document.body.contains(sideImageContainer)) {
-        document.body.appendChild(sideImageContainer);
+      </div>
+    `;
+    
+    document.body.appendChild(sideImageContainer);
+    
+    // ✅ 이미지 로드 완료 보장 (모바일 PDF 저장 시 사진 누락 방지)
+    if (sideImg) {
+      const img = sideImageContainer.querySelector('img');
+      if (img) {
+        await new Promise((resolve) => {
+          if (img.complete && img.naturalWidth > 0) {
+            resolve();
+          } else {
+            const timeout = setTimeout(resolve, 5000); // 최대 5초 대기
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+            img.onerror = () => {
+              clearTimeout(timeout);
+              resolve(); // 에러가 나도 계속 진행
+            };
+          }
+        });
       }
-      
-      if (isMobile) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 300)); // 150ms → 300ms로 증가
+    }
+    
+    try {
       const containerWidth = Math.max(sideImageContainer.scrollWidth, sideImageContainer.offsetWidth, 794);
       const containerHeight = Math.max(sideImageContainer.scrollHeight, sideImageContainer.offsetHeight);
       
-      // ✅ 모바일에서 scale 증가 (사진과 dot 선명도 보장)
-      const mobileScale = isMobile ? 2.5 : 1.5;
       sideImageCanvas = await html2canvas(sideImageContainer, {
         ...html2canvasOptions,
         windowWidth: containerWidth,
         windowHeight: containerHeight,
         width: containerWidth,
         height: containerHeight,
-        scale: mobileScale
+        scale: 2.0,  // 품질 향상 (1.5 → 2.0)
+        useCORS: true,
+        allowTaint: false,
+        logging: false
       });
+      
+      // ✅ 캔버스 크기 제한 + 압축
+      if (sideImageCanvas && (sideImageCanvas.width > PDF_MAX_CANVAS_EDGE || sideImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+        const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideImageCanvas.width, PDF_MAX_CANVAS_EDGE / sideImageCanvas.height);
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = Math.floor(sideImageCanvas.width * ratio);
+        newCanvas.height = Math.floor(sideImageCanvas.height * ratio);
+        const ctx = newCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'medium';
+        ctx.drawImage(sideImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
+        sideImageCanvas = newCanvas;
+      }
+    } catch (err2) {
+      console.error('❌ 측면 사진 캔버스 생성 실패:', err2);
+      sideImageCanvas = null;
     }
-    
-    // ✅ 캔버스 크기 제한 + 압축
-    if (sideImageCanvas && (sideImageCanvas.width > PDF_MAX_CANVAS_EDGE || sideImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
-      const ratio = Math.min(PDF_MAX_CANVAS_EDGE / sideImageCanvas.width, PDF_MAX_CANVAS_EDGE / sideImageCanvas.height);
-      const newCanvas = document.createElement('canvas');
-      newCanvas.width = Math.floor(sideImageCanvas.width * ratio);
-      newCanvas.height = Math.floor(sideImageCanvas.height * ratio);
-      const ctx = newCanvas.getContext('2d');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'medium';
-      ctx.drawImage(sideImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
-      sideImageCanvas = newCanvas;
-    }
-  } catch (err) {
-    console.error('❌ 측면 사진 캔버스 생성 실패:', err);
-    sideImageCanvas = null;
-  }
-  
-  // ✅ PDF 컨테이너는 DOM에 유지 (generateFinalPostureReportPDF에서 사용)
-  if (!document.body.contains(sideImageContainer)) {
-    document.body.appendChild(sideImageContainer);
   }
   
   if (isMobile) {
@@ -10405,7 +10134,7 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
 
     ${(sideAnalysis?.topRecommendations || []).length ? `
     <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴(옆모습에서 발견된 자세 문제)</div>
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
       <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
         ${(sideAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
@@ -10473,194 +10202,132 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
 
 // ========== 페이지 3: 정면 사진 ==========
 if (afterViews.front || beforeViews.front) {
-  const frontImageContainer = document.createElement("div");
-  frontImageContainer.id = "frontImageContainer";
-  setPageContainerStyle(frontImageContainer);
-  frontImageContainer.classList.add('pdf-safe');
-  // ✅ 페이지 나누기 강제 적용 (모바일 PDF 사진/점 누락 방지)
-  frontImageContainer.style.pageBreakBefore = 'always';
-  frontImageContainer.style.breakBefore = 'page';
-  
   const frontImg = afterViews.front || beforeViews.front;
   
-  // ✅ 모바일에서 html2canvas가 DataURL을 제대로 캡처하지 못하는 문제 해결
-  // DataURL을 직접 Canvas로 변환하여 사용 (고해상도 대응)
+  // ✅ DataURL 이미지를 직접 캔버스로 변환 (모바일에서 dot 누락 방지)
   try {
-    if (frontImg && frontImg.startsWith('data:image')) {
-      // DataURL을 Image 객체로 로드
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('이미지 로드 실패'));
-        img.src = frontImg;
-        // 타임아웃 설정
-        setTimeout(() => {
-          if (!img.complete) reject(new Error('이미지 로드 타임아웃'));
-        }, 5000);
-      });
+    const img = new Image();
+    // DataURL은 crossOrigin 불필요 (CORS 문제 없음)
+    
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('이미지 로드 타임아웃'));
+      }, 5000);
       
-      // ✅ 모바일 고해상도 대응
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const pixelRatio = isMobile ? Math.min(window.devicePixelRatio || 2, 3) : 2;
-      
-      // Canvas에 이미지와 텍스트를 직접 그리기
-      const containerWidth = 794; // PDF 표준 너비
-      const padding = 30;
-      const titleHeight = 40;
-      const footerHeight = 30;
-      
-      // ✅ 한 페이지에 완전히 들어가도록 높이 제한 (페이지 경계에서 잘림 방지)
-      const maxCanvasHeight = 730;
-      const availableImageHeight = maxCanvasHeight - titleHeight - 20 - footerHeight - 20 - (padding * 2);
-      
-      // 이미지 크기 계산 (한 페이지에 완전히 들어가도록)
-      const imageAspectRatio = img.width / img.height;
-      let imageWidth = containerWidth - (padding * 2);
-      let imageHeight = imageWidth / imageAspectRatio;
-      
-      // 사용 가능한 높이를 초과하면 크기 조정
-      if (imageHeight > availableImageHeight) {
-        imageHeight = availableImageHeight;
-        imageWidth = imageHeight * imageAspectRatio;
-      }
-      
-      let canvasHeight = titleHeight + 20 + imageHeight + 20 + footerHeight + (padding * 2);
-      
-      // ✅ 최종 높이 검증 (한 페이지를 초과하지 않도록)
-      if (canvasHeight > maxCanvasHeight) {
-        const scale = maxCanvasHeight / canvasHeight;
-        imageHeight = imageHeight * scale;
-        imageWidth = imageHeight * imageAspectRatio;
-        canvasHeight = maxCanvasHeight;
-      }
-      
-      // ✅ 고해상도 캔버스 생성
-      frontImageCanvas = document.createElement('canvas');
-      frontImageCanvas.width = containerWidth * pixelRatio;
-      frontImageCanvas.height = canvasHeight * pixelRatio;
-      
-      const ctx = frontImageCanvas.getContext('2d', {
-        alpha: false,
-        desynchronized: false
-      });
-      
-      // ✅ 고품질 렌더링 설정
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.scale(pixelRatio, pixelRatio);
-      
-      // 배경
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, containerWidth, canvasHeight);
-      
-      // 제목
-      ctx.fillStyle = '#0b0f14';
-      ctx.font = 'bold 20px "Pretendard", "Apple SD Gothic Neo", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('📸 정면 사진', padding, padding);
-      
-      // ✅ 이미지 중앙 정렬 및 고품질 그리기
-      const imageX = (containerWidth - imageWidth) / 2;
-      const imageY = padding + titleHeight + 20;
-      ctx.drawImage(img, imageX, imageY, imageWidth, imageHeight);
-      
-      // 테두리
-      ctx.strokeStyle = '#ddd';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(imageX, imageY, imageWidth, imageHeight);
-      
-      // 푸터
-      ctx.fillStyle = '#666';
-      ctx.font = '9px "Pretendard", "Apple SD Gothic Neo", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(`Generated by ${appName} · ${REPORT_SIGNATURE}`, padding, canvasHeight - footerHeight);
-      ctx.textAlign = 'right';
-      ctx.fillText('Page 3', containerWidth - padding, canvasHeight - footerHeight);
-      
-      // 구분선
-      ctx.strokeStyle = '#e0e0e0';
-      ctx.beginPath();
-      ctx.moveTo(padding, canvasHeight - footerHeight - 10);
-      ctx.lineTo(containerWidth - padding, canvasHeight - footerHeight - 10);
-      ctx.stroke();
-      
-      console.log('✅ 정면 사진 Canvas 직접 생성 완료 (고해상도):', { 
-        width: frontImageCanvas.width, 
-        height: frontImageCanvas.height,
-        pixelRatio: pixelRatio
-      });
-      
-      // ✅ Canvas를 컨테이너에 추가하여 DOM에 존재하도록 보장 (모바일에서 컨테이너 찾기 실패 방지)
-      frontImageContainer.innerHTML = '';
-      frontImageContainer.appendChild(frontImageCanvas);
-      if (!document.body.contains(frontImageContainer)) {
-        document.body.appendChild(frontImageContainer);
-      }
-    } else {
-      // DataURL이 아닌 경우 기존 방식 사용
-      frontImageContainer.innerHTML = `
-        <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 사진</h2>
-        <div style="text-align:center; margin-top:20px;">
-          <img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      img.onerror = (e) => {
+        clearTimeout(timeout);
+        console.error('이미지 로드 실패:', e);
+        reject(new Error('이미지 로드 실패'));
+      };
+      img.src = frontImg;
+    });
+    
+    // ✅ 고해상도 캔버스 직접 생성 (이미지 + dot 포함)
+    const targetWidth = 794;
+    const targetHeight = Math.floor((img.height / img.width) * targetWidth);
+    const maxHeight = 1200; // 최대 높이 제한
+    const finalHeight = Math.min(targetHeight, maxHeight);
+    const finalWidth = Math.floor((img.width / img.height) * finalHeight);
+    
+    frontImageCanvas = document.createElement('canvas');
+    frontImageCanvas.width = finalWidth;
+    frontImageCanvas.height = finalHeight;
+    const ctx = frontImageCanvas.getContext('2d');
+    
+    // 배경 흰색
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, finalWidth, finalHeight);
+    
+    // 이미지 그리기
+    ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+    
+    console.log('✅ 정면 사진 Canvas 직접 생성 완료 (고해상도):', { width: finalWidth, height: finalHeight, pixelRatio: window.devicePixelRatio || 1 });
+  } catch (err) {
+    console.error('❌ 정면 사진 Canvas 직접 생성 실패, html2canvas로 폴백:', err);
+    
+    // 폴백: html2canvas 사용
+    const frontImageContainer = document.createElement("div");
+    frontImageContainer.id = "frontImageContainer";
+    setPageContainerStyle(frontImageContainer);
+    frontImageContainer.classList.add('pdf-safe');
+    
+    frontImageContainer.innerHTML = `
+      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 사진</h2>
+      <div style="text-align:center; margin-top:20px;">
+        <img src="${frontImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" crossorigin="anonymous" />
+      </div>
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+          <span>Page 3</span>
         </div>
-        <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-          <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-            <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
-            <span>Page 3</span>
-          </div>
-        </div>
-      `;
-      
-      // ✅ 강제 페이지 분할 요소 삽입 (모바일 PDF 사진이 새 페이지에서 시작하도록 보장)
-      const frontPageBreak = document.createElement('div');
-      frontPageBreak.className = 'pdf-page-break';
-      document.body.appendChild(frontPageBreak);
-      
-      if (!document.body.contains(frontImageContainer)) {
-        document.body.appendChild(frontImageContainer);
+      </div>
+    `;
+    
+    document.body.appendChild(frontImageContainer);
+    
+    // ✅ 이미지 로드 완료 보장 (모바일 PDF 저장 시 사진 누락 방지)
+    if (frontImg) {
+      const img = frontImageContainer.querySelector('img');
+      if (img) {
+        await new Promise((resolve) => {
+          if (img.complete && img.naturalWidth > 0) {
+            resolve();
+          } else {
+            const timeout = setTimeout(resolve, 5000); // 최대 5초 대기
+            img.onload = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+            img.onerror = () => {
+              clearTimeout(timeout);
+              resolve(); // 에러가 나도 계속 진행
+            };
+          }
+        });
       }
-      
-      if (isMobile) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
+    }
+    
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 300)); // 150ms → 300ms로 증가
+    }
+    
+    try {
       const containerWidth = Math.max(frontImageContainer.scrollWidth, frontImageContainer.offsetWidth, 794);
       const containerHeight = Math.max(frontImageContainer.scrollHeight, frontImageContainer.offsetHeight);
       
-      // ✅ 모바일에서 scale 증가 (사진과 dot 선명도 보장)
-      const mobileScale = isMobile ? 2.5 : 1.5;
       frontImageCanvas = await html2canvas(frontImageContainer, {
         ...html2canvasOptions,
         windowWidth: containerWidth,
         windowHeight: containerHeight,
         width: containerWidth,
         height: containerHeight,
-        scale: mobileScale
+        scale: 2.0,  // 품질 향상 (1.5 → 2.0)
+        useCORS: true,
+        allowTaint: false,
+        logging: false
       });
+      
+      // ✅ 캔버스 크기 제한 + 압축
+      if (frontImageCanvas && (frontImageCanvas.width > PDF_MAX_CANVAS_EDGE || frontImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+        const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontImageCanvas.width, PDF_MAX_CANVAS_EDGE / frontImageCanvas.height);
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = Math.floor(frontImageCanvas.width * ratio);
+        newCanvas.height = Math.floor(frontImageCanvas.height * ratio);
+        const ctx = newCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'medium';
+        ctx.drawImage(frontImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
+        frontImageCanvas = newCanvas;
+      }
+    } catch (err2) {
+      console.error('❌ 정면 사진 캔버스 생성 실패:', err2);
+      frontImageCanvas = null;
     }
-    
-    // ✅ 캔버스 크기 제한 + 압축
-    if (frontImageCanvas && (frontImageCanvas.width > PDF_MAX_CANVAS_EDGE || frontImageCanvas.height > PDF_MAX_CANVAS_EDGE)) {
-      const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontImageCanvas.width, PDF_MAX_CANVAS_EDGE / frontImageCanvas.height);
-      const newCanvas = document.createElement('canvas');
-      newCanvas.width = Math.floor(frontImageCanvas.width * ratio);
-      newCanvas.height = Math.floor(frontImageCanvas.height * ratio);
-      const ctx = newCanvas.getContext('2d');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'medium';
-      ctx.drawImage(frontImageCanvas, 0, 0, newCanvas.width, newCanvas.height);
-      frontImageCanvas = newCanvas;
-    }
-  } catch (err) {
-    console.error('❌ 정면 사진 캔버스 생성 실패:', err);
-    frontImageCanvas = null;
-  }
-  
-  // ✅ PDF 컨테이너는 DOM에 유지 (generateFinalPostureReportPDF에서 사용)
-  if (!document.body.contains(frontImageContainer)) {
-    document.body.appendChild(frontImageContainer);
   }
   
   if (isMobile) {
@@ -10686,11 +10353,6 @@ else {
       </div>
     </div>
   `;
-
-  // ✅ 강제 페이지 분할 요소 삽입 (모바일 PDF 사진이 새 페이지에서 시작하도록 보장)
-  const frontPageBreak2 = document.createElement('div');
-  frontPageBreak2.className = 'pdf-page-break';
-  document.body.appendChild(frontPageBreak2);
 
   document.body.appendChild(frontImageContainer);
 }
@@ -10786,7 +10448,7 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
 
     ${(frontAnalysis?.topRecommendations || []).length ? `
     <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 정면 주요 패턴(앞모습에서 발견된 자세 문제)</div>
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 정면 주요 패턴</div>
       <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
         ${(frontAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
@@ -11235,7 +10897,7 @@ page4Container.innerHTML = `
 
   ${(dbAnalysis?.topRecommendations || []).length ? `
   <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
-    <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴(데이터베이스에서 매칭된 자세 문제) (Top 3)</div>
+    <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴 (Top 3)</div>
     <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
       ${(dbAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
         <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
@@ -11271,34 +10933,34 @@ page4Container.innerHTML = `
     const weakMuscles = analysis && analysis.weak ? analysis.weak : [];
     
     // 결론 작성
-    conclusionText += `${memberNameForConclusion}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴(자세 문제의 특징적인 패턴)은 다음과 같습니다:\n\n`;
+    conclusionText += `${memberNameForConclusion}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
     
     if(patterns.length > 0) {
       patterns.forEach((pattern, idx) => {
-        conclusionText += `${idx + 1}. ${addPatternExplanation(pattern)}\n`;
+        conclusionText += `${idx + 1}. ${pattern}\n`;
       });
       conclusionText += '\n';
     } else {
       conclusionText += '특이 패턴 없음\n\n';
     }
     
-    conclusionText += `위 패턴은 특정 근육군(근육 그룹)의 긴장(짧아짐, 뻣뻣해짐)과 약화(약해짐, 힘이 부족함)가 동반되는 전형적인 임상 소견(일반적으로 많이 나타나는 증상)입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화(통증이나 불편함 감소)와 자세 개선(바른 자세로 교정)이 기대됩니다.\n\n`;
+    conclusionText += `위 패턴은 특정 근육군의 긴장(짧아짐)과 약화(약해짐)이 동반되는 전형적인 임상 소견입니다. 아래의 권장사항을 일관되게 6~12주 동안 적용하면 증상 완화와 자세 개선이 기대됩니다.\n\n`;
     
     // 단기 권장사항
     conclusionText += `【단기(1~4주)】\n`;
-    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완(근육 주변 조직 풀어주기), 정적 스트레칭(움직이지 않고 늘리기)) — 하루 1회 10~15분\n`;
-    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동(몸통 중심 근육 운동) (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
+    conclusionText += `1. 긴장 근육 이완 중심(폼롤러, 근막 이완, 정적 스트레칭) — 하루 1회 10~15분\n`;
+    conclusionText += `2. 호흡 조절과 함께하는 코어 기본운동 (Dead Bug, Pelvic Tilt) — 매일 5~10분\n`;
     conclusionText += `3. 일상 생활에서의 자세 리셋(30~40분마다) — 습관화\n\n`;
     
     // 중기 권장사항
     conclusionText += `【중기(4~8주)】\n`;
-    conclusionText += `1. 약화 근육 활성화(약한 근육 강화) (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
+    conclusionText += `1. 약화 근육 활성화 (둔근, 복횡근 등) — 주 3회, 점진적 부하\n`;
     conclusionText += `2. 필라테스 기구 운동을 포함한 통합 프로그램 — 주 2~3회\n`;
     conclusionText += `3. 정기 재평가로 프로그램 조정 (3~4주마다)\n\n`;
     
     // 장기 권장사항
     conclusionText += `【장기(8~12주 이상)】\n`;
-    conclusionText += `통합적 기능 회복(전체적인 몸 기능 되찾기)을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어(근육을 정확하게 움직이는 능력)가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
+    conclusionText += `통합적 기능 회복을 목표로 일상화 및 운동강도 증진을 권장합니다. 근력, 유연성, 신경근 제어가 모두 개선되면 자세 개선 효과는 장기적으로 유지됩니다.\n\n`;
     
     // 점수 기반 추가 권장사항
     if(scoreResult && scoreResult.score != null) {
@@ -14044,7 +13706,6 @@ async function captureForPdf(elem) {
       try {
         draw(); // 모든 점과 선을 다시 그리기
         await new Promise(res => requestAnimationFrame(res)); // 렌더링 완료 대기
-        await new Promise(res => requestAnimationFrame(res)); // 추가 대기
       } catch (err) {
         console.warn('Canvas 렌더링 중 오류:', err);
       }
@@ -14070,28 +13731,16 @@ async function captureForPdf(elem) {
     });
   }
   
-  // ✅ 모바일에서 이미지와 Canvas가 완전히 렌더링될 때까지 대기
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    // 모바일에서는 더 긴 대기 시간 필요
-    await new Promise(res => requestAnimationFrame(res));
-    await new Promise(res => requestAnimationFrame(res));
-    await new Promise(res => requestAnimationFrame(res));
-    await new Promise(res => setTimeout(res, 300)); // 모바일: 300ms 대기
-  } else {
-    // 데스크톱은 기존 대기 시간 유지
-    await new Promise(res => requestAnimationFrame(res));
-    await new Promise(res => requestAnimationFrame(res));
-    await new Promise(res => requestAnimationFrame(res));
-    await new Promise(res => setTimeout(res, 200));
-  }
+  // ✅ 렌더링 타이밍 보장 (더 긴 대기 시간)
+  await new Promise(res => requestAnimationFrame(res));
+  await new Promise(res => requestAnimationFrame(res));
+  await new Promise(res => requestAnimationFrame(res));
+  await new Promise(res => setTimeout(res, 200)); // 100ms → 200ms로 증가
 
   // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정)
-  // 모바일에서는 scale을 높여서 사진과 dot가 선명하게 나오도록 보장
-  const scale = isMobile ? 2.5 : 1.5; // 모바일에서는 고해상도 보장
-  
+  // scale을 1.5로 낮춰서 메모리 절약 및 PDF 크기 최적화
   const canvas = await html2canvas(elem, {
-    scale: scale,  // 모바일: 2.5, 데스크톱: 1.5
+    scale: 1.5,  // 2 → 1.5로 낮춤 (메모리 절약 + PDF 크기 최적화)
     backgroundColor: "#ffffff",
     useCORS: true,
     allowTaint: false,
@@ -14100,7 +13749,7 @@ async function captureForPdf(elem) {
     width: width,
     height: height,
     removeContainer: false, // 컨테이너 제거 방지
-    imageTimeout: 20000, // 이미지 로드 타임아웃 20초 (모바일 대응)
+    imageTimeout: 15000, // 이미지 로드 타임아웃 15초
     windowWidth: width,  // ✅ 명시적 너비 설정
     windowHeight: height, // ✅ 명시적 높이 설정
     onclone: (clonedDoc) => {
@@ -14134,22 +13783,9 @@ async function captureForPdf(elem) {
           // 결론 섹션 식별 및 높이 제한 해제
           const textContent = el.textContent || '';
           const id = el.id || '';
-          // ✅ className이 DOMTokenList일 수 있으므로 안전하게 처리
-          let hasConclusionClass = false;
-          try {
-            if (el.classList && el.classList.contains) {
-              hasConclusionClass = el.classList.contains('conclusion');
-            } else {
-              const className = typeof el.className === 'string' ? el.className : (el.className?.baseVal || String(el.className || ''));
-              hasConclusionClass = className && className.includes && className.includes('conclusion');
-            }
-          } catch (e) {
-            // className 접근 실패 시 무시
-          }
-          
+          const className = el.className || '';
           if (textContent.includes('결론') || textContent.includes('권장사항') || 
-              (id && typeof id === 'string' && id.includes('conclusion')) || 
-              hasConclusionClass) {
+              id.includes('conclusion') || className.includes('conclusion')) {
             el.style.height = 'auto';
             el.style.maxHeight = 'none';
             el.style.overflow = 'visible';
@@ -14267,118 +13903,75 @@ async function exportAsPdf(options = {}) {
   const imgW = pageW - margin * 2;
   const imgH = pageH - margin * 2;
 
-  // ✅ 전체 캔버스를 고해상도로 스케일링하여 한 페이지에 넣는 함수 (슬라이스 방식 제거)
-  async function addImageToPdf(canvas, containerId, addPageAfter, forceNewPage = false) {
+  // ✅ 긴 컨테이너를 여러 페이지로 나누는 함수
+  async function addImageToPdf(canvas, containerId, addPageAfter) {
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
       console.error(`❌ 캔버스가 유효하지 않습니다: ${containerId}`);
       return;
     }
 
-    // ✅ 새 페이지 강제 시작 (모바일 PDF 사진/점 누락 방지)
-    if (forceNewPage) {
-      send({ type: "addPage" });
-      console.log(`📄 새 페이지 강제 시작: ${containerId}`);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    if (!dataUrl || dataUrl === 'data:,') {
+      console.error(`❌ 이미지 데이터 생성 실패: ${containerId}`);
+      return;
     }
 
-    // ✅ 사진 컨테이너는 절대 여러 페이지로 나누지 않음 (페이지 경계에서 잘림 방지)
-    const isImageContainer = containerId === 'sideImageContainer' || containerId === 'frontImageContainer';
-    
-    try {
-      // ✅ 고해상도 캔버스 생성 (모바일에서도 dot과 선이 선명하게 출력)
-      const tempCanvas = document.createElement('canvas');
-      const scale = 2; // 2배 해상도로 dot과 선의 선명도 보장
-      tempCanvas.width = canvas.width * scale;
-      tempCanvas.height = canvas.height * scale;
-      const tctx = tempCanvas.getContext('2d');
+    // ✅ 캔버스 높이를 PDF 페이지 높이로 스케일링
+    const canvasAspectRatio = canvas.width / canvas.height;
+    const maxHeight = imgH; // 한 페이지에 들어갈 수 있는 최대 높이
+    let scaledWidth = imgW;
+    let scaledHeight = imgW / canvasAspectRatio;
+
+    // ✅ 컨테이너가 한 페이지를 초과하면 여러 페이지로 나누기
+    if (scaledHeight > maxHeight) {
+      const numPages = Math.ceil(scaledHeight / maxHeight);
+      console.log(`📄 ${containerId}: ${numPages}개 페이지로 분할 (높이: ${scaledHeight.toFixed(0)}px)`);
       
-      // ✅ 고해상도 렌더링 설정
-      tctx.imageSmoothingEnabled = true;
-      tctx.imageSmoothingQuality = 'high';
-      tctx.scale(scale, scale);
-      tctx.drawImage(canvas, 0, 0);
+      const sourceHeight = canvas.height;
+      const sliceHeight = sourceHeight / numPages;
       
-      // ✅ 모바일에서 최소 크기 보장 (작은 캔버스에서도 선명하게)
-      if (tempCanvas.width < 800) {
-        const minScale = 800 / tempCanvas.width;
-        const minCanvas = document.createElement('canvas');
-        minCanvas.width = 800;
-        minCanvas.height = tempCanvas.height * minScale;
-        const minCtx = minCanvas.getContext('2d');
-        minCtx.imageSmoothingEnabled = true;
-        minCtx.imageSmoothingQuality = 'high';
-        minCtx.drawImage(tempCanvas, 0, 0, minCanvas.width, minCanvas.height);
-        tempCanvas.width = minCanvas.width;
-        tempCanvas.height = minCanvas.height;
-        const finalCtx = tempCanvas.getContext('2d');
-        finalCtx.drawImage(minCanvas, 0, 0);
-        minCanvas.width = 1;
-        minCanvas.height = 1;
-      }
-      
-      // ✅ PNG 포맷으로 고품질 이미지 생성 (dot과 선이 정확하게 보존)
-      const imgData = tempCanvas.toDataURL('image/png', 1.0);
-      if (!imgData || imgData === 'data:,') {
-        console.error(`❌ 이미지 데이터 생성 실패: ${containerId}`);
-        return;
-      }
-      
-      // ✅ 이미지 비율 유지하며 PDF 페이지 크기에 맞춤
-      const canvasAspectRatio = tempCanvas.width / tempCanvas.height;
-      const maxHeight = isImageContainer ? imgH - 50 : imgH; // 사진은 50px 여유 공간 추가
-      let imgWidth = imgW;
-      let imgHeight = imgW / canvasAspectRatio;
-      
-      // ✅ 한 페이지에 맞추기 위해 크기 조정 (잘림 방지)
-      if (imgHeight > maxHeight) {
-        const scaleDown = maxHeight / imgHeight;
-        imgHeight = maxHeight;
-        imgWidth = imgWidth * scaleDown;
-        console.log(`📸 ${containerId}: 한 페이지에 맞추기 위해 크기 조정 (scale: ${scaleDown.toFixed(2)})`);
-      }
-      
-      // ✅ 전체 캔버스를 한 페이지에 삽입 (슬라이스 없이 - dot과 선이 정확하게 보존)
-      send({
-        type: "addImage",
-        dataUrl: imgData,
-        imageType: "PNG", // PNG 포맷 사용 (고품질, dot과 선의 정확도 보장)
-        x: margin,
-        y: margin,
-        width: imgWidth,
-        height: imgHeight,
-        addPageAfter: addPageAfter,
-        compression: "NONE" // ✅ 압축 없음 - 모바일에서 dot과 선이 완벽하게 보존
-      });
-      
-      console.log(`✅ ${containerId}: 전체 캔버스를 고해상도 PNG로 삽입 완료 (${imgWidth.toFixed(0)}x${imgHeight.toFixed(0)})`);
-      
-      // GC
-      tempCanvas.width = 1;
-      tempCanvas.height = 1;
-    } catch (err) {
-      console.error(`❌ ${containerId} 처리 실패:`, err);
-      // 실패 시 기존 방식으로 폴백
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      if (dataUrl && dataUrl !== 'data:,') {
-        const canvasAspectRatio = canvas.width / canvas.height;
-        const maxHeight = isImageContainer ? imgH - 50 : imgH;
-        let scaledWidth = imgW;
-        let scaledHeight = imgW / canvasAspectRatio;
-        if (scaledHeight > maxHeight) {
-          const scale = maxHeight / scaledHeight;
-          scaledHeight = maxHeight;
-          scaledWidth = scaledWidth * scale;
-        }
+      for (let pageIndex = 0; pageIndex < numPages; pageIndex++) {
+        const yOffset = pageIndex * sliceHeight;
+        const currentSliceHeight = Math.min(sliceHeight, sourceHeight - yOffset);
+        
+        // ✅ 캔버스 슬라이스 생성
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = currentSliceHeight;
+        const sliceCtx = sliceCanvas.getContext('2d');
+        sliceCtx.drawImage(canvas, 0, yOffset, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
+        
+        const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.92);
+        const sliceScaledHeight = (currentSliceHeight / sourceHeight) * scaledHeight;
+        
+        // ✅ 각 슬라이스를 PDF 페이지로 추가
         send({
           type: "addImage",
-          dataUrl,
+          dataUrl: sliceDataUrl,
           imageType: "JPEG",
           x: margin,
           y: margin,
           width: scaledWidth,
-          height: scaledHeight,
-          addPageAfter: addPageAfter
+          height: Math.min(sliceScaledHeight, maxHeight),
+          addPageAfter: pageIndex < numPages - 1 || (pageIndex === numPages - 1 && addPageAfter)
         });
-      }
+        
+        // GC
+        sliceCanvas.width = 1;
+        sliceCanvas.height = 1;
+        }
+      } else {
+      // ✅ 한 페이지에 들어가는 경우
+      send({
+        type: "addImage",
+        dataUrl,
+        imageType: "JPEG",
+        x: margin,
+        y: margin,
+        width: scaledWidth,
+        height: scaledHeight,
+        addPageAfter: addPageAfter
+      });
     }
 
     // GC
@@ -14390,30 +13983,11 @@ async function exportAsPdf(options = {}) {
   let capturedCount = 0;
   console.log(`📄 PDF 생성 시작: ${captureList.length}개 컨테이너 캡처 예정`);
   
-  for (let i = 0; i < captureList.length; i++) {
-    const item = captureList[i];
+  for (const item of captureList) {
     const elem = document.getElementById(item.id);
     if (!elem) {
       console.warn(`⚠️ 컨테이너를 찾을 수 없습니다: ${item.id} (조건부 생성 컨테이너일 수 있음)`);
       continue;
-    }
-    
-    // ✅ 모바일 PDF 저장 시 사진은 2페이지부터 시작 (1페이지는 표지용)
-    const isFirstPage = item.id === 'page1Container';
-    const isImageContainer = item.id === 'sideImageContainer' || item.id === 'frontImageContainer';
-    
-    // ✅ 첫 페이지를 처리한 후 또는 이미지 컨테이너는 무조건 새 페이지에서 시작
-    let forceNewPage = false;
-    if (isFirstPage) {
-      // 첫 페이지는 그냥 처리 (새 페이지 시작 안 함)
-      forceNewPage = false;
-    } else if (isImageContainer) {
-      // 이미지 컨테이너는 항상 새 페이지에서 시작 (2페이지부터)
-      forceNewPage = true;
-      console.log(`📸 이미지 컨테이너 감지: ${item.id} - 새 페이지에서 시작`);
-    } else if (capturedCount > 0) {
-      // 첫 페이지 이후 다른 항목들도 새 페이지에서 시작
-      forceNewPage = true;
     }
 
     // ✅ 컨테이너 내용 사전 검증
@@ -14437,17 +14011,11 @@ async function exportAsPdf(options = {}) {
         continue;
       }
 
-      // ✅ 여러 페이지로 나누어서 추가 (첫 페이지 이후는 강제로 새 페이지 시작)
-      await addImageToPdf(canvas, item.id, item.addPageAfter, forceNewPage);
+      // ✅ 여러 페이지로 나누어서 추가
+      await addImageToPdf(canvas, item.id, item.addPageAfter);
 
       capturedCount++;
       console.log(`✅ ${item.id} 캡처 완료`);
-      
-      // ✅ 첫 페이지 처리 직후 명시적으로 새 페이지 시작 (모바일 PDF 사진이 2페이지부터 시작하도록 보장)
-      if (isFirstPage && capturedCount === 1) {
-        send({ type: "addPage" });
-        console.log(`📄 첫 페이지 완료 - 새 페이지 시작 (사진은 2페이지부터)`);
-      }
     } catch (err) {
       console.error(`❌ ${item.id} 캡처 실패:`, err);
       // 에러가 나도 다음 페이지 계속 진행
