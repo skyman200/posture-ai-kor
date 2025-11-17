@@ -13439,45 +13439,38 @@ async function savePDFMobileCompatible(fileName, pdfInstance) {
     const isAndroid = /Android/i.test(navigator.userAgent);
     const isMobile = isMobileDevice();
     
-    // 모바일에서는 직접 save 메서드 시도 (하지만 실패 가능성 높음)
-    if (isMobile) {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        pdfInstance.save(fileName);
-        console.log('✅ PDF 저장 성공 (직접 save)');
-        
-        // 모바일에서 성공 여부 확인을 위한 지연
-        setTimeout(() => {
-          if (isIOS) {
-            console.log('📱 iOS: 파일 앱에서 다운로드 폴더를 확인하세요.');
-          }
-        }, 500);
-        
-        return;
-      } catch (saveErr) {
-        // 에러를 ErrorLogger에 전달
-        if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
-          ErrorLogger.log({
-            type: 'PDFSaveDirectError',
-            message: `직접 save 실패: ${saveErr.message || '알 수 없는 오류'}`,
-            stack: saveErr.stack,
-            filename: fileName,
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            url: window.location.href
-          });
-        }
-        console.warn('⚠️ 직접 save 실패:', saveErr);
-        // 폴백으로 진행
-      }
+    // ✅ 모바일에서는 직접 save 메서드 사용하지 않음 (항상 Blob 방식 사용)
+    // 모바일에서 pdf.save()는 조용히 실패할 수 있고 에러 추적이 어려움
+    if (false && isMobile) {
+      // 이 부분은 사용하지 않음 - 모바일에서 pdf.save()는 조용히 실패할 수 있음
     }
     
+    // ✅ 모바일에서는 항상 Blob 방식 사용 (에러 추적 가능)
     // Blob 생성 (데스크톱 또는 직접 save 실패 시)
     let blob;
     try {
+      // ✅ PDF 생성 완료 확인을 위한 추가 대기
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       blob = pdfInstance.output('blob');
       if (!blob || blob.size === 0) {
-        throw new Error('PDF Blob 생성 실패');
+        throw new Error('PDF Blob 생성 실패: Blob 크기가 0입니다');
+      }
+      
+      // ✅ Blob 크기 확인 및 로깅
+      console.log(`📦 PDF Blob 생성 완료: ${(blob.size / 1024).toFixed(2)} KB`);
+      
+      // ✅ 에러 로깅
+      if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+        ErrorLogger.log({
+          type: 'PDFBlobCreated',
+          message: `PDF Blob 생성 성공: ${(blob.size / 1024).toFixed(2)} KB`,
+          blobSize: blob.size,
+          filename: fileName,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        });
       }
     } catch (blobErr) {
       // 에러를 ErrorLogger에 전달
@@ -16497,6 +16490,23 @@ async function generateFinalPostureReportPDF() {
     const finalCenterName = centerName || 'DIT';
     const finalMemberName = memberName || '회원';
     const filename = `${finalCenterName}_${finalMemberName}_자세분석리포트.pdf`;
+    
+    // ✅ PDF 생성 완료 확인 (모바일에서 잘림 방지)
+    const totalPages = pdf.internal.getNumberOfPages();
+    console.log(`📄 PDF 생성 완료: 총 ${totalPages}페이지`);
+    
+    // ✅ 에러 로깅
+    if (typeof ErrorLogger !== 'undefined' && ErrorLogger.log) {
+      ErrorLogger.log({
+        type: 'PDFGenerationComplete',
+        message: `PDF 생성 완료: ${totalPages}페이지`,
+        totalPages: totalPages,
+        filename: filename,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    }
     
     // ✅ 모바일 호환 저장 함수 사용
     try {
