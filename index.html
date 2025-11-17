@@ -10169,36 +10169,64 @@ const html2canvasOptions = {
   // ✅ Quirks Mode 방지: foreignObjectRendering 비활성화
   foreignObjectRendering: false, // SVG foreignObject 사용 안 함 (Quirks Mode 방지)
   // 메모리 절약 및 텍스트 보호 옵션
-  onclone: (clonedDoc) => {
+  onclone: (clonedDoc, clonedWindow) => {
     // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (최종 강화)
     try {
-      // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
-      if (!clonedDoc.doctype || clonedDoc.compatMode === 'BackCompat') {
-        // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
+      // 복제된 문서와 window 모두 확인
+      const docsToFix = [clonedDoc];
+      if (clonedWindow && clonedWindow.document && clonedWindow.document !== clonedDoc) {
+        docsToFix.push(clonedWindow.document);
+      }
+      
+      docsToFix.forEach(doc => {
         try {
-          const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
-          if (clonedDoc.doctype) {
-            clonedDoc.removeChild(clonedDoc.doctype);
-          }
-          clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
-        } catch (e1) {
-          // 방법 2: documentElement를 새로 생성하여 DOCTYPE 포함
-          try {
-            const htmlContent = clonedDoc.documentElement.outerHTML;
-            const newDoc = document.implementation.createHTMLDocument('');
-            newDoc.documentElement.innerHTML = htmlContent;
-            if (newDoc.doctype && clonedDoc.documentElement) {
-              clonedDoc.replaceChild(newDoc.doctype, clonedDoc.doctype || clonedDoc.documentElement);
+          // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
+          if (!doc.doctype || doc.compatMode === 'BackCompat') {
+            // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
+            try {
+              const doctype = doc.implementation.createDocumentType('html', '', '');
+              // 기존 DOCTYPE이 있으면 제거
+              if (doc.doctype) {
+                doc.removeChild(doc.doctype);
+              }
+              // documentElement 앞에 DOCTYPE 삽입
+              if (doc.documentElement) {
+                doc.insertBefore(doctype, doc.documentElement);
+              } else {
+                // documentElement가 없으면 직접 추가
+                doc.appendChild(doctype);
+              }
+            } catch (e1) {
+              console.warn('createDocumentType 실패, 대체 방법 시도:', e1);
+              // 방법 2: DOMParser를 사용하여 새 문서 생성
+              try {
+                const htmlContent = '<!DOCTYPE html>\n' + (doc.documentElement ? doc.documentElement.outerHTML : '');
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(htmlContent, 'text/html');
+                if (newDoc.doctype) {
+                  // 기존 DOCTYPE 제거 후 새 DOCTYPE 추가
+                  if (doc.doctype) {
+                    doc.removeChild(doc.doctype);
+                  }
+                  if (doc.documentElement) {
+                    doc.insertBefore(newDoc.doctype, doc.documentElement);
+                  }
+                }
+              } catch (e2) {
+                console.warn('DOMParser 방법도 실패:', e2);
+              }
             }
-          } catch (e2) {
-            console.warn('DOCTYPE 추가 실패 (방법 2):', e2);
           }
+          // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
+          if (doc.compatMode === 'BackCompat') {
+            console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE:', doc.doctype);
+          } else {
+            console.log('✅ 복제된 문서가 Standards Mode로 렌더링됩니다.');
+          }
+        } catch (docErr) {
+          console.warn('개별 문서 DOCTYPE 처리 중 오류:', docErr);
         }
-      }
-      // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
-      if (clonedDoc.compatMode === 'BackCompat') {
-        console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE 추가 실패.');
-      }
+      });
     } catch (err) {
       console.warn('onclone DOCTYPE 처리 중 오류:', err);
     }
@@ -14038,30 +14066,50 @@ async function captureForPdf(elem) {
     windowWidth: width,  // ✅ 명시적 너비 설정
     windowHeight: height, // ✅ 명시적 높이 설정
     onclone: (clonedDoc) => {
-      // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (강화)
+      // ✅ Quirks Mode 방지: 복제된 문서에 DOCTYPE 추가 (최종 강화)
       try {
-        if (!clonedDoc.doctype) {
-          // 방법 1: createDocumentType 사용
+        // DOCTYPE이 없거나 Quirks Mode인 경우 강제로 추가
+        if (!clonedDoc.doctype || clonedDoc.compatMode === 'BackCompat') {
+          // 방법 1: createDocumentType 사용 (가장 표준적인 방법)
           try {
             const doctype = clonedDoc.implementation.createDocumentType('html', '', '');
-            clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
+            // 기존 DOCTYPE이 있으면 제거
+            if (clonedDoc.doctype) {
+              clonedDoc.removeChild(clonedDoc.doctype);
+            }
+            // documentElement 앞에 DOCTYPE 삽입
+            if (clonedDoc.documentElement) {
+              clonedDoc.insertBefore(doctype, clonedDoc.documentElement);
+            } else {
+              // documentElement가 없으면 직접 추가
+              clonedDoc.appendChild(doctype);
+            }
           } catch (e1) {
-            // 방법 2: 직접 DOCTYPE 문자열 삽입
+            console.warn('createDocumentType 실패, 대체 방법 시도:', e1);
+            // 방법 2: DOMParser를 사용하여 새 문서 생성
             try {
-              const doctypeString = '<!DOCTYPE html>';
+              const htmlContent = '<!DOCTYPE html>\n' + (clonedDoc.documentElement ? clonedDoc.documentElement.outerHTML : '');
               const parser = new DOMParser();
-              const tempDoc = parser.parseFromString(doctypeString + clonedDoc.documentElement.outerHTML, 'text/html');
-              if (tempDoc.doctype) {
-                clonedDoc.replaceChild(tempDoc.doctype, clonedDoc.doctype || clonedDoc.documentElement);
+              const newDoc = parser.parseFromString(htmlContent, 'text/html');
+              if (newDoc.doctype) {
+                // 기존 DOCTYPE 제거 후 새 DOCTYPE 추가
+                if (clonedDoc.doctype) {
+                  clonedDoc.removeChild(clonedDoc.doctype);
+                }
+                if (clonedDoc.documentElement) {
+                  clonedDoc.insertBefore(newDoc.doctype, clonedDoc.documentElement);
+                }
               }
             } catch (e2) {
-              console.warn('DOCTYPE 추가 실패:', e2);
+              console.warn('DOMParser 방법도 실패:', e2);
             }
           }
         }
-        // DOCTYPE이 있어도 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
+        // 최종 확인: document.compatMode가 'BackCompat'이면 Quirks Mode
         if (clonedDoc.compatMode === 'BackCompat') {
-          console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다.');
+          console.warn('⚠️ 복제된 문서가 여전히 Quirks Mode입니다. DOCTYPE:', clonedDoc.doctype);
+        } else {
+          console.log('✅ 복제된 문서가 Standards Mode로 렌더링됩니다.');
         }
       } catch (err) {
         console.warn('onclone DOCTYPE 처리 중 오류:', err);
