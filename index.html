@@ -3312,6 +3312,25 @@ function setOrientation(orientation, options = {}) {
     resizeCanvasFor(null);
     draw();
   }
+  
+  // ✅ orientation 변경 시 해당 orientation에 맞는 분석 결과 다시 표시
+  if(session.metrics) {
+    const fullMetrics = session.metrics.fullMetrics || {};
+    const analysis = session.analysis;
+    const scoreData = session.metrics.scoreData || { score: session.score };
+    
+    // orientation에 맞는 분석 결과 업데이트
+    if(orientation === "side") {
+      // 측면 분석 결과 표시
+      const cva = session.metrics.cva;
+      const pelvic = session.metrics.pelvic;
+      const knee = session.metrics.knee;
+      updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis);
+    } else if(orientation === "front") {
+      // 정면 분석 결과 표시
+      updateScoreAndAnalysis(scoreData, null, null, null, analysis);
+    }
+  }
 }
 
 function switchSession(s) {
@@ -14791,16 +14810,16 @@ let modelsLoaded = { front: false, side: false };
 // ✅ 모델 로드 (정면: MoveNet, 옆모습: BlazePose)
 async function loadPoseModels() {
   try {
-    // 정면 모델 로드
+    // 정면 모델 로드 (THUNDER 모델 사용 - 더 정확한 관절 인식)
     if (!modelsLoading.front && !modelsLoaded.front) {
       modelsLoading.front = true;
     detectors.front = await poseDetection.createDetector(
       poseDetection.SupportedModels.MoveNet,
-      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER }
     );
       modelsLoaded.front = true;
       modelsLoading.front = false;
-      console.log("✅ 정면 모델 로드 완료");
+      console.log("✅ 정면 모델 로드 완료 (THUNDER)");
     }
     
     // 옆모습 모델 로드
@@ -15057,9 +15076,10 @@ function mapPoseToKeypoints(pose, orientation) {
       const confidence = getKeypointConfidence(kp);
       console.log(`🔍 ${label} 디버깅: confidence=${confidence.toFixed(3)}, x=${kp.x?.toFixed(3)}, y=${kp.y?.toFixed(3)}`);
       
-      // ✅ confidence 임계값을 낮춰서 더 많은 랜드마크를 매핑 (0.1 → 0.05)
-      // 최소 confidence를 0.05로 설정하여 낮은 confidence도 허용
-      const minConfidence = 0.05;
+      // ✅ confidence 임계값을 더 낮춰서 더 많은 랜드마크를 매핑 (옆면처럼 예민하게)
+      // 최소 confidence를 0.01로 설정하여 낮은 confidence도 허용
+      // confidence가 0이 아니면 사용, 0이면 최소값 0.01 부여
+      const minConfidence = 0.01;
       const finalConfidence = confidence > 0 ? Math.max(confidence, minConfidence) : minConfidence;
       
       // ✅ 좌표 정확도 향상: 정규화된 좌표인지 픽셀 좌표인지 확인
@@ -15069,22 +15089,33 @@ function mapPoseToKeypoints(pose, orientation) {
     };
     
     // 정면 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
-    // 화면 왼쪽 어깨 (keypoints[11]) → 환자 왼쪽 어깨 → L_acromion
+    // 화면 왼쪽 어깨 (keypoints[5]) → 환자 왼쪽 어깨 → L_acromion
+    // ✅ confidence 체크 완화: 좌표만 있으면 매핑 (옆면처럼 예민하게)
     const leftShoulderPoint = makePoint(mpScreenLeft, 'L_acromion');
     if (leftShoulderPoint) {
       keypointMap['L_acromion'] = leftShoulderPoint;
       console.log(`✅ L_acromion 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftShoulderPoint.x.toFixed(3)}, ${leftShoulderPoint.y.toFixed(3)}), score: ${leftShoulderPoint.score.toFixed(2)}`);
+    } else if (mpScreenLeft && mpScreenLeft.x !== undefined && mpScreenLeft.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenLeft);
+      keypointMap['L_acromion'] = { x: mpScreenLeft.x, y: mpScreenLeft.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ L_acromion 매핑 (낮은 confidence 허용): (${mpScreenLeft.x.toFixed(3)}, ${mpScreenLeft.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     } else {
-      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenLeft confidence=${getKeypointConfidence(mpScreenLeft).toFixed(2)}`);
+      console.warn(`⚠️ L_acromion 매핑 실패: mpScreenLeft가 null이거나 좌표가 없음`);
     }
     
-    // 화면 오른쪽 어깨 (keypoints[12]) → 환자 오른쪽 어깨 → R_acromion
+    // 화면 오른쪽 어깨 (keypoints[6]) → 환자 오른쪽 어깨 → R_acromion
     const rightShoulderPoint = makePoint(mpScreenRight, 'R_acromion');
     if (rightShoulderPoint) {
       keypointMap['R_acromion'] = rightShoulderPoint;
       console.log(`✅ R_acromion 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightShoulderPoint.x.toFixed(3)}, ${rightShoulderPoint.y.toFixed(3)}), score: ${rightShoulderPoint.score.toFixed(2)}`);
+    } else if (mpScreenRight && mpScreenRight.x !== undefined && mpScreenRight.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenRight);
+      keypointMap['R_acromion'] = { x: mpScreenRight.x, y: mpScreenRight.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ R_acromion 매핑 (낮은 confidence 허용): (${mpScreenRight.x.toFixed(3)}, ${mpScreenRight.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     } else {
-      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight confidence=${getKeypointConfidence(mpScreenRight).toFixed(2)}`);
+      console.warn(`⚠️ R_acromion 매핑 실패: mpScreenRight가 null이거나 좌표가 없음`);
     }
     
     // L_tragus, R_tragus: MoveNet의 귀 랜드마크 사용
@@ -15136,10 +15167,16 @@ function mapPoseToKeypoints(pose, orientation) {
     
     // 정면 매핑: 화면 왼쪽 → 환자 왼쪽 → L_*, 화면 오른쪽 → 환자 오른쪽 → R_*
     // keypoint가 null이면 어깨를 기준으로 추정 (픽셀 좌표 기준)
+    // ✅ confidence 체크 완화: 좌표만 있으면 매핑 (옆면처럼 예민하게)
     const leftHipPoint = makePoint(mpScreenLeftHip, 'L_asis');
     if (leftHipPoint) {
       keypointMap['L_asis'] = leftHipPoint;
       console.log(`✅ L_asis 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftHipPoint.x.toFixed(3)}, ${leftHipPoint.y.toFixed(3)}), score: ${leftHipPoint.score.toFixed(2)}`);
+    } else if (mpScreenLeftHip && mpScreenLeftHip.x !== undefined && mpScreenLeftHip.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenLeftHip);
+      keypointMap['L_asis'] = { x: mpScreenLeftHip.x, y: mpScreenLeftHip.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ L_asis 매핑 (낮은 confidence 허용): (${mpScreenLeftHip.x.toFixed(3)}, ${mpScreenLeftHip.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     } else if (keypointMap['L_acromion']) {
       // 어깨를 기준으로 골반 위치 추정 (이미지 높이에 비례)
       const shoulderY = keypointMap['L_acromion'].y;
@@ -15157,6 +15194,11 @@ function mapPoseToKeypoints(pose, orientation) {
     if (rightHipPoint) {
       keypointMap['R_asis'] = rightHipPoint;
       console.log(`✅ R_asis 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightHipPoint.x.toFixed(3)}, ${rightHipPoint.y.toFixed(3)}), score: ${rightHipPoint.score.toFixed(2)}`);
+    } else if (mpScreenRightHip && mpScreenRightHip.x !== undefined && mpScreenRightHip.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenRightHip);
+      keypointMap['R_asis'] = { x: mpScreenRightHip.x, y: mpScreenRightHip.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ R_asis 매핑 (낮은 confidence 허용): (${mpScreenRightHip.x.toFixed(3)}, ${mpScreenRightHip.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     } else if (keypointMap['R_acromion']) {
       // 어깨를 기준으로 골반 위치 추정 (이미지 높이에 비례)
       const shoulderY = keypointMap['R_acromion'].y;
@@ -15172,9 +15214,14 @@ function mapPoseToKeypoints(pose, orientation) {
     // ✅ 무릎과 발목은 MoveNet keypoints를 우선 사용 (정확도 향상)
     // MoveNet: keypoints[13]=left_knee, keypoints[14]=right_knee, keypoints[15]=left_ankle, keypoints[16]=right_ankle
     const leftKneePoint = makePoint(mpScreenLeftKnee, 'L_knee');
-    if (leftKneePoint && leftKneePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤 (0.1 → 0.05)
+    if (leftKneePoint) {
       keypointMap['L_knee'] = leftKneePoint;
       console.log(`✅ L_knee 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftKneePoint.x.toFixed(3)}, ${leftKneePoint.y.toFixed(3)}), score: ${leftKneePoint.score.toFixed(2)}`);
+    } else if (mpScreenLeftKnee && mpScreenLeftKnee.x !== undefined && mpScreenLeftKnee.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenLeftKnee);
+      keypointMap['L_knee'] = { x: mpScreenLeftKnee.x, y: mpScreenLeftKnee.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ L_knee 매핑 (낮은 confidence 허용): (${mpScreenLeftKnee.x.toFixed(3)}, ${mpScreenLeftKnee.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     } else if (keypointMap['L_asis']) {
       const hipY = keypointMap['L_asis'].y;
       // ✅ 골반에서 무릎까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
@@ -15198,9 +15245,14 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const rightKneePoint = makePoint(mpScreenRightKnee, 'R_knee');
-    if (rightKneePoint && rightKneePoint.score >= 0.05) { // ✅ confidence 임계값 낮춤
+    if (rightKneePoint) {
       keypointMap['R_knee'] = rightKneePoint;
       console.log(`✅ R_knee 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightKneePoint.x.toFixed(3)}, ${rightKneePoint.y.toFixed(3)}), score: ${rightKneePoint.score.toFixed(2)}`);
+    } else if (mpScreenRightKnee && mpScreenRightKnee.x !== undefined && mpScreenRightKnee.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenRightKnee);
+      keypointMap['R_knee'] = { x: mpScreenRightKnee.x, y: mpScreenRightKnee.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ R_knee 매핑 (낮은 confidence 허용): (${mpScreenRightKnee.x.toFixed(3)}, ${mpScreenRightKnee.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     } else if (keypointMap['R_asis']) {
       const hipY = keypointMap['R_asis'].y;
       // ✅ 골반에서 무릎까지: 정규화된 좌표인 경우 0.28~0.32 정도 아래 (더 정확한 비율)
@@ -15224,10 +15276,15 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const leftAnklePoint = makePoint(mpScreenLeftAnkle, 'L_ankle');
-    // ✅ 발목 키포인트는 항상 매핑 시도 (confidence 임계값 0.01로 낮춤)
-    if (leftAnklePoint && leftAnklePoint.score >= 0.01) {
+    // ✅ confidence 체크 완화: 좌표만 있으면 매핑 (옆면처럼 예민하게)
+    if (leftAnklePoint) {
       keypointMap['L_ankle'] = leftAnklePoint;
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnklePoint.x.toFixed(3)}, ${leftAnklePoint.y.toFixed(3)}), score: ${leftAnklePoint.score.toFixed(2)}`);
+    } else if (mpScreenLeftAnkle && mpScreenLeftAnkle.x !== undefined && mpScreenLeftAnkle.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenLeftAnkle);
+      keypointMap['L_ankle'] = { x: mpScreenLeftAnkle.x, y: mpScreenLeftAnkle.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ L_ankle 매핑 (낮은 confidence 허용): (${mpScreenLeftAnkle.x.toFixed(3)}, ${mpScreenLeftAnkle.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     }
     // ✅ 발목이 감지되지 않으면 무조건 추정 (무릎, 골반, 어깨 순으로)
     if (!keypointMap['L_ankle']) {
@@ -15265,10 +15322,15 @@ function mapPoseToKeypoints(pose, orientation) {
     }
     
     const rightAnklePoint = makePoint(mpScreenRightAnkle, 'R_ankle');
-    // ✅ 발목 키포인트는 항상 매핑 시도 (confidence 임계값 0.01로 낮춤)
-    if (rightAnklePoint && rightAnklePoint.score >= 0.01) {
+    // ✅ confidence 체크 완화: 좌표만 있으면 매핑 (옆면처럼 예민하게)
+    if (rightAnklePoint) {
       keypointMap['R_ankle'] = rightAnklePoint;
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnklePoint.x.toFixed(3)}, ${rightAnklePoint.y.toFixed(3)}), score: ${rightAnklePoint.score.toFixed(2)}`);
+    } else if (mpScreenRightAnkle && mpScreenRightAnkle.x !== undefined && mpScreenRightAnkle.y !== undefined) {
+      // 좌표가 있으면 confidence가 낮아도 매핑
+      const conf = getKeypointConfidence(mpScreenRightAnkle);
+      keypointMap['R_ankle'] = { x: mpScreenRightAnkle.x, y: mpScreenRightAnkle.y, score: Math.max(conf, 0.01) };
+      console.log(`✅ R_ankle 매핑 (낮은 confidence 허용): (${mpScreenRightAnkle.x.toFixed(3)}, ${mpScreenRightAnkle.y.toFixed(3)}), score: ${Math.max(conf, 0.01).toFixed(2)}`);
     }
     // ✅ 발목이 감지되지 않으면 무조건 추정 (무릎, 골반, 어깨 순으로)
     if (!keypointMap['R_ankle']) {
