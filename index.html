@@ -9349,7 +9349,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
     if(views.side) {
       rows.push(`
         <div style="text-align:center;">
-          <img src="${views.side}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff; image-rendering:high-quality; opacity:1; visibility:visible;" loading="eager" />
+          <img src="${views.side}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
           <div style="margin-top:6px; font-size:11px; color:#475569; font-weight:600;">${label} · 옆모습</div>
         </div>
       `);
@@ -9357,7 +9357,7 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
     if(views.front) {
       rows.push(`
         <div style="text-align:center;">
-          <img src="${views.front}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff; image-rendering:high-quality; opacity:1; visibility:visible;" loading="eager" />
+          <img src="${views.front}" style="width:100%; height:auto; border-radius:10px; border:1px solid #e2e8f0; display:block; max-height:320px; object-fit:contain; background:#fff; image-rendering:high-quality;" />
           <div style="margin-top:6px; font-size:11px; color:#475569; font-weight:600;">${label} · 정면</div>
         </div>
       `);
@@ -9525,17 +9525,15 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
       await wait(50);
     }
 
-  // ✅ Canvas 렌더링 완료 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
-  // 여러 번 렌더링하여 모든 점과 선이 그려지도록 보장
-  if (cv && typeof draw === 'function') {
-    draw(); // 첫 번째 렌더링
-    await new Promise(res => requestAnimationFrame(res));
-    draw(); // 두 번째 렌더링 (모바일에서 렌더링 지연 보정)
-    await new Promise(res => requestAnimationFrame(res));
-    draw(); // 세 번째 렌더링 (모바일에서 추가 보장)
-    await new Promise(res => requestAnimationFrame(res));
-    await wait(300); // 모바일에서 더 긴 대기 시간 (렌더링 완료 보장)
-  }
+    // ✅ Canvas 렌더링 완료 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
+    // 여러 번 렌더링하여 모든 점과 선이 그려지도록 보장
+    if (cv && typeof draw === 'function') {
+      draw(); // 첫 번째 렌더링
+      await new Promise(res => requestAnimationFrame(res));
+      draw(); // 두 번째 렌더링 (모바일에서 렌더링 지연 보정)
+      await new Promise(res => requestAnimationFrame(res));
+      await wait(100); // 추가 대기 시간 (모바일 렌더링 완료 보장)
+    }
 
     // ✅ Canvas 내용 검증 (빈 캔버스 방지)
     let snapshot = null;
@@ -9742,10 +9740,10 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 document.body.appendChild(page1Container);
 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
-// 모바일에서 메모리 절약 및 잘림 방지를 위해 scale 조정
+// 화질 대폭 개선을 위해 scale과 크기 제한 증가
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = isMobile ? 3000 : 5000; // 모바일에서 메모리 절약
-const baseCanvasScale = isMobile ? 2.0 : 3.0; // 모바일에서 scale 낮춤 (잘림 방지)
+const PDF_MAX_CANVAS_EDGE = isMobile ? 3500 : 5000; // 고해상도 개선 (2000/3000 → 3500/5000)
+const baseCanvasScale = isMobile ? 4.0 : 5.0; // 고해상도 개선 (2.5/3.0 → 4.0/5.0)
 const html2canvasOptions = {
   scale: baseCanvasScale,
   backgroundColor: "#ffffff",
@@ -9754,9 +9752,8 @@ const html2canvasOptions = {
   logging: false,
   scrollX: 0,
   scrollY: -window.scrollY,
-  imageTimeout: 30000, // 모바일에서 이미지 로드 대기 시간 증가
-  removeContainer: false, // 컨테이너 제거 방지 (잘림 방지)
-  foreignObjectRendering: true, // Canvas 요소 렌더링 개선
+  imageTimeout: 20000,
+  removeContainer: isMobile,
   // 텍스트 잘림 방지 옵션
   letterRendering: true, // 텍스트 렌더링 개선
   // 메모리 절약 및 텍스트 보호 옵션
@@ -9781,24 +9778,9 @@ const html2canvasOptions = {
       }
     });
     
-    // ✅ Canvas 요소 렌더링 보장 (dot 포함)
-    const canvasElements = clonedDoc.querySelectorAll('canvas');
-    canvasElements.forEach(canvas => {
-      // Canvas가 보이도록 스타일 강제 적용
-      canvas.style.opacity = '1';
-      canvas.style.visibility = 'visible';
-      canvas.style.display = 'block';
-      canvas.style.position = 'relative';
-    });
-    
     // 복제된 문서에서 불필요한 요소 제거
     const images = clonedDoc.querySelectorAll('img');
     images.forEach(img => {
-      // 이미지가 보이도록 스타일 강제 적용
-      img.style.opacity = '1';
-      img.style.visibility = 'visible';
-      img.style.display = 'block';
-      
       if (img.src && img.src.startsWith('data:')) {
         // 큰 data URI 이미지는 제거하거나 리사이즈
         try {
@@ -9824,14 +9806,9 @@ try {
     await new Promise(resolve => setTimeout(resolve, 200));
   }
 
-  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산 (모바일 최적화)
+  // 텍스트 잘림 방지를 위해 컨테이너 크기를 정확히 계산
   const containerWidth = Math.max(page1Container.scrollWidth, page1Container.offsetWidth, 794);
   const containerHeight = Math.max(page1Container.scrollHeight, page1Container.offsetHeight);
-  
-  // 모바일에서 추가 대기 시간 (렌더링 완료 보장)
-  if (isMobile) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
   
   canvas1 = await html2canvas(page1Container, {
     ...html2canvasOptions,
@@ -9932,11 +9909,12 @@ if (afterViews.side || beforeViews.side) {
   sideImageContainer.classList.add('pdf-safe');
   
   if (sideImageCanvas) {
-    // ✅ Canvas를 직접 컨테이너에 추가 (이미지 변환 없이, dot 포함 보장)
+    // 캔버스를 이미지로 변환하여 컨테이너에 추가
+    const imgUrl = sideImageCanvas.toDataURL('image/png', 1.0);
     sideImageContainer.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 사진</h2>
       <div style="text-align:center; margin-top:20px;">
-        <canvas id="sideImageCanvasElement" width="${sideImageCanvas.width}" height="${sideImageCanvas.height}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;"></canvas>
+        <img src="${imgUrl}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
       </div>
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -9945,12 +9923,6 @@ if (afterViews.side || beforeViews.side) {
         </div>
       </div>
     `;
-    // Canvas 내용 복사
-    const containerCanvas = sideImageContainer.querySelector('#sideImageCanvasElement');
-    if (containerCanvas) {
-      const ctx = containerCanvas.getContext('2d');
-      ctx.drawImage(sideImageCanvas, 0, 0);
-    }
   } else {
     // 폴백: 원본 이미지 사용
     sideImageContainer.innerHTML = `
@@ -10150,11 +10122,6 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
     const containerWidth = 794;  // PDF 표준 너비로 고정
     const containerHeight = Math.max(sideReportContainer.scrollHeight, sideReportContainer.offsetHeight);
     
-    // 모바일에서 추가 대기 시간 (렌더링 완료 보장)
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
     console.log('📄 측면 리포트 캔버스 생성:', { width: containerWidth, height: containerHeight });
     
     sideReportCanvas = await html2canvas(sideReportContainer, {
@@ -10163,7 +10130,7 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
       windowHeight: containerHeight,
       width: containerWidth,
       height: containerHeight,
-      scale: isMobile ? 1.5 : 2.0  // 모바일에서 scale 낮춤 (잘림 방지)
+      scale: 1.5  // 품질 낮춤
     });
     
     // ✅ 캔버스 크기 제한 + 압축
@@ -10251,11 +10218,12 @@ if (afterViews.front || beforeViews.front) {
   frontImageContainer.classList.add('pdf-safe');
   
   if (frontImageCanvas) {
-    // ✅ Canvas를 직접 컨테이너에 추가 (이미지 변환 없이, dot 포함 보장)
+    // 캔버스를 이미지로 변환하여 컨테이너에 추가
+    const imgUrl = frontImageCanvas.toDataURL('image/png', 1.0);
     frontImageContainer.innerHTML = `
       <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 사진</h2>
       <div style="text-align:center; margin-top:20px;">
-        <canvas id="frontImageCanvasElement" width="${frontImageCanvas.width}" height="${frontImageCanvas.height}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;"></canvas>
+        <img src="${imgUrl}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:800px; object-fit:contain; background:#fff;" />
       </div>
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
         <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -10264,12 +10232,6 @@ if (afterViews.front || beforeViews.front) {
         </div>
       </div>
     `;
-    // Canvas 내용 복사
-    const containerCanvas = frontImageContainer.querySelector('#frontImageCanvasElement');
-    if (containerCanvas) {
-      const ctx = containerCanvas.getContext('2d');
-      ctx.drawImage(frontImageCanvas, 0, 0);
-    }
   } else {
     // 폴백: 원본 이미지 사용
     frontImageContainer.innerHTML = `
@@ -10434,11 +10396,6 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
     const containerWidth = 794;  // PDF 표준 너비로 고정
     const containerHeight = Math.max(frontReportContainer.scrollHeight, frontReportContainer.offsetHeight);
     
-    // 모바일에서 추가 대기 시간 (렌더링 완료 보장)
-    if (isMobile) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
     console.log('📄 정면 리포트 캔버스 생성:', { width: containerWidth, height: containerHeight });
     
     frontReportCanvas = await html2canvas(frontReportContainer, {
@@ -10447,7 +10404,7 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
       windowHeight: containerHeight,
       width: containerWidth,
       height: containerHeight,
-      scale: isMobile ? 1.5 : 2.0  // 모바일에서 scale 낮춤 (잘림 방지)
+      scale: 1.5  // 품질 낮춤
     });
     
     // ✅ 캔버스 크기 제한 + 압축
@@ -13598,23 +13555,35 @@ async function captureForPdf(elem) {
   const originalTransform = elem.style.transform;
   const originalClass = elem.className;
   
-  // ✅ .pdf-safe 클래스 제거 (opacity: 0 !important 우회)
-  if (elem.classList.contains('pdf-safe')) {
+  // ✅ .pdf-safe 클래스 제거 및 위치 조정 (모바일 렌더링 엔진 대응)
+  // pdf-safe는 left: -9999px로 화면 밖에 있어 모바일에서 빈 영역으로 인식될 수 있음
+  const wasPdfSafe = elem.classList.contains('pdf-safe');
+  if (wasPdfSafe) {
     elem.classList.remove('pdf-safe');
   }
+  
+  // ✅ 캡처 전에 보이는 영역으로 이동 (모바일 렌더링 엔진이 숨겨진 요소를 놓치지 않도록)
+  // 원래 위치 저장 (복원용)
+  const originalLeftValue = elem.style.left || window.getComputedStyle(elem).left;
+  const originalTopValue = elem.style.top || window.getComputedStyle(elem).top;
   
   // ✅ 인라인 스타일로 강제 설정 (!important 우회)
   elem.style.setProperty('opacity', '1', 'important');
   elem.style.setProperty('visibility', 'visible', 'important');
   elem.style.setProperty('position', 'absolute', 'important');
-  elem.style.setProperty('top', '0', 'important');
-  elem.style.setProperty('left', '0', 'important');
+  elem.style.setProperty('top', '0', 'important'); // 보이는 영역으로 이동
+  elem.style.setProperty('left', '0', 'important'); // 보이는 영역으로 이동
   elem.style.setProperty('z-index', '9999', 'important');
   elem.style.setProperty('transform', 'scale(1)', 'important');
   elem.style.setProperty('display', 'block', 'important');
   // ✅ A4 용지 너비에 맞게 강제 설정 (794px = A4 너비, CSS !important 우회)
   elem.style.setProperty('width', `${width}px`, 'important');
   elem.style.setProperty('max-width', `${width}px`, 'important');
+  
+  // 모바일에서 위치 조정 후 추가 대기 (렌더링 엔진이 위치 변경을 인식할 시간)
+  if (isMobile && wasPdfSafe) {
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
   
   // ✅ 추가: 모든 자식 요소도 opacity 보정
   const allChildren = elem.querySelectorAll('*');
@@ -13635,23 +13604,78 @@ async function captureForPdf(elem) {
     await document.fonts.ready;
   }
   
-  // ✅ 이미지 로드 대기
+  // ✅ 이미지 로드 대기 (모바일 환경 강화)
   const images = elem.querySelectorAll('img');
   if (images.length > 0) {
-    await Promise.all(Array.from(images).map(img => {
-      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    console.log(`📸 이미지 로드 대기 중: ${images.length}개 이미지`);
+    
+    // 모든 이미지의 complete 속성과 naturalWidth 확인
+    const imageLoadPromises = Array.from(images).map((img, index) => {
       return new Promise((resolve) => {
-        const timeout = setTimeout(resolve, 3000); // 최대 3초 대기
+        // 이미 완전히 로드된 이미지 확인
+        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          // Data URL 이미지도 확인
+          if (img.src && img.src.startsWith('data:')) {
+            resolve();
+            return;
+          }
+          // 외부 이미지는 한 번 더 확인
+          const testImg = new Image();
+          testImg.onload = () => {
+            resolve();
+          };
+          testImg.onerror = () => {
+            console.warn(`⚠️ 이미지 로드 확인 실패 (인덱스 ${index}), 계속 진행`);
+            resolve(); // 에러가 나도 계속 진행
+          };
+          testImg.src = img.src;
+          // 타임아웃 설정
+          setTimeout(() => {
+            if (testImg.complete) {
+              resolve();
+            }
+          }, 2000);
+          return;
+        }
+        
+        // 로드 중인 이미지 대기
+        const timeout = setTimeout(() => {
+          console.warn(`⚠️ 이미지 로드 타임아웃 (인덱스 ${index}), 계속 진행`);
+          resolve(); // 타임아웃되어도 계속 진행
+        }, isMobile ? 10000 : 5000); // 모바일에서 더 긴 대기 시간
+        
         img.onload = () => {
           clearTimeout(timeout);
-          resolve();
+          // 로드 완료 후 추가 검증
+          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+            resolve();
+          } else {
+            console.warn(`⚠️ 이미지 크기가 0입니다 (인덱스 ${index})`);
+            resolve(); // 크기가 0이어도 계속 진행
+          }
         };
+        
         img.onerror = () => {
           clearTimeout(timeout);
+          console.warn(`⚠️ 이미지 로드 실패 (인덱스 ${index}), 계속 진행`);
           resolve(); // 에러가 나도 계속 진행
         };
+        
+        // 이미 src가 설정되어 있지 않으면 즉시 resolve
+        if (!img.src || img.src === '') {
+          clearTimeout(timeout);
+          resolve();
+        }
       });
-    }));
+    });
+    
+    await Promise.all(imageLoadPromises);
+    console.log('✅ 모든 이미지 로드 완료');
+    
+    // 모바일에서 추가 대기 시간 (렌더링 완료 보장)
+    if (isMobile) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
   }
   
   // ✅ 컨테이너 내용 검증 (빈 컨테이너 방지)
@@ -13664,60 +13688,86 @@ async function captureForPdf(elem) {
     console.warn(`⚠️ 컨테이너가 비어있습니다: ${elem.id}`);
   }
   
-  // ✅ Canvas 렌더링 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
+  // ✅ Canvas 렌더링 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지 - 강화 버전)
   const canvasElements = elem.querySelectorAll('canvas');
   if (canvasElements.length > 0) {
-    // 메인 Canvas (cv)가 있으면 다시 그리기
+    console.log(`🎨 Canvas 렌더링 보장: ${canvasElements.length}개 Canvas 요소`);
+    
+    // 메인 Canvas (cv)가 있으면 여러 번 다시 그리기 (모바일에서 렌더링 지연 보정)
     if (cv && typeof draw === 'function') {
       try {
-        draw(); // 모든 점과 선을 다시 그리기
-        await new Promise(res => requestAnimationFrame(res)); // 렌더링 완료 대기
+        // 첫 번째 렌더링
+        draw();
+        await new Promise(res => requestAnimationFrame(res));
+        
+        // 두 번째 렌더링 (모바일에서 추가 보장)
+        draw();
+        await new Promise(res => requestAnimationFrame(res));
+        
+        // 세 번째 렌더링 (모바일에서 최종 보장)
+        if (isMobile) {
+          draw();
+          await new Promise(res => requestAnimationFrame(res));
+        }
       } catch (err) {
         console.warn('Canvas 렌더링 중 오류:', err);
       }
     }
+    
     // 컨테이너 내의 다른 Canvas 요소들도 렌더링 보장
-    canvasElements.forEach(canvas => {
+    for (const canvas of canvasElements) {
       if (canvas.getContext) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          // Canvas가 이미 그려져 있으면 그대로 유지, 아니면 다시 그리기
           try {
             // Canvas 내용이 비어있지 않은지 확인
             const imageData = ctx.getImageData(0, 0, Math.min(canvas.width, 10), Math.min(canvas.height, 10));
             const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 || val < 255); // 알파 채널 확인
-            if (!hasContent && typeof draw === 'function') {
-              draw();
+            
+            if (!hasContent) {
+              console.warn(`⚠️ Canvas가 비어있습니다: ${canvas.id || 'unnamed'}, 다시 그리기 시도`);
+              if (typeof draw === 'function') {
+                draw();
+                await new Promise(res => requestAnimationFrame(res));
+              }
             }
           } catch (err) {
-            // Canvas 접근 오류는 무시
+            // Canvas 접근 오류는 무시 (CORS 등)
+            console.warn('Canvas 내용 확인 중 오류 (무시):', err);
           }
         }
       }
-    });
+    }
+    
+    console.log('✅ Canvas 렌더링 완료');
   }
   
   // ✅ 렌더링 타이밍 보장 (모바일에서 더 긴 대기 시간)
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => requestAnimationFrame(res));
   await new Promise(res => requestAnimationFrame(res));
-  const renderWaitTime = isMobile ? 500 : 200; // 모바일에서 500ms, 데스크톱에서 200ms
+  
+  // 모바일에서 강제 렌더링 지연 (500-1000ms)
+  const renderWaitTime = isMobile ? 1000 : 300; // 모바일: 1000ms, 데스크톱: 300ms
+  console.log(`⏳ 렌더링 완료 대기: ${renderWaitTime}ms`);
   await new Promise(res => setTimeout(res, renderWaitTime));
 
-  // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정, 모바일 최적화)
+  // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정, 모바일 최적화 강화)
   // 모바일에서 scale을 더 낮춰서 메모리 절약 및 잘림 방지
-  const mobileScale = isMobile ? 1.5 : 2.0;
+  const mobileScale = isMobile ? 1.2 : 2.0; // 모바일: 1.2 (메모리 절약), 데스크톱: 2.0
+  console.log(`📸 html2canvas 캡처 시작 (scale: ${mobileScale}, 크기: ${width}x${height})`);
+  
   const canvas = await html2canvas(elem, {
-    scale: mobileScale,  // 모바일에서 1.5, 데스크톱에서 2.0
+    scale: mobileScale,  // 모바일에서 1.2로 낮춤 (메모리 절약)
     backgroundColor: "#ffffff",
-    useCORS: true,
+    useCORS: true, // ✅ CORS 문제 해결
     allowTaint: false,
     foreignObjectRendering: true, // Canvas 요소 렌더링 개선
     logging: false,
     width: width,
     height: height,
     removeContainer: false, // 컨테이너 제거 방지
-    imageTimeout: 30000, // 모바일에서 이미지 로드 타임아웃 30초로 증가
+    imageTimeout: isMobile ? 30000 : 20000, // 모바일에서 이미지 로드 타임아웃 30초
     windowWidth: width,  // ✅ 명시적 너비 설정
     windowHeight: height, // ✅ 명시적 높이 설정
     onclone: (clonedDoc) => {
@@ -13735,6 +13785,24 @@ async function captureForPdf(elem) {
         clonedElem.style.left = '0';
         clonedElem.style.top = '0';
       }
+      
+      // ✅ Canvas 요소 렌더링 보장 (dot 포함)
+      const canvasElements = clonedDoc.querySelectorAll('canvas');
+      canvasElements.forEach(canvas => {
+        // Canvas가 보이도록 스타일 강제 적용
+        canvas.style.opacity = '1';
+        canvas.style.visibility = 'visible';
+        canvas.style.display = 'block';
+        canvas.style.position = 'relative';
+      });
+      
+      // ✅ 이미지 요소 렌더링 보장
+      const imageElements = clonedDoc.querySelectorAll('img');
+      imageElements.forEach(img => {
+        img.style.opacity = '1';
+        img.style.visibility = 'visible';
+        img.style.display = 'block';
+      });
       
       // ✅ 결론 및 향후 권장사항 섹션 높이 제한 해제 (글자 잘림 방지)
       const allElements = clonedDoc.querySelectorAll('*');
@@ -13773,7 +13841,17 @@ async function captureForPdf(elem) {
   if (originalOpacity) elem.style.opacity = originalOpacity;
   if (originalVisibility) elem.style.visibility = originalVisibility;
   if (originalPosition) elem.style.position = originalPosition;
-  if (originalTop) elem.style.top = originalTop;
+  // 원래 위치 복원 (pdf-safe에서 이동한 경우)
+  if (originalLeftValue && originalLeftValue !== '0px') {
+    elem.style.left = originalLeftValue;
+  } else if (originalTop) {
+    elem.style.top = originalTop;
+  }
+  if (originalTopValue && originalTopValue !== '0px') {
+    elem.style.top = originalTopValue;
+  } else if (originalTop) {
+    elem.style.top = originalTop;
+  }
   if (originalLeft) elem.style.left = originalLeft;
   if (originalZIndex) elem.style.zIndex = originalZIndex;
   if (originalTransform) elem.style.transform = originalTransform;
@@ -13781,6 +13859,8 @@ async function captureForPdf(elem) {
   // ✅ .pdf-safe 클래스 복원
   if (originalClass && originalClass.includes('pdf-safe')) {
     elem.className = originalClass;
+  } else if (wasPdfSafe) {
+    elem.classList.add('pdf-safe');
   }
 
   // ✅ 자식 요소 스타일 복원 (이미 선언된 allChildren 변수 사용)
