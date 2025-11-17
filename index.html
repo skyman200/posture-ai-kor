@@ -13706,7 +13706,7 @@ async function captureForPdf(elem) {
           // 결론 섹션 식별 및 높이 제한 해제
           const textContent = el.textContent || '';
           const id = el.id || '';
-          const className = el.className || '';
+          const className = String(el.className || el.getAttribute('class') || '');
           if (textContent.includes('결론') || textContent.includes('권장사항') || 
               id.includes('conclusion') || className.includes('conclusion')) {
             el.style.height = 'auto';
