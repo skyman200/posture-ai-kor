@@ -1098,7 +1098,7 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
   
   // 7️⃣ KA (Knee Alignment Angle): ∠(Hip, Knee, Ankle)
   // 측정 기준: 고관절-무릎-발목이 일직선일 때 180°
-  // 무릎이 앞쪽으로 나갈수록 181°부터 증가, 뒤쪽으로 갈수록 179°부터 감소
+  // 무릎이 뒤쪽으로 갈수록 181°부터 증가, 앞쪽으로 나갈수록 179°부터 감소
   if (hip && knee && ankle) {
     // 고관절-발목 벡터
     const hipAnkleDx = ankle.x - hip.x;
@@ -1116,8 +1116,8 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     // 내부 각도 계산 (0~180도)
     const internalAngle = jointAngleDeg(hip, knee, ankle);
     
-    // 무릎이 고관절-발목 선의 앞쪽에 있으면 과굴곡 (각도 증가, 181° 이상)
-    // 무릎이 고관절-발목 선의 뒤쪽에 있으면 과신전 (각도 감소, 179° 이하)
+    // 무릎이 고관절-발목 선의 앞쪽에 있으면 과굴곡 (각도 감소, 179° 이하)
+    // 무릎이 고관절-발목 선의 뒤쪽에 있으면 과신전 (각도 증가, 181° 이상)
     // 일직선일 때 180°가 되도록 조정
     let ka;
     const threshold = 0.1; // 일직선 판단 임계값
@@ -1129,11 +1129,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
       const deviation = 180 - internalAngle;
       
       if (crossProduct > 0) {
-        // 무릎이 앞쪽 = 과굴곡 = 각도 증가 (181° 이상)
-        ka = 180 + Math.abs(deviation);
-      } else {
-        // 무릎이 뒤쪽 = 과신전 = 각도 감소 (179° 이하)
+        // 무릎이 앞쪽 = 과굴곡 = 각도 감소 (179° 이하)
         ka = 180 - Math.abs(deviation);
+      } else {
+        // 무릎이 뒤쪽 = 과신전 = 각도 증가 (181° 이상)
+        ka = 180 + Math.abs(deviation);
       }
     }
     
