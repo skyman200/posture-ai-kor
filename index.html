@@ -5970,7 +5970,11 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
   
   // AI 코멘트 (더 상세하게)
   // ✅ orientation에 따라 측면/정면 분석 결과 구분 표시
-  const currentOrientation = S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side";
+  // 버튼 상태를 먼저 확인하고, 없으면 세션에서 가져오기
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  const currentOrientation = btnFront?.classList.contains("active") ? "front" 
+    : (btnSide?.classList.contains("active") ? "side" : (S.metrics?.orientation || analysis?.orientation || S.poseData?.orientation || "side"));
   
   if(analysis && analysis.comments && Array.isArray(analysis.comments) && analysis.comments.length > 0) {
     let commentText = "";
