@@ -5371,6 +5371,104 @@ function analyzePostureType(metrics, orientation = null) {
       `);
     }
     
+    // === 정면: 다리 길이 불균형 (Leg Length Discrepancy) ===
+    if(lld != null && lld > 1) {
+      issueCount++;
+      const severity = lld > 2 ? '심각' : lld > 1.5 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 다리 길이 불균형 (Leg Length Discrepancy) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> LLD ${lld.toFixed(1)}cm (정상: ≤1cm)<br>
+            <strong>구분:</strong>
+            • 구조적 불균형: 실제 뼈 길이 차이 (X-ray 촬영 필요)
+            • 기능적 불균형: 근육 불균형·골반 회전으로 인한 겉보기 차이<br>
+            <strong>발생 증상:</strong>
+            • 골반 기울어짐 → 척추 측만증(Scoliosis) 유발
+            • 보행 시 비대칭 → 무릎·고관절·허리 통증
+            • 한쪽 다리 피로 누적<br>
+            <strong>교정 방향:</strong>
+            ① 기능적 불균형: 골반 교정 운동, 중둔근(Gluteus medius) 강화, TFL·QL 스트레칭
+            ② 구조적 불균형: 깔창(Heel lift) 사용 고려, 전문의 상담 필수<br>
+            <strong>연쇄 반응:</strong> LLD → 골반 기울어짐 → 척추 측만 → 어깨 높이 차이 → 목 통증
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 체간 편위 (Trunk Deviation) ===
+    if(td != null && Math.abs(td) > 3) {
+      issueCount++;
+      const severity = Math.abs(td) > 6 ? '심각' : Math.abs(td) > 4 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 체간 편위 (Trunk Deviation) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> TD ${td.toFixed(1)}° (정상: ≤3°)<br>
+            <strong>주요 원인:</strong> 척추 측만, 골반 기울기, 근육 불균형<br>
+            <strong>교정 방향:</strong>
+            ① 척추 정렬 개선
+            ② 코어 근육 균형 강화
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 어깨-골반 평행도 (Shoulder-Pelvis Parallelism) ===
+    if(spp != null && Math.abs(spp) > 3) {
+      issueCount++;
+      const severity = Math.abs(spp) > 6 ? '심각' : Math.abs(spp) > 4 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 어깨-골반 평행도 (Shoulder-Pelvis Parallelism) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> SPP ${spp.toFixed(1)}° (정상: ≤3°)<br>
+            <strong>주요 원인:</strong> 어깨와 골반의 비대칭, 척추 측만<br>
+            <strong>교정 방향:</strong>
+            ① 어깨-골반 정렬 개선
+            ② 측면 코어 강화
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 무릎 정렬 대칭성 (Knee Alignment Symmetry) ===
+    if(kas != null && Math.abs(kas) > 3) {
+      issueCount++;
+      const severity = Math.abs(kas) > 6 ? '심각' : Math.abs(kas) > 4 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 무릎 정렬 대칭성 (Knee Alignment Symmetry) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> KAS ${kas.toFixed(1)}° (정상: ≤3°)<br>
+            <strong>주요 원인:</strong> 하지 정렬 불균형, 무릎 관절 불안정성<br>
+            <strong>교정 방향:</strong>
+            ① 무릎 정렬 운동
+            ② 하지 근육 균형 강화
+          </div>
+        </div>
+      `);
+    }
+    
+    // === 정면: 하지 축 대칭성 (Lower Limb Axis Symmetry) ===
+    if(llas != null && Math.abs(llas) > 3) {
+      issueCount++;
+      const severity = Math.abs(llas) > 6 ? '심각' : Math.abs(llas) > 4 ? '중등도' : '경미';
+      const side = llas > 0 ? '우측 이동' : '좌측 이동';
+      detailSections.push(`
+        <div style="border-left:3px solid #2ec4b6; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#2ec4b6; font-size:13px;">📍 하지 축 대칭성 (Lower Limb Axis Symmetry) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> LLAS ${llas.toFixed(1)}° (정상: ≤3°) - ${side}<br>
+            <strong>주요 원인:</strong> 하지 정렬 불균형, 골반 기울기<br>
+            <strong>교정 방향:</strong>
+            ① 하지 정렬 개선
+            ② 골반 정렬 운동
+          </div>
+        </div>
+      `);
+    }
+    
     // 정면 분석 결과 요약
     if(issueCount === 0) {
       summarySection = '<div style="padding:12px; background:#f0fdf4; border-radius:8px; margin-bottom:16px;"><strong style="color:#15803d;">✅ 정면 자세 분석 결과: 모든 지표가 정상 범위 내에 있습니다.</strong></div>';
@@ -5381,9 +5479,9 @@ function analyzePostureType(metrics, orientation = null) {
     return summarySection + detailSections.join('');
   }
   
-  // === 측면 분석 패턴 (기존 코드) ===
+  // === 측면 분석 패턴 (측면 분석만) ===
   // === 1. 거북목 자세 (Forward Head Posture) ===
-  if(cva != null && cva < 50) {
+  if(orientation === "side" && cva != null && cva < 50) {
     issueCount++;
     const severity = cva < 40 ? '심각' : cva < 45 ? '중등도' : '경미';
     detailSections.push(`
@@ -5460,8 +5558,59 @@ function analyzePostureType(metrics, orientation = null) {
     }
   }
   
-  // === 3. 상부 교차 증후군 (Upper Cross Syndrome) 체크 ===
-  const hasUpperCross = (cva != null && cva < 50);
+  // === 3. 체간 경사각 (Trunk Inclination Angle) 문제 ===
+  if(orientation === "side" && tia != null && (tia > 10 || tia < 0)) {
+    issueCount++;
+    const severity = tia > 15 ? '심각' : tia > 12 ? '중등도' : '경미';
+    if(tia > 10) {
+      detailSections.push(`
+        <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ff6b6b; font-size:13px;">📍 체간 전방 경사 (Forward Trunk Lean) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> TIA ${tia.toFixed(1)}° (정상: 0-10°)<br>
+            <strong>주요 원인:</strong> 상체 전방 쏠림, 복부 근력 약화, 요추 과전만<br>
+            <strong>발생 증상:</strong>
+            • 요통 및 척추 부담 증가
+            • 균형 감각 저하
+            • 호흡 효율 감소<br>
+            <strong>교정 방향:</strong>
+            ① 복부 코어 강화
+            ② 척추 기립근 강화
+            ③ 체간 중립 자세 훈련
+          </div>
+        </div>
+      `);
+    }
+  }
+  
+  // === 4. 어깨 전방각 (Shoulder Anterior Angle) 문제 ===
+  if(orientation === "side" && metrics.SAA?.value != null) {
+    const saa = metrics.SAA.value;
+    if(saa > 10) {
+      issueCount++;
+      const severity = saa > 20 ? '심각' : saa > 15 ? '중등도' : '경미';
+      detailSections.push(`
+        <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
+          <strong style="color:#ff6b6b; font-size:13px;">📍 어깨 전방 경사 (Forward Shoulder) - ${severity}</strong>
+          <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+            <strong>현재 상태:</strong> SAA ${saa.toFixed(1)}° (정상: 0-10°)<br>
+            <strong>주요 원인:</strong> 라운드 숄더, 대흉근 단축, 중·하부 승모근 약화<br>
+            <strong>발생 증상:</strong>
+            • 어깨 통증 및 불안정성
+            • 어깨 충돌 증후군 위험
+            • 견갑골 전방 변위<br>
+            <strong>교정 방향:</strong>
+            ① 대흉근 스트레칭
+            ② 중·하부 승모근 강화
+            ③ 견갑골 후인 운동
+          </div>
+        </div>
+      `);
+    }
+  }
+  
+  // === 5. 상부 교차 증후군 (Upper Cross Syndrome) 체크 ===
+  const hasUpperCross = (orientation === "side" && cva != null && cva < 50);
   if(hasUpperCross) {
     issueCount++;
     detailSections.push(`
@@ -5482,8 +5631,8 @@ function analyzePostureType(metrics, orientation = null) {
     `);
   }
   
-  // === 4. 무릎 정렬 문제 ===
-  if(ka != null && (ka > 185 || ka < 175)) {
+  // === 6. 무릎 정렬 문제 (측면 분석만) ===
+  if(orientation === "side" && ka != null && (ka > 185 || ka < 175)) {
     issueCount++;
     if(ka > 185) {
       const severity = ka > 195 ? '심각' : ka > 190 ? '중등도' : '경미';
@@ -5520,33 +5669,8 @@ function analyzePostureType(metrics, orientation = null) {
     }
   }
   
-  // === 5. 다리 길이 불균형 & 측만 위험 ===
-  if(lld != null && lld > 1) {
-    issueCount++;
-    const severity = lld > 2 ? '심각' : lld > 1.5 ? '중등도' : '경미';
-    detailSections.push(`
-      <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
-        <strong style="color:#ff6b6b; font-size:13px;">📍 다리 길이 불균형 (Leg Length Discrepancy) - ${severity}</strong>
-        <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
-          <strong>현재 상태:</strong> LLD ${lld.toFixed(1)}cm (정상: ≤1cm)<br>
-          <strong>구분:</strong>
-          • 구조적 불균형: 실제 뼈 길이 차이 (X-ray 촬영 필요)
-          • 기능적 불균형: 근육 불균형·골반 회전으로 인한 겉보기 차이<br>
-          <strong>발생 증상:</strong>
-          • 골반 기울어짐 → 척추 측만증(Scoliosis) 유발
-          • 보행 시 비대칭 → 무릎·고관절·허리 통증
-          • 한쪽 다리 피로 누적<br>
-          <strong>교정 방향:</strong>
-          ① 기능적 불균형: 골반 교정 운동, 중둔근(Gluteus medius) 강화, TFL·QL 스트레칭
-          ② 구조적 불균형: 깔창(Heel lift) 사용 고려, 전문의 상담 필수<br>
-          <strong>연쇄 반응:</strong> LLD → 골반 기울어짐 → 척추 측만 → 어깨 높이 차이 → 목 통증
-        </div>
-      </div>
-    `);
-  }
-  
-  // === 6. 전신 균형 문제 ===
-  if(gsb != null && gsb > 2) {
+  // === 7. 전신 균형 문제 (측면 분석만) ===
+  if(orientation === "side" && gsb != null && gsb > 2) {
     issueCount++;
     detailSections.push(`
       <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
