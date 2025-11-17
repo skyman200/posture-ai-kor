@@ -60,11 +60,11 @@
   word-break: break-word !important;
 }
 
-/* 결론 및 향후 권장사항 섹션 높이 제한 해제 */
-.pdf-safe div[style*="결론"], 
-.pdf-safe div[style*="권장사항"],
-.pdf-safe #conclusionContent,
-.pdf-safe [id*="conclusion"] {
+/* 결론 및 향후 권장사항 섹션 높이 제한 해제 (img/video/canvas 제외) */
+.pdf-safe div[style*="결론"]:not(img):not(video):not(canvas), 
+.pdf-safe div[style*="권장사항"]:not(img):not(video):not(canvas),
+.pdf-safe #conclusionContent:not(img):not(video):not(canvas),
+.pdf-safe [id*="conclusion"]:not(img):not(video):not(canvas) {
   height: auto !important;
   max-height: none !important;
   overflow: visible !important;
@@ -11308,9 +11308,9 @@ page4Container.innerHTML = `
     conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
     
     return conclusionText ? `
-  <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border-left:4px solid #2ec4b6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; height:auto !important; max-height:none !important; overflow:visible !important;">
+  <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border-left:4px solid #2ec4b6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; height:auto !important; max-height:none !important;">
     <div style="font-size:13px; font-weight:700; color:#2ec4b6; margin-bottom:10px; word-wrap:break-word; overflow-wrap:break-word; white-space:normal !important;">✅ 결론 및 향후 권장사항</div>
-    <div style="font-size:11px; line-height:1.8; color:#0f172a; white-space:pre-wrap !important; word-wrap:break-word !important; overflow-wrap:break-word !important; overflow:visible !important; text-overflow:clip !important; height:auto !important; max-height:none !important;">${conclusionText}</div>
+    <div style="font-size:11px; line-height:1.8; color:#0f172a; white-space:pre-wrap !important; word-wrap:break-word !important; overflow-wrap:break-word !important; text-overflow:clip !important; height:auto !important; max-height:none !important;">${conclusionText}</div>
   </div>
     ` : '';
   })()}
