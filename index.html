@@ -1115,14 +1115,14 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
     
     // 외적을 사용하여 무릎이 고관절-발목 선의 어느 쪽에 있는지 판단
     // 외적 = (hipAnkleDx, hipAnkleDy) × (hipKneeDx, hipKneeDy)
-    // 양수면 무릎이 선의 왼쪽(앞쪽), 음수면 오른쪽(뒤쪽)
+    // 이미지 좌표계(y축 아래로 증가)에서: 양수면 무릎이 뒤쪽, 음수면 앞쪽
     const crossProduct = hipAnkleDx * hipKneeDy - hipAnkleDy * hipKneeDx;
     
     // 내부 각도 계산 (0~180도)
     const internalAngle = jointAngleDeg(hip, knee, ankle);
     
-    // 무릎이 고관절-발목 선의 앞쪽에 있으면 과굴곡 (각도 감소, 179° 이하)
     // 무릎이 고관절-발목 선의 뒤쪽에 있으면 과신전 (각도 증가, 181° 이상)
+    // 무릎이 고관절-발목 선의 앞쪽에 있으면 과굴곡 (각도 감소, 179° 이하)
     // 일직선일 때 180°가 되도록 조정
     let ka;
     const threshold = 0.1; // 일직선 판단 임계값
@@ -1134,11 +1134,11 @@ function analyzeFullPosture(points, pxPerCm = 50.0, imageWidth = 1080) {
       const deviation = 180 - internalAngle;
       
       if (crossProduct > 0) {
-        // 무릎이 앞쪽 = 과굴곡 = 각도 감소 (179° 이하)
-        ka = 180 - Math.abs(deviation);
-      } else {
         // 무릎이 뒤쪽 = 과신전 = 각도 증가 (181° 이상)
         ka = 180 + Math.abs(deviation);
+      } else {
+        // 무릎이 앞쪽 = 과굴곡 = 각도 감소 (179° 이하)
+        ka = 180 - Math.abs(deviation);
       }
     }
     
