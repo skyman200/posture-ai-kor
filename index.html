@@ -11667,11 +11667,11 @@ if (true) { // 항상 생성
         hasValidMetrics = true;
       }
     }
-    
-    // ✅ sideScoreResult가 아직 없으면 metricsForScore에서 계산
-    if (!sideScoreResult) {
-      sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(finalMetricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
-    }
+  }
+  
+  // ✅ sideScoreResult가 아직 없으면 metricsForScore에서 계산
+  if (!sideScoreResult) {
+    sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(finalMetricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   }
   
   // ✅ sideScoreResult가 아직 없으면 최종 계산
@@ -16833,6 +16833,11 @@ document.getElementById("btnShare").onclick = async () => {
 // 포즈 감지 모델 관리
 let detectors = { front: null, side: null };
 
+// 현재 세션 설정 (전역 변수 확인)
+if (typeof cur === 'undefined') {
+  var cur = "Before";
+}
+
 // 초기 orientation 버튼 상태 설정 및 좌표 선택 드롭다운 초기화
 // DOMContentLoaded 이벤트는 함수 정의 이후에 실행되도록 함
 let initializeAppCalled = false;
@@ -17034,7 +17039,7 @@ function initializeApp() {
   }
   
   // orientation 버튼 상태 설정
-  const orientation = window.sessions[cur].poseData?.orientation || "side";
+  const orientation = (window.sessions && window.sessions[cur] && window.sessions[cur].poseData?.orientation) || "side";
   const btnSide = document.getElementById("btnOrientationSide");
   const btnFront = document.getElementById("btnOrientationFront");
   
