@@ -12754,8 +12754,17 @@ try {
   const allPilatesDivs = page5Container.querySelectorAll('div');
   allPilatesDivs.forEach(div => {
     const style = div.getAttribute('style') || '';
-    // width:764px 또는 width:100% 포함하는 요소 찾기
-    if (style.includes('width:764px') || style.includes('width:100%')) {
+    const computedStyle = window.getComputedStyle(div);
+    const currentWidth = computedStyle.width;
+    
+    // ✅ 정규식으로 더 정확한 width 매칭 (공백, 대소문자 무시)
+    // width:764px, width: 764px, width:764px;, width:100% 등 모든 형식 매칭
+    const widthPattern = /width\s*:\s*764px|width\s*:\s*100%/i;
+    const hasWidth764 = widthPattern.test(style) || 
+                        currentWidth === '764px' || 
+                        (parseFloat(currentWidth) >= 760 && parseFloat(currentWidth) <= 768);
+    
+    if (hasWidth764 || style.includes('width:764px') || style.includes('width:100%')) {
       div.style.width = '764px';
       div.style.maxWidth = '764px';
       div.style.marginLeft = '0';
@@ -18017,8 +18026,9 @@ async function generateFinalPostureReportPDF() {
           // 필라테스 페이지는 더 작은 조각도 허용 (여러 페이지로 나눠도 됨)
           const minSliceHeight = isPilatesPage ? 20 : 50;
           
-          // ✅ 마지막 슬라이스인지 한 번만 확인 (남은 높이가 거의 없으면 마지막)
-          const isLastSlice = heightLeft <= minSliceHeight * 3;
+          // ✅ 마지막 슬라이스인지 더 정확하게 판단
+          // 남은 높이가 현재 페이지에 들어갈 수 있거나, 거의 다 남았으면 마지막
+          const isLastSlice = heightLeft <= availableHeight || heightLeft <= minSliceHeight * 2;
           
           // 공간이 부족하면 새 페이지 추가 (마지막 슬라이스가 아니면)
           if (availableHeight < minSliceHeight && heightLeft > minSliceHeight && !isLastSlice) {
