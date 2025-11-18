@@ -4908,8 +4908,8 @@ function computeScoreFromFullMetrics(fullMetrics) {
   }
   
   // ✅ 측정된 메트릭이 없으면 null 반환 (정면/측면 항목 계산 후에 체크)
+  // ✅ 경고 제거: 측정 데이터가 없을 때는 조용히 null 반환 (경고 로그 제거)
   if (metricCount === 0) {
-    console.warn('⚠️ 측정된 메트릭이 없습니다. 점수 계산 불가.');
     return { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   }
   
@@ -12440,6 +12440,12 @@ if (isMobile) {
 const page5Container = document.createElement("div");
 page5Container.id = "page5Container";
 setPageContainerStyle(page5Container);
+// ✅ 필라테스 페이지 너비 강제 고정 (다른 페이지와 동일하게)
+page5Container.style.width = '794px';
+page5Container.style.maxWidth = '794px';
+page5Container.style.minWidth = '794px';
+page5Container.style.boxSizing = 'border-box';
+page5Container.style.overflow = 'hidden'; // 내용이 옆으로 튀어나가지 않도록
 
 // metrics 데이터 준비 (Before-After 비교용)
 const combinedMetrics = {};
@@ -12560,7 +12566,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:794px; box-sizing:border-box;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -12580,12 +12586,29 @@ if (isMobile) {
 try {
   // ✅ 필라테스 페이지 너비는 794px로 고정하고, 높이만 동적으로 계산 (다른 페이지와 동일하게)
   const container5Width = 794;  // PDF 표준 너비로 고정 (다른 페이지와 동일)
-  const container5Height = Math.max(page5Container.scrollHeight, page5Container.offsetHeight);
   
-  // ✅ 필라테스 페이지 너비 강제 설정 (다른 페이지와 동일하게 유지)
+  // ✅ 필라테스 페이지 너비 강제 설정 (다른 페이지와 동일하게 유지) - 캔버스 생성 전에 다시 확인
   page5Container.style.width = `${container5Width}px`;
   page5Container.style.maxWidth = `${container5Width}px`;
+  page5Container.style.minWidth = `${container5Width}px`;
   page5Container.style.boxSizing = 'border-box';
+  page5Container.style.overflow = 'hidden'; // 내용이 옆으로 튀어나가지 않도록
+  
+  // ✅ 내부 모든 요소의 너비도 제한
+  const allChildren = page5Container.querySelectorAll('*');
+  allChildren.forEach(child => {
+    if (child.style) {
+      if (!child.style.maxWidth || child.style.maxWidth === '100%') {
+        child.style.maxWidth = `${container5Width - 50}px`; // 패딩 고려
+      }
+      child.style.boxSizing = 'border-box';
+    }
+  });
+  
+  // ✅ 강제 리플로우 (스타일 적용 보장)
+  void page5Container.offsetHeight;
+  
+  const container5Height = Math.max(page5Container.scrollHeight, page5Container.offsetHeight);
   
   console.log('📄 Page 5 캔버스 생성:', { width: container5Width, height: container5Height });
   
