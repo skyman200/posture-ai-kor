@@ -12082,12 +12082,33 @@ if (sessions.After?.score && typeof sessions.After.score === 'object' && session
 
 const memberNameForPDF1 = memberName || '회원';
 
-// 패턴 요약
+// ✅ 패턴 요약 - 측면 분석과 정면 분석 모두 포함
 const patterns = [];
+// 측면 분석 패턴 추가
+if(sideAnalysis && sideAnalysis.pilates && sideAnalysis.pilates.length > 0) {
+  sideAnalysis.pilates.forEach(item => {
+    if(item.name || item.issue) {
+      patterns.push(`[측면] ${item.name || item.issue}`);
+    }
+  });
+}
+// 정면 분석 패턴 추가
+if(frontAnalysisForPDF && frontAnalysisForPDF.pilates && frontAnalysisForPDF.pilates.length > 0) {
+  frontAnalysisForPDF.pilates.forEach(item => {
+    if(item.name || item.issue) {
+      patterns.push(`[정면] ${item.name || item.issue}`);
+    }
+  });
+}
+// 통합 분석 패턴 추가
 if(analysis && analysis.pilates && analysis.pilates.length > 0) {
   analysis.pilates.forEach(item => {
     if(item.name || item.issue) {
-      patterns.push(item.name || item.issue);
+      const patternName = item.name || item.issue;
+      // 중복 제거
+      if(!patterns.some(p => p.includes(patternName))) {
+        patterns.push(patternName);
+      }
     }
   });
 }
