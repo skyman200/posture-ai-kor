@@ -12223,19 +12223,86 @@ page4Container.innerHTML = `
     const memberNameForConclusion = memberName || '회원';
     let conclusionText = '';
     
-    // 패턴 요약
+    // ✅ 패턴 요약 - 측면 분석과 정면 분석 모두 포함
     const patterns = [];
+    // 측면 분석 패턴 추가
+    if(sideAnalysis && sideAnalysis.pilates && sideAnalysis.pilates.length > 0) {
+      sideAnalysis.pilates.forEach(item => {
+        if(item.name || item.issue) {
+          patterns.push(`[측면] ${item.name || item.issue}`);
+        }
+      });
+    }
+    // 정면 분석 패턴 추가
+    if(frontAnalysisForPDF && frontAnalysisForPDF.pilates && frontAnalysisForPDF.pilates.length > 0) {
+      frontAnalysisForPDF.pilates.forEach(item => {
+        if(item.name || item.issue) {
+          patterns.push(`[정면] ${item.name || item.issue}`);
+        }
+      });
+    }
+    // 통합 분석 패턴 추가
     if(analysis && analysis.pilates && analysis.pilates.length > 0) {
       analysis.pilates.forEach(item => {
         if(item.name || item.issue) {
-          patterns.push(item.name || item.issue);
+          const patternName = item.name || item.issue;
+          // 중복 제거
+          if(!patterns.some(p => p.includes(patternName))) {
+            patterns.push(patternName);
+          }
         }
       });
     }
     
-    // 근육 불균형 요약
-    const tightMuscles = analysis && analysis.tight ? analysis.tight : [];
-    const weakMuscles = analysis && analysis.weak ? analysis.weak : [];
+    // ✅ 근육 불균형 요약 - 측면 분석과 정면 분석 모두 포함
+    const allTight = [];
+    const allWeak = [];
+    
+    // 측면 분석 근육 상태
+    if(sideAnalysis) {
+      if(sideAnalysis.tight && Array.isArray(sideAnalysis.tight)) {
+        allTight.push(...sideAnalysis.tight);
+      } else if(sideAnalysis.tight && sideAnalysis.tight instanceof Set) {
+        allTight.push(...Array.from(sideAnalysis.tight));
+      }
+      if(sideAnalysis.weak && Array.isArray(sideAnalysis.weak)) {
+        allWeak.push(...sideAnalysis.weak);
+      } else if(sideAnalysis.weak && sideAnalysis.weak instanceof Set) {
+        allWeak.push(...Array.from(sideAnalysis.weak));
+      }
+    }
+    
+    // 정면 분석 근육 상태
+    if(frontAnalysisForPDF) {
+      if(frontAnalysisForPDF.tight && Array.isArray(frontAnalysisForPDF.tight)) {
+        allTight.push(...frontAnalysisForPDF.tight);
+      } else if(frontAnalysisForPDF.tight && frontAnalysisForPDF.tight instanceof Set) {
+        allTight.push(...Array.from(frontAnalysisForPDF.tight));
+      }
+      if(frontAnalysisForPDF.weak && Array.isArray(frontAnalysisForPDF.weak)) {
+        allWeak.push(...frontAnalysisForPDF.weak);
+      } else if(frontAnalysisForPDF.weak && frontAnalysisForPDF.weak instanceof Set) {
+        allWeak.push(...Array.from(frontAnalysisForPDF.weak));
+      }
+    }
+    
+    // 통합 분석 근육 상태
+    if(analysis) {
+      if(analysis.tight && Array.isArray(analysis.tight)) {
+        allTight.push(...analysis.tight);
+      } else if(analysis.tight && analysis.tight instanceof Set) {
+        allTight.push(...Array.from(analysis.tight));
+      }
+      if(analysis.weak && Array.isArray(analysis.weak)) {
+        allWeak.push(...analysis.weak);
+      } else if(analysis.weak && analysis.weak instanceof Set) {
+        allWeak.push(...Array.from(analysis.weak));
+      }
+    }
+    
+    // 중복 제거
+    const tightMuscles = [...new Set(allTight)];
+    const weakMuscles = [...new Set(allWeak)];
     
     // 결론 작성
     conclusionText += `${memberNameForConclusion}님의 검사 결과와 AI 분석을 종합해보면, 관찰된 주요 패턴은 다음과 같습니다:\n\n`;
