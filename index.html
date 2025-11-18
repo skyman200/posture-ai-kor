@@ -11004,6 +11004,9 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
   const sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(metricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   
   sideReportContainer.innerHTML = `
+    <div style="margin-bottom:10px; padding:8px 12px; background:#e0f2fe; border-radius:8px; display:inline-block;">
+      <span style="font-size:12px; font-weight:600; color:#0369a1;">📐 분석 방향: 측면</span>
+    </div>
     <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 측면 자세 분석 리포트</h2>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
@@ -11311,6 +11314,9 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
   const frontScoreResult = computeScoreFromFullMetrics(frontMetrics);
   
   frontReportContainer.innerHTML = `
+    <div style="margin-bottom:10px; padding:8px 12px; background:#dbeafe; border-radius:8px; display:inline-block;">
+      <span style="font-size:12px; font-weight:600; color:#1e40af;">📐 분석 방향: 정면</span>
+    </div>
     <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 정면 자세 분석 리포트</h2>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
@@ -11339,6 +11345,66 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
           ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
         </li>`).join('')}
       </ul>
+    </div>` : ''}
+
+    ${Object.keys(frontMetrics).length > 1 ? `
+    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 정면 측정 지표 상세</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6;">
+        ${Object.keys(frontMetrics).filter(key => key !== 'orientation').map(key => {
+          const metric = frontMetrics[key];
+          if (!metric || typeof metric !== 'object') return '';
+          const value = metric.value != null ? metric.value : 
+                       (metric.value_deg != null ? metric.value_deg : 
+                       (metric.value_cm != null ? metric.value_cm : null));
+          if (value == null || isNaN(value) || !isFinite(value)) return '';
+          const unit = metric.unit || (metric.value_deg != null ? '°' : (metric.value_cm != null ? 'cm' : ''));
+          const status = metric.status || 'unknown';
+          const statusText = {
+            'normal': '✅ 정상',
+            'mild': '⚠️ 경미',
+            'moderate': '⚠️ 중등도',
+            'severe': '🔴 심각'
+          }[status] || status;
+          const desc = metric.desc || metric.meaning || key;
+          
+          // 정상 범위 정보
+          let normalRange = '';
+          if (key === 'STA' || key === 'STA_F') {
+            normalRange = '0-3°';
+          } else if (key === 'POA' || key === 'POA_F') {
+            normalRange = '0-3°';
+          } else if (key === 'LLD' || key === 'LLD_F') {
+            normalRange = '0-1cm';
+          } else if (key === 'TD' || key === 'td') {
+            normalRange = '0-2°';
+          } else if (key === 'HTA' || key === 'hta') {
+            normalRange = '0-5°';
+          } else if (key === 'SPP' || key === 'spp') {
+            normalRange = '0-5°';
+          } else if (key === 'Q_Angle' || key === 'QAngle') {
+            normalRange = '10-15°';
+          } else if (key === 'Knee_Deviation' || key === 'KneeDev') {
+            normalRange = '0-3°';
+          } else if (key === 'KAS' || key === 'kas') {
+            normalRange = '0-3°';
+          } else if (key === 'LLAS' || key === 'llas') {
+            normalRange = '0-3°';
+          } else if (key === 'HPA' || key === 'hpa') {
+            normalRange = '0-5°';
+          } else if (key === 'Tibial_Angle' || key === 'Tibial') {
+            normalRange = '0-5°';
+          }
+          
+          return `
+          <div style="padding:12px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:13px;">${desc}</div>
+            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
+          </div>`;
+        }).filter(html => html.trim().length > 0).join('')}
+      </div>
     </div>` : ''}
 
     <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -11736,8 +11802,66 @@ if (sessions.After?.score && typeof sessions.After.score === 'object' && session
 
 const memberNameForPDF1 = memberName || '회원';
 
-// 패턴 요약
+// ✅ 측면과 정면 분석 결과 가져오기
+const combinedAnalysis = getCombinedAnalysis();
+const sideAnalysisForCombined = combinedAnalysis?.side || sessions.After?.sideAnalysis || sessions.Before?.sideAnalysis || null;
+const frontAnalysisForCombined = combinedAnalysis?.front || sessions.After?.frontAnalysis || sessions.Before?.frontAnalysis || null;
+
+// ✅ 측면 점수와 정면 점수 가져오기
+const sideScoreForCombined = sessions.After?.sideScore || (sideAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(sideAnalysisForCombined.fullMetrics) : null);
+const frontScoreForCombined = sessions.After?.frontScore || (frontAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(frontAnalysisForCombined.fullMetrics) : null);
+
+// ✅ 통합 근육 상태 (측면 + 정면)
+const combinedTight = [];
+const combinedWeak = [];
+if (sideAnalysisForCombined) {
+  if (sideAnalysisForCombined.muscles?.tight) {
+    if (sideAnalysisForCombined.muscles.tight instanceof Set) {
+      combinedTight.push(...Array.from(sideAnalysisForCombined.muscles.tight));
+    } else if (Array.isArray(sideAnalysisForCombined.muscles.tight)) {
+      combinedTight.push(...sideAnalysisForCombined.muscles.tight);
+    }
+  }
+  if (sideAnalysisForCombined.muscles?.weak) {
+    if (sideAnalysisForCombined.muscles.weak instanceof Set) {
+      combinedWeak.push(...Array.from(sideAnalysisForCombined.muscles.weak));
+    } else if (Array.isArray(sideAnalysisForCombined.muscles.weak)) {
+      combinedWeak.push(...sideAnalysisForCombined.muscles.weak);
+    }
+  }
+}
+if (frontAnalysisForCombined) {
+  if (frontAnalysisForCombined.muscles?.tight) {
+    if (frontAnalysisForCombined.muscles.tight instanceof Set) {
+      combinedTight.push(...Array.from(frontAnalysisForCombined.muscles.tight));
+    } else if (Array.isArray(frontAnalysisForCombined.muscles.tight)) {
+      combinedTight.push(...frontAnalysisForCombined.muscles.tight);
+    }
+  }
+  if (frontAnalysisForCombined.muscles?.weak) {
+    if (frontAnalysisForCombined.muscles.weak instanceof Set) {
+      combinedWeak.push(...Array.from(frontAnalysisForCombined.muscles.weak));
+    } else if (Array.isArray(frontAnalysisForCombined.muscles.weak)) {
+      combinedWeak.push(...frontAnalysisForCombined.muscles.weak);
+    }
+  }
+}
+// 중복 제거
+const uniqueTight = [...new Set(combinedTight)];
+const uniqueWeak = [...new Set(combinedWeak)];
+
+// 패턴 요약 (측면 + 정면)
 const patterns = [];
+if(sideAnalysisForCombined?.topRecommendations) {
+  sideAnalysisForCombined.topRecommendations.forEach(item => {
+    if(item.name || item.code) patterns.push(`[측면] ${item.name || item.code}`);
+  });
+}
+if(frontAnalysisForCombined?.topRecommendations) {
+  frontAnalysisForCombined.topRecommendations.forEach(item => {
+    if(item.name || item.code) patterns.push(`[정면] ${item.name || item.code}`);
+  });
+}
 if(analysis && analysis.pilates && analysis.pilates.length > 0) {
   analysis.pilates.forEach(item => {
     if(item.name || item.issue) {
@@ -11764,11 +11888,23 @@ page4Container.innerHTML = `
       <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
     </div>` : ''}
 
-    ${(analysis.tight && analysis.tight.length) || (analysis.weak && analysis.weak.length) ? `
+    ${sideScoreForCombined ? `
+    <div style="padding:18px; background:#e0f2fe; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px; word-wrap:break-word;">📊 측면 점수</div>
+      <div style="font-size:28px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${typeof sideScoreForCombined === 'object' && sideScoreForCombined.score != null ? sideScoreForCombined.score : sideScoreForCombined}/100</div>
+    </div>` : ''}
+
+    ${frontScoreForCombined ? `
+    <div style="padding:18px; background:#dbeafe; border-radius:12px; border:1px solid #93c5fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:8px; word-wrap:break-word;">📊 정면 점수</div>
+      <div style="font-size:28px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${typeof frontScoreForCombined === 'object' && frontScoreForCombined.score != null ? frontScoreForCombined.score : frontScoreForCombined}/100</div>
+    </div>` : ''}
+
+    ${(uniqueTight.length > 0 || uniqueWeak.length > 0) ? `
     <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
-      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
-      ${analysis.tight?.length ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${analysis.tight.join(', ')}</div>` : ''}
-      ${analysis.weak?.length ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${analysis.weak.join(', ')}</div>` : ''}
+      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 통합 근육 상태 (측면+정면)</div>
+      ${uniqueTight.length > 0 ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${uniqueTight.join(', ')}</div>` : ''}
+      ${uniqueWeak.length > 0 ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${uniqueWeak.join(', ')}</div>` : ''}
     </div>` : ''}
 
     ${analysis.comments?.length ? `
@@ -11778,7 +11914,33 @@ page4Container.innerHTML = `
     </div>` : ''}
   </div>
 
-  ${(dbAnalysis?.topRecommendations || []).length ? `
+  ${(sideAnalysisForCombined?.topRecommendations || []).length > 0 || (frontAnalysisForCombined?.topRecommendations || []).length > 0 ? `
+  <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
+    <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 주요 패턴 분석 (측면 + 정면)</div>
+    ${(sideAnalysisForCombined?.topRecommendations || []).length > 0 ? `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px; font-weight:600; color:#0369a1; margin-bottom:6px;">📐 측면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
+        ${(sideAnalysisForCombined.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+          <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
+          ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
+          ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
+    ${(frontAnalysisForCombined?.topRecommendations || []).length > 0 ? `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px; font-weight:600; color:#1e40af; margin-bottom:6px;">📐 정면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
+        ${(frontAnalysisForCombined.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px;">
+          <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
+          ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
+          ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
+    <div style="margin-top:6px; font-size:10px; color:#6b7280;">※ 상세 루틴은 다음 페이지 '필라테스 추천'에서 확인하세요.</div>
+  </div>` : (dbAnalysis?.topRecommendations || []).length ? `
   <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
     <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px;">📌 DB 기반 주요 패턴 (Top 3)</div>
     <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6;">
@@ -11945,11 +12107,11 @@ const aMetrics = sessions.After?.metrics?.fullMetrics || {};
 
 // ✅ AI 근육 상태 기반 필라테스 추천 (새로운 방식)
 let muscleBasedRecommendations = [];
-const combinedAnalysis = getCombinedAnalysis();
-if (combinedAnalysis && combinedAnalysis.combined) {
+const combinedAnalysisForPilates = getCombinedAnalysis();
+if (combinedAnalysisForPilates && combinedAnalysisForPilates.combined) {
   muscleBasedRecommendations = recommendPilatesFromMuscles(
-    combinedAnalysis.combined.tight,
-    combinedAnalysis.combined.weak
+    combinedAnalysisForPilates.combined.tight,
+    combinedAnalysisForPilates.combined.weak
   );
 }
 
@@ -12042,11 +12204,40 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
   pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
 }
 
+// ✅ 측면/정면 구분 필라테스 추천 생성
+const sidePilatesHtml = sideAnalysisForCombined?.pilates ? 
+  (Array.isArray(sideAnalysisForCombined.pilates) ? 
+    sideAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
+    renderPilatesItemCard(sideAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity })) : '';
+
+const frontPilatesHtml = frontAnalysisForCombined?.pilates ? 
+  (Array.isArray(frontAnalysisForCombined.pilates) ? 
+    frontAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
+    renderPilatesItemCard(frontAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity })) : '';
+
 page5Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
-    ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
-  </div>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천 (측면 + 정면)</h2>
+  ${sidePilatesHtml ? `
+  <div style="margin-bottom:25px;">
+    <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; padding:8px 12px; background:#e0f2fe; border-radius:8px; display:inline-block;">📐 측면 자세 개선 운동</div>
+    <div style="margin-top:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
+      ${sidePilatesHtml}
+    </div>
+  </div>` : ''}
+  ${frontPilatesHtml ? `
+  <div style="margin-bottom:25px;">
+    <div style="font-size:16px; font-weight:700; color:#1e40af; margin-bottom:12px; padding:8px 12px; background:#dbeafe; border-radius:8px; display:inline-block;">📐 정면 자세 개선 운동</div>
+    <div style="margin-top:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
+      ${frontPilatesHtml}
+    </div>
+  </div>` : ''}
+  ${pilatesHtml ? `
+  <div style="margin-bottom:25px;">
+    <div style="font-size:16px; font-weight:700; color:#5c44b8; margin-bottom:12px; padding:8px 12px; background:#f5f3ff; border-radius:8px; display:inline-block;">🧘 통합 필라테스 추천</div>
+    <div style="margin-top:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
+      ${pilatesHtml}
+    </div>
+  </div>` : (!sidePilatesHtml && !frontPilatesHtml ? '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>' : '')}
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
       <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
         <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
@@ -12211,15 +12402,18 @@ if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length >
   const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
   
   if (hasSideMetrics && hasFrontMetrics) {
-    // 측면과 정면 모두 있으면 측면 우선 (기본값)
-    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
-    // 측면 분석 결과가 없으면 정면 분석도 추가
-    if (!postureTypeHtml || postureTypeHtml.includes('분석 데이터가 충분하지 않습니다')) {
-      const frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
-      if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
-        postureTypeHtml = (postureTypeHtml || '') + '<br><br>' + frontPostureType;
-      }
+    // 측면과 정면 모두 있으면 둘 다 분석
+    const sidePostureType = analyzePostureType(fullMetricsForPostureType, "side");
+    const frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
+    
+    let combinedPostureType = '';
+    if (sidePostureType && !sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
+      combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px;">' + sidePostureType + '</div></div>';
     }
+    if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
+      combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px;">' + frontPostureType + '</div></div>';
+    }
+    postureTypeHtml = combinedPostureType || sidePostureType || frontPostureType || analyzePostureType(fullMetricsForPostureType);
   } else if (hasSideMetrics) {
     postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
   } else if (hasFrontMetrics) {
@@ -12302,8 +12496,62 @@ const fullPlanHtml = planTexts.fullText
   ? formatMultilineText(planTexts.fullText)
   : '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>';
 
+// ✅ 측면과 정면 분석 요약 생성
+let sideSummaryHtml = '';
+let frontSummaryHtml = '';
+if (sideAnalysisForCombined) {
+  const sideScore = sideScoreForCombined ? (typeof sideScoreForCombined === 'object' && sideScoreForCombined.score != null ? sideScoreForCombined.score : sideScoreForCombined) : null;
+  const sideTopPatterns = (sideAnalysisForCombined.topRecommendations || []).slice(0, 3).map(item => item.name || item.code).join(', ');
+  sideSummaryHtml = `
+    <div style="margin-bottom:15px; padding:15px; background:#e0f2fe; border-radius:10px; border-left:4px solid #0369a1;">
+      <div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px;">📐 측면 자세 분석 요약</div>
+      ${sideScore != null ? `<div style="font-size:12px; margin-bottom:6px;"><strong>측면 점수:</strong> ${sideScore}/100</div>` : ''}
+      ${sideTopPatterns ? `<div style="font-size:12px; margin-bottom:6px;"><strong>주요 패턴:</strong> ${sideTopPatterns}</div>` : ''}
+      ${uniqueTight.filter(m => sideAnalysisForCombined.muscles?.tight && (
+        (sideAnalysisForCombined.muscles.tight instanceof Set && sideAnalysisForCombined.muscles.tight.has(m)) ||
+        (Array.isArray(sideAnalysisForCombined.muscles.tight) && sideAnalysisForCombined.muscles.tight.includes(m))
+      )).length > 0 ? `<div style="font-size:12px; margin-bottom:6px;"><strong style="color:#dc2626;">긴장 근육:</strong> ${uniqueTight.filter(m => sideAnalysisForCombined.muscles?.tight && (
+        (sideAnalysisForCombined.muscles.tight instanceof Set && sideAnalysisForCombined.muscles.tight.has(m)) ||
+        (Array.isArray(sideAnalysisForCombined.muscles.tight) && sideAnalysisForCombined.muscles.tight.includes(m))
+      )).join(', ')}</div>` : ''}
+      ${uniqueWeak.filter(m => sideAnalysisForCombined.muscles?.weak && (
+        (sideAnalysisForCombined.muscles.weak instanceof Set && sideAnalysisForCombined.muscles.weak.has(m)) ||
+        (Array.isArray(sideAnalysisForCombined.muscles.weak) && sideAnalysisForCombined.muscles.weak.includes(m))
+      )).length > 0 ? `<div style="font-size:12px;"><strong style="color:#2563eb;">약화 근육:</strong> ${uniqueWeak.filter(m => sideAnalysisForCombined.muscles?.weak && (
+        (sideAnalysisForCombined.muscles.weak instanceof Set && sideAnalysisForCombined.muscles.weak.has(m)) ||
+        (Array.isArray(sideAnalysisForCombined.muscles.weak) && sideAnalysisForCombined.muscles.weak.includes(m))
+      )).join(', ')}</div>` : ''}
+    </div>`;
+}
+if (frontAnalysisForCombined) {
+  const frontScore = frontScoreForCombined ? (typeof frontScoreForCombined === 'object' && frontScoreForCombined.score != null ? frontScoreForCombined.score : frontScoreForCombined) : null;
+  const frontTopPatterns = (frontAnalysisForCombined.topRecommendations || []).slice(0, 3).map(item => item.name || item.code).join(', ');
+  frontSummaryHtml = `
+    <div style="margin-bottom:15px; padding:15px; background:#dbeafe; border-radius:10px; border-left:4px solid #1e40af;">
+      <div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px;">📐 정면 자세 분석 요약</div>
+      ${frontScore != null ? `<div style="font-size:12px; margin-bottom:6px;"><strong>정면 점수:</strong> ${frontScore}/100</div>` : ''}
+      ${frontTopPatterns ? `<div style="font-size:12px; margin-bottom:6px;"><strong>주요 패턴:</strong> ${frontTopPatterns}</div>` : ''}
+      ${uniqueTight.filter(m => frontAnalysisForCombined.muscles?.tight && (
+        (frontAnalysisForCombined.muscles.tight instanceof Set && frontAnalysisForCombined.muscles.tight.has(m)) ||
+        (Array.isArray(frontAnalysisForCombined.muscles.tight) && frontAnalysisForCombined.muscles.tight.includes(m))
+      )).length > 0 ? `<div style="font-size:12px; margin-bottom:6px;"><strong style="color:#dc2626;">긴장 근육:</strong> ${uniqueTight.filter(m => frontAnalysisForCombined.muscles?.tight && (
+        (frontAnalysisForCombined.muscles.tight instanceof Set && frontAnalysisForCombined.muscles.tight.has(m)) ||
+        (Array.isArray(frontAnalysisForCombined.muscles.tight) && frontAnalysisForCombined.muscles.tight.includes(m))
+      )).join(', ')}</div>` : ''}
+      ${uniqueWeak.filter(m => frontAnalysisForCombined.muscles?.weak && (
+        (frontAnalysisForCombined.muscles.weak instanceof Set && frontAnalysisForCombined.muscles.weak.has(m)) ||
+        (Array.isArray(frontAnalysisForCombined.muscles.weak) && frontAnalysisForCombined.muscles.weak.includes(m))
+      )).length > 0 ? `<div style="font-size:12px;"><strong style="color:#2563eb;">약화 근육:</strong> ${uniqueWeak.filter(m => frontAnalysisForCombined.muscles?.weak && (
+        (frontAnalysisForCombined.muscles.weak instanceof Set && frontAnalysisForCombined.muscles.weak.has(m)) ||
+        (Array.isArray(frontAnalysisForCombined.muscles.weak) && frontAnalysisForCombined.muscles.weak.includes(m))
+      )).join(', ')}</div>` : ''}
+    </div>`;
+}
+
 page7Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략</h2>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략 (측면 + 정면)</h2>
+  ${sideSummaryHtml}
+  ${frontSummaryHtml}
   ${beforeAfterSummaryHtml}
   <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
     <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
