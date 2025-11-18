@@ -4271,6 +4271,16 @@ function computeAll() {
         orientation: "front"
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에도 정면 분석 결과 저장 (PDF 생성 시 사용)
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = frontMetrics;
+        sessions.After.metrics.sideMetrics = existingSideMetrics; // 기존 측면 메트릭 보존
+        sessions.After.score = scoreData;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4287,6 +4297,16 @@ function computeAll() {
         exercises: []
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에도 정면 분석 결과 저장 (PDF 생성 시 사용)
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = frontMetrics;
+        sessions.After.metrics.sideMetrics = existingSideMetrics; // 기존 측면 메트릭 보존
+        sessions.After.score = scoreData;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4338,6 +4358,16 @@ function computeAll() {
         orientation: "side"
       };
       S.analysis = S.sideAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에도 측면 분석 결과 저장 (PDF 생성 시 사용)
+      if (sessions.After) {
+        sessions.After.sideAnalysis = S.sideAnalysis;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.sideMetrics = sideMetrics;
+        sessions.After.metrics.frontMetrics = existingFrontMetrics; // 기존 정면 메트릭 보존
+        sessions.After.score = score;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -12679,7 +12709,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:100%; max-width:100%; box-sizing:border-box; padding:0;">
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:calc(100% - 30px); max-width:calc(100% - 30px); box-sizing:border-box; padding:0; margin-left:0; margin-right:0;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
