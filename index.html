@@ -21,19 +21,20 @@
 /* PDF용 안전 폰트 및 숨김 렌더링 (구글 폰트 제외) */
 /* PDF용 안전 컨테이너 - 보이지 않지만 렌더링은 됨 */
 .pdf-safe {
-  position: absolute !important;
+  position: fixed !important; /* absolute 대신 fixed로 안정성 확보 */
   left: -9999px !important;
   top: 0 !important;
-  /* 🛠️ 수정: 너비 고정(520px) 제거 및 100%로 변경하여 잘림 문제 해결 */
-  width: 100% !important;
-  max-width: 1000px !important; /* PDF 생성 시 최대 너비로 설정하여 안전성 확보 */
-  padding: 30px !important;
-  background: white !important;
+  width: 100% !important; /* 너비를 100%로 설정 */
+  min-height: 100vh !important;
+  box-sizing: border-box !important; /* 박스 모델 통일 */
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important; /* 의도치 않은 변형 제거 */
+  background: white !important; /* 배경색을 강제로 흰색으로 설정하여 투명도 문제 방지 */
   font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif !important;
   opacity: 0 !important;           /* 핵심: visibility → opacity */
   pointer-events: none !important;
   z-index: -1 !important;
-  box-sizing: border-box !important;
   visibility: visible !important;  /* 자식은 보이게 */
   display: block !important;      /* ✅ display: none 대신 block 사용 (잘림 방지) */
 }
@@ -41,18 +42,49 @@
 .pdf-safe * {
   opacity: 1 !important;
   visibility: visible !important;
-  /* 텍스트 잘림 방지 강제 적용 */
+  
+  /* 텍스트 잘림 방지 (재강화) */
   word-wrap: break-word !important;
   overflow-wrap: break-word !important;
   word-break: break-word !important;
-  white-space: normal !important; /* nowrap 강제 해제 */
-  /* overflow: visible은 img/video/canvas에 적용하지 않음 (deprecated 경고 방지) */
-  text-overflow: clip !important; /* ellipsis 강제 해제 */
+  white-space: pre-wrap !important; 
+  text-overflow: clip !important;
+  
+  /* ⚡️ 컨테이너 잘림 방지 (높이 및 오버플로우 강제 해제) */
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  width: auto !important; /* 너비도 content에 맞게 유동적으로 */
+  
+  /* ⚡️ 밀림 현상 방지를 위한 margin/padding 초기화 및 Box-sizing 통일 */
+  box-sizing: border-box !important; 
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  float: none !important;
+  position: relative !important; /* 모든 요소를 relative로 안정화 */
+  overflow: visible !important; /* 오버플로우 강제 표시 */
 }
 
 /* img/video/canvas가 아닌 요소에만 overflow: visible 적용 */
+/* img/video/canvas가 아닌 요소에만 overflow: visible 적용 (강화) */
 .pdf-safe *:not(img):not(video):not(canvas) {
-  overflow: visible !important; /* hidden 강제 해제 (img/video/canvas 제외) */
+  overflow: visible !important;
+}
+
+/* 모든 텍스트 컨테이너(div, p, h 등)의 높이 및 overflow 강제 해제 */
+.pdf-safe div, .pdf-safe p, .pdf-safe span, .pdf-safe h1, .pdf-safe h2, .pdf-safe h3, .pdf-safe h4, .pdf-safe li {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 이미지, 캔버스 등 미디어 비율 관련 (원본 비율 유지 재강화) */
+.pdf-safe img, .pdf-safe canvas, .pdf-safe video {
+  max-width: 100% !important;
+  height: auto !important; /* 비율 유지의 핵심 */
+  object-fit: contain !important; /* 비율 유지하면서 컨테이너에 맞춤 */
 }
 
 /* 테이블 셀에 대한 강제 오버라이드 (가장 중요) */
@@ -354,7 +386,7 @@ canvas {
     
     <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
       <div style="font-size:14px; font-weight:600; margin-bottom:8px;">📊 체형 종합 점수</div>
-      <div id="totalScore" style="font-size:32px; font-weight:800; margin-bottom:8px;">—</div>
+      <div id="totalScore" style="font-size:28px; font-weight:800; margin-bottom:8px;">—</div>
       <div id="scoreReason" class="muted" style="font-size:11px; line-height:1.4; margin-bottom:8px;"></div>
       <div id="pdsScore" class="muted" style="font-size:12px; margin-top:6px;">PDS: <span id="pdsValue">—</span></div>
     </div>
@@ -6579,11 +6611,11 @@ function updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis) {
     
     // ✅ 4순위: 세션의 일반 score 확인 (하위 호환성)
     if (!scoreResult) {
-      const sessionScore = S.score;
-      if (typeof sessionScore === 'object' && sessionScore !== null) {
-        scoreResult = sessionScore;
-      } else if (typeof sessionScore === 'number') {
-        scoreResult = { score: sessionScore, reasons: [], penalties: 0 };
+    const sessionScore = S.score;
+    if (typeof sessionScore === 'object' && sessionScore !== null) {
+      scoreResult = sessionScore;
+    } else if (typeof sessionScore === 'number') {
+      scoreResult = { score: sessionScore, reasons: [], penalties: 0 };
       }
     }
     
@@ -7183,9 +7215,9 @@ function updateDisplay() {
     document.getElementById("dispKnee").textContent = "—";
   } else {
     // 측면 분석일 때만 측면 메트릭 표시
-    document.getElementById("dispCva").textContent = M.cva != null ? M.cva.toFixed(1) + "°" : "—";
-    document.getElementById("dispPel").textContent = M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—";
-    document.getElementById("dispKnee").textContent = M.knee != null ? M.knee.toFixed(1) + "°" : "—";
+  document.getElementById("dispCva").textContent = M.cva != null ? M.cva.toFixed(1) + "°" : "—";
+  document.getElementById("dispPel").textContent = M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—";
+  document.getElementById("dispKnee").textContent = M.knee != null ? M.knee.toFixed(1) + "°" : "—";
   }
 }
 
@@ -10053,7 +10085,7 @@ function buildBeforeAfterSummaryHTML(comparison) {
   const statsHtml = `<div style="display:flex; flex-wrap:wrap; gap:8px;">${stats.map(stat => `
     <div style="flex:1 1 90px; min-width:90px; padding:10px; border-radius:10px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); text-align:center;">
       <div style="font-size:12px; color:${stat.color}; font-weight:600;">${stat.label}</div>
-      <div style="font-size:20px; font-weight:700; color:#0b0f14;">${stat.value}</div>
+      <div style="font-size:18px; font-weight:700; color:#0b0f14;">${stat.value}</div>
     </div>`).join('')}</div>`;
 
   const summaryText = comparison.summary?.overallComment
@@ -10585,7 +10617,7 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.boxSizing = "border-box";
   container.style.color = "#111";
   container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Noto Sans KR", sans-serif';
-  container.style.fontSize = "14px"; // 글자 가독성 개선 (12px -> 14px)
+  container.style.fontSize = "14px"; // ✅ 기본 폰트 크기 통일 (14px)
   container.style.lineHeight = "1.6"; // 줄 간격 개선 (1.55 -> 1.6)
   container.style.letterSpacing = "0.2px";
   container.style.boxSizing = "border-box";
@@ -10596,6 +10628,70 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.whiteSpace = "normal"; // 텍스트가 자연스럽게 줄바꿈되도록
   container.style.minHeight = "1100px";
   container.style.maxHeight = "none"; // ✅ 높이 제한 제거 (페이지를 자유롭게 늘리기)
+  
+  // ✅ PDF 폰트 크기 통일: 모든 자식 요소에 일관된 폰트 크기 적용
+  const styleId = `pdf-font-unified-${container.id}`;
+  let styleEl = document.getElementById(styleId);
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    document.head.appendChild(styleEl);
+  }
+  
+  // ✅ 폰트 크기 통일 규칙: 기본 텍스트 14px, 제목은 비율 유지하되 최소 크기 보장
+  styleEl.textContent = `
+    #${container.id} {
+      font-size: 14px !important;
+    }
+    #${container.id} * {
+      font-size: inherit !important;
+    }
+    #${container.id} h1 {
+      font-size: 24px !important;
+      line-height: 1.4 !important;
+    }
+    #${container.id} h2 {
+      font-size: 20px !important;
+      line-height: 1.4 !important;
+    }
+    #${container.id} h3 {
+      font-size: 18px !important;
+      line-height: 1.4 !important;
+    }
+    #${container.id} h4 {
+      font-size: 16px !important;
+      line-height: 1.4 !important;
+    }
+    #${container.id} .score-large,
+    #${container.id} [style*="font-size:28px"],
+    #${container.id} [style*="font-size: 28px"] {
+      font-size: 24px !important;
+      line-height: 1.3 !important;
+    }
+    #${container.id} .score-medium,
+    #${container.id} [style*="font-size:20px"],
+    #${container.id} [style*="font-size: 20px"] {
+      font-size: 18px !important;
+      line-height: 1.4 !important;
+    }
+    #${container.id} .text-small,
+    #${container.id} [style*="font-size:10px"],
+    #${container.id} [style*="font-size: 10px"],
+    #${container.id} [style*="font-size:11px"],
+    #${container.id} [style*="font-size: 11px"],
+    #${container.id} [style*="font-size:12px"],
+    #${container.id} [style*="font-size: 12px"] {
+      font-size: 13px !important;
+      line-height: 1.5 !important;
+    }
+    #${container.id} .text-tiny,
+    #${container.id} [style*="font-size:9px"],
+    #${container.id} [style*="font-size: 9px"] {
+      font-size: 12px !important;
+      line-height: 1.5 !important;
+    }
+  `;
+  
   // PDF 안전 폰트 클래스 추가
   if (!container.classList.contains('pdf-safe')) {
     container.classList.add('pdf-safe');
@@ -10641,8 +10737,8 @@ function buildCoverPageHTML({ memberName, centerName, dateStr, appName, beforeVi
 
   return `
     <div style="text-align:center; margin-top:60px;">
-      <h1 style="margin:0; padding:0; font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
-      ${memberName ? `<h2 style="margin:0; padding:0; font-size:20px; font-weight:600; color:#333; margin-bottom:15px;">회원명: ${memberName}</h2>` : ''}
+      <h1 style="margin:0; padding:0; font-size:28px; font-weight:800; color:#0b0f14; margin-bottom:30px; line-height:1.3;">📋 AI 자세 분석 보고서</h1>
+      ${memberName ? `<h2 style="margin:0; padding:0; font-size:18px; font-weight:600; color:#333; margin-bottom:15px;">회원명: ${memberName}</h2>` : ''}
       ${centerName ? `<h3 style="margin:0; padding:0; font-size:18px; font-weight:500; color:#666; margin-bottom:15px;">센터명: ${centerName}</h3>` : ''}
       <p style="margin:0; padding:0; font-size:14px; color:#999; margin-bottom:10px;">분석일: ${dateStr}</p>
       <p style="margin:0; padding:0; font-size:12px; color:#999; margin-top:40px;">Generated by ${appName} · ${REPORT_SIGNATURE}</p>
@@ -11166,7 +11262,7 @@ if (beforeViews.side || afterViews.side) {
   const afterImg = afterViews.side || '';
   
     sideImageContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 Before & After</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 Before & After</h2>
     <div style="display:flex; gap:20px; margin-top:20px;">
       <div style="flex:1; text-align:center;">
         <div style="font-size:14px; font-weight:600; color:#333; margin-bottom:10px;">Before</div>
@@ -11186,12 +11282,12 @@ if (beforeViews.side || afterViews.side) {
     `;
   } else {
     sideImageContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 Before & After</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 측면 Before & After</h2>
     <div style="text-align:center; padding:40px 20px; border:1px dashed #d0d0d0; border-radius:8px; background:#f9fafb; margin-top:20px;">
-      <p style="margin:0; font-size:15px; color:#666;">측면 사진이 아직 등록되지 않았습니다.</p>
+      <p style="margin:0; font-size:14px; color:#666;">측면 사진이 아직 등록되지 않았습니다.</p>
       </div>
       <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+        <div style="display:flex; justify-content:space-between; font-size:10px; color:#666;">
           <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
           <span>Page 1</span>
         </div>
@@ -11201,9 +11297,9 @@ if (beforeViews.side || afterViews.side) {
   
   document.body.appendChild(sideImageContainer);
   
-  if (isMobile) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
+if (isMobile) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
 
 // ========== 페이지 2: 측면 오버레이와 스켈레톤 모형 ==========
 const sideOverlayContainer = document.createElement("div");
@@ -11213,37 +11309,37 @@ sideOverlayContainer.classList.add('pdf-safe');
 
 if (overlayImg) {
   sideOverlayContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 측면 오버레이 & 스켈레톤 모형</h2>
-    <div style="text-align:center; margin-top:20px;">
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 측면 오버레이 & 스켈레톤 모형</h2>
+      <div style="text-align:center; margin-top:20px;">
       <img src="${overlayImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:900px; object-fit:contain; background:#fff;" />
-      <div style="margin-top:10px; font-size:11px; color:#666;">파란색(Before) | 주황색(After)</div>
-    </div>
-    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
-        <span>Page 2</span>
+      <div style="margin-top:10px; font-size:12px; color:#666;">파란색(Before) | 주황색(After)</div>
       </div>
-    </div>
-  `;
-} else {
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+        <span>Page 2</span>
+        </div>
+      </div>
+    `;
+  } else {
   sideOverlayContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 측면 오버레이 & 스켈레톤 모형</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 측면 오버레이 & 스켈레톤 모형</h2>
     <div style="text-align:center; padding:40px 20px; border:1px dashed #d0d0d0; border-radius:8px; background:#f9fafb; margin-top:20px;">
       <p style="margin:0; font-size:15px; color:#666;">측면 오버레이 이미지가 없습니다.</p>
-    </div>
-    <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
-        <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
-        <span>Page 2</span>
       </div>
-    </div>
-  `;
-}
-
+      <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+          <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
+        <span>Page 2</span>
+        </div>
+      </div>
+    `;
+  }
+  
 document.body.appendChild(sideOverlayContainer);
-
-if (isMobile) {
-  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 100));
 }
 
 // ========== 페이지 3: 측면 분석 ==========
@@ -11255,50 +11351,69 @@ const sideMetrics = {};
 let sideMetricsSource = null;
 const sideMetricKeys = ['CVA', 'CVA_S', 'HPD', 'HPD_S', 'TIA', 'TIA_S', 'SAA', 'SAA_S', 'PTA', 'PTA_S', 'KA', 'KA_S', 'GSB', 'GSB_S', 'PDS', 'PDS_S'];
 
-// ✅ 모든 세션에서 측면 메트릭 수집
+// ✅ 모든 세션에서 측면 메트릭 수집 (After 우선, Before는 나중에)
 const allSideMetricsSources = [];
 
-// After 세션 확인
+// ✅ 1순위: After 세션 확인 (가장 최신 데이터)
 if (sessions.After?.metrics?.sideMetrics) {
-  allSideMetricsSources.push({ source: sessions.After.metrics.sideMetrics, label: 'After.sideMetrics' });
+  allSideMetricsSources.push({ source: sessions.After.metrics.sideMetrics, label: 'After.sideMetrics', priority: 1 });
 } else if (sessions.After?.metrics?.fullMetrics && sessions.After.metrics.orientation === "side") {
-  allSideMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics(side)' });
+  allSideMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics(side)', priority: 1 });
 } else if (sessions.After?.metrics?.fullMetrics) {
-  allSideMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics' });
+  allSideMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics', priority: 2 });
 }
 
-// Before 세션 확인
-if (sessions.Before?.metrics?.sideMetrics) {
-  allSideMetricsSources.push({ source: sessions.Before.metrics.sideMetrics, label: 'Before.sideMetrics' });
-} else if (sessions.Before?.metrics?.fullMetrics && sessions.Before.metrics.orientation === "side") {
-  allSideMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics(side)' });
-} else if (sessions.Before?.metrics?.fullMetrics) {
-  allSideMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics' });
-}
-
-// 현재 세션 확인
+// ✅ 2순위: 현재 세션 확인
 if (sessions[cur]?.metrics?.sideMetrics) {
-  allSideMetricsSources.push({ source: sessions[cur].metrics.sideMetrics, label: `${cur}.sideMetrics` });
+  allSideMetricsSources.push({ source: sessions[cur].metrics.sideMetrics, label: `${cur}.sideMetrics`, priority: 2 });
 } else if (sessions[cur]?.metrics?.fullMetrics && sessions[cur].metrics.orientation === "side") {
-  allSideMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics(side)` });
+  allSideMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics(side)`, priority: 2 });
 } else if (sessions[cur]?.metrics?.fullMetrics) {
-  allSideMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics` });
+  allSideMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics`, priority: 3 });
 }
 
-// ✅ 가장 많은 측면 메트릭을 가진 소스 선택
+// ✅ 3순위: Before 세션 확인 (마지막)
+if (sessions.Before?.metrics?.sideMetrics) {
+  allSideMetricsSources.push({ source: sessions.Before.metrics.sideMetrics, label: 'Before.sideMetrics', priority: 3 });
+} else if (sessions.Before?.metrics?.fullMetrics && sessions.Before.metrics.orientation === "side") {
+  allSideMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics(side)', priority: 3 });
+} else if (sessions.Before?.metrics?.fullMetrics) {
+  allSideMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics', priority: 4 });
+}
+
+// ✅ 가장 많은 측면 메트릭을 가진 소스 선택 (우선순위 고려)
 if (allSideMetricsSources.length > 0) {
-  const sourcesWithCounts = allSideMetricsSources.map(({ source, label }) => {
+  const sourcesWithCounts = allSideMetricsSources.map(({ source, label, priority }) => {
     const count = Object.keys(source).filter(key => {
       if (key === 'orientation') return false;
       const code = METRIC_KEY_ALIASES[key] || key;
       return sideMetricKeys.includes(code) || sideMetricKeys.includes(key);
     }).length;
-    return { source, label, count };
+    return { source, label, count, priority: priority || 999 };
   });
   
-  const bestSource = sourcesWithCounts.sort((a, b) => b.count - a.count)[0];
-  sideMetricsSource = bestSource.source;
-  console.log(`✅ 측면 메트릭 소스 선택: ${bestSource.label} (${bestSource.count}개 메트릭)`);
+  // ✅ 우선순위가 같으면 메트릭 개수가 많은 것 선택, 우선순위가 다르면 우선순위가 높은 것 선택
+  const bestSource = sourcesWithCounts.sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority; // 우선순위가 낮을수록 좋음 (1이 가장 좋음)
+    }
+    return b.count - a.count; // 우선순위가 같으면 메트릭 개수가 많은 것 선택
+  })[0];
+  
+  // ✅ 메트릭이 0개인 소스는 선택하지 않음 (다음 우선순위 확인)
+  if (bestSource.count === 0 && sourcesWithCounts.length > 1) {
+    const nextBest = sourcesWithCounts.find(s => s.count > 0);
+    if (nextBest) {
+      sideMetricsSource = nextBest.source;
+      console.log(`✅ 측면 메트릭 소스 선택: ${nextBest.label} (${nextBest.count}개 메트릭, 우선순위: ${nextBest.priority})`);
+    } else {
+      sideMetricsSource = bestSource.source;
+      console.log(`⚠️ 측면 메트릭 소스 선택: ${bestSource.label} (${bestSource.count}개 메트릭, 우선순위: ${bestSource.priority}) - 메트릭 없음`);
+    }
+  } else {
+    sideMetricsSource = bestSource.source;
+    console.log(`✅ 측면 메트릭 소스 선택: ${bestSource.label} (${bestSource.count}개 메트릭, 우선순위: ${bestSource.priority})`);
+  }
 }
 
 // 측면 메트릭 키만 필터링 (HPA, Tibial 제외 - 정면 지표)
@@ -11376,22 +11491,63 @@ if (true) { // 항상 생성
   sideReportContainer.classList.add('pdf-safe');
   
   // ✅ 측면 메트릭만으로 점수 계산 (Before/After 비교) - 개선 버전
-  // ✅ 1순위: sessions.After.metrics.sideMetrics 직접 확인 (computeAll에서 저장한 것)
-  let metricsForScore = {};
+  // ✅ 1순위: sessions.After.sideScore 직접 확인 (가장 정확한 점수)
+  let sideScoreResult = null;
+  if (sessions.After?.sideScore) {
+    const sideScoreObj = sessions.After.sideScore;
+    if (typeof sideScoreObj === 'object' && sideScoreObj !== null && sideScoreObj.score != null) {
+      sideScoreResult = sideScoreObj;
+      console.log('✅ 측면 점수: sessions.After.sideScore 사용');
+    } else if (typeof sideScoreObj === 'number') {
+      sideScoreResult = { score: sideScoreObj, reasons: [], penalties: 0 };
+      console.log('✅ 측면 점수: sessions.After.sideScore (숫자) 사용');
+    }
+  }
   
-  if (sessions.After?.metrics?.sideMetrics && Object.keys(sessions.After.metrics.sideMetrics).length > 1) {
-    // ✅ computeAll에서 저장한 측면 메트릭 직접 사용
-    metricsForScore = sessions.After.metrics.sideMetrics;
-    console.log('✅ 측면 메트릭: sessions.After.metrics.sideMetrics 사용');
-  } else if (sessions.Before?.metrics?.sideMetrics && Object.keys(sessions.Before.metrics.sideMetrics).length > 1) {
-    metricsForScore = sessions.Before.metrics.sideMetrics;
-    console.log('✅ 측면 메트릭: sessions.Before.metrics.sideMetrics 사용');
-  } else if (Object.keys(sideMetrics).length > 1) {
-    // ✅ 2순위: PDF 생성 시 수집한 sideMetrics 사용
-    metricsForScore = sideMetrics;
-    console.log('✅ 측면 메트릭: PDF 생성 시 수집한 sideMetrics 사용');
-  } else {
-    // ✅ 3순위: fullMetrics에서 필터링
+  // ✅ 2순위: sessions.After.sideAnalysis에서 점수 확인
+  if (!sideScoreResult && sessions.After?.sideAnalysis) {
+    if (sessions.After.sideAnalysis.score) {
+      const sideScoreObj = sessions.After.sideAnalysis.score;
+      if (typeof sideScoreObj === 'object' && sideScoreObj !== null && sideScoreObj.score != null) {
+        sideScoreResult = sideScoreObj;
+        console.log('✅ 측면 점수: sessions.After.sideAnalysis.score 사용');
+      } else if (typeof sideScoreObj === 'number') {
+        sideScoreResult = { score: sideScoreObj, reasons: [], penalties: 0 };
+        console.log('✅ 측면 점수: sessions.After.sideAnalysis.score (숫자) 사용');
+      }
+    } else if (sessions.After.sideAnalysis.fullMetrics) {
+      const hasValidSideMetrics = Object.keys(sessions.After.sideAnalysis.fullMetrics).some(key => {
+        if (key === 'orientation') return false;
+        const metric = sessions.After.sideAnalysis.fullMetrics[key];
+        if (!metric || typeof metric !== 'object') return false;
+        const val = metric.value != null ? metric.value : 
+                    (metric.value_deg != null ? metric.value_deg : 
+                    (metric.value_cm != null ? metric.value_cm : null));
+        return val != null && !isNaN(val) && isFinite(val);
+      });
+      if (hasValidSideMetrics) {
+        sideScoreResult = computeScoreFromFullMetrics(sessions.After.sideAnalysis.fullMetrics);
+        console.log('✅ 측면 점수: sessions.After.sideAnalysis.fullMetrics에서 계산');
+      }
+    }
+  }
+  
+  // ✅ 3순위: sessions.After.metrics.sideMetrics에서 계산
+  let metricsForScore = {};
+  if (!sideScoreResult) {
+    if (sessions.After?.metrics?.sideMetrics && Object.keys(sessions.After.metrics.sideMetrics).length > 1) {
+      // ✅ computeAll에서 저장한 측면 메트릭 직접 사용
+      metricsForScore = sessions.After.metrics.sideMetrics;
+      console.log('✅ 측면 메트릭: sessions.After.metrics.sideMetrics 사용');
+    } else if (sessions.Before?.metrics?.sideMetrics && Object.keys(sessions.Before.metrics.sideMetrics).length > 1) {
+      metricsForScore = sessions.Before.metrics.sideMetrics;
+      console.log('✅ 측면 메트릭: sessions.Before.metrics.sideMetrics 사용');
+    } else if (Object.keys(sideMetrics).length > 1) {
+      // ✅ PDF 생성 시 수집한 sideMetrics 사용
+      metricsForScore = sideMetrics;
+      console.log('✅ 측면 메트릭: PDF 생성 시 수집한 sideMetrics 사용');
+    } else {
+      // ✅ fullMetrics에서 필터링
   const beforeSideMetrics = sessions.Before?.metrics?.fullMetrics || {};
   const afterSideMetrics = sessions.After?.metrics?.fullMetrics || {};
   
@@ -11511,37 +11667,45 @@ if (true) { // 항상 생성
         hasValidMetrics = true;
       }
     }
+    
+    // ✅ sideScoreResult가 아직 없으면 metricsForScore에서 계산
+    if (!sideScoreResult) {
+      sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(finalMetricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
+    }
   }
   
-  const sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(finalMetricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
+  // ✅ sideScoreResult가 아직 없으면 최종 계산
+  if (!sideScoreResult) {
+    sideScoreResult = { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
+  }
   
   sideReportContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 측면 자세 분석 리포트</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 측면 자세 분석 리포트</h2>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
       ${sideScoreResult && sideScoreResult.score != null ? `
       <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 측면 점수</div>
-        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${sideScoreResult.score}/100</div>
-        <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons && sideScoreResult.reasons.length > 0 ? sideScoreResult.reasons.join(', ') : '모든 지표가 정상 범위입니다'}</div>
+        <div style="font-size:14px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 측면 점수</div>
+        <div style="font-size:28px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${sideScoreResult.score}/100</div>
+        <div style="font-size:12px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons && sideScoreResult.reasons.length > 0 ? sideScoreResult.reasons.join(', ') : '모든 지표가 정상 범위입니다'}</div>
       </div>` : (sideScoreResult && sideScoreResult.score === null ? `
       <div style="padding:18px; background:#fef2f2; border-radius:12px; border:1px solid #fecaca; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-        <div style="font-size:13px; font-weight:700; color:#dc2626; margin-bottom:8px; word-wrap:break-word;">⚠️ 측면 점수 계산 불가</div>
-        <div style="font-size:12px; color:#991b1b; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons && sideScoreResult.reasons.length > 0 ? sideScoreResult.reasons.join(', ') : '측정 데이터가 없습니다'}</div>
+        <div style="font-size:14px; font-weight:700; color:#dc2626; margin-bottom:8px; word-wrap:break-word;">⚠️ 측면 점수 계산 불가</div>
+        <div style="font-size:14px; color:#991b1b; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${sideScoreResult.reasons && sideScoreResult.reasons.length > 0 ? sideScoreResult.reasons.join(', ') : '측정 데이터가 없습니다'}</div>
       </div>` : '')}
 
       ${(sideAnalysis?.muscles?.tight && (sideAnalysis.muscles.tight.size > 0 || sideAnalysis.muscles.tight.length > 0)) || (sideAnalysis?.muscles?.weak && (sideAnalysis.muscles.weak.size > 0 || sideAnalysis.muscles.weak.length > 0)) ? `
       <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
-        <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
-        ${(sideAnalysis.muscles.tight?.size > 0 || sideAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${sideAnalysis.muscles.tight instanceof Set ? Array.from(sideAnalysis.muscles.tight).join(', ') : (Array.isArray(sideAnalysis.muscles.tight) ? sideAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
-        ${(sideAnalysis.muscles.weak?.size > 0 || sideAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${sideAnalysis.muscles.weak instanceof Set ? Array.from(sideAnalysis.muscles.weak).join(', ') : (Array.isArray(sideAnalysis.muscles.weak) ? sideAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
+        <div style="font-size:14px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
+        ${(sideAnalysis.muscles.tight?.size > 0 || sideAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:14px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${sideAnalysis.muscles.tight instanceof Set ? Array.from(sideAnalysis.muscles.tight).join(', ') : (Array.isArray(sideAnalysis.muscles.tight) ? sideAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
+        ${(sideAnalysis.muscles.weak?.size > 0 || sideAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:14px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${sideAnalysis.muscles.weak instanceof Set ? Array.from(sideAnalysis.muscles.weak).join(', ') : (Array.isArray(sideAnalysis.muscles.weak) ? sideAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
       </div>` : ''}
     </div>
 
     ${(sideAnalysis?.topRecommendations || []).length ? `
     <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
-      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
+      <div style="font-size:14px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:14px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
         ${(sideAnalysis.topRecommendations || []).slice(0,3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
           <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
           ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
@@ -11552,8 +11716,8 @@ if (true) { // 항상 생성
 
     ${Object.keys(sideMetrics).length > 1 ? `
     <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-      <div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 측면 측정 지표 상세</div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:11px; line-height:1.6;">
+      <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 측면 측정 지표 상세</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:14px; line-height:1.6;">
         ${Object.keys(sideMetrics).filter(key => key !== 'orientation').map(key => {
           const metric = sideMetrics[key];
           if (!metric || typeof metric !== 'object') return '';
@@ -11593,17 +11757,17 @@ if (true) { // 항상 생성
           
           return `
           <div style="padding:10px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
-            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:12px;">${desc}</div>
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:14px;">${desc}</div>
             <div style="font-size:18px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
-            <div style="font-size:10px; color:#64748b; margin-bottom:4px;">${statusText}</div>
-            ${normalRange ? `<div style="font-size:9px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
+            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:12px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
           </div>`;
         }).filter(html => html.trim().length > 0).join('')}
       </div>
     </div>` : ''}
 
     <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:#666;">
         <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
         <span>Page 3</span>
       </div>
@@ -11669,7 +11833,7 @@ if (beforeViews.front || afterViews.front) {
   const afterImg = afterViews.front || '';
   
     frontImageContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 Before & After</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 Before & After</h2>
     <div style="display:flex; gap:20px; margin-top:20px;">
       <div style="flex:1; text-align:center;">
         <div style="font-size:14px; font-weight:600; color:#333; margin-bottom:10px;">Before</div>
@@ -11689,7 +11853,7 @@ if (beforeViews.front || afterViews.front) {
     `;
   } else {
     frontImageContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 Before & After</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📸 정면 Before & After</h2>
     <div style="text-align:center; padding:40px 20px; border:1px dashed #d0d0d0; border-radius:8px; background:#f9fafb; margin-top:20px;">
       <p style="margin:0; font-size:15px; color:#666;">정면 사진이 아직 등록되지 않았습니다.</p>
       </div>
@@ -11716,7 +11880,7 @@ frontOverlayContainer.classList.add('pdf-safe');
 
 if (frontOverlayImg) {
   frontOverlayContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 정면 오버레이 & 스켈레톤 모형</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 정면 오버레이 & 스켈레톤 모형</h2>
     <div style="text-align:center; margin-top:20px;">
       <img src="${frontOverlayImg}" style="width:100%; height:auto; border-radius:8px; border:1px solid #ddd; display:block; max-height:900px; object-fit:contain; background:#fff;" />
       <div style="margin-top:10px; font-size:11px; color:#666;">파란색(Before) | 주황색(After)</div>
@@ -11730,7 +11894,7 @@ if (frontOverlayImg) {
   `;
 } else {
   frontOverlayContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 정면 오버레이 & 스켈레톤 모형</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🔄 정면 오버레이 & 스켈레톤 모형</h2>
     <div style="text-align:center; padding:40px 20px; border:1px dashed #d0d0d0; border-radius:8px; background:#f9fafb; margin-top:20px;">
       <p style="margin:0; font-size:15px; color:#666;">정면 오버레이 이미지가 없습니다.</p>
     </div>
@@ -11841,13 +12005,13 @@ if (true) { // 항상 생성
   const frontScoreResult = computeScoreFromFullMetrics(frontMetrics);
   
   frontReportContainer.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 정면 자세 분석 리포트</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 정면 자세 분석 리포트</h2>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
       ${frontScoreResult ? `
       <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
         <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 정면 점수</div>
-        <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${frontScoreResult.score}/100</div>
+        <div style="font-size:28px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${frontScoreResult.score}/100</div>
         <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${frontScoreResult.reasons ? frontScoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
       </div>` : ''}
 
@@ -11950,7 +12114,7 @@ if (false && includeHeatmapPage && (beforeHeatmap || afterHeatmap)) {
 
   page2Container.innerHTML = `
     <div style="margin-bottom:20px;">
-      <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:8px;">🔥 AI Confidence Heatmap</h2>
+      <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:8px;">🔥 AI Confidence Heatmap</h2>
       <div style="font-size:11px; color:#666; margin-bottom:20px;">각 관절의 AI 신뢰도를 색상으로 시각화합니다. 빨강(높음) → 노랑(중간) → 파랑(낮음)</div>
 
       ${beforeHeatmap ? `
@@ -12035,7 +12199,7 @@ setPageContainerStyle(page3Container);
 // chartCanvas 변수를 함수 스코프 상단에서 선언
 let chartCanvas = null;
 
-let page3HTML = '<h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
+let page3HTML = '<h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📊 수치표 + 변화 그래프</h2>';
 
 if(comparison && comparison.results.length > 0) {
   let comparisonTableHTML = '<table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:auto; margin-bottom:15px; word-wrap:break-word; overflow-wrap:break-word;"><tr style="background:#f0f0f0;"><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">항목</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">Before</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">After</th><th style="padding:8px 6px; text-align:center; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">변화</th><th style="padding:8px 6px; text-align:left; border:1px solid #ddd; font-weight:600; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;">분석</th></tr>';
@@ -12609,13 +12773,13 @@ planTexts = buildPlanTexts({
 });
 
 page4Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 종합 자세 분석 리포트 (측면 + 정면)</h2>
+  <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 종합 자세 분석 리포트 (측면 + 정면)</h2>
 
   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px; max-width:100%;">
     ${scoreResult ? `
     <div style="padding:18px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
       <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:8px; word-wrap:break-word;">📊 체형 종합 점수</div>
-      <div style="font-size:32px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${scoreResult.score}/100</div>
+      <div style="font-size:28px; font-weight:800; color:#0b0f14; margin-bottom:6px; word-wrap:break-word;">${scoreResult.score}/100</div>
       <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
     </div>` : ''}
 
@@ -13026,7 +13190,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 }
 
 page5Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
+  <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
   <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:764px; max-width:764px; box-sizing:border-box; padding:0; margin-left:0; margin-right:0;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
@@ -13152,7 +13316,7 @@ const deepAnalysisHtml = deepAnalysisText.split('\n').map(line => {
 }).join('');
 
 page6Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 심층 분석</h2>
+  <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🤖 AI 자세 심층 분석</h2>
   <div style="margin-top:20px; line-height:1.6;">
     ${deepAnalysisHtml}
   </div>
@@ -13322,7 +13486,7 @@ if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분
   setPageContainerStyle(page8Container);
   
   page8Container.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 체형 유형 분석</h2>
+    <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 체형 유형 분석</h2>
     <div style="font-size:12px; line-height:1.7; color:#111;">${postureTypeHtml}</div>
     <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
       <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
@@ -13390,7 +13554,7 @@ const fullPlanHtml = planTexts.fullText
   : '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>';
 
 page7Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략</h2>
+  <h2 style="margin:0; padding:0; font-size:18px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략</h2>
   ${beforeAfterSummaryHtml}
   <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
     <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
@@ -15624,8 +15788,14 @@ async function captureForPdf(elem) {
     throw new Error(`컨테이너를 찾을 수 없습니다: ${elem?.id}`);
   }
 
-  // ✅ 컨테이너 크기 확인
-  const width = elem.offsetWidth || elem.scrollWidth || 794;
+  // ✅ 컨테이너 크기 확인 - PDF 페이지 너비에 맞춤 (A4: 595.28pt ≈ 794px at 96dpi)
+  // PDF contentWidth에 맞춰서 캡처 (마진 제외한 실제 사용 가능한 너비)
+  const pdfPageWidthPt = 595.28; // A4 너비 (pt)
+  const pdfMarginPt = 30; // 마진 (pt)
+  const pdfContentWidthPt = pdfPageWidthPt - 2 * pdfMarginPt; // 535.28pt
+  const pdfContentWidthPx = Math.round(pdfContentWidthPt * 96 / 72); // pt를 px로 변환 (약 714px)
+  
+  const width = pdfContentWidthPx; // PDF contentWidth에 맞춤
   const height = elem.offsetHeight || elem.scrollHeight || 1000;
   
   if (width === 0 || height === 0) {
@@ -18072,10 +18242,10 @@ async function generateFinalPostureReportPDF() {
     const { jsPDF } = window.jspdf;
 
     const pdf = new jsPDF('p', 'pt', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 60; // ✅ 마진 증가 (글자/사진 잘림 방지)
-    const contentWidth = pageWidth - 2 * margin;
+    const pageWidth = pdf.internal.pageSize.getWidth(); // A4 너비: 595.28pt
+    const pageHeight = pdf.internal.pageSize.getHeight(); // A4 높이: 841.89pt
+    const margin = 30; // ✅ 마진 축소 (옆으로 밀림 방지, 잘림 방지)
+    const contentWidth = pageWidth - 2 * margin; // 실제 사용 가능한 너비
     let yPos = margin;
 
     await document.fonts.ready;
@@ -18116,88 +18286,69 @@ async function generateFinalPostureReportPDF() {
           console.log(`✅ ${id} 이미 생성된 캔버스 사용 (크기: ${canvas.width}x${canvas.height})`);
           
           // ✅ 원본 비율 유지하면서 PDF 페이지에 맞게 스케일링 (잘림 방지)
-          const imgData = canvas.toDataURL('image/png', 1.0);
+          // 캔버스 이미지의 총 높이 (PDF 단위)를 비율에 맞춰 계산
           const canvasAspectRatio = canvas.width / canvas.height;
-          const maxWidth = contentWidth;
-          const maxHeight = pageHeight - margin * 2;
-          
-          // ✅ 비율을 유지하면서 페이지에 맞게 스케일링
-          let imgWidth = maxWidth;
-          let imgHeight = maxWidth / canvasAspectRatio;
-          
-          // ✅ 높이가 페이지를 초과하면 높이 기준으로 재계산 (잘림 방지)
-          if (imgHeight > maxHeight) {
-            imgHeight = maxHeight;
-            imgWidth = maxHeight * canvasAspectRatio;
-          }
-          
-          // ✅ 모바일에서도 잘리지 않도록 최소 크기 보장
-          const minScale = 0.3;
-          if (imgWidth < canvas.width * minScale) {
-            imgWidth = canvas.width * minScale;
-            imgHeight = imgWidth / canvasAspectRatio;
-            if (imgHeight > maxHeight) {
-              imgHeight = maxHeight;
-              imgWidth = maxHeight * canvasAspectRatio;
-            }
-          }
+          const imgWidthPt = contentWidth; // PDF 컨텐츠 영역의 너비 (pt)로 고정
+          const totalImgHeightInPdfUnits = (canvas.height * imgWidthPt) / canvas.width; // 비율 유지하여 높이 계산
           
           // ✅ 여러 페이지로 나누어서 추가 (잘림 방지 강화)
-          let heightLeft = imgHeight;
-          let currentY = yPos;
-          let sourceY = 0; // 원본 캔버스에서의 Y 위치 (픽셀 단위)
+          let heightLeftInPdfUnits = totalImgHeightInPdfUnits;
+          let currentPdfYPos = yPos; // PDF상의 현재 Y 위치
+          let currentSourceYPos = 0; // 캔버스 픽셀 상의 현재 Y 위치
           
-          while (heightLeft > 0) {
+          // 캔버스 픽셀과 PDF 유닛 사이의 비율
+          const pdfToPixelRatio = canvas.width / imgWidthPt;
+          
+          while (heightLeftInPdfUnits > 0) {
             // ✅ 현재 페이지에 사용 가능한 높이 계산 (여유 공간 확보)
-            const availableHeight = pageHeight - currentY - margin;
+            const availableHeight = pageHeight - currentPdfYPos - margin;
             const minSliceHeight = 50; // 최소 슬라이스 높이 (너무 작은 조각 방지)
             
             // 공간이 부족하면 새 페이지 추가
-            if (availableHeight < minSliceHeight && heightLeft > minSliceHeight) {
+            if (availableHeight < minSliceHeight && heightLeftInPdfUnits > minSliceHeight) {
               pdf.addPage();
-              currentY = margin;
+              currentPdfYPos = margin;
               continue;
             }
             
-            // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산
-            const sliceH = Math.min(heightLeft, availableHeight);
+            // ✅ 1. PDF 유닛으로 슬라이스 높이 계산
+            const sliceH_pdf = Math.min(heightLeftInPdfUnits, availableHeight);
             
-            if (sliceH <= 0) {
+            if (sliceH_pdf <= 0) {
               // 슬라이스 높이가 0 이하면 새 페이지 추가
               pdf.addPage();
-              currentY = margin;
+              currentPdfYPos = margin;
               continue;
             }
             
-            // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
-            // 비율 기반 계산으로 정확도 향상
-            const scaleRatio = canvas.height / imgHeight;
+            // ✅ 2. 캔버스 픽셀로 슬라이스 높이 계산 (비율 유지)
+            const sliceH_px = sliceH_pdf * pdfToPixelRatio;
             
             // ✅ 마지막 슬라이스는 남은 부분 모두 포함 (잘림 방지)
-            const isLastSlice = heightLeft <= sliceH * 1.1; // 마지막 10% 범위
-            let sourceSliceHeight;
+            const isLastSlice = heightLeftInPdfUnits <= sliceH_pdf * 1.1 || (currentSourceYPos + sliceH_px >= canvas.height);
+            let actualSliceH_px;
             
             if (isLastSlice) {
               // 마지막 슬라이스: 남은 부분 모두 포함
-              const remainingHeight = canvas.height - sourceY;
-              sourceSliceHeight = Math.max(remainingHeight, Math.round(sliceH * scaleRatio));
+              const remainingHeight = canvas.height - currentSourceYPos;
+              actualSliceH_px = Math.max(remainingHeight, Math.round(sliceH_px));
             } else {
               // 일반 슬라이스: Math.round로 정확도 향상
-              sourceSliceHeight = Math.min(
-                Math.round(sliceH * scaleRatio), // Math.round로 변경 (더 정확)
-                canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
+              actualSliceH_px = Math.min(
+                Math.round(sliceH_px),
+                canvas.height - currentSourceYPos // 원본 캔버스 범위를 벗어나지 않도록
               );
             }
             
-            if (sourceSliceHeight <= 0 || sourceY >= canvas.height) {
+            if (actualSliceH_px <= 0 || currentSourceYPos >= canvas.height) {
               // 슬라이스할 높이가 없거나 이미 끝에 도달했으면 종료
               break;
             }
             
-            // ✅ 캔버스 슬라이스 생성
+            // ✅ 3. 캔버스 슬라이스 생성
             const sliceCanvas = document.createElement('canvas');
             sliceCanvas.width = canvas.width;
-            sliceCanvas.height = sourceSliceHeight;
+            sliceCanvas.height = actualSliceH_px;
             const ctx = sliceCanvas.getContext('2d');
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
@@ -18205,25 +18356,24 @@ async function generateFinalPostureReportPDF() {
             // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서, 잘림 방지)
             ctx.drawImage(
               canvas, 
-              0, sourceY, canvas.width, sourceSliceHeight,  // 원본 영역
-              0, 0, canvas.width, sourceSliceHeight         // 대상 영역
+              0, currentSourceYPos, canvas.width, actualSliceH_px,  // 원본 영역
+              0, 0, canvas.width, actualSliceH_px                   // 대상 영역
             );
             
-            // ✅ PDF에 추가 시 정확한 높이 사용 (잘림 방지)
-            const actualSliceH = Math.min(sliceH, availableHeight);
-            pdf.addImage(sliceCanvas.toDataURL('image/png', 1.0), 'PNG', margin, currentY, imgWidth, actualSliceH);
+          // ✅ 4. PDF에 이미지 추가 (imgWidthPt, sliceH_pdf를 사용하여 비율 유지)
+          pdf.addImage(sliceCanvas.toDataURL('image/png', 1.0), 'PNG', margin, currentPdfYPos, imgWidthPt, sliceH_pdf);
             
-            // ✅ 다음 슬라이스 준비
-            heightLeft -= sliceH;
-            sourceY += sourceSliceHeight;
-            currentY += actualSliceH;
+            // ✅ 5. 다음 위치 업데이트
+            heightLeftInPdfUnits -= sliceH_pdf;
+            currentPdfYPos += sliceH_pdf;
+            currentSourceYPos += actualSliceH_px;
             
             // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
-            if (heightLeft > minSliceHeight) {
-              const nextAvailableHeight = pageHeight - currentY - margin;
+            if (heightLeftInPdfUnits > minSliceHeight) {
+              const nextAvailableHeight = pageHeight - currentPdfYPos - margin;
               if (nextAvailableHeight < minSliceHeight) {
                 pdf.addPage();
-                currentY = margin;
+                currentPdfYPos = margin;
               }
             }
             
@@ -18232,7 +18382,7 @@ async function generateFinalPostureReportPDF() {
             sliceCanvas.height = 1;
           }
           
-          yPos = currentY;
+          yPos = currentPdfYPos;
           
           if (i < containers.length - 1) {
             pdf.addPage();
@@ -18282,104 +18432,71 @@ async function generateFinalPostureReportPDF() {
         // ✅ 필라테스 페이지(page5Container)는 여러 페이지로 나눠도 되므로 잘림 방지 강화
         const isPilatesPage = id === 'page5Container';
 
-        // ✅ 여러 페이지로 나누어서 추가 (A4 용지에 맞게 자동 축소)
-        const imgData = canvas.toDataURL('image/jpeg', 0.95); // 품질 향상
-        
         // ✅ 원본 비율 유지하면서 PDF 페이지에 맞게 스케일링 (잘림 방지)
-        const canvasAspectRatio = canvas.width / canvas.height;
-        const maxWidth = contentWidth; // 여백 제외한 A4 너비
-        const maxHeight = pageHeight - margin * 2; // 여백 제외한 A4 높이
-        
-        // ✅ 비율을 유지하면서 페이지에 맞게 스케일링 (너비와 높이 모두 확인)
-        let imgWidth = maxWidth;
-        let imgHeight = maxWidth / canvasAspectRatio;
-        
-        // ✅ 높이가 페이지를 초과하면 높이 기준으로 재계산 (잘림 방지)
-        if (imgHeight > maxHeight) {
-          imgHeight = maxHeight;
-          imgWidth = maxHeight * canvasAspectRatio;
-        }
-        
-        // ✅ 필라테스 페이지는 원본 크기 유지 (여러 페이지로 나눠도 됨)
-        if (isPilatesPage) {
-          // 필라테스 페이지는 원본 크기 그대로 사용 (축소하지 않음)
-          imgWidth = maxWidth;
-          imgHeight = (canvas.height / canvas.width) * maxWidth;
-        } else {
-          // 다른 페이지는 기존 로직 유지
-          // ✅ 모바일에서도 잘리지 않도록 최소 크기 보장
-          const minScale = 0.3; // 최소 30% 크기 유지
-          if (imgWidth < canvas.width * minScale) {
-            imgWidth = canvas.width * minScale;
-            imgHeight = imgWidth / canvasAspectRatio;
-            // 높이도 확인하여 재조정
-            if (imgHeight > maxHeight) {
-              imgHeight = maxHeight;
-              imgWidth = maxHeight * canvasAspectRatio;
-            }
-          }
-        }
+        // 캔버스 이미지의 총 높이 (PDF 단위)를 비율에 맞춰 계산
+        const imgWidthPt = contentWidth; // PDF 컨텐츠 영역의 너비 (pt)로 고정
+        const totalImgHeightInPdfUnits = (canvas.height * imgWidthPt) / canvas.width; // 비율 유지하여 높이 계산
         
         // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 잘림 방지 강화 버전)
-        let heightLeft = imgHeight;
-        let sourceY = 0; // 원본 캔버스에서의 Y 위치 (픽셀 단위)
+        let heightLeftInPdfUnits = totalImgHeightInPdfUnits;
+        let currentPdfYPos = yPos; // PDF상의 현재 Y 위치
+        let currentSourceYPos = 0; // 캔버스 픽셀 상의 현재 Y 위치
+        
+        // 캔버스 픽셀과 PDF 유닛 사이의 비율
+        const pdfToPixelRatio = canvas.width / imgWidthPt;
+        
+        // ✅ 최소 슬라이스 높이 (너무 작은 조각 방지, 글자/사진 잘림 방지)
+        // 필라테스 페이지는 더 작은 조각도 허용 (여러 페이지로 나눠도 됨)
+        const minSliceHeight = isPilatesPage ? 20 : 50;
 
-        while (heightLeft > 0) {
+        while (heightLeftInPdfUnits > 0) {
           // ✅ 현재 페이지에 사용 가능한 높이 계산 (여유 공간 확보)
-          const availableHeight = pageHeight - yPos - margin;
+          const availableHeight = pageHeight - currentPdfYPos - margin;
           
-          // ✅ 최소 슬라이스 높이 (너무 작은 조각 방지, 글자/사진 잘림 방지)
-          // 필라테스 페이지는 더 작은 조각도 허용 (여러 페이지로 나눠도 됨)
-          const minSliceHeight = isPilatesPage ? 20 : 50;
-          
-          // ✅ 마지막 슬라이스인지 더 정확하게 판단
-          // 남은 높이가 현재 페이지에 들어갈 수 있거나, 거의 다 남았으면 마지막
-          const isLastSlice = heightLeft <= availableHeight || heightLeft <= minSliceHeight * 2;
-          
-          // 공간이 부족하면 새 페이지 추가 (마지막 슬라이스가 아니면)
-          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight && !isLastSlice) {
+          // 공간이 부족하면 새 페이지 추가
+          if (availableHeight < minSliceHeight && heightLeftInPdfUnits > minSliceHeight) {
             pdf.addPage();
-            yPos = margin;
+            currentPdfYPos = margin;
             continue;
           }
           
-          // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산 (정확도 향상)
+          // ✅ 1. PDF 유닛으로 슬라이스 높이 계산
           // 마지막 슬라이스는 남은 높이 모두 포함
-          const sliceH = isLastSlice ? heightLeft : Math.min(heightLeft, availableHeight);
+          const isLastSlice = heightLeftInPdfUnits <= availableHeight || heightLeftInPdfUnits <= minSliceHeight * 2;
+          const sliceH_pdf = isLastSlice ? heightLeftInPdfUnits : Math.min(heightLeftInPdfUnits, availableHeight);
           
-          if (sliceH <= 0) {
+          if (sliceH_pdf <= 0) {
             // 슬라이스 높이가 0 이하면 새 페이지 추가
             pdf.addPage();
-            yPos = margin;
+            currentPdfYPos = margin;
             continue;
           }
           
-          // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
-          // 비율 기반 계산으로 정확도 향상
-          const scaleRatio = canvas.height / imgHeight;
-          let sourceSliceHeight;
+          // ✅ 2. 캔버스 픽셀로 슬라이스 높이 계산 (비율 유지)
+          const sliceH_px = sliceH_pdf * pdfToPixelRatio;
           
+          let actualSliceH_px;
           if (isLastSlice) {
             // 마지막 슬라이스: 남은 부분 모두 포함
-            const remainingHeight = canvas.height - sourceY;
-            sourceSliceHeight = Math.max(remainingHeight, Math.round(sliceH * scaleRatio));
+            const remainingHeight = canvas.height - currentSourceYPos;
+            actualSliceH_px = Math.max(remainingHeight, Math.round(sliceH_px));
           } else {
             // 일반 슬라이스: Math.round로 정확도 향상
-            sourceSliceHeight = Math.min(
-              Math.round(sliceH * scaleRatio),
-              canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
+            actualSliceH_px = Math.min(
+              Math.round(sliceH_px),
+              canvas.height - currentSourceYPos // 원본 캔버스 범위를 벗어나지 않도록
             );
           }
           
-          if (sourceSliceHeight <= 0 || sourceY >= canvas.height) {
+          if (actualSliceH_px <= 0 || currentSourceYPos >= canvas.height) {
             // 슬라이스할 높이가 없거나 이미 끝에 도달했으면 종료
             break;
           }
           
-          // ✅ 캔버스 슬라이스 생성
+          // ✅ 3. 캔버스 슬라이스 생성
           const sliceCanvas = document.createElement('canvas');
           sliceCanvas.width = canvas.width;
-          sliceCanvas.height = sourceSliceHeight;
+          sliceCanvas.height = actualSliceH_px;
           const ctx = sliceCanvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
@@ -18387,30 +18504,24 @@ async function generateFinalPostureReportPDF() {
           // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서, 잘림 방지)
           ctx.drawImage(
             canvas, 
-            0, sourceY, canvas.width, sourceSliceHeight,  // 원본 영역
-            0, 0, canvas.width, sourceSliceHeight         // 대상 영역
+            0, currentSourceYPos, canvas.width, actualSliceH_px,  // 원본 영역
+            0, 0, canvas.width, actualSliceH_px                   // 대상 영역
           );
-
-          // ✅ PDF에 추가 시 정확한 높이 사용 (잘림 방지)
-          const actualSliceH = Math.min(sliceH, availableHeight);
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
           
-          // ✅ 다음 슬라이스 준비
-          heightLeft -= sliceH;
-          sourceY += sourceSliceHeight;
-          yPos += actualSliceH;
+          // ✅ 4. PDF에 이미지 추가 (imgWidthPt, sliceH_pdf를 사용하여 비율 유지)
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, currentPdfYPos, imgWidthPt, sliceH_pdf);
           
-          // ✅ 마지막 슬라이스면 종료 (이미 모든 높이 포함했으므로)
-          if (isLastSlice) {
-            break;
-          }
+          // ✅ 5. 다음 위치 업데이트
+          heightLeftInPdfUnits -= sliceH_pdf;
+          currentPdfYPos += sliceH_pdf;
+          currentSourceYPos += actualSliceH_px;
           
           // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
-          if (heightLeft > minSliceHeight) {
-            const nextAvailableHeight = pageHeight - yPos - margin;
+          if (heightLeftInPdfUnits > minSliceHeight) {
+            const nextAvailableHeight = pageHeight - currentPdfYPos - margin;
             if (nextAvailableHeight < minSliceHeight) {
               pdf.addPage();
-              yPos = margin;
+              currentPdfYPos = margin;
             }
           }
           
@@ -18418,6 +18529,8 @@ async function generateFinalPostureReportPDF() {
           sliceCanvas.width = 1;
           sliceCanvas.height = 1;
         }
+        
+        yPos = currentPdfYPos;
 
         // ✅ 메모리 정리
         canvas.width = 1;
