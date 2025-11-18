@@ -10216,7 +10216,12 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   // position, left, top은 .pdf-safe CSS에서 처리
   container.style.width = `${width}px`;
   container.style.maxWidth = "100%";
-  container.style.padding = "30px 25px";
+  // ✅ 필라테스 페이지는 좌우 패딩 축소로 여백 최소화
+  if (container.id === 'page5Container') {
+    container.style.padding = "30px 15px";
+  } else {
+    container.style.padding = "30px 25px";
+  }
   container.style.paddingBottom = "140px";
   container.style.background = "#ffffff";
   container.style.wordWrap = "break-word";
@@ -12629,7 +12634,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:calc(100% + 50px); max-width:calc(100% + 50px); box-sizing:border-box; margin-left:-25px; margin-right:-25px; padding:0 25px;">
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:100%; max-width:100%; box-sizing:border-box; padding:0;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -17764,10 +17769,22 @@ async function generateFinalPostureReportPDF() {
             // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
             // 비율 기반 계산으로 정확도 향상
             const scaleRatio = canvas.height / imgHeight;
-            const sourceSliceHeight = Math.min(
-              Math.floor(sliceH * scaleRatio), // Math.floor로 정확도 향상
-              canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
-            );
+            
+            // ✅ 마지막 슬라이스는 남은 부분 모두 포함 (잘림 방지)
+            const isLastSlice = heightLeft <= sliceH * 1.1; // 마지막 10% 범위
+            let sourceSliceHeight;
+            
+            if (isLastSlice) {
+              // 마지막 슬라이스: 남은 부분 모두 포함
+              const remainingHeight = canvas.height - sourceY;
+              sourceSliceHeight = Math.max(remainingHeight, Math.round(sliceH * scaleRatio));
+            } else {
+              // 일반 슬라이스: Math.round로 정확도 향상
+              sourceSliceHeight = Math.min(
+                Math.round(sliceH * scaleRatio), // Math.round로 변경 (더 정확)
+                canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
+              );
+            }
             
             if (sourceSliceHeight <= 0 || sourceY >= canvas.height) {
               // 슬라이스할 높이가 없거나 이미 끝에 도달했으면 종료
@@ -17829,15 +17846,21 @@ async function generateFinalPostureReportPDF() {
         continue;
       }
 
-      // ✅ 컨테이너 내용 검증
-      const hasContent = el.textContent.trim().length > 0 || 
-                         el.querySelectorAll('img').length > 0 ||
-                         el.querySelectorAll('canvas').length > 0 ||
-                         el.innerHTML.trim().length > 50;
-      
-      if (!hasContent) {
-        console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
-        continue;
+      // ✅ 측면/정면 리포트는 내용이 없어도 항상 포함 (항상 생성되므로)
+      if (id === 'sideReportContainer' || id === 'frontReportContainer') {
+        // 리포트는 항상 생성되므로 내용 검증 없이 진행
+        console.log(`✅ ${id} 리포트 포함 (항상 생성)`);
+      } else {
+        // 다른 컨테이너는 내용 검증
+        const hasContent = el.textContent.trim().length > 0 || 
+                           el.querySelectorAll('img').length > 0 ||
+                           el.querySelectorAll('canvas').length > 0 ||
+                           el.innerHTML.trim().length > 50;
+        
+        if (!hasContent) {
+          console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
+          continue;
+        }
       }
 
       try {
@@ -17926,10 +17949,22 @@ async function generateFinalPostureReportPDF() {
           // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
           // 비율 기반 계산으로 정확도 향상
           const scaleRatio = canvas.height / imgHeight;
-          const sourceSliceHeight = Math.min(
-            Math.floor(sliceH * scaleRatio), // Math.floor로 정확도 향상
-            canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
-          );
+          
+          // ✅ 마지막 슬라이스는 남은 부분 모두 포함 (잘림 방지)
+          const isLastSlice = heightLeft <= sliceH * 1.1; // 마지막 10% 범위
+          let sourceSliceHeight;
+          
+          if (isLastSlice) {
+            // 마지막 슬라이스: 남은 부분 모두 포함
+            const remainingHeight = canvas.height - sourceY;
+            sourceSliceHeight = Math.max(remainingHeight, Math.round(sliceH * scaleRatio));
+          } else {
+            // 일반 슬라이스: Math.round로 정확도 향상
+            sourceSliceHeight = Math.min(
+              Math.round(sliceH * scaleRatio), // Math.round로 변경 (더 정확)
+              canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
+            );
+          }
           
           if (sourceSliceHeight <= 0 || sourceY >= canvas.height) {
             // 슬라이스할 높이가 없거나 이미 끝에 도달했으면 종료
