@@ -11953,6 +11953,48 @@ page4Container.innerHTML = `
     <div style="margin-top:6px; font-size:10px; color:#6b7280;">※ 상세 루틴은 다음 페이지 '필라테스 추천'에서 확인하세요.</div>
   </div>` : ''}
 
+  ${(() => {
+    // ✅ 정면 메트릭 상세 정보 추가
+    const frontMetricsForCombined = sessions.After?.metrics?.frontMetrics || sessions[cur]?.metrics?.frontMetrics || {};
+    let frontMetricsDetailHtml = '';
+    if (Object.keys(frontMetricsForCombined).length > 0) {
+      const frontMetricsKeys = Object.keys(frontMetricsForCombined).filter(key => key !== 'orientation');
+      if (frontMetricsKeys.length > 0) {
+        frontMetricsDetailHtml = `
+          <div style="margin-top:20px; padding:15px; background:#dbeafe; border-radius:12px; border:1px solid #93c5fd;">
+            <div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:12px; word-wrap:break-word;">📐 정면 측정 지표 상세</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:12px; line-height:1.6;">
+              ${frontMetricsKeys.map(key => {
+                const metric = frontMetricsForCombined[key];
+                if (!metric || typeof metric !== 'object') return '';
+                const value = metric.value != null ? metric.value : 
+                             (metric.value_deg != null ? metric.value_deg : 
+                             (metric.value_cm != null ? metric.value_cm : null));
+                if (value == null || isNaN(value) || !isFinite(value)) return '';
+                const unit = metric.unit || (metric.value_deg != null ? '°' : (metric.value_cm != null ? 'cm' : ''));
+                const status = metric.status || 'unknown';
+                const normalRange = metric.normal || metric.normalRange || '';
+                const statusIcon = status === 'normal' ? '✔' : status === 'severe' ? '🔴' : status === 'moderate' ? '🟡' : '⚠️';
+                const statusText = status === 'normal' ? '정상' : status === 'severe' ? '심각' : status === 'moderate' ? '중등도' : status === 'mild' ? '경미' : '주의';
+                const statusColor = status === 'normal' ? '#15803d' : status === 'severe' ? '#dc2626' : status === 'moderate' ? '#f59e0b' : status === 'mild' ? '#eab308' : '#6b7280';
+                const metricName = METRIC_NAMES[key] || key;
+                return `
+                  <div style="padding:10px; background:white; border-radius:8px; border:1px solid #e5e7eb;">
+                    <div style="font-weight:600; color:#1e40af; margin-bottom:4px; font-size:11px;">${metricName}</div>
+                    <div style="font-size:16px; font-weight:700; color:#0b0f14; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
+                    <div style="font-size:10px; color:${statusColor}; margin-bottom:2px;">${statusIcon} ${statusText}</div>
+                    ${normalRange ? `<div style="font-size:9px; color:#6b7280;">정상 범위: ${normalRange}</div>` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+    return frontMetricsDetailHtml;
+  })()}
+
   <div style="margin-top:15px; padding:12px; background:#f6fff7; border-radius:10px; border-left:4px solid #27ae60;">
     <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#27ae60;">✅ 향후 관리 요약</div>
     ${planTexts.quickHtml || '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>'}
@@ -12022,9 +12064,9 @@ page4Container.innerHTML = `
     conclusionText += `"우리는 걱정 대신 근거(데이터)로 움직입니다."`;
     
     return conclusionText ? `
-  <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border-left:4px solid #2ec4b6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; height:auto !important; max-height:none !important;">
+  <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border-left:4px solid #2ec4b6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; height:auto !important; max-height:none !important; overflow:visible !important;">
     <div style="font-size:13px; font-weight:700; color:#2ec4b6; margin-bottom:10px; word-wrap:break-word; overflow-wrap:break-word; white-space:normal !important;">✅ 결론 및 향후 권장사항</div>
-    <div style="font-size:11px; line-height:1.8; color:#0f172a; white-space:pre-wrap !important; word-wrap:break-word !important; overflow-wrap:break-word !important; text-overflow:clip !important; height:auto !important; max-height:none !important;">${conclusionText}</div>
+    <div style="font-size:11px; line-height:1.8; color:#0f172a; white-space:pre-wrap !important; word-wrap:break-word !important; overflow-wrap:break-word !important; text-overflow:clip !important; height:auto !important; max-height:none !important; overflow:visible !important; page-break-inside:avoid !important;">${conclusionText}</div>
   </div>
     ` : '';
   })()}
@@ -12210,10 +12252,57 @@ const sidePilatesHtml = sideAnalysisForCombined?.pilates ?
     sideAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
     renderPilatesItemCard(sideAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity })) : '';
 
-const frontPilatesHtml = frontAnalysisForCombined?.pilates ? 
-  (Array.isArray(frontAnalysisForCombined.pilates) ? 
+// ✅ 정면 필라테스 추천 생성 (frontAnalysisForCombined.pilates가 없으면 정면 메트릭 기반으로 생성)
+let frontPilatesHtml = '';
+if (frontAnalysisForCombined?.pilates) {
+  frontPilatesHtml = Array.isArray(frontAnalysisForCombined.pilates) ? 
     frontAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
-    renderPilatesItemCard(frontAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity })) : '';
+    renderPilatesItemCard(frontAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity });
+} else if (frontAnalysisForCombined && (frontAnalysisForCombined.muscles?.tight || frontAnalysisForCombined.muscles?.weak)) {
+  // 정면 분석 결과가 있지만 pilates가 없으면 근육 상태 기반으로 필라테스 추천 생성
+  const frontTight = frontAnalysisForCombined.muscles?.tight ? 
+    (frontAnalysisForCombined.muscles.tight instanceof Set ? Array.from(frontAnalysisForCombined.muscles.tight) : 
+     Array.isArray(frontAnalysisForCombined.muscles.tight) ? frontAnalysisForCombined.muscles.tight : []) : [];
+  const frontWeak = frontAnalysisForCombined.muscles?.weak ? 
+    (frontAnalysisForCombined.muscles.weak instanceof Set ? Array.from(frontAnalysisForCombined.muscles.weak) : 
+     Array.isArray(frontAnalysisForCombined.muscles.weak) ? frontAnalysisForCombined.muscles.weak : []) : [];
+  
+  if (frontTight.length > 0 || frontWeak.length > 0) {
+    const frontPilatesRecommendations = recommendPilatesFromMuscles(frontTight, frontWeak);
+    if (frontPilatesRecommendations && frontPilatesRecommendations.length > 0) {
+      const toolMap = {
+        'Mat': '매트',
+        'Reformer': '리포머',
+        'Cadillac': '캐딜락',
+        'Chair': '체어',
+        'WundaChair': '체어',
+        'Barrel': '바렐'
+      };
+      
+      const groupedByTool = {};
+      frontPilatesRecommendations.forEach(rec => {
+        const toolKo = rec.equipment_ko || rec.equipment || 
+                       (rec.tool ? (toolMap[rec.tool] || toolMap['Mat'] || '매트') : '매트');
+        if (!groupedByTool[toolKo]) {
+          groupedByTool[toolKo] = [];
+        }
+        groupedByTool[toolKo].push({
+          exercise_ko: rec.exercise_ko || rec.Exercise_Name_KR || rec.name,
+          exercise_en: rec.exercise_en || rec.Exercise_Name_EN || '',
+          ...rec
+        });
+      });
+      
+      const frontPilatesData = {
+        name: '정면 자세 개선 필라테스 운동',
+        description: '정면 자세 분석 결과를 바탕으로 추천된 필라테스 운동입니다.',
+        pilates: groupedByTool
+      };
+      
+      frontPilatesHtml = renderPilatesItemCard(frontPilatesData, { context: 'pdf', index: 0, limitPerTool: Infinity });
+    }
+  }
+}
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천 (측면 + 정면)</h2>
@@ -12388,8 +12477,8 @@ if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실제 �
   Object.assign(fullMetricsForPostureType, sideMetrics);
 }
 
-// ✅ 정면 메트릭도 확인하여 병합
-const frontMetricsForPostureType = sessions[cur]?.metrics?.frontMetrics || {};
+// ✅ 정면 메트릭도 확인하여 병합 (After 세션 우선, 없으면 현재 세션)
+const frontMetricsForPostureType = sessions.After?.metrics?.frontMetrics || sessions[cur]?.metrics?.frontMetrics || {};
 if (Object.keys(frontMetricsForPostureType).length > 0) {
   Object.assign(fullMetricsForPostureType, frontMetricsForPostureType);
 }
@@ -12401,23 +12490,26 @@ if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length >
   const hasSideMetrics = Object.keys(sideMetrics).length > 1;
   const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
   
+  // ✅ 측면과 정면 모두 있으면 항상 둘 다 표시
   if (hasSideMetrics && hasFrontMetrics) {
     // 측면과 정면 모두 있으면 둘 다 분석
-    const sidePostureType = analyzePostureType(fullMetricsForPostureType, "side");
-    const frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
+    const sidePostureType = analyzePostureType(sideMetrics, "side");
+    const frontPostureType = analyzePostureType(frontMetricsForPostureType, "front");
     
     let combinedPostureType = '';
     if (sidePostureType && !sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
-      combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px;">' + sidePostureType + '</div></div>';
+      combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>';
     }
     if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
-      combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px;">' + frontPostureType + '</div></div>';
+      combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>';
     }
-    postureTypeHtml = combinedPostureType || sidePostureType || frontPostureType || analyzePostureType(fullMetricsForPostureType);
+    postureTypeHtml = combinedPostureType || (sidePostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>' : '') || (frontPostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>' : '') || analyzePostureType(fullMetricsForPostureType);
   } else if (hasSideMetrics) {
-    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
+    const sidePostureType = analyzePostureType(sideMetrics, "side");
+    postureTypeHtml = sidePostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>' : analyzePostureType(fullMetricsForPostureType, "side");
   } else if (hasFrontMetrics) {
-    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "front");
+    const frontPostureType = analyzePostureType(frontMetricsForPostureType, "front");
+    postureTypeHtml = frontPostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>' : analyzePostureType(fullMetricsForPostureType, "front");
   } else {
     postureTypeHtml = analyzePostureType(fullMetricsForPostureType);
   }
