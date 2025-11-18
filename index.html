@@ -3537,12 +3537,19 @@ function setOrientation(orientation, options = {}) {
     }
     
     // ✅ orientation에 맞는 점수 가져오기
-    // sideAnalysis나 frontAnalysis에 점수가 있으면 우선 사용
+    // 1순위: sessions.After의 sideScore/frontScore (orientation별로 별도 저장된 점수)
+    // 2순위: sideAnalysis/frontAnalysis의 fullMetrics에서 계산
+    // 3순위: sideAnalysis/frontAnalysis의 score 속성
+    // 4순위: 기존 scoreData
     let orientationScore = null;
-    if(orientation === "side" && session.sideAnalysis) {
-      // 측면 분석 결과에서 점수 가져오기
-      if(session.sideAnalysis.fullMetrics) {
-        // ✅ 측면 메트릭이 유효한지 확인 후 점수 계산 (경고 방지)
+    
+    if(orientation === "side") {
+      // ✅ 1순위: sessions.After.sideScore 확인
+      if(session === sessions.After && sessions.After.sideScore) {
+        orientationScore = sessions.After.sideScore;
+      }
+      // ✅ 2순위: sideAnalysis.fullMetrics에서 계산
+      else if(session.sideAnalysis && session.sideAnalysis.fullMetrics) {
         const hasValidSideMetrics = Object.keys(session.sideAnalysis.fullMetrics).some(key => {
           if (key === 'orientation') return false;
           const metric = session.sideAnalysis.fullMetrics[key];
@@ -3555,13 +3562,18 @@ function setOrientation(orientation, options = {}) {
         if (hasValidSideMetrics) {
           orientationScore = computeScoreFromFullMetrics(session.sideAnalysis.fullMetrics);
         }
-      } else if(session.sideAnalysis.score) {
+      }
+      // ✅ 3순위: sideAnalysis.score
+      else if(session.sideAnalysis && session.sideAnalysis.score) {
         orientationScore = session.sideAnalysis.score;
       }
-    } else if(orientation === "front" && session.frontAnalysis) {
-      // 정면 분석 결과에서 점수 가져오기
-      if(session.frontAnalysis.fullMetrics) {
-        // ✅ 정면 메트릭이 유효한지 확인 후 점수 계산 (경고 방지)
+    } else if(orientation === "front") {
+      // ✅ 1순위: sessions.After.frontScore 확인
+      if(session === sessions.After && sessions.After.frontScore) {
+        orientationScore = sessions.After.frontScore;
+      }
+      // ✅ 2순위: frontAnalysis.fullMetrics에서 계산
+      else if(session.frontAnalysis && session.frontAnalysis.fullMetrics) {
         const hasValidFrontMetrics = Object.keys(session.frontAnalysis.fullMetrics).some(key => {
           if (key === 'orientation') return false;
           const metric = session.frontAnalysis.fullMetrics[key];
@@ -3574,12 +3586,14 @@ function setOrientation(orientation, options = {}) {
         if (hasValidFrontMetrics) {
           orientationScore = computeScoreFromFullMetrics(session.frontAnalysis.fullMetrics);
         }
-      } else if(session.frontAnalysis.score) {
+      }
+      // ✅ 3순위: frontAnalysis.score
+      else if(session.frontAnalysis && session.frontAnalysis.score) {
         orientationScore = session.frontAnalysis.score;
       }
     }
     
-    // orientation별 점수가 없으면 기존 scoreData 사용
+    // ✅ 4순위: orientation별 점수가 없으면 기존 scoreData 사용
     if(!orientationScore) {
       orientationScore = scoreData;
     }
@@ -4278,7 +4292,16 @@ function computeAll() {
         sessions.After.metrics = sessions.After.metrics || {};
         sessions.After.metrics.frontMetrics = frontMetrics;
         sessions.After.metrics.sideMetrics = existingSideMetrics; // 기존 측면 메트릭 보존
-        sessions.After.score = scoreData;
+        sessions.After.frontScore = scoreData; // ✅ 정면 점수 별도 저장
+        // ✅ 측면 점수는 보존 (기존 측면 점수가 있으면 유지)
+        if (!sessions.After.sideScore && sessions.After.score) {
+          // 기존 score가 측면 점수일 수 있으므로 확인
+          const existingOrientation = sessions.After.metrics?.orientation || sessions.After.sideAnalysis?.orientation;
+          if (existingOrientation === 'side') {
+            sessions.After.sideScore = sessions.After.score;
+          }
+        }
+        sessions.After.score = scoreData; // 하위 호환성
       }
       
       updateDisplay();
@@ -4304,7 +4327,16 @@ function computeAll() {
         sessions.After.metrics = sessions.After.metrics || {};
         sessions.After.metrics.frontMetrics = frontMetrics;
         sessions.After.metrics.sideMetrics = existingSideMetrics; // 기존 측면 메트릭 보존
-        sessions.After.score = scoreData;
+        sessions.After.frontScore = scoreData; // ✅ 정면 점수 별도 저장
+        // ✅ 측면 점수는 보존 (기존 측면 점수가 있으면 유지)
+        if (!sessions.After.sideScore && sessions.After.score) {
+          // 기존 score가 측면 점수일 수 있으므로 확인
+          const existingOrientation = sessions.After.metrics?.orientation || sessions.After.sideAnalysis?.orientation;
+          if (existingOrientation === 'side') {
+            sessions.After.sideScore = sessions.After.score;
+          }
+        }
+        sessions.After.score = scoreData; // 하위 호환성
       }
       
       updateDisplay();
@@ -4376,7 +4408,16 @@ function computeAll() {
         sideOnlyMetrics.orientation = "side";
         sessions.After.metrics.sideMetrics = sideOnlyMetrics;
         sessions.After.metrics.frontMetrics = existingFrontMetrics; // 기존 정면 메트릭 보존
-        sessions.After.score = score;
+        sessions.After.sideScore = score; // ✅ 측면 점수 별도 저장
+        // ✅ 정면 점수는 보존 (기존 정면 점수가 있으면 유지)
+        if (!sessions.After.frontScore && sessions.After.score) {
+          // 기존 score가 정면 점수일 수 있으므로 확인
+          const existingOrientation = sessions.After.metrics?.orientation || sessions.After.frontAnalysis?.orientation;
+          if (existingOrientation === 'front') {
+            sessions.After.frontScore = sessions.After.score;
+          }
+        }
+        sessions.After.score = score; // 하위 호환성
         console.log('✅ 측면 메트릭 저장:', Object.keys(sideOnlyMetrics).length, '개');
       }
       
@@ -4394,6 +4435,35 @@ function computeAll() {
         orientation: "side"
       };
       S.analysis = S.sideAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에도 측면 분석 결과 저장 (PDF 생성 시 사용)
+      if (sessions.After) {
+        sessions.After.sideAnalysis = S.sideAnalysis;
+        sessions.After.metrics = sessions.After.metrics || {};
+        // ✅ mergedMetrics에서 측면 메트릭만 추출하여 저장
+        const sideOnlyMetrics = {};
+        Object.keys(mergedMetrics).forEach(key => {
+          if (key === 'orientation') return;
+          const code = METRIC_KEY_ALIASES[key] || key;
+          const sideKeys = ['CVA', 'CVA_S', 'HPD', 'HPD_S', 'TIA', 'TIA_S', 'SAA', 'SAA_S', 'PTA', 'PTA_S', 'KA', 'KA_S', 'GSB', 'GSB_S', 'PDS', 'PDS_S'];
+          if (sideKeys.includes(code) || sideKeys.includes(key)) {
+            sideOnlyMetrics[key] = mergedMetrics[key];
+          }
+        });
+        sideOnlyMetrics.orientation = "side";
+        sessions.After.metrics.sideMetrics = sideOnlyMetrics;
+        sessions.After.metrics.frontMetrics = existingFrontMetrics; // 기존 정면 메트릭 보존
+        sessions.After.sideScore = score; // ✅ 측면 점수 별도 저장
+        // ✅ 정면 점수는 보존 (기존 정면 점수가 있으면 유지)
+        if (!sessions.After.frontScore && sessions.After.score) {
+          const existingOrientation = sessions.After.metrics?.orientation || sessions.After.frontAnalysis?.orientation;
+          if (existingOrientation === 'front') {
+            sessions.After.frontScore = sessions.After.score;
+          }
+        }
+        sessions.After.score = score; // 하위 호환성
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4429,6 +4499,26 @@ function computeAll() {
         orientation: "front"
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에도 정면 분석 결과 저장 (PDF 생성 시 사용)
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = frontMetrics;
+        // ✅ 기존 측면 메트릭 보존
+        const existingSideMetrics = S.metrics?.sideMetrics || sessions.After.metrics?.sideMetrics || null;
+        sessions.After.metrics.sideMetrics = existingSideMetrics;
+        sessions.After.frontScore = scoreData; // ✅ 정면 점수 별도 저장
+        // ✅ 측면 점수는 보존 (기존 측면 점수가 있으면 유지)
+        if (!sessions.After.sideScore && sessions.After.score) {
+          const existingOrientation = sessions.After.metrics?.orientation || sessions.After.sideAnalysis?.orientation;
+          if (existingOrientation === 'side') {
+            sessions.After.sideScore = sessions.After.score;
+          }
+        }
+        sessions.After.score = scoreData; // 하위 호환성
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4445,6 +4535,26 @@ function computeAll() {
         exercises: []
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에도 정면 분석 결과 저장 (PDF 생성 시 사용)
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = frontMetrics;
+        // ✅ 기존 측면 메트릭 보존
+        const existingSideMetrics = S.metrics?.sideMetrics || sessions.After.metrics?.sideMetrics || null;
+        sessions.After.metrics.sideMetrics = existingSideMetrics;
+        sessions.After.frontScore = scoreData; // ✅ 정면 점수 별도 저장
+        // ✅ 측면 점수는 보존 (기존 측면 점수가 있으면 유지)
+        if (!sessions.After.sideScore && sessions.After.score) {
+          const existingOrientation = sessions.After.metrics?.orientation || sessions.After.sideAnalysis?.orientation;
+          if (existingOrientation === 'side') {
+            sessions.After.sideScore = sessions.After.score;
+          }
+        }
+        sessions.After.score = scoreData; // 하위 호환성
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -6891,9 +7001,22 @@ function showExerciseModal(exerciseEn = '', exerciseKo = '', purpose = '') {
 
 function updateDisplay() {
   const M = sessions[cur].metrics;
-  document.getElementById("dispCva").textContent = M.cva != null ? M.cva.toFixed(1) + "°" : "—";
-  document.getElementById("dispPel").textContent = M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—";
-  document.getElementById("dispKnee").textContent = M.knee != null ? M.knee.toFixed(1) + "°" : "—";
+  // ✅ 현재 orientation 확인
+  const btnSide = document.getElementById("btnOrientationSide");
+  const btnFront = document.getElementById("btnOrientationFront");
+  const currentOrientation = btnFront && btnFront.classList.contains("active") ? "front" : "side";
+  
+  // ✅ 정면 분석일 때는 측면 메트릭 표시하지 않음
+  if (currentOrientation === "front") {
+    document.getElementById("dispCva").textContent = "—";
+    document.getElementById("dispPel").textContent = "—";
+    document.getElementById("dispKnee").textContent = "—";
+  } else {
+    // 측면 분석일 때만 측면 메트릭 표시
+    document.getElementById("dispCva").textContent = M.cva != null ? M.cva.toFixed(1) + "°" : "—";
+    document.getElementById("dispPel").textContent = M.pelvic != null ? M.pelvic.toFixed(1) + "°" : "—";
+    document.getElementById("dispKnee").textContent = M.knee != null ? M.knee.toFixed(1) + "°" : "—";
+  }
 }
 
 function fmtDeg(v) {
