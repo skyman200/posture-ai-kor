@@ -7368,8 +7368,29 @@ function startDrag(e) {
   
   console.log('드래그 감지 시작, threshold:', threshold, 'editMode:', editMode, 'zoom:', currentZoom, 'pos:', pos, 'baseThreshold:', baseThreshold);
   
-  // 좌표 수정 모드일 때는 선택된 점만 체크
-  if(editMode && selectedPoint) {
+  // ✅ 확대 모드(2, 3, 4배)에서는 선택된 점만 체크 (다른 점 선택 불가)
+  if(editMode && currentZoom > 1) {
+    // 확대 모드에서는 선택된 점이 있으면 그 점만 체크
+    if(selectedPoint) {
+      const pt = P[selectedPoint];
+      if(pt) {
+        // 원본 좌표 기준으로 거리 계산
+        const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+        if(d < threshold) {
+          bestPoint = selectedPoint;
+          bestDistance = d;
+          console.log('✅ 확대 모드 - 선택된 점 드래그 시작 (배율 ' + currentZoom + '):', selectedPoint, '거리:', d.toFixed(2));
+        } else {
+          console.log('❌ 확대 모드 - 선택된 점이 너무 멀어서 드래그 불가:', selectedPoint, '거리:', d.toFixed(2), 'threshold:', threshold);
+        }
+      }
+    } else {
+      // 확대 모드인데 선택된 점이 없으면 드래그 불가
+      console.log('⚠️ 확대 모드이지만 선택된 점이 없어서 드래그 불가 (드롭다운에서 점을 선택하세요)');
+      return false;
+    }
+  } else if(editMode && selectedPoint) {
+    // 좌표 수정 모드(배율 1)에서 선택된 점이 있으면 그 점만 체크
     const pt = P[selectedPoint];
     if(pt) {
       // 배율 1이어도 원본 좌표 기준으로 거리 계산 (threshold도 원본 기준)
@@ -7624,43 +7645,49 @@ cv.addEventListener('mousedown', (e) => {
   isMouseDown = true;
   
   // 자동 추적 모드 토글 체크 (dot를 클릭하면 토글) - startDrag 전에 체크
-  const pos = getEventPos(e);
-  const P = getPts(cur);
-  const currentKeypoints = getKeypoints();
-  let clickedPoint = null;
-  let minDistance = 1e9;
-  const threshold = 50; // 클릭 감지 범위
-  
-  for(const k of currentKeypoints) {
-    const p = P[k.key];
-    if(!p) continue;
-    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-    if(d < threshold && d < minDistance) {
-      clickedPoint = k.key;
-      minDistance = d;
+  // ✅ 확대 모드에서는 자동 추적 모드 비활성화 (선택된 점만 드래그 가능)
+  if(editMode && currentZoom > 1) {
+    // 확대 모드에서는 자동 추적 모드 사용 안 함 (드롭다운에서 선택한 점만 사용)
+    // startDrag로 넘어가서 선택된 점만 체크하도록 함
+  } else {
+    const pos = getEventPos(e);
+    const P = getPts(cur);
+    const currentKeypoints = getKeypoints();
+    let clickedPoint = null;
+    let minDistance = 1e9;
+    const threshold = 50; // 클릭 감지 범위
+    
+    for(const k of currentKeypoints) {
+      const p = P[k.key];
+      if(!p) continue;
+      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+      if(d < threshold && d < minDistance) {
+        clickedPoint = k.key;
+        minDistance = d;
+      }
     }
-  }
-  
-  // dot를 클릭했을 때 자동 추적 모드 토글
-  if(clickedPoint) {
-    if(autoFollowKey === clickedPoint) {
-      // 이미 자동 추적 중이면 해제
-      autoFollowKey = null;
-      dragKey = null;
-      console.log('🛑 자동 추적 모드 해제:', clickedPoint);
-      isMouseDown = false;
-      e.preventDefault();
-      return;
-    } else {
-      // 자동 추적 모드 활성화
-      autoFollowKey = clickedPoint;
-      dragKey = null; // 드래그 모드는 해제
-      console.log('▶️ 자동 추적 모드 활성화:', clickedPoint);
-      isMouseDown = false;
-      e.preventDefault();
-      return;
+    
+      // dot를 클릭했을 때 자동 추적 모드 토글
+      if(clickedPoint) {
+        if(autoFollowKey === clickedPoint) {
+          // 이미 자동 추적 중이면 해제
+          autoFollowKey = null;
+          dragKey = null;
+          console.log('🛑 자동 추적 모드 해제:', clickedPoint);
+          isMouseDown = false;
+          e.preventDefault();
+          return;
+        } else {
+          // 자동 추적 모드 활성화
+          autoFollowKey = clickedPoint;
+          dragKey = null; // 드래그 모드는 해제
+          console.log('▶️ 자동 추적 모드 활성화:', clickedPoint);
+          isMouseDown = false;
+          e.preventDefault();
+          return;
+        }
+      }
     }
-  }
   
   // 자동 추적 모드가 아니면 일반 드래그 처리
   const dragStarted = startDrag(e);
