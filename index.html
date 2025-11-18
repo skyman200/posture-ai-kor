@@ -11969,21 +11969,36 @@ if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length >
   const hasSideMetrics = Object.keys(sideMetrics).length > 1;
   const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
   
-  if (hasSideMetrics && hasFrontMetrics) {
-    // 측면과 정면 모두 있으면 측면 우선 (기본값)
-    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
-    // 측면 분석 결과가 없으면 정면 분석도 추가
-    if (!postureTypeHtml || postureTypeHtml.includes('분석 데이터가 충분하지 않습니다')) {
-      const frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
-      if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
-        postureTypeHtml = (postureTypeHtml || '') + '<br><br>' + frontPostureType;
-      }
+  let sidePostureType = '';
+  let frontPostureType = '';
+  
+  // ✅ 측면 분석 결과 생성
+  if (hasSideMetrics) {
+    sidePostureType = analyzePostureType(fullMetricsForPostureType, "side");
+    if (!sidePostureType || sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
+      sidePostureType = '';
     }
-  } else if (hasSideMetrics) {
-    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "side");
-  } else if (hasFrontMetrics) {
-    postureTypeHtml = analyzePostureType(fullMetricsForPostureType, "front");
+  }
+  
+  // ✅ 정면 분석 결과 생성
+  if (hasFrontMetrics) {
+    frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
+    if (!frontPostureType || frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
+      frontPostureType = '';
+    }
+  }
+  
+  // ✅ 측면과 정면 분석 결과를 모두 합치기
+  if (sidePostureType && frontPostureType) {
+    // 둘 다 있으면 구분하여 표시
+    postureTypeHtml = `<div style="margin-bottom:30px;"><h3 style="font-size:16px; font-weight:600; color:#0b0f14; margin-bottom:12px; border-bottom:2px solid #e0e0e0; padding-bottom:8px;">📐 측면 자세 분석 결과</h3>${sidePostureType}</div>` +
+                      `<div><h3 style="font-size:16px; font-weight:600; color:#0b0f14; margin-bottom:12px; border-bottom:2px solid #e0e0e0; padding-bottom:8px;">📐 정면 자세 분석 결과</h3>${frontPostureType}</div>`;
+  } else if (sidePostureType) {
+    postureTypeHtml = sidePostureType;
+  } else if (frontPostureType) {
+    postureTypeHtml = frontPostureType;
   } else {
+    // 둘 다 없으면 기본 분석 시도
     postureTypeHtml = analyzePostureType(fullMetricsForPostureType);
   }
 }
