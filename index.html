@@ -10250,41 +10250,49 @@ function renderExerciseDetailHTML(entry, options = {}) {
     dark: { detailBg: 'rgba(255,255,255,0.05)', text: '#eef2ff', accent: '#a78bfa', hint: '#cbd5f5' },
     pdf: { detailBg: '#ffffff', text: '#0b0f14', accent: '#5c44b8', hint: '#475569' }
   }[context] || { detailBg: '#ffffff', text: '#1f2933', accent: '#6c4ab6', hint: '#475569' };
-  // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
-  const baseFontSize = context === 'pdf' ? (options.compact ? '12px' : '13px') : (options.compact ? '11px' : '12px');
-  // ✅ PDF 컨텍스트일 때 너비를 100%로 설정하여 여백 제거
-  const detailWidth = context === 'pdf' ? 'width:100%; max-width:100%; box-sizing:border-box;' : '';
-  let html = `<div style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body); ${detailWidth} word-wrap:break-word; overflow-wrap:break-word;">`;
-  html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px; font-size:${context === 'pdf' ? '14px' : '12px'};">${info.title}</div>`;
   
-  // ✅ 필라테스 DB 필드명을 한글로 표시
+  // ✅ 디자인 통일: 카드와 일관된 스타일 적용
+  const baseFontSize = context === 'pdf' ? '13px' : '11px';
+  const titleFontSize = context === 'pdf' ? '14px' : '12px';
+  const lineHeight = '1.6';
+  const borderRadius = '8px';
+  const padding = context === 'pdf' ? '12px' : '12px';
+  const marginTop = options.compact ? '6px' : '10px';
+  
+  // ✅ PDF 컨텍스트일 때 너비를 100%로 설정하여 여백 제거
+  const detailWidth = context === 'pdf' ? 'width:100%; max-width:100%; box-sizing:border-box;' : 'width:100%; max-width:100%; box-sizing:border-box;';
+  
+  let html = `<div style="margin-top:${marginTop}; padding:${padding}; background:${theme.detailBg}; border-radius:${borderRadius}; font-size:${baseFontSize}; color:${theme.text}; line-height:${lineHeight}; font-family: var(--font-body); ${detailWidth} word-wrap:break-word; overflow-wrap:break-word;">`;
+  html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:8px; font-size:${titleFontSize}; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};">${info.title}</div>`;
+  
+  // ✅ 필라테스 DB 필드명을 한글로 표시 (디자인 통일)
   if (info.strengthenMuscles || info.stretchMuscles) {
-    html += `<div style="margin-bottom:6px; font-size:${context === 'pdf' ? '12px' : (parseInt(baseFontSize) - 1) + 'px'};`;
+    html += `<div style="margin-bottom:8px; font-size:${baseFontSize}; line-height:${lineHeight};">`;
     if (info.strengthenMuscles) {
-      html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 주요 강화 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
+      html += `<div style="margin-bottom:4px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#10b981;">💪 주요 강화 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
     }
     if (info.stretchMuscles) {
-      html += `<div><strong style="color:#3b82f6;">🧘 주요 스트레칭 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
+      html += `<div style="word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#3b82f6;">🧘 주요 스트레칭 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.stretchMuscles)}</span></div>`;
     }
     html += `</div>`;
   }
   
-  // ✅ 필라테스 DB 필드: 상세 동작 설명 (운동 설명을 바로 표시)
+  // ✅ 필라테스 DB 필드: 상세 동작 설명 (운동 설명을 바로 표시, 디자인 통일)
   if (info.how) {
-    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${context === 'pdf' ? '14px' : (parseInt(baseFontSize) + 1) + 'px'};">💡 상세 동작 설명</strong><br><div style="margin-top:4px; line-height:1.8; font-size:${baseFontSize};">${formatMultilineText(info.how)}</div></div>`;
+    html += `<div style="margin-bottom:8px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent}; font-size:${titleFontSize}; line-height:${lineHeight};">💡 상세 동작 설명</strong><div style="margin-top:6px; line-height:${lineHeight}; font-size:${baseFontSize};">${formatMultilineText(info.how)}</div></div>`;
   }
   
-  // ✅ 필라테스 DB 필드: 횟수, 호흡 패턴, 스프링
+  // ✅ 필라테스 DB 필드: 횟수, 호흡 패턴, 스프링 (디자인 통일)
   if (info.sets || info.spring || info.breathing) {
-    html += `<div style="margin-bottom:4px; display:flex; gap:8px; flex-wrap:wrap; font-size:${context === 'pdf' ? '12px' : (parseInt(baseFontSize) - 1) + 'px'};">`;
+    html += `<div style="margin-bottom:0; display:flex; gap:12px; flex-wrap:wrap; font-size:${baseFontSize}; line-height:${lineHeight};">`;
     if (info.sets) {
-      html += `<div><strong style="color:${theme.accent};">횟수:</strong> ${formatMultilineText(info.sets)}</div>`;
+      html += `<div style="word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent};">횟수:</strong> ${formatMultilineText(info.sets)}</div>`;
     }
     if (info.breathing) {
-      html += `<div><strong style="color:${theme.accent};">호흡 패턴:</strong> ${formatMultilineText(info.breathing)}</div>`;
+      html += `<div style="word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent};">호흡 패턴:</strong> ${formatMultilineText(info.breathing)}</div>`;
     }
     if (info.spring) {
-      html += `<div><strong style="color:${theme.accent};">스프링:</strong> ${formatMultilineText(info.spring)}</div>`;
+      html += `<div style="word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent};">스프링:</strong> ${formatMultilineText(info.spring)}</div>`;
     }
     html += `</div>`;
   }
@@ -10311,17 +10319,19 @@ function renderExerciseDetailsList(entries, options = {}) {
 function renderPilatesEquipmentSections(pilatesObj, options = {}) {
   if (!pilatesObj) return '';
   let html = '';
-  // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
+  // ✅ 디자인 통일: 카드와 일관된 스타일 적용
   const fontSize = options.context === 'pdf' ? '13px' : '11px';
-  const toolSize = options.context === 'pdf' ? '14px' : '11px';
+  const toolSize = options.context === 'pdf' ? '14px' : '12px';
+  const lineHeight = '1.6';
+  
   PILATES_EQUIPMENT_LIST.forEach(tool => {
     const exercises = pilatesObj[tool];
     const details = renderExerciseDetailsList(exercises, options);
     if (details) {
       // ✅ PDF 컨텍스트일 때 너비를 100%로 설정하여 여백 제거
-      const sectionWidth = options.context === 'pdf' ? 'width:100%; max-width:100%; box-sizing:border-box;' : '';
-      html += `<div style="margin-top:8px; ${sectionWidth}">
-        <div style="font-weight:600; font-size:${toolSize}; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:4px; word-wrap:break-word;">${tool}</div>
+      const sectionWidth = options.context === 'pdf' ? 'width:100%; max-width:100%; box-sizing:border-box;' : 'width:100%; max-width:100%; box-sizing:border-box;';
+      html += `<div style="margin-top:10px; ${sectionWidth}">
+        <div style="font-weight:600; font-size:${toolSize}; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:8px; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};">${tool}</div>
         ${details}
       </div>`;
     }
@@ -10351,25 +10361,28 @@ function renderPilatesItemCard(item, options = {}) {
   const description = descriptionParts.join(' · ');
   const note = item.note || item.manual || '';
 
-  // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
+  // ✅ 디자인 통일: 모든 컨텍스트에서 일관된 스타일 적용
   const fontSize = context === 'pdf' ? '13px' : '11px';
   const titleSize = context === 'pdf' ? '16px' : '14px';
+  const lineHeight = '1.6';
+  const borderRadius = '12px';
+  const borderWidth = '1px';
 
   // ✅ PDF 컨텍스트일 때 카드 너비를 764px로 고정하여 여백 제거 (794px - 30px 패딩)
-  const cardWidth = context === 'pdf' ? 'width:764px; max-width:764px;' : '';
+  const cardWidth = context === 'pdf' ? 'width:764px; max-width:764px;' : 'width:100%; max-width:100%;';
   const cardMargin = context === 'pdf' ? 'margin-bottom:16px;' : 'margin-bottom:12px;';
-  // ✅ PDF 컨텍스트일 때 패딩 조정으로 여백 최소화
-  const cardPadding = context === 'pdf' ? 'padding:12px;' : 'padding:14px;';
+  // ✅ 디자인 통일: 패딩 일관화
+  const cardPadding = context === 'pdf' ? 'padding:14px;' : 'padding:14px;';
 
   return `
-    <div style="${cardMargin} ${cardWidth} ${cardPadding} background:${theme.bg}; border-radius:12px; border:1px solid ${theme.border}; color:${theme.text}; font-family: var(--font-body); box-sizing:border-box;">
-      <div style="font-weight:700; font-size:${titleSize}; margin-bottom:6px; color:${theme.accent}; word-wrap:break-word;">${title}</div>
-      ${description ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${formatMultilineText(description)}</div>` : ''}
-      ${musclesText ? `<div style="font-size:${fontSize}; margin-bottom:4px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
-      ${tightText ? `<div style="font-size:${fontSize}; margin-bottom:4px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">긴장:</strong> ${tightText}</div>` : ''}
-      ${weakText ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">약화:</strong> ${weakText}</div>` : ''}
-      ${equipmentHTML ? `<div style="margin-top:8px; width:100%; max-width:100%; box-sizing:border-box;">${equipmentHTML}</div>` : ''}
-      ${note ? `<div style="margin-top:10px; font-size:${fontSize}; color:${theme.text === '#f8fbff' ? '#c7d2fe' : '#4b5563'}; word-wrap:break-word; overflow-wrap:break-word;">${formatMultilineText(note)}</div>` : ''}
+    <div style="${cardMargin} ${cardWidth} ${cardPadding} background:${theme.bg}; border-radius:${borderRadius}; border:${borderWidth} solid ${theme.border}; color:${theme.text}; font-family: var(--font-body); box-sizing:border-box; word-wrap:break-word; overflow-wrap:break-word;">
+      <div style="font-weight:700; font-size:${titleSize}; margin-bottom:8px; color:${theme.accent}; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};">${title}</div>
+      ${description ? `<div style="font-size:${fontSize}; margin-bottom:8px; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};">${formatMultilineText(description)}</div>` : ''}
+      ${musclesText ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
+      ${tightText ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};"><strong style="color:#ff6b6b;">긴장:</strong> ${tightText}</div>` : ''}
+      ${weakText ? `<div style="font-size:${fontSize}; margin-bottom:8px; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};"><strong style="color:#7c9cff;">약화:</strong> ${weakText}</div>` : ''}
+      ${equipmentHTML ? `<div style="margin-top:10px; width:100%; max-width:100%; box-sizing:border-box;">${equipmentHTML}</div>` : ''}
+      ${note ? `<div style="margin-top:10px; font-size:${fontSize}; color:${theme.text === '#f8fbff' ? '#c7d2fe' : '#4b5563'}; word-wrap:break-word; overflow-wrap:break-word; line-height:${lineHeight};">${formatMultilineText(note)}</div>` : ''}
     </div>
   `;
 }
