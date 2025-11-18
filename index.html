@@ -10053,13 +10053,14 @@ function renderExerciseDetailHTML(entry, options = {}) {
     dark: { detailBg: 'rgba(255,255,255,0.05)', text: '#eef2ff', accent: '#a78bfa', hint: '#cbd5f5' },
     pdf: { detailBg: '#ffffff', text: '#0b0f14', accent: '#5c44b8', hint: '#475569' }
   }[context] || { detailBg: '#ffffff', text: '#1f2933', accent: '#6c4ab6', hint: '#475569' };
-  const baseFontSize = options.compact ? '11px' : '12px';
+  // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
+  const baseFontSize = context === 'pdf' ? (options.compact ? '12px' : '13px') : (options.compact ? '11px' : '12px');
   let html = `<div style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body);">`;
-  html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px;">${info.title}</div>`;
+  html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px; font-size:${context === 'pdf' ? '14px' : '12px'};">${info.title}</div>`;
   
   // ✅ 필라테스 DB 필드명을 한글로 표시
   if (info.strengthenMuscles || info.stretchMuscles) {
-    html += `<div style="margin-bottom:6px; font-size:${parseInt(baseFontSize) - 1}px;">`;
+    html += `<div style="margin-bottom:6px; font-size:${context === 'pdf' ? '12px' : (parseInt(baseFontSize) - 1) + 'px'};`;
     if (info.strengthenMuscles) {
       html += `<div style="margin-bottom:2px;"><strong style="color:#10b981;">💪 주요 강화 근육:</strong> <span style="color:${theme.text};">${formatMultilineText(info.strengthenMuscles)}</span></div>`;
     }
@@ -10071,12 +10072,12 @@ function renderExerciseDetailHTML(entry, options = {}) {
   
   // ✅ 필라테스 DB 필드: 상세 동작 설명 (운동 설명을 바로 표시)
   if (info.how) {
-    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${parseInt(baseFontSize) + 1}px;">💡 상세 동작 설명</strong><br><div style="margin-top:4px; line-height:1.8;">${formatMultilineText(info.how)}</div></div>`;
+    html += `<div style="margin-bottom:8px;"><strong style="color:${theme.accent}; font-size:${context === 'pdf' ? '14px' : (parseInt(baseFontSize) + 1) + 'px'};">💡 상세 동작 설명</strong><br><div style="margin-top:4px; line-height:1.8; font-size:${baseFontSize};">${formatMultilineText(info.how)}</div></div>`;
   }
   
   // ✅ 필라테스 DB 필드: 횟수, 호흡 패턴, 스프링
   if (info.sets || info.spring || info.breathing) {
-    html += `<div style="margin-bottom:4px; display:flex; gap:8px; flex-wrap:wrap; font-size:${parseInt(baseFontSize) - 1}px;">`;
+    html += `<div style="margin-bottom:4px; display:flex; gap:8px; flex-wrap:wrap; font-size:${context === 'pdf' ? '12px' : (parseInt(baseFontSize) - 1) + 'px'};">`;
     if (info.sets) {
       html += `<div><strong style="color:${theme.accent};">횟수:</strong> ${formatMultilineText(info.sets)}</div>`;
     }
@@ -10111,12 +10112,15 @@ function renderExerciseDetailsList(entries, options = {}) {
 function renderPilatesEquipmentSections(pilatesObj, options = {}) {
   if (!pilatesObj) return '';
   let html = '';
+  // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
+  const fontSize = options.context === 'pdf' ? '13px' : '11px';
+  const toolSize = options.context === 'pdf' ? '14px' : '11px';
   PILATES_EQUIPMENT_LIST.forEach(tool => {
     const exercises = pilatesObj[tool];
     const details = renderExerciseDetailsList(exercises, options);
     if (details) {
       html += `<div style="margin-top:8px;">
-        <div style="font-weight:600; font-size:11px; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:4px;">${tool}</div>
+        <div style="font-weight:600; font-size:${toolSize}; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:4px;">${tool}</div>
         ${details}
       </div>`;
     }
@@ -10146,15 +10150,19 @@ function renderPilatesItemCard(item, options = {}) {
   const description = descriptionParts.join(' · ');
   const note = item.note || item.manual || '';
 
+  // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
+  const fontSize = context === 'pdf' ? '13px' : '11px';
+  const titleSize = context === 'pdf' ? '16px' : '14px';
+  
   return `
     <div style="margin-bottom:12px; padding:14px; background:${theme.bg}; border-radius:12px; border:1px solid ${theme.border}; color:${theme.text}; font-family: var(--font-body);">
-      <div style="font-weight:700; font-size:14px; margin-bottom:6px; color:${theme.accent};">${title}</div>
-      ${description ? `<div style="font-size:11px; margin-bottom:6px;">${formatMultilineText(description)}</div>` : ''}
-      ${musclesText ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
-      ${tightText ? `<div style="font-size:11px; margin-bottom:4px;"><strong style="color:#ff6b6b;">긴장:</strong> ${tightText}</div>` : ''}
-      ${weakText ? `<div style="font-size:11px; margin-bottom:6px;"><strong style="color:#7c9cff;">약화:</strong> ${weakText}</div>` : ''}
+      <div style="font-weight:700; font-size:${titleSize}; margin-bottom:6px; color:${theme.accent};">${title}</div>
+      ${description ? `<div style="font-size:${fontSize}; margin-bottom:6px;">${formatMultilineText(description)}</div>` : ''}
+      ${musclesText ? `<div style="font-size:${fontSize}; margin-bottom:4px;"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
+      ${tightText ? `<div style="font-size:${fontSize}; margin-bottom:4px;"><strong style="color:#ff6b6b;">긴장:</strong> ${tightText}</div>` : ''}
+      ${weakText ? `<div style="font-size:${fontSize}; margin-bottom:6px;"><strong style="color:#7c9cff;">약화:</strong> ${weakText}</div>` : ''}
       ${equipmentHTML ? `<div style="margin-top:8px;">${equipmentHTML}</div>` : ''}
-      ${note ? `<div style="margin-top:10px; font-size:11px; color:${theme.text === '#f8fbff' ? '#c7d2fe' : '#4b5563'};">${formatMultilineText(note)}</div>` : ''}
+      ${note ? `<div style="margin-top:10px; font-size:${fontSize}; color:${theme.text === '#f8fbff' ? '#c7d2fe' : '#4b5563'};">${formatMultilineText(note)}</div>` : ''}
     </div>
   `;
 }
@@ -10349,6 +10357,21 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 
   if (!analysis) {
     analysis = {};
+  }
+
+  // ✅ 측면 분석과 정면 분석을 모두 확인하여 통합
+  // 1순위: After 세션의 측면/정면 분석
+  let sideAnalysisForPDF = sessions.After?.sideAnalysis || sessions.Before?.sideAnalysis || sessions[cur]?.sideAnalysis || null;
+  let frontAnalysisForPDF = sessions.After?.frontAnalysis || sessions.Before?.frontAnalysis || sessions[cur]?.frontAnalysis || null;
+  
+  // 측면 분석이 있으면 측면 분석 데이터 병합
+  if (sideAnalysisForPDF) {
+    analysis = mergeAnalysisData(sideAnalysisForPDF, analysis);
+  }
+  
+  // 정면 분석이 있으면 정면 분석 데이터 병합
+  if (frontAnalysisForPDF) {
+    analysis = mergeAnalysisData(frontAnalysisForPDF, analysis);
   }
 
   // 통합 분석 결과 가져오기 (운동 추천 포함)
@@ -11019,6 +11042,59 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
       finalMetricsForScore = sideMetrics;
       finalMetricsForScore.orientation = "side";
       hasValidMetrics = true;
+    }
+  }
+  
+  // ✅ 추가: sessions.After 또는 sessions.Before에서 직접 측면 메트릭 추출 시도
+  if (!hasValidMetrics) {
+    // After 세션의 측면 메트릭 직접 확인
+    const afterFullMetrics = sessions.After?.metrics?.fullMetrics || {};
+    const afterSideOnly = {};
+    Object.keys(afterFullMetrics).forEach(key => {
+      if (key === 'orientation') return;
+      const code = METRIC_KEY_ALIASES[key] || key;
+      if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
+        const metric = afterFullMetrics[key];
+        if (metric && typeof metric === 'object') {
+          const val = metric.value != null ? metric.value : 
+                      (metric.value_deg != null ? metric.value_deg : 
+                      (metric.value_cm != null ? metric.value_cm : null));
+          if (val != null && !isNaN(val) && isFinite(val)) {
+            afterSideOnly[key] = metric;
+          }
+        }
+      }
+    });
+    
+    if (Object.keys(afterSideOnly).length > 0) {
+      afterSideOnly.orientation = "side";
+      finalMetricsForScore = afterSideOnly;
+      hasValidMetrics = true;
+    } else {
+      // Before 세션의 측면 메트릭 직접 확인
+      const beforeFullMetrics = sessions.Before?.metrics?.fullMetrics || {};
+      const beforeSideOnly = {};
+      Object.keys(beforeFullMetrics).forEach(key => {
+        if (key === 'orientation') return;
+        const code = METRIC_KEY_ALIASES[key] || key;
+        if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
+          const metric = beforeFullMetrics[key];
+          if (metric && typeof metric === 'object') {
+            const val = metric.value != null ? metric.value : 
+                        (metric.value_deg != null ? metric.value_deg : 
+                        (metric.value_cm != null ? metric.value_cm : null));
+            if (val != null && !isNaN(val) && isFinite(val)) {
+              beforeSideOnly[key] = metric;
+            }
+          }
+        }
+      });
+      
+      if (Object.keys(beforeSideOnly).length > 0) {
+        beforeSideOnly.orientation = "side";
+        finalMetricsForScore = beforeSideOnly;
+        hasValidMetrics = true;
+      }
     }
   }
   
@@ -12460,15 +12536,47 @@ if (isMobile) {
 
 // ========== 페이지 7.5: 체형 유형 분석 ==========
 // ✅ 측면 메트릭과 정면 메트릭을 모두 포함한 fullMetrics 생성
-let fullMetricsForPostureType = S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+// 1순위: After 세션의 fullMetrics
+let fullMetricsForPostureType = sessions.After?.metrics?.fullMetrics || {};
+// 2순위: Before 세션의 fullMetrics
+if (Object.keys(fullMetricsForPostureType).length === 0) {
+  fullMetricsForPostureType = sessions.Before?.metrics?.fullMetrics || {};
+}
+// 3순위: 현재 세션의 fullMetrics
+if (Object.keys(fullMetricsForPostureType).length === 0) {
+  fullMetricsForPostureType = S.metrics?.fullMetrics || analysis?.fullMetrics || window.fullMetrics || {};
+}
 
-// ✅ 측면 메트릭이 별도로 있으면 병합
+// ✅ 측면 메트릭이 별도로 있으면 병합 (측면 메트릭 우선)
 if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실제 메트릭이 있는지 확인
-  Object.assign(fullMetricsForPostureType, sideMetrics);
+  // 측면 메트릭을 우선적으로 병합 (기존 fullMetrics에 덮어쓰기)
+  Object.keys(sideMetrics).forEach(key => {
+    if (key !== 'orientation') {
+      fullMetricsForPostureType[key] = sideMetrics[key];
+    }
+  });
 }
 
 // ✅ 정면 메트릭도 확인하여 병합
-const frontMetricsForPostureType = sessions[cur]?.metrics?.frontMetrics || {};
+// After/Before/현재 세션에서 정면 메트릭 추출
+let frontMetricsForPostureType = {};
+if (sessions.After?.metrics?.frontMetrics) {
+  frontMetricsForPostureType = sessions.After.metrics.frontMetrics;
+} else if (sessions.Before?.metrics?.frontMetrics) {
+  frontMetricsForPostureType = sessions.Before.metrics.frontMetrics;
+} else if (sessions[cur]?.metrics?.frontMetrics) {
+  frontMetricsForPostureType = sessions[cur].metrics.frontMetrics;
+} else {
+  // fullMetrics에서 정면 메트릭만 필터링
+  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'TD', 'HTA', 'SPP', 'KAS', 'LLAS'];
+  Object.keys(fullMetricsForPostureType).forEach(key => {
+    const code = METRIC_KEY_ALIASES[key] || key;
+    if (frontMetricKeys.includes(code) || frontMetricKeys.includes(key)) {
+      frontMetricsForPostureType[key] = fullMetricsForPostureType[key];
+    }
+  });
+}
+
 if (Object.keys(frontMetricsForPostureType).length > 0) {
   Object.assign(fullMetricsForPostureType, frontMetricsForPostureType);
 }
@@ -12483,19 +12591,37 @@ if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length >
   let sidePostureType = '';
   let frontPostureType = '';
   
-  // ✅ 측면 분석 결과 생성
+  // ✅ 측면 분석 결과 생성 - 측면 메트릭만 사용
   if (hasSideMetrics) {
-    sidePostureType = analyzePostureType(fullMetricsForPostureType, "side");
-    if (!sidePostureType || sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
-      sidePostureType = '';
+    // 측면 메트릭만으로 분석
+    const sideOnlyMetrics = {};
+    Object.keys(sideMetrics).forEach(key => {
+      if (key !== 'orientation') {
+        sideOnlyMetrics[key] = sideMetrics[key];
+      }
+    });
+    if (Object.keys(sideOnlyMetrics).length > 0) {
+      sideOnlyMetrics.orientation = "side";
+      sidePostureType = analyzePostureType(sideOnlyMetrics, "side");
+      if (!sidePostureType || sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
+        sidePostureType = '';
+      }
     }
   }
   
-  // ✅ 정면 분석 결과 생성
+  // ✅ 정면 분석 결과 생성 - 정면 메트릭만 사용
   if (hasFrontMetrics) {
-    frontPostureType = analyzePostureType(fullMetricsForPostureType, "front");
-    if (!frontPostureType || frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
-      frontPostureType = '';
+    // 정면 메트릭만으로 분석
+    const frontOnlyMetrics = {};
+    Object.keys(frontMetricsForPostureType).forEach(key => {
+      frontOnlyMetrics[key] = frontMetricsForPostureType[key];
+    });
+    if (Object.keys(frontOnlyMetrics).length > 0) {
+      frontOnlyMetrics.orientation = "front";
+      frontPostureType = analyzePostureType(frontOnlyMetrics, "front");
+      if (!frontPostureType || frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
+        frontPostureType = '';
+      }
     }
   }
   
