@@ -8464,6 +8464,12 @@ function setupCalibrateButton() {
       if(calibrationResult) calibrationResult.textContent = "";
       // 캘리브레이션 모드에서는 클릭 이벤트로 점 선택
       if(cv) cv.style.cursor = "crosshair";
+      // ✅ 캘리브레이션 모드 활성화 시 확대 배율 초기화 및 적용
+      const calibrationZoomEl = document.getElementById("calibrationZoomLevel");
+      if(calibrationZoomEl) {
+        calibrationZoomEl.value = "1";
+        currentZoom = 1;
+      }
       draw(); // 초기화
       console.log("✅ 캘리브레이션 모드 활성화");
     } else {
