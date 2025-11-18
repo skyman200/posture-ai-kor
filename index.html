@@ -11307,9 +11307,57 @@ if(comparison && comparison.results.length > 0) {
 
   page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
     <div id="beforeAfterChartSection"></div>
-    <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
-      <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">📈 전체 변화 요약</div>
-      <div style="font-size:11px; line-height:1.6; color:#333;">${comparison.summary.overallComment}</div>
+    
+    <!-- ✅ Before-After 상세 분석 섹션 추가 -->
+    <div style="margin-top:20px; padding:15px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
+      <div style="font-size:14px; font-weight:700; color:#0b0f14; margin-bottom:15px; border-bottom:2px solid #cbd5e1; padding-bottom:8px;">📊 Before-After 상세 분석</div>
+      
+      ${comparison.results.filter(r => r.status === 'improved').length > 0 ? `
+      <div style="margin-bottom:15px; padding:12px; background:#f0fdf4; border-radius:8px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:13px; font-weight:600; color:#2ec4b6; margin-bottom:10px;">✅ 개선된 지표 (${comparison.results.filter(r => r.status === 'improved').length}개)</div>
+        ${comparison.results.filter(r => r.status === 'improved').map(item => `
+          <div style="margin-bottom:8px; padding:8px; background:#fff; border-radius:6px; border:1px solid #bbf7d0;">
+            <div style="font-size:12px; font-weight:600; color:#15803d; margin-bottom:4px;">${item.name}</div>
+            <div style="font-size:11px; color:#333; line-height:1.6;">
+              <strong>변화:</strong> ${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} → ${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} (${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(item.unit === '점' ? 2 : 1)}${item.unit})<br>
+              <strong>분석:</strong> ${item.comment}
+            </div>
+          </div>
+        `).join('')}
+      </div>` : ''}
+      
+      ${comparison.results.filter(r => r.status === 'worsened').length > 0 ? `
+      <div style="margin-bottom:15px; padding:12px; background:#fef2f2; border-radius:8px; border-left:4px solid #f87171;">
+        <div style="font-size:13px; font-weight:600; color:#dc2626; margin-bottom:10px;">⚠️ 악화된 지표 (${comparison.results.filter(r => r.status === 'worsened').length}개)</div>
+        ${comparison.results.filter(r => r.status === 'worsened').map(item => `
+          <div style="margin-bottom:8px; padding:8px; background:#fff; border-radius:6px; border:1px solid #fecaca;">
+            <div style="font-size:12px; font-weight:600; color:#dc2626; margin-bottom:4px;">${item.name}</div>
+            <div style="font-size:11px; color:#333; line-height:1.6;">
+              <strong>변화:</strong> ${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} → ${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} (${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(item.unit === '점' ? 2 : 1)}${item.unit})<br>
+              <strong>분석:</strong> ${item.comment}<br>
+              <strong>권장사항:</strong> ${item.name.includes('CVA') ? '경추 신전 운동, 턱당김 운동(Chin tuck) 강화' : 
+                                         item.name.includes('HPD') ? '심부 경추 굴곡근 강화, 상부 승모근 스트레칭' :
+                                         item.name.includes('PTA') ? '둔근 강화, 장요근 스트레칭, 코어 안정화 운동' :
+                                         item.name.includes('KA') ? '대퇴사두근 균형 강화, 무릎 정렬 운동' :
+                                         item.name.includes('GSB') ? '전신 정렬 운동, 코어 안정화, 균형 운동' :
+                                         '해당 부위 근육 불균형 교정 운동 및 자세 개선 프로그램'}
+            </div>
+          </div>
+        `).join('')}
+      </div>` : ''}
+      
+      ${comparison.results.filter(r => r.status === 'stable').length > 0 ? `
+      <div style="margin-bottom:15px; padding:12px; background:#f1f5f9; border-radius:8px; border-left:4px solid #64748b;">
+        <div style="font-size:13px; font-weight:600; color:#475569; margin-bottom:10px;">→ 안정된 지표 (${comparison.results.filter(r => r.status === 'stable').length}개)</div>
+        <div style="font-size:11px; color:#475569; line-height:1.6;">
+          ${comparison.results.filter(r => r.status === 'stable').map(item => `${item.name} (${item.comment})`).join(' | ')}
+        </div>
+      </div>` : ''}
+      
+      <div style="margin-top:15px; padding:12px; background:#e8f5e9; border-radius:8px; border-left:4px solid #2ec4b6;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:#2ec4b6;">📈 전체 변화 요약</div>
+        <div style="font-size:11px; line-height:1.6; color:#333;">${comparison.summary.overallComment}</div>
+      </div>
     </div>`;
 } else {
   page3HTML += '<div style="padding:40px; text-align:center; color:#999;">Before-After 비교 데이터가 없습니다.</div>';
