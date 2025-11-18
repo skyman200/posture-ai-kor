@@ -11305,6 +11305,125 @@ if(comparison && comparison.results.length > 0) {
   });
   comparisonTableHTML += '</table>';
 
+  // ✅ 지표별 운동 권장사항 생성 함수 (변화 데이터 기반)
+  const generateExerciseRecommendation = (item) => {
+    const { name, before, after, delta, unit, normal } = item;
+    const absDelta = Math.abs(delta);
+    
+    // CVA (두개경추각)
+    if (name.includes('CVA')) {
+      if (after < 50) {
+        // 정상 범위 미만
+        if (delta > 0) {
+          return `① 턱당김 운동(Chin tuck): 하루 3세트, 각 10회 유지 (심부 경추 굴곡근 강화)<br>② 경추 신전 운동: 상부 승모근 스트레칭 후 신전 (10초 유지 × 5회)<br>③ 흉쇄유돌근 스트레칭: 좌우 각 30초 × 3회<br>④ 목 근력 강화: 저항 밴드 사용한 경추 굴곡 운동`;
+        } else {
+          return `① 즉시 턱당김 운동 강화: 하루 5세트, 각 15회 (심부 경추 굴곡근 긴급 강화)<br>② 상부 승모근·흉쇄유돌근 스트레칭: 각 30초 × 5회<br>③ 작업 환경 개선: 모니터 눈높이 조정, 의자 높이 조정<br>④ 전문가 상담 권장 (${after.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        // 정상 범위 내
+        return `① 유지 운동: 턱당김 운동 주 3회 유지<br>② 예방 스트레칭: 상부 승모근·흉쇄유돌근 주 2회<br>③ 자세 인식: 작업 중 30분마다 자세 확인`;
+      }
+    }
+    
+    // HPD (두부전방이동)
+    if (name.includes('HPD')) {
+      if (after > 2) {
+        // 정상 범위 초과
+        if (delta < 0) {
+          return `① 턱당김 운동 지속: 하루 4세트, 각 12회 (${absDelta.toFixed(1)}cm 개선 효과 유지)<br>② 심부 경추 굴곡근 강화: 누워서 턱당김 (10초 유지 × 10회)<br>③ 흉추 신전 운동: 등 윗부분 유연성 확보<br>④ 상부 승모근 스트레칭: 각 30초 × 3회`;
+        } else {
+          return `① 긴급 턱당김 운동: 하루 5세트, 각 15회 (심부 경추 굴곡근 긴급 강화)<br>② 흉쇄유돌근·후두하근 스트레칭: 각 30초 × 5회<br>③ 작업 환경 개선: 모니터 눈높이 조정 필수<br>④ 전문가 상담 강력 권장 (${after.toFixed(1)}cm는 심각 수준)`;
+        }
+      } else {
+        return `① 유지 운동: 턱당김 운동 주 2회 유지<br>② 예방 스트레칭: 상부 승모근 주 1회`;
+      }
+    }
+    
+    // PTA (골반 전후경사각)
+    if (name.includes('PTA')) {
+      if (after > 15 || after < 0) {
+        // 정상 범위 밖
+        if (delta < 0 && after > 0) {
+          return `① 둔근 강화 지속: 힙 브릿지 3세트 × 15회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 장요근 스트레칭: 런지 자세 30초 × 3회<br>③ 코어 안정화: 플랭크 30초 × 3세트<br>④ 햄스트링 스트레칭: 서서 앞으로 굽히기 30초 × 3회`;
+        } else if (delta > 0) {
+          return `① 둔근 긴급 강화: 힙 브릿지 4세트 × 20회 (골반 후방경사 교정)<br>② 장요근 스트레칭: 런지 자세 30초 × 5회<br>③ 코어 안정화 강화: 플랭크 45초 × 4세트<br>④ 척추기립근 스트레칭: 고양이 자세 10회`;
+        } else {
+          return `① 둔근 강화: 힙 브릿지 3세트 × 15회<br>② 장요근 스트레칭: 런지 자세 30초 × 3회<br>③ 코어 안정화: 플랭크 30초 × 3세트`;
+        }
+      } else {
+        return `① 유지 운동: 힙 브릿지 주 2회<br>② 장요근 스트레칭 주 1회`;
+      }
+    }
+    
+    // KA (무릎각)
+    if (name.includes('KA')) {
+      const isInRange = after >= 175 && after <= 185;
+      if (!isInRange) {
+        if (after < 175) {
+          return `① 대퇴사두근 균형 강화: 레그 익스텐션 3세트 × 12회<br>② 무릎 정렬 운동: 스텝업 운동 3세트 × 10회<br>③ 햄스트링 스트레칭: 서서 앞으로 굽히기 30초 × 3회<br>④ 무릎 안정화: 발목 무게 사용한 레그 컬`;
+        } else {
+          return `① 무릎 과신전 교정: 햄스트링 강화 3세트 × 15회<br>② 대퇴사두근 스트레칭: 서서 무릎 굽히기 30초 × 3회<br>③ 무릎 안정화: 발목 무게 사용한 레그 컬<br>④ 종아리 근육 강화: 힐 레이즈 3세트 × 15회`;
+        }
+      } else {
+        return `① 유지 운동: 레그 익스텐션 주 2회<br>② 무릎 안정화 운동 주 1회`;
+      }
+    }
+    
+    // GSB (중력중심선)
+    if (name.includes('GSB')) {
+      if (after > 2) {
+        if (delta < 0) {
+          return `① 전신 정렬 운동 지속: 월 스쿼트 3세트 × 12회 (${absDelta.toFixed(1)}cm 개선 효과 유지)<br>② 코어 안정화: 플랭크 30초 × 3세트<br>③ 균형 운동: 한 발 서기 30초 × 좌우 3회<br>④ 척추 정렬 운동: 척추 회전 스트레칭 10회`;
+        } else {
+          return `① 전신 정렬 운동 강화: 월 스쿼트 4세트 × 15회<br>② 코어 안정화 강화: 플랭크 45초 × 4세트<br>③ 균형 운동: 한 발 서기 45초 × 좌우 5회<br>④ 전문가 상담 권장 (${after.toFixed(1)}cm는 중등도 이상)`;
+        }
+      } else {
+        return `① 유지 운동: 월 스쿼트 주 2회<br>② 균형 운동 주 1회`;
+      }
+    }
+    
+    // TIA (체간경사각)
+    if (name.includes('TIA')) {
+      if (after > 10 || after < 0) {
+        return `① 체간 정렬 운동: 척추 회전 스트레칭 10회<br>② 코어 안정화: 사이드 플랭크 30초 × 좌우 3회<br>③ 등 근육 강화: 로우 운동 3세트 × 12회<br>④ 흉추 신전 운동: 고양이-소 자세 10회`;
+      } else {
+        return `① 유지 운동: 척추 회전 스트레칭 주 2회<br>② 코어 안정화 주 1회`;
+      }
+    }
+    
+    // SAA (어깨전방각)
+    if (name.includes('SAA')) {
+      if (after > 10) {
+        return `① 둥근어깨 교정: 전거근 강화 운동 3세트 × 12회<br>② 흉근 스트레칭: 문틀 스트레칭 30초 × 3회<br>③ 등 근육 강화: 로우 운동 3세트 × 15회<br>④ 어깨 안정화: 외회전 근육 강화`;
+      } else {
+        return `① 유지 운동: 전거근 강화 주 2회<br>② 흉근 스트레칭 주 1회`;
+      }
+    }
+    
+    // HPA (고관절각)
+    if (name.includes('HPA')) {
+      if (after > 10 || after < 0) {
+        return `① 머리-골반 정렬 운동: 척추 신전 운동 10회<br>② 코어 안정화: 플랭크 30초 × 3세트<br>③ 고관절 가동성: 힙 서클 10회 × 좌우<br>④ 체간 협응 운동: 버드독 자세 10회`;
+      } else {
+        return `① 유지 운동: 척추 신전 운동 주 2회<br>② 코어 안정화 주 1회`;
+      }
+    }
+    
+    // PDS (자세점수)
+    if (name.includes('PDS')) {
+      if (delta < 0) {
+        return `① 종합 자세 개선 프로그램 지속 (${absDelta.toFixed(1)}점 개선 효과 유지)<br>② 코어 안정화: 플랭크 30초 × 3세트<br>③ 전신 정렬 운동: 월 스쿼트 3세트 × 12회<br>④ 균형 운동: 한 발 서기 30초 × 좌우 3회`;
+      } else if (delta > 0) {
+        return `① 종합 자세 개선 프로그램 강화 필요<br>② 코어 안정화 강화: 플랭크 45초 × 4세트<br>③ 전신 정렬 운동: 월 스쿼트 4세트 × 15회<br>④ 전문가 상담 권장`;
+      } else {
+        return `① 유지 운동: 코어 안정화 주 2회<br>② 전신 정렬 운동 주 1회`;
+      }
+    }
+    
+    // 기본 권장사항
+    return `① 해당 부위 근육 불균형 교정 운동<br>② 자세 개선 프로그램<br>③ 전문가 상담 권장`;
+  };
+
   page3HTML += `<div style="margin-bottom:20px;">${comparisonTableHTML}</div>
     <div id="beforeAfterChartSection"></div>
     
@@ -11320,7 +11439,8 @@ if(comparison && comparison.results.length > 0) {
             <div style="font-size:12px; font-weight:600; color:#15803d; margin-bottom:4px;">${item.name}</div>
             <div style="font-size:11px; color:#333; line-height:1.6;">
               <strong>변화:</strong> ${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} → ${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} (${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(item.unit === '점' ? 2 : 1)}${item.unit})<br>
-              <strong>분석:</strong> ${item.comment}
+              <strong>분석:</strong> ${item.comment}<br>
+              <strong>유지 운동:</strong> ${generateExerciseRecommendation(item)}
             </div>
           </div>
         `).join('')}
@@ -11335,12 +11455,7 @@ if(comparison && comparison.results.length > 0) {
             <div style="font-size:11px; color:#333; line-height:1.6;">
               <strong>변화:</strong> ${item.before.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} → ${item.after.toFixed(item.unit === '점' ? 2 : 1)}${item.unit} (${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(item.unit === '점' ? 2 : 1)}${item.unit})<br>
               <strong>분석:</strong> ${item.comment}<br>
-              <strong>권장사항:</strong> ${item.name.includes('CVA') ? '경추 신전 운동, 턱당김 운동(Chin tuck) 강화' : 
-                                         item.name.includes('HPD') ? '심부 경추 굴곡근 강화, 상부 승모근 스트레칭' :
-                                         item.name.includes('PTA') ? '둔근 강화, 장요근 스트레칭, 코어 안정화 운동' :
-                                         item.name.includes('KA') ? '대퇴사두근 균형 강화, 무릎 정렬 운동' :
-                                         item.name.includes('GSB') ? '전신 정렬 운동, 코어 안정화, 균형 운동' :
-                                         '해당 부위 근육 불균형 교정 운동 및 자세 개선 프로그램'}
+              <strong>권장 운동:</strong> ${generateExerciseRecommendation(item)}
             </div>
           </div>
         `).join('')}
