@@ -14687,16 +14687,38 @@ async function exportAsPdf(options = {}) {
       return;
     }
 
-    // ✅ 캔버스 높이를 PDF 페이지 높이로 스케일링
+    // ✅ 원본 비율 유지하면서 PDF 페이지에 맞게 스케일링 (잘림 방지)
     const canvasAspectRatio = canvas.width / canvas.height;
+    const maxWidth = imgW; // 한 페이지에 들어갈 수 있는 최대 너비
     const maxHeight = imgH; // 한 페이지에 들어갈 수 있는 최대 높이
-    let scaledWidth = imgW;
-    let scaledHeight = imgW / canvasAspectRatio;
+    
+    // ✅ 비율을 유지하면서 페이지에 맞게 스케일링 (너비와 높이 모두 확인)
+    let scaledWidth = maxWidth;
+    let scaledHeight = maxWidth / canvasAspectRatio;
+    
+    // ✅ 높이가 페이지를 초과하면 높이 기준으로 재계산 (잘림 방지)
+    if (scaledHeight > maxHeight) {
+      scaledHeight = maxHeight;
+      scaledWidth = maxHeight * canvasAspectRatio;
+    }
+    
+    // ✅ 모바일에서도 잘리지 않도록 최소 크기 보장
+    const minScale = 0.3;
+    if (scaledWidth < canvas.width * minScale) {
+      scaledWidth = canvas.width * minScale;
+      scaledHeight = scaledWidth / canvasAspectRatio;
+      if (scaledHeight > maxHeight) {
+        scaledHeight = maxHeight;
+        scaledWidth = maxHeight * canvasAspectRatio;
+      }
+    }
 
     // ✅ 컨테이너가 한 페이지를 초과하면 여러 페이지로 나누기
-    if (scaledHeight > maxHeight) {
-      const numPages = Math.ceil(scaledHeight / maxHeight);
-      console.log(`📄 ${containerId}: ${numPages}개 페이지로 분할 (높이: ${scaledHeight.toFixed(0)}px)`);
+    // 원본 캔버스의 실제 높이를 기준으로 여러 페이지 필요 여부 판단
+    const originalScaledHeight = (canvas.height * scaledWidth) / canvas.width;
+    if (originalScaledHeight > maxHeight) {
+      const numPages = Math.ceil(originalScaledHeight / maxHeight);
+      console.log(`📄 ${containerId}: ${numPages}개 페이지로 분할 (높이: ${originalScaledHeight.toFixed(0)}px)`);
       
       const sourceHeight = canvas.height;
       const sliceHeight = sourceHeight / numPages;
@@ -14713,9 +14735,9 @@ async function exportAsPdf(options = {}) {
         sliceCtx.drawImage(canvas, 0, yOffset, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
         
         const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.92);
-        const sliceScaledHeight = (currentSliceHeight / sourceHeight) * scaledHeight;
+        const sliceScaledHeight = (currentSliceHeight / sourceHeight) * originalScaledHeight;
         
-        // ✅ 각 슬라이스를 PDF 페이지로 추가
+        // ✅ 각 슬라이스를 PDF 페이지로 추가 (비율 유지)
         send({
           type: "addImage",
           dataUrl: sliceDataUrl,
@@ -16761,11 +16783,32 @@ async function generateFinalPostureReportPDF() {
         if (canvas && canvas.width > 0 && canvas.height > 0) {
           console.log(`✅ ${id} 이미 생성된 캔버스 사용 (크기: ${canvas.width}x${canvas.height})`);
           
-          // PDF에 추가
+          // ✅ 원본 비율 유지하면서 PDF 페이지에 맞게 스케일링 (잘림 방지)
           const imgData = canvas.toDataURL('image/png', 1.0);
           const canvasAspectRatio = canvas.width / canvas.height;
-          let imgWidth = contentWidth;
-          let imgHeight = imgWidth / canvasAspectRatio;
+          const maxWidth = contentWidth;
+          const maxHeight = pageHeight - margin * 2;
+          
+          // ✅ 비율을 유지하면서 페이지에 맞게 스케일링
+          let imgWidth = maxWidth;
+          let imgHeight = maxWidth / canvasAspectRatio;
+          
+          // ✅ 높이가 페이지를 초과하면 높이 기준으로 재계산 (잘림 방지)
+          if (imgHeight > maxHeight) {
+            imgHeight = maxHeight;
+            imgWidth = maxHeight * canvasAspectRatio;
+          }
+          
+          // ✅ 모바일에서도 잘리지 않도록 최소 크기 보장
+          const minScale = 0.3;
+          if (imgWidth < canvas.width * minScale) {
+            imgWidth = canvas.width * minScale;
+            imgHeight = imgWidth / canvasAspectRatio;
+            if (imgHeight > maxHeight) {
+              imgHeight = maxHeight;
+              imgWidth = maxHeight * canvasAspectRatio;
+            }
+          }
           
           // 여러 페이지로 나누어서 추가
           let heightLeft = imgHeight;
@@ -16837,20 +16880,32 @@ async function generateFinalPostureReportPDF() {
         // ✅ 여러 페이지로 나누어서 추가 (A4 용지에 맞게 자동 축소)
         const imgData = canvas.toDataURL('image/jpeg', 0.85); // PNG → JPEG로 변경 (메모리 절약)
         
-        // ✅ A4 용지 너비에 맞게 이미지 크기 자동 조정 (잘림 방지)
-        // 캔버스 너비가 contentWidth보다 크면 자동으로 축소
+        // ✅ 원본 비율 유지하면서 PDF 페이지에 맞게 스케일링 (잘림 방지)
         const canvasAspectRatio = canvas.width / canvas.height;
-        let imgWidth = contentWidth; // 기본값: 여백 제외한 A4 너비
-        let imgHeight = imgWidth / canvasAspectRatio;
+        const maxWidth = contentWidth; // 여백 제외한 A4 너비
+        const maxHeight = pageHeight - margin * 2; // 여백 제외한 A4 높이
         
-        // ✅ 캔버스가 너무 넓으면 강제로 축소 (잘림 방지)
-        if (canvas.width > contentWidth) {
-          imgWidth = contentWidth;
-          imgHeight = (canvas.height * imgWidth) / canvas.width;
-        } else {
-          // 캔버스가 작으면 원본 크기 유지 (너무 작아지지 않도록)
-          imgWidth = Math.min(canvas.width, contentWidth);
-          imgHeight = (canvas.height * imgWidth) / canvas.width;
+        // ✅ 비율을 유지하면서 페이지에 맞게 스케일링 (너비와 높이 모두 확인)
+        let imgWidth = maxWidth;
+        let imgHeight = maxWidth / canvasAspectRatio;
+        
+        // ✅ 높이가 페이지를 초과하면 높이 기준으로 재계산 (잘림 방지)
+        if (imgHeight > maxHeight) {
+          imgHeight = maxHeight;
+          imgWidth = maxHeight * canvasAspectRatio;
+        }
+        
+        // ✅ 모바일에서도 잘리지 않도록 최소 크기 보장
+        // 너무 작아지지 않도록 원본 크기의 일정 비율 이상 유지
+        const minScale = 0.3; // 최소 30% 크기 유지
+        if (imgWidth < canvas.width * minScale) {
+          imgWidth = canvas.width * minScale;
+          imgHeight = imgWidth / canvasAspectRatio;
+          // 높이도 확인하여 재조정
+          if (imgHeight > maxHeight) {
+            imgHeight = maxHeight;
+            imgWidth = maxHeight * canvasAspectRatio;
+          }
         }
         
         // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 개선 버전)
