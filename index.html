@@ -3371,21 +3371,43 @@ function setOrientation(orientation, options = {}) {
     }
     
     // ✅ orientation에 맞는 점수 가져오기
-    // sideAnalysis나 frontAnalysis에 점수가 있으면 우선 사용
+    // sessions.After의 sideScore/frontScore 우선 사용
     let orientationScore = null;
-    if(orientation === "side" && session.sideAnalysis) {
-      // 측면 분석 결과에서 점수 가져오기
-      if(session.sideAnalysis.fullMetrics) {
-        orientationScore = computeScoreFromFullMetrics(session.sideAnalysis.fullMetrics);
-      } else if(session.sideAnalysis.score) {
-        orientationScore = session.sideAnalysis.score;
+    if(orientation === "side") {
+      // 1순위: sessions.After.sideScore
+      if(sessions.After?.sideScore) {
+        const sideScoreObj = sessions.After.sideScore;
+        if(typeof sideScoreObj === 'object' && sideScoreObj !== null && sideScoreObj.score != null) {
+          orientationScore = sideScoreObj;
+        } else if(typeof sideScoreObj === 'number') {
+          orientationScore = { score: sideScoreObj, reasons: [], penalties: 0 };
+        }
       }
-    } else if(orientation === "front" && session.frontAnalysis) {
-      // 정면 분석 결과에서 점수 가져오기
-      if(session.frontAnalysis.fullMetrics) {
-        orientationScore = computeScoreFromFullMetrics(session.frontAnalysis.fullMetrics);
-      } else if(session.frontAnalysis.score) {
-        orientationScore = session.frontAnalysis.score;
+      // 2순위: session.sideAnalysis
+      if(!orientationScore && session.sideAnalysis) {
+        if(session.sideAnalysis.fullMetrics) {
+          orientationScore = computeScoreFromFullMetrics(session.sideAnalysis.fullMetrics);
+        } else if(session.sideAnalysis.score) {
+          orientationScore = session.sideAnalysis.score;
+        }
+      }
+    } else if(orientation === "front") {
+      // 1순위: sessions.After.frontScore
+      if(sessions.After?.frontScore) {
+        const frontScoreObj = sessions.After.frontScore;
+        if(typeof frontScoreObj === 'object' && frontScoreObj !== null && frontScoreObj.score != null) {
+          orientationScore = frontScoreObj;
+        } else if(typeof frontScoreObj === 'number') {
+          orientationScore = { score: frontScoreObj, reasons: [], penalties: 0 };
+        }
+      }
+      // 2순위: session.frontAnalysis
+      if(!orientationScore && session.frontAnalysis) {
+        if(session.frontAnalysis.fullMetrics) {
+          orientationScore = computeScoreFromFullMetrics(session.frontAnalysis.fullMetrics);
+        } else if(session.frontAnalysis.score) {
+          orientationScore = session.frontAnalysis.score;
+        }
       }
     }
     
@@ -3452,15 +3474,47 @@ function switchSession(s) {
   let analysis = null;
   let orientationScore = null;
   
-  if(currentOrientation === "side" && sessions[s].sideAnalysis) {
-    analysis = sessions[s].sideAnalysis;
-    if(analysis.fullMetrics) {
-      orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+  if(currentOrientation === "side") {
+    // 1순위: sessions.After.sideScore
+    if(s === "After" && sessions.After?.sideScore) {
+      const sideScoreObj = sessions.After.sideScore;
+      if(typeof sideScoreObj === 'object' && sideScoreObj !== null && sideScoreObj.score != null) {
+        orientationScore = sideScoreObj;
+      } else if(typeof sideScoreObj === 'number') {
+        orientationScore = { score: sideScoreObj, reasons: [], penalties: 0 };
+      }
     }
-  } else if(currentOrientation === "front" && sessions[s].frontAnalysis) {
-    analysis = sessions[s].frontAnalysis;
-    if(analysis.fullMetrics) {
-      orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+    // 2순위: sessions[s].sideAnalysis
+    if(sessions[s].sideAnalysis) {
+      analysis = sessions[s].sideAnalysis;
+      if(!orientationScore && analysis.fullMetrics) {
+        orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+      }
+    }
+    // 3순위: 하위 호환성
+    if(!analysis && sessions[s].analysis) {
+      analysis = sessions[s].analysis;
+    }
+  } else if(currentOrientation === "front") {
+    // 1순위: sessions.After.frontScore
+    if(s === "After" && sessions.After?.frontScore) {
+      const frontScoreObj = sessions.After.frontScore;
+      if(typeof frontScoreObj === 'object' && frontScoreObj !== null && frontScoreObj.score != null) {
+        orientationScore = frontScoreObj;
+      } else if(typeof frontScoreObj === 'number') {
+        orientationScore = { score: frontScoreObj, reasons: [], penalties: 0 };
+      }
+    }
+    // 2순위: sessions[s].frontAnalysis
+    if(sessions[s].frontAnalysis) {
+      analysis = sessions[s].frontAnalysis;
+      if(!orientationScore && analysis.fullMetrics) {
+        orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+      }
+    }
+    // 3순위: 하위 호환성
+    if(!analysis && sessions[s].analysis) {
+      analysis = sessions[s].analysis;
     }
   } else if(sessions[s].analysis) {
     // 하위 호환성: 기존 analysis 사용
@@ -4097,6 +4151,15 @@ function computeAll() {
         orientation: "front"
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.frontScore = scoreData;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4113,6 +4176,15 @@ function computeAll() {
         exercises: []
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.frontScore = scoreData;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4193,6 +4265,15 @@ function computeAll() {
         orientation: "side"
       };
       S.analysis = S.sideAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에 측면 점수 및 분석 결과 저장
+      if (sessions.After) {
+        sessions.After.sideAnalysis = S.sideAnalysis;
+        sessions.After.sideScore = score;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.sideMetrics = separatedSideMetrics;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4207,6 +4288,15 @@ function computeAll() {
         orientation: "side"
       };
       S.analysis = S.sideAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에 측면 점수 및 분석 결과 저장
+      if (sessions.After) {
+        sessions.After.sideAnalysis = S.sideAnalysis;
+        sessions.After.sideScore = score;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.sideMetrics = separatedSideMetrics;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4262,6 +4352,15 @@ function computeAll() {
         orientation: "front"
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.frontScore = scoreData;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4278,6 +4377,15 @@ function computeAll() {
         exercises: []
       };
       S.analysis = S.frontAnalysis; // 하위 호환성
+      
+      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
+      if (sessions.After) {
+        sessions.After.frontAnalysis = S.frontAnalysis;
+        sessions.After.frontScore = scoreData;
+        sessions.After.metrics = sessions.After.metrics || {};
+        sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+      }
+      
       updateDisplay();
       updateCompare();
       // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
@@ -4792,7 +4900,7 @@ function computeScoreFromFullMetrics(fullMetrics) {
   
   // ✅ 측정된 메트릭이 없으면 null 반환 (정면/측면 항목 계산 후에 체크)
   if (metricCount === 0) {
-    console.warn('⚠️ 측정된 메트릭이 없습니다. 점수 계산 불가.');
+    // 경고 로그 제거 (조용히 반환)
     return { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   }
   
@@ -7723,44 +7831,44 @@ cv.addEventListener('mousedown', (e) => {
     // 확대 모드에서는 자동 추적 모드 사용 안 함 (드롭다운에서 선택한 점만 사용)
     // startDrag로 넘어가서 선택된 점만 체크하도록 함
   } else {
-    const pos = getEventPos(e);
-    const P = getPts(cur);
-    const currentKeypoints = getKeypoints();
-    let clickedPoint = null;
-    let minDistance = 1e9;
-    const threshold = 50; // 클릭 감지 범위
-    
-    for(const k of currentKeypoints) {
-      const p = P[k.key];
-      if(!p) continue;
-      const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-      if(d < threshold && d < minDistance) {
-        clickedPoint = k.key;
-        minDistance = d;
-      }
+  const pos = getEventPos(e);
+  const P = getPts(cur);
+  const currentKeypoints = getKeypoints();
+  let clickedPoint = null;
+  let minDistance = 1e9;
+  const threshold = 50; // 클릭 감지 범위
+  
+  for(const k of currentKeypoints) {
+    const p = P[k.key];
+    if(!p) continue;
+    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+    if(d < threshold && d < minDistance) {
+      clickedPoint = k.key;
+      minDistance = d;
     }
-    
-      // dot를 클릭했을 때 자동 추적 모드 토글
-      if(clickedPoint) {
-        if(autoFollowKey === clickedPoint) {
-          // 이미 자동 추적 중이면 해제
-          autoFollowKey = null;
-          dragKey = null;
-          console.log('🛑 자동 추적 모드 해제:', clickedPoint);
-          isMouseDown = false;
-          e.preventDefault();
-          return;
-        } else {
-          // 자동 추적 모드 활성화
-          autoFollowKey = clickedPoint;
-          dragKey = null; // 드래그 모드는 해제
-          console.log('▶️ 자동 추적 모드 활성화:', clickedPoint);
-          isMouseDown = false;
-          e.preventDefault();
-          return;
+  }
+  
+  // dot를 클릭했을 때 자동 추적 모드 토글
+  if(clickedPoint) {
+    if(autoFollowKey === clickedPoint) {
+      // 이미 자동 추적 중이면 해제
+      autoFollowKey = null;
+      dragKey = null;
+      console.log('🛑 자동 추적 모드 해제:', clickedPoint);
+      isMouseDown = false;
+      e.preventDefault();
+      return;
+    } else {
+      // 자동 추적 모드 활성화
+      autoFollowKey = clickedPoint;
+      dragKey = null; // 드래그 모드는 해제
+      console.log('▶️ 자동 추적 모드 활성화:', clickedPoint);
+      isMouseDown = false;
+      e.preventDefault();
+      return;
         }
-      }
     }
+  }
   
   // 자동 추적 모드가 아니면 일반 드래그 처리
   const dragStarted = startDrag(e);
@@ -10761,12 +10869,12 @@ const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
     // ✅ 키 별칭 확인 (METRIC_KEY_ALIASES 사용)
-    const code = METRIC_KEY_ALIASES[key] || key;
+  const code = METRIC_KEY_ALIASES[key] || key;
     // ✅ 원본 키와 별칭 모두 확인
     if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
       sideMetrics[key] = sideMetricsSource[key];
-    }
-  });
+  }
+});
 }
 
 // ✅ sideMetricsSource가 없거나 비어있으면 현재 세션에서 직접 측면 메트릭 추출
@@ -10786,8 +10894,8 @@ if (Object.keys(sideMetrics).length <= 1) { // orientation만 있거나 비어�
           sideMetrics[key] = metric;
         }
       }
-    }
-  });
+  }
+});
 }
 
 // ✅ 측면 분석임을 명시
@@ -10818,8 +10926,8 @@ else if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실�
     // ✅ orientation을 전달하여 측면 메트릭만 필터링
     const flatSideMetrics = flattenFullMetrics(sideMetrics, "side");
     sideAnalysis = await analyzeWithDB(flatSideMetrics, "side");
-  } catch (err) {
-    console.warn('측면 분석 실패:', err);
+} catch (err) {
+  console.warn('측면 분석 실패:', err);
   }
 }
 
@@ -10928,6 +11036,58 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
           ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
         </li>`).join('')}
       </ul>
+    </div>` : ''}
+
+    ${Object.keys(sideMetrics).length > 1 ? `
+    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 측면 측정 지표 상세</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6;">
+        ${Object.keys(sideMetrics).filter(key => key !== 'orientation').map(key => {
+          const metric = sideMetrics[key];
+          if (!metric || typeof metric !== 'object') return '';
+          const value = metric.value != null ? metric.value : 
+                       (metric.value_deg != null ? metric.value_deg : 
+                       (metric.value_cm != null ? metric.value_cm : null));
+          if (value == null || isNaN(value) || !isFinite(value)) return '';
+          const unit = metric.unit || (metric.value_deg != null ? '°' : (metric.value_cm != null ? 'cm' : ''));
+          const status = metric.status || 'unknown';
+          const statusText = {
+            'normal': '✅ 정상',
+            'mild': '⚠️ 경미',
+            'moderate': '⚠️ 중등도',
+            'severe': '🔴 심각'
+          }[status] || status;
+          const desc = metric.desc || metric.meaning || key;
+          
+          // 정상 범위 정보
+          let normalRange = '';
+          if (key === 'CVA' || key === 'cva') {
+            normalRange = '50-90°';
+          } else if (key === 'HPD' || key === 'hpd') {
+            normalRange = '0-2cm';
+          } else if (key === 'TIA' || key === 'tia') {
+            normalRange = '0-10°';
+          } else if (key === 'SAA' || key === 'saa') {
+            normalRange = '0-10°';
+          } else if (key === 'PTA' || key === 'pta') {
+            normalRange = '5-15°';
+          } else if (key === 'KA' || key === 'ka') {
+            normalRange = '175-185°';
+          } else if (key === 'GSB' || key === 'gsb') {
+            normalRange = '0-10°';
+          } else if (key === 'PDS' || key === 'pds') {
+            normalRange = '0-3°';
+          }
+          
+          return `
+          <div style="padding:12px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:13px;">${desc}</div>
+            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
+          </div>`;
+        }).filter(html => html.trim().length > 0).join('')}
+      </div>
     </div>` : ''}
 
     <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -14625,7 +14785,7 @@ async function captureForPdf(elem) {
           el.style.whiteSpace = el.style.whiteSpace === 'pre-wrap' ? 'pre-wrap' : 'normal';
           // img/video/canvas는 overflow 설정하지 않음
           if (!isMediaElement) {
-            el.style.overflow = 'visible';
+          el.style.overflow = 'visible';
           }
           el.style.textOverflow = 'clip';
           
@@ -14639,7 +14799,7 @@ async function captureForPdf(elem) {
             el.style.maxHeight = 'none';
             // img/video/canvas는 overflow 설정하지 않음
             if (!isMediaElement) {
-              el.style.overflow = 'visible';
+            el.style.overflow = 'visible';
             }
           }
           
@@ -15187,7 +15347,7 @@ function setupImageButton() {
               el.style.whiteSpace = 'normal';
               // img/video/canvas는 overflow 설정하지 않음
               if (!isMediaElement) {
-                el.style.overflow = 'visible';
+              el.style.overflow = 'visible';
               }
               el.style.textOverflow = 'clip';
             }
@@ -15635,10 +15795,10 @@ async function loadPoseModels() {
     // 정면 모델 로드 (BlazePose 사용 - 33개 랜드마크로 더 정교한 관절 인식)
     if (!modelsLoading.front && !modelsLoaded.front) {
       modelsLoading.front = true;
-      detectors.front = await poseDetection.createDetector(
+    detectors.front = await poseDetection.createDetector(
         poseDetection.SupportedModels.BlazePose,
         { runtime: "tfjs", modelType: "full", enableSmoothing: true }
-      );
+    );
       modelsLoaded.front = true;
       modelsLoading.front = false;
       console.log("✅ 정면 모델 로드 완료 (BlazePose)");
@@ -15647,10 +15807,10 @@ async function loadPoseModels() {
     // 옆모습 모델 로드
     if (!modelsLoading.side && !modelsLoaded.side) {
       modelsLoading.side = true;
-      detectors.side = await poseDetection.createDetector(
-        poseDetection.SupportedModels.BlazePose,
-        { runtime: "tfjs", modelType: "full", enableSmoothing: true }
-      );
+    detectors.side = await poseDetection.createDetector(
+      poseDetection.SupportedModels.BlazePose,
+      { runtime: "tfjs", modelType: "full", enableSmoothing: true }
+    );
       modelsLoaded.side = true;
       modelsLoading.side = false;
       console.log("✅ 옆모습 모델 로드 완료");
@@ -16063,34 +16223,34 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ L_ankle 매핑 (화면 왼쪽 → 환자 왼쪽): (${leftAnkle.x.toFixed(3)}, ${leftAnkle.y.toFixed(3)}), score: ${keypointMap['L_ankle'].score.toFixed(2)}`);
     } else if (keypointMap['L_knee']) {
       // 발목이 없으면 무릎을 기준으로 추정
-      const kneeY = keypointMap['L_knee'].y;
-      const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
-      keypointMap['L_ankle'] = {
-        x: keypointMap['L_knee'].x,
-        y: kneeY + ankleOffset,
-        score: keypointMap['L_knee'].score * 0.7
-      };
-      console.log(`✅ L_ankle 추정 (L_knee 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['L_asis']) {
+        const kneeY = keypointMap['L_knee'].y;
+        const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
+        keypointMap['L_ankle'] = {
+          x: keypointMap['L_knee'].x,
+          y: kneeY + ankleOffset,
+          score: keypointMap['L_knee'].score * 0.7
+        };
+        console.log(`✅ L_ankle 추정 (L_knee 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['L_asis']) {
       // 무릎도 없으면 골반을 기준으로 추정
-      const hipY = keypointMap['L_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
-      keypointMap['L_ankle'] = {
-        x: keypointMap['L_asis'].x,
-        y: hipY + ankleOffset,
-        score: keypointMap['L_asis'].score * 0.6
-      };
-      console.log(`✅ L_ankle 추정 (L_asis 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['L_acromion']) {
-      // 골반도 없으면 어깨를 기준으로 추정
-      const shoulderY = keypointMap['L_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
-      keypointMap['L_ankle'] = {
-        x: keypointMap['L_acromion'].x,
-        y: shoulderY + ankleOffset,
-        score: keypointMap['L_acromion'].score * 0.5
-      };
-      console.log(`✅ L_ankle 추정 (L_acromion 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+        const hipY = keypointMap['L_asis'].y;
+        const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
+        keypointMap['L_ankle'] = {
+          x: keypointMap['L_asis'].x,
+          y: hipY + ankleOffset,
+          score: keypointMap['L_asis'].score * 0.6
+        };
+        console.log(`✅ L_ankle 추정 (L_asis 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['L_acromion']) {
+        // 골반도 없으면 어깨를 기준으로 추정
+        const shoulderY = keypointMap['L_acromion'].y;
+        const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
+        keypointMap['L_ankle'] = {
+          x: keypointMap['L_acromion'].x,
+          y: shoulderY + ankleOffset,
+          score: keypointMap['L_acromion'].score * 0.5
+        };
+        console.log(`✅ L_ankle 추정 (L_acromion 기준): (${keypointMap['L_ankle'].x.toFixed(3)}, ${keypointMap['L_ankle'].y.toFixed(3)})`);
     }
     
     if (rightAnkle && getKeypointConfidence(rightAnkle) >= minVisibility) {
@@ -16098,34 +16258,34 @@ function mapPoseToKeypoints(pose, orientation) {
       console.log(`✅ R_ankle 매핑 (화면 오른쪽 → 환자 오른쪽): (${rightAnkle.x.toFixed(3)}, ${rightAnkle.y.toFixed(3)}), score: ${keypointMap['R_ankle'].score.toFixed(2)}`);
     } else if (keypointMap['R_knee']) {
       // 발목이 없으면 무릎을 기준으로 추정
-      const kneeY = keypointMap['R_knee'].y;
-      const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
-      keypointMap['R_ankle'] = {
-        x: keypointMap['R_knee'].x,
-        y: kneeY + ankleOffset,
-        score: keypointMap['R_knee'].score * 0.7
-      };
-      console.log(`✅ R_ankle 추정 (R_knee 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['R_asis']) {
+        const kneeY = keypointMap['R_knee'].y;
+        const ankleOffset = kneeY < 1 ? 0.30 : (kneeY * 0.35);
+        keypointMap['R_ankle'] = {
+          x: keypointMap['R_knee'].x,
+          y: kneeY + ankleOffset,
+          score: keypointMap['R_knee'].score * 0.7
+        };
+        console.log(`✅ R_ankle 추정 (R_knee 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['R_asis']) {
       // 무릎도 없으면 골반을 기준으로 추정
-      const hipY = keypointMap['R_asis'].y;
-      const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
-      keypointMap['R_ankle'] = {
-        x: keypointMap['R_asis'].x,
-        y: hipY + ankleOffset,
-        score: keypointMap['R_asis'].score * 0.6
-      };
-      console.log(`✅ R_ankle 추정 (R_asis 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
-    } else if (keypointMap['R_acromion']) {
-      // 골반도 없으면 어깨를 기준으로 추정
-      const shoulderY = keypointMap['R_acromion'].y;
-      const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
-      keypointMap['R_ankle'] = {
-        x: keypointMap['R_acromion'].x,
-        y: shoulderY + ankleOffset,
-        score: keypointMap['R_acromion'].score * 0.5
-      };
-      console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+        const hipY = keypointMap['R_asis'].y;
+        const ankleOffset = hipY < 1 ? 0.60 : (hipY * 0.65);
+        keypointMap['R_ankle'] = {
+          x: keypointMap['R_asis'].x,
+          y: hipY + ankleOffset,
+          score: keypointMap['R_asis'].score * 0.6
+        };
+        console.log(`✅ R_ankle 추정 (R_asis 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
+      } else if (keypointMap['R_acromion']) {
+        // 골반도 없으면 어깨를 기준으로 추정
+        const shoulderY = keypointMap['R_acromion'].y;
+        const ankleOffset = shoulderY < 1 ? 0.75 : (shoulderY * 0.80);
+        keypointMap['R_ankle'] = {
+          x: keypointMap['R_acromion'].x,
+          y: shoulderY + ankleOffset,
+          score: keypointMap['R_acromion'].score * 0.5
+        };
+        console.log(`✅ R_ankle 추정 (R_acromion 기준): (${keypointMap['R_ankle'].x.toFixed(3)}, ${keypointMap['R_ankle'].y.toFixed(3)})`);
     }
     
     // ✅ tibial tuberosity 추가: 무릎 아래 약간의 위치 (Q-angle 측정용: ASIS-KNEE-Tibial tub)
