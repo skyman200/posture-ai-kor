@@ -10185,9 +10185,11 @@ function renderPilatesItemCard(item, options = {}) {
   // ✅ PDF 컨텍스트일 때 카드 너비를 100%로 설정하여 여백 제거
   const cardWidth = context === 'pdf' ? 'width:100%; max-width:100%;' : '';
   const cardMargin = context === 'pdf' ? 'margin-bottom:16px;' : 'margin-bottom:12px;';
-  
+  // ✅ PDF 컨텍스트일 때 패딩 조정으로 여백 최소화
+  const cardPadding = context === 'pdf' ? 'padding:12px;' : 'padding:14px;';
+
   return `
-    <div style="${cardMargin} ${cardWidth} padding:14px; background:${theme.bg}; border-radius:12px; border:1px solid ${theme.border}; color:${theme.text}; font-family: var(--font-body); box-sizing:border-box;">
+    <div style="${cardMargin} ${cardWidth} ${cardPadding} background:${theme.bg}; border-radius:12px; border:1px solid ${theme.border}; color:${theme.text}; font-family: var(--font-body); box-sizing:border-box;">
       <div style="font-weight:700; font-size:${titleSize}; margin-bottom:6px; color:${theme.accent}; word-wrap:break-word;">${title}</div>
       ${description ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${formatMultilineText(description)}</div>` : ''}
       ${musclesText ? `<div style="font-size:${fontSize}; margin-bottom:4px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
@@ -10950,8 +10952,8 @@ if (Object.keys(sideMetrics).length <= 1) { // orientation만 있거나 비어�
           sideMetrics[key] = metric;
         }
       }
-    }
-  });
+  }
+});
 }
 
 // ✅ 측면 분석임을 명시
@@ -12627,7 +12629,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:100%; max-width:100%; box-sizing:border-box; padding:0;">
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:calc(100% + 50px); max-width:calc(100% + 50px); box-sizing:border-box; margin-left:-25px; margin-right:-25px; padding:0 25px;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -12665,6 +12667,11 @@ try {
       child.style.boxSizing = 'border-box';
       child.style.wordWrap = 'break-word';
       child.style.overflowWrap = 'break-word';
+      // ✅ 마진/패딩 최소화
+      if (child.tagName === 'DIV' && child.classList.length === 0) {
+        child.style.marginLeft = '0';
+        child.style.marginRight = '0';
+      }
     }
   });
   
@@ -17754,8 +17761,18 @@ async function generateFinalPostureReportPDF() {
               continue;
             }
             
-            // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상)
-            const sourceSliceHeight = Math.ceil((sliceH / imgHeight) * canvas.height);
+            // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
+            // 비율 기반 계산으로 정확도 향상
+            const scaleRatio = canvas.height / imgHeight;
+            const sourceSliceHeight = Math.min(
+              Math.floor(sliceH * scaleRatio), // Math.floor로 정확도 향상
+              canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
+            );
+            
+            if (sourceSliceHeight <= 0 || sourceY >= canvas.height) {
+              // 슬라이스할 높이가 없거나 이미 끝에 도달했으면 종료
+              break;
+            }
             
             // ✅ 캔버스 슬라이스 생성
             const sliceCanvas = document.createElement('canvas');
@@ -17807,11 +17824,8 @@ async function generateFinalPostureReportPDF() {
       
       const el = document.getElementById(id);
       if (!el) {
-        // ✅ sideReportContainer와 frontReportContainer는 조건부로 생성되므로 경고 없이 건너뛰기
-        if (id === 'sideReportContainer' || id === 'frontReportContainer') {
-          continue;
-        }
-        console.warn(`⚠️ 컨테이너 없음: ${id}`);
+        // ✅ sideReportContainer와 frontReportContainer는 항상 생성되어야 하므로 경고 출력
+        console.warn(`⚠️ 컨테이너 없음: ${id} (항상 생성되어야 함)`);
         continue;
       }
 
@@ -17841,7 +17855,7 @@ async function generateFinalPostureReportPDF() {
 
         // ✅ 필라테스 페이지(page5Container)는 여러 페이지로 나눠도 되므로 잘림 방지 강화
         const isPilatesPage = id === 'page5Container';
-        
+
         // ✅ 여러 페이지로 나누어서 추가 (A4 용지에 맞게 자동 축소)
         const imgData = canvas.toDataURL('image/jpeg', 0.95); // 품질 향상
         
@@ -17910,13 +17924,15 @@ async function generateFinalPostureReportPDF() {
           }
           
           // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
+          // 비율 기반 계산으로 정확도 향상
+          const scaleRatio = canvas.height / imgHeight;
           const sourceSliceHeight = Math.min(
-            Math.ceil((sliceH / imgHeight) * canvas.height),
+            Math.floor(sliceH * scaleRatio), // Math.floor로 정확도 향상
             canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
           );
           
-          if (sourceSliceHeight <= 0) {
-            // 슬라이스할 높이가 없으면 종료
+          if (sourceSliceHeight <= 0 || sourceY >= canvas.height) {
+            // 슬라이스할 높이가 없거나 이미 끝에 도달했으면 종료
             break;
           }
           
