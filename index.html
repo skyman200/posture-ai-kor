@@ -10220,8 +10220,8 @@ function renderPilatesItemCard(item, options = {}) {
   const fontSize = context === 'pdf' ? '13px' : '11px';
   const titleSize = context === 'pdf' ? '16px' : '14px';
 
-  // ✅ PDF 컨텍스트일 때 카드 너비를 100%로 설정하여 여백 제거
-  const cardWidth = context === 'pdf' ? 'width:100%; max-width:100%;' : '';
+  // ✅ PDF 컨텍스트일 때 카드 너비를 764px로 고정하여 여백 제거 (794px - 30px 패딩)
+  const cardWidth = context === 'pdf' ? 'width:764px; max-width:764px;' : '';
   const cardMargin = context === 'pdf' ? 'margin-bottom:16px;' : 'margin-bottom:12px;';
   // ✅ PDF 컨텍스트일 때 패딩 조정으로 여백 최소화
   const cardPadding = context === 'pdf' ? 'padding:12px;' : 'padding:14px;';
@@ -11058,22 +11058,31 @@ if (true) { // 항상 생성
   sideReportContainer.classList.add('pdf-safe');
   
   // ✅ 측면 메트릭만으로 점수 계산 (Before/After 비교) - 개선 버전
-  // Before/After 세션의 측면 메트릭을 비교하여 점수 계산
+  // ✅ 1순위: sessions.After.metrics.sideMetrics 직접 확인 (computeAll에서 저장한 것)
+  let metricsForScore = {};
+  
+  if (sessions.After?.metrics?.sideMetrics && Object.keys(sessions.After.metrics.sideMetrics).length > 1) {
+    // ✅ computeAll에서 저장한 측면 메트릭 직접 사용
+    metricsForScore = sessions.After.metrics.sideMetrics;
+    console.log('✅ 측면 메트릭: sessions.After.metrics.sideMetrics 사용');
+  } else if (sessions.Before?.metrics?.sideMetrics && Object.keys(sessions.Before.metrics.sideMetrics).length > 1) {
+    metricsForScore = sessions.Before.metrics.sideMetrics;
+    console.log('✅ 측면 메트릭: sessions.Before.metrics.sideMetrics 사용');
+  } else if (Object.keys(sideMetrics).length > 1) {
+    // ✅ 2순위: PDF 생성 시 수집한 sideMetrics 사용
+    metricsForScore = sideMetrics;
+    console.log('✅ 측면 메트릭: PDF 생성 시 수집한 sideMetrics 사용');
+  } else {
+    // ✅ 3순위: fullMetrics에서 필터링
   const beforeSideMetrics = sessions.Before?.metrics?.fullMetrics || {};
   const afterSideMetrics = sessions.After?.metrics?.fullMetrics || {};
   
-  // ✅ 측면 메트릭만 필터링 (키 별칭 고려)
-  const beforeFiltered = {};
-  const afterFiltered = {};
-  
   const filterSideMetrics = (source, target) => {
     Object.keys(source).forEach(key => {
-      if (key === 'orientation') return; // orientation 제외
+        if (key === 'orientation') return;
       const code = METRIC_KEY_ALIASES[key] || key;
-      // ✅ 원본 키와 별칭 모두 확인
       if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
         const metric = source[key];
-        // ✅ 메트릭이 유효한 값이 있는지 확인
         if (metric && typeof metric === 'object') {
           const val = metric.value != null ? metric.value : 
                       (metric.value_deg != null ? metric.value_deg : 
@@ -11086,24 +11095,15 @@ if (true) { // 항상 생성
     });
   };
   
-  filterSideMetrics(beforeSideMetrics, beforeFiltered);
+    const afterFiltered = {};
+    const beforeFiltered = {};
   filterSideMetrics(afterSideMetrics, afterFiltered);
-  
-  // ✅ 현재 세션 메트릭도 확인 (Before/After가 없을 때)
-  const currentFiltered = {};
-  if (Object.keys(beforeFiltered).length === 0 && Object.keys(afterFiltered).length === 0) {
-    filterSideMetrics(sideMetrics, currentFiltered);
+    filterSideMetrics(beforeSideMetrics, beforeFiltered);
+    
+    metricsForScore = Object.keys(afterFiltered).length > 0 ? afterFiltered : 
+                      (Object.keys(beforeFiltered).length > 0 ? beforeFiltered : sideMetrics);
+    console.log('✅ 측면 메트릭: fullMetrics에서 필터링');
   }
-  
-  // ✅ sideMetrics에서 직접 필터링 (currentFiltered가 비어있을 때)
-  if (Object.keys(currentFiltered).length === 0 && Object.keys(sideMetrics).length > 1) {
-    filterSideMetrics(sideMetrics, currentFiltered);
-  }
-  
-  // After 메트릭이 있으면 After 기준으로 점수 계산, 없으면 Before 기준, 둘 다 없으면 현재 세션 기준
-  const metricsForScore = Object.keys(afterFiltered).length > 0 ? afterFiltered : 
-                          (Object.keys(beforeFiltered).length > 0 ? beforeFiltered : 
-                          (Object.keys(currentFiltered).length > 0 ? currentFiltered : sideMetrics));
   
   // ✅ 실제 메트릭이 있는지 확인 (orientation 제외)
   const hasValidMetrics = Object.keys(metricsForScore).some(key => {
@@ -12709,7 +12709,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:calc(100% - 30px); max-width:calc(100% - 30px); box-sizing:border-box; padding:0; margin-left:0; margin-right:0;">
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:764px; max-width:764px; box-sizing:border-box; padding:0; margin-left:0; margin-right:0;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -18052,13 +18052,54 @@ async function generateFinalPostureReportPDF() {
           sourceY += sourceSliceHeight;
           yPos += actualSliceH;
           
+          // ✅ 마지막 슬라이스인지 확인 (남은 높이가 거의 없으면 마지막)
+          const isLastSliceCheck = heightLeft <= minSliceHeight * 2;
+          
           // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
-          if (heightLeft > minSliceHeight) {
+          if (heightLeft > minSliceHeight && !isLastSliceCheck) {
             const nextAvailableHeight = pageHeight - yPos - margin;
             if (nextAvailableHeight < minSliceHeight) {
               pdf.addPage();
               yPos = margin;
             }
+          }
+          
+          // ✅ 마지막 슬라이스는 남은 모든 높이 포함 (잘림 방지)
+          if (isLastSliceCheck && heightLeft > 0) {
+            const finalAvailableHeight = pageHeight - yPos - margin;
+            if (finalAvailableHeight < heightLeft) {
+              // 마지막 슬라이스가 페이지에 다 안 들어가면 새 페이지에 추가
+              pdf.addPage();
+              yPos = margin;
+            }
+            // 마지막 슬라이스는 남은 높이 모두 포함
+            const finalSliceH = Math.min(heightLeft, pageHeight - yPos - margin);
+            const finalSourceSliceHeight = Math.min(
+              Math.round(finalSliceH * scaleRatio),
+              canvas.height - sourceY
+            );
+            
+            if (finalSourceSliceHeight > 0 && sourceY < canvas.height) {
+              const finalSliceCanvas = document.createElement('canvas');
+              finalSliceCanvas.width = canvas.width;
+              finalSliceCanvas.height = finalSourceSliceHeight;
+              const finalCtx = finalSliceCanvas.getContext('2d');
+              finalCtx.imageSmoothingEnabled = true;
+              finalCtx.imageSmoothingQuality = 'high';
+              
+              finalCtx.drawImage(
+                canvas,
+                0, sourceY, canvas.width, finalSourceSliceHeight,
+                0, 0, canvas.width, finalSourceSliceHeight
+              );
+              
+              pdf.addImage(finalSliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPos, imgWidth, finalSliceH, undefined, 'FAST');
+              yPos += finalSliceH;
+              
+              finalSliceCanvas.width = 1;
+              finalSliceCanvas.height = 1;
+            }
+            break; // 마지막 슬라이스 처리 완료
           }
           
           // ✅ 메모리 정리
