@@ -3544,8 +3544,8 @@ function setOrientation(orientation, options = {}) {
     let orientationScore = null;
     
     if(orientation === "side") {
-      // ✅ 1순위: sessions.After.sideScore 확인
-      if(session === sessions.After && sessions.After.sideScore) {
+      // ✅ 1순위: sessions.After.sideScore 확인 (sessionName으로 확인 - 더 안정적)
+      if(sessionName === "After" && sessions.After && sessions.After.sideScore) {
         orientationScore = sessions.After.sideScore;
       }
       // ✅ 2순위: sideAnalysis.fullMetrics에서 계산
@@ -3568,8 +3568,8 @@ function setOrientation(orientation, options = {}) {
         orientationScore = session.sideAnalysis.score;
       }
     } else if(orientation === "front") {
-      // ✅ 1순위: sessions.After.frontScore 확인
-      if(session === sessions.After && sessions.After.frontScore) {
+      // ✅ 1순위: sessions.After.frontScore 확인 (sessionName으로 확인 - 더 안정적)
+      if(sessionName === "After" && sessions.After && sessions.After.frontScore) {
         orientationScore = sessions.After.frontScore;
       }
       // ✅ 2순위: frontAnalysis.fullMetrics에서 계산
@@ -3656,22 +3656,80 @@ function switchSession(s) {
   let analysis = null;
   let orientationScore = null;
   
-  if(currentOrientation === "side" && sessions[s].sideAnalysis) {
-    analysis = sessions[s].sideAnalysis;
-    if(analysis.fullMetrics) {
-      orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+  if(currentOrientation === "side") {
+    // ✅ 1순위: sessions.After.sideScore 확인
+    if(s === "After" && sessions.After && sessions.After.sideScore) {
+      orientationScore = sessions.After.sideScore;
     }
-  } else if(currentOrientation === "front" && sessions[s].frontAnalysis) {
-    analysis = sessions[s].frontAnalysis;
-    if(analysis.fullMetrics) {
-      orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+    // ✅ 2순위: sideAnalysis.fullMetrics에서 계산
+    if(sessions[s].sideAnalysis && sessions[s].sideAnalysis.fullMetrics) {
+      analysis = sessions[s].sideAnalysis;
+      if(!orientationScore) {
+        const hasValidSideMetrics = Object.keys(sessions[s].sideAnalysis.fullMetrics).some(key => {
+          if (key === 'orientation') return false;
+          const metric = sessions[s].sideAnalysis.fullMetrics[key];
+          if (!metric || typeof metric !== 'object') return false;
+          const val = metric.value != null ? metric.value : 
+                      (metric.value_deg != null ? metric.value_deg : 
+                      (metric.value_cm != null ? metric.value_cm : null));
+          return val != null && !isNaN(val) && isFinite(val);
+        });
+        if (hasValidSideMetrics) {
+          orientationScore = computeScoreFromFullMetrics(sessions[s].sideAnalysis.fullMetrics);
+        }
+      }
+    }
+    // ✅ 3순위: sideAnalysis.score
+    else if(sessions[s].sideAnalysis && sessions[s].sideAnalysis.score) {
+      analysis = sessions[s].sideAnalysis;
+      if(!orientationScore) {
+        orientationScore = sessions[s].sideAnalysis.score;
+      }
+    }
+    // ✅ 4순위: 하위 호환성 - 기존 analysis 사용
+    else if(sessions[s].analysis) {
+      analysis = sessions[s].analysis;
+    }
+  } else if(currentOrientation === "front") {
+    // ✅ 1순위: sessions.After.frontScore 확인
+    if(s === "After" && sessions.After && sessions.After.frontScore) {
+      orientationScore = sessions.After.frontScore;
+    }
+    // ✅ 2순위: frontAnalysis.fullMetrics에서 계산
+    if(sessions[s].frontAnalysis && sessions[s].frontAnalysis.fullMetrics) {
+      analysis = sessions[s].frontAnalysis;
+      if(!orientationScore) {
+        const hasValidFrontMetrics = Object.keys(sessions[s].frontAnalysis.fullMetrics).some(key => {
+          if (key === 'orientation') return false;
+          const metric = sessions[s].frontAnalysis.fullMetrics[key];
+          if (!metric || typeof metric !== 'object') return false;
+          const val = metric.value != null ? metric.value : 
+                      (metric.value_deg != null ? metric.value_deg : 
+                      (metric.value_cm != null ? metric.value_cm : null));
+          return val != null && !isNaN(val) && isFinite(val);
+        });
+        if (hasValidFrontMetrics) {
+          orientationScore = computeScoreFromFullMetrics(sessions[s].frontAnalysis.fullMetrics);
+        }
+      }
+    }
+    // ✅ 3순위: frontAnalysis.score
+    else if(sessions[s].frontAnalysis && sessions[s].frontAnalysis.score) {
+      analysis = sessions[s].frontAnalysis;
+      if(!orientationScore) {
+        orientationScore = sessions[s].frontAnalysis.score;
+      }
+    }
+    // ✅ 4순위: 하위 호환성 - 기존 analysis 사용
+    else if(sessions[s].analysis) {
+      analysis = sessions[s].analysis;
     }
   } else if(sessions[s].analysis) {
     // 하위 호환성: 기존 analysis 사용
     analysis = sessions[s].analysis;
   }
   
-  // orientation별 점수가 없으면 기존 score 사용
+  // ✅ 5순위: orientation별 점수가 없으면 기존 score 사용
   if(!orientationScore) {
     orientationScore = sessions[s].score;
   }
