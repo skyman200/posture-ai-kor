@@ -10815,7 +10815,29 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
     metricsForScore.orientation = "side";
   }
   
-  const sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(metricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
+  // ✅ 모바일에서도 제대로 작동하도록 메트릭 확인 로직 개선
+  // sideMetrics에서 직접 확인 (필터링 전 원본 데이터 확인)
+  let finalMetricsForScore = metricsForScore;
+  if (!hasValidMetrics && Object.keys(sideMetrics).length > 1) {
+    // 필터링된 메트릭이 없으면 원본 sideMetrics에서 직접 확인
+    const directCheck = Object.keys(sideMetrics).some(key => {
+      if (key === 'orientation') return false;
+      const metric = sideMetrics[key];
+      if (!metric || typeof metric !== 'object') return false;
+      const val = metric.value != null ? metric.value : 
+                  (metric.value_deg != null ? metric.value_deg : 
+                  (metric.value_cm != null ? metric.value_cm : null));
+      return val != null && !isNaN(val) && isFinite(val);
+    });
+    
+    if (directCheck) {
+      finalMetricsForScore = sideMetrics;
+      finalMetricsForScore.orientation = "side";
+      hasValidMetrics = true;
+    }
+  }
+  
+  const sideScoreResult = hasValidMetrics ? computeScoreFromFullMetrics(finalMetricsForScore) : { score: null, reasons: ['측정 데이터가 없습니다'], penalties: 0 };
   
   sideReportContainer.innerHTML = `
     <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">📊 측면 자세 분석 리포트</h2>
