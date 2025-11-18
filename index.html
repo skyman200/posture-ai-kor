@@ -10079,7 +10079,9 @@ function renderExerciseDetailHTML(entry, options = {}) {
   }[context] || { detailBg: '#ffffff', text: '#1f2933', accent: '#6c4ab6', hint: '#475569' };
   // ✅ PDF 컨텍스트일 때도 원래 글자 크기 유지
   const baseFontSize = context === 'pdf' ? (options.compact ? '12px' : '13px') : (options.compact ? '11px' : '12px');
-  let html = `<div style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body);">`;
+  // ✅ PDF 컨텍스트일 때 너비를 100%로 설정하여 여백 제거
+  const detailWidth = context === 'pdf' ? 'width:100%; max-width:100%; box-sizing:border-box;' : '';
+  let html = `<div style="margin-top:${options.compact ? '4px' : '8px'}; padding:${options.compact ? '8px' : '10px'}; background:${theme.detailBg}; border-radius:8px; font-size:${baseFontSize}; color:${theme.text}; line-height:1.6; font-family: var(--font-body); ${detailWidth} word-wrap:break-word; overflow-wrap:break-word;">`;
   html += `<div style="font-weight:600; color:${theme.accent}; margin-bottom:6px; font-size:${context === 'pdf' ? '14px' : '12px'};">${info.title}</div>`;
   
   // ✅ 필라테스 DB 필드명을 한글로 표시
@@ -10143,8 +10145,10 @@ function renderPilatesEquipmentSections(pilatesObj, options = {}) {
     const exercises = pilatesObj[tool];
     const details = renderExerciseDetailsList(exercises, options);
     if (details) {
-      html += `<div style="margin-top:8px;">
-        <div style="font-weight:600; font-size:${toolSize}; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:4px;">${tool}</div>
+      // ✅ PDF 컨텍스트일 때 너비를 100%로 설정하여 여백 제거
+      const sectionWidth = options.context === 'pdf' ? 'width:100%; max-width:100%; box-sizing:border-box;' : '';
+      html += `<div style="margin-top:8px; ${sectionWidth}">
+        <div style="font-weight:600; font-size:${toolSize}; color:${options.context === 'dark' ? '#c7d2fe' : '#5c44b8'}; margin-bottom:4px; word-wrap:break-word;">${tool}</div>
         ${details}
       </div>`;
     }
@@ -10178,15 +10182,19 @@ function renderPilatesItemCard(item, options = {}) {
   const fontSize = context === 'pdf' ? '13px' : '11px';
   const titleSize = context === 'pdf' ? '16px' : '14px';
 
+  // ✅ PDF 컨텍스트일 때 카드 너비를 100%로 설정하여 여백 제거
+  const cardWidth = context === 'pdf' ? 'width:100%; max-width:100%;' : '';
+  const cardMargin = context === 'pdf' ? 'margin-bottom:16px;' : 'margin-bottom:12px;';
+  
   return `
-    <div style="margin-bottom:12px; padding:14px; background:${theme.bg}; border-radius:12px; border:1px solid ${theme.border}; color:${theme.text}; font-family: var(--font-body);">
-      <div style="font-weight:700; font-size:${titleSize}; margin-bottom:6px; color:${theme.accent};">${title}</div>
-      ${description ? `<div style="font-size:${fontSize}; margin-bottom:6px;">${formatMultilineText(description)}</div>` : ''}
-      ${musclesText ? `<div style="font-size:${fontSize}; margin-bottom:4px;"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
-      ${tightText ? `<div style="font-size:${fontSize}; margin-bottom:4px;"><strong style="color:#ff6b6b;">긴장:</strong> ${tightText}</div>` : ''}
-      ${weakText ? `<div style="font-size:${fontSize}; margin-bottom:6px;"><strong style="color:#7c9cff;">약화:</strong> ${weakText}</div>` : ''}
-      ${equipmentHTML ? `<div style="margin-top:8px;">${equipmentHTML}</div>` : ''}
-      ${note ? `<div style="margin-top:10px; font-size:${fontSize}; color:${theme.text === '#f8fbff' ? '#c7d2fe' : '#4b5563'};">${formatMultilineText(note)}</div>` : ''}
+    <div style="${cardMargin} ${cardWidth} padding:14px; background:${theme.bg}; border-radius:12px; border:1px solid ${theme.border}; color:${theme.text}; font-family: var(--font-body); box-sizing:border-box;">
+      <div style="font-weight:700; font-size:${titleSize}; margin-bottom:6px; color:${theme.accent}; word-wrap:break-word;">${title}</div>
+      ${description ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${formatMultilineText(description)}</div>` : ''}
+      ${musclesText ? `<div style="font-size:${fontSize}; margin-bottom:4px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:${theme.accent};">관련 근육:</strong> ${musclesText}</div>` : ''}
+      ${tightText ? `<div style="font-size:${fontSize}; margin-bottom:4px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#ff6b6b;">긴장:</strong> ${tightText}</div>` : ''}
+      ${weakText ? `<div style="font-size:${fontSize}; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;"><strong style="color:#7c9cff;">약화:</strong> ${weakText}</div>` : ''}
+      ${equipmentHTML ? `<div style="margin-top:8px; width:100%; max-width:100%; box-sizing:border-box;">${equipmentHTML}</div>` : ''}
+      ${note ? `<div style="margin-top:10px; font-size:${fontSize}; color:${theme.text === '#f8fbff' ? '#c7d2fe' : '#4b5563'}; word-wrap:break-word; overflow-wrap:break-word;">${formatMultilineText(note)}</div>` : ''}
     </div>
   `;
 }
@@ -11421,8 +11429,9 @@ try {
   console.warn('정면 분석 실패:', err);
 }
 
-// 정면 리포트 페이지 생성
-if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
+// ✅ 정면 리포트 페이지 생성 (항상 생성 - 측정 데이터가 없어도 표시)
+// 정면 리포트는 항상 생성하여 웹앱의 모든 내용을 PDF에 포함
+if (true) { // 항상 생성
   const frontReportContainer = document.createElement("div");
   frontReportContainer.id = "frontReportContainer";
   setPageContainerStyle(frontReportContainer);
@@ -12618,7 +12627,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천</h2>
-  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:794px; box-sizing:border-box;">
+  <div style="margin-top:20px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; width:100%; max-width:100%; box-sizing:border-box; padding:0;">
     ${pilatesHtml || '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>'}
   </div>
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
@@ -12646,14 +12655,16 @@ try {
   page5Container.style.boxSizing = 'border-box';
   page5Container.style.overflow = 'hidden'; // 내용이 옆으로 튀어나가지 않도록
   
-  // ✅ 내부 모든 요소의 너비도 제한
+  // ✅ 내부 모든 요소의 너비도 제한 (필라테스 카드 일관성 유지)
   const allChildren = page5Container.querySelectorAll('*');
   allChildren.forEach(child => {
     if (child.style) {
-      if (!child.style.maxWidth || child.style.maxWidth === '100%') {
-        child.style.maxWidth = `${container5Width - 50}px`; // 패딩 고려
-      }
+      // ✅ 너비를 100%로 설정하여 여백 제거
+      child.style.width = '100%';
+      child.style.maxWidth = '100%';
       child.style.boxSizing = 'border-box';
+      child.style.wordWrap = 'break-word';
+      child.style.overflowWrap = 'break-word';
     }
   });
   
