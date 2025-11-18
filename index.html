@@ -10200,6 +10200,7 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   container.style.wordBreak = "break-word"; // 추가: 긴 단어도 줄바꿈
   container.style.whiteSpace = "normal"; // 텍스트가 자연스럽게 줄바꿈되도록
   container.style.minHeight = "1100px";
+  container.style.maxHeight = "none"; // ✅ 높이 제한 제거 (페이지를 자유롭게 늘리기)
   // PDF 안전 폰트 클래스 추가
   if (!container.classList.contains('pdf-safe')) {
     container.classList.add('pdf-safe');
@@ -10618,7 +10619,8 @@ async function captureReportCanvases({ centerName, memberName, appName, logoUrl 
 // html2canvas 옵션 정의 (폰트 디코딩 오류 방지, 모바일 최적화)
 // 화질 대폭 개선을 위해 scale과 크기 제한 증가
 const isMobile = isMobileDevice();
-const PDF_MAX_CANVAS_EDGE = isMobile ? 3500 : 5000; // 고해상도 개선 (2000/3000 → 3500/5000)
+// ✅ 페이지를 자유롭게 늘려서 사용할 수 있도록 크기 제한 대폭 증가
+const PDF_MAX_CANVAS_EDGE = isMobile ? 10000 : 15000; // ✅ 크기 제한 대폭 증가 (원본 크기 유지)
 const baseCanvasScale = isMobile ? 4.0 : 5.0; // 고해상도 개선 (2.5/3.0 → 4.0/5.0)
 const html2canvasOptions = {
   scale: baseCanvasScale,
@@ -10953,8 +10955,9 @@ else if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실�
   }
 }
 
-// 측면 리포트 페이지 생성
-if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외하고 실제 메트릭이 있는지 확인
+// ✅ 측면 리포트 페이지 생성 (항상 생성 - 측정 데이터가 없어도 표시)
+// 측면 리포트는 항상 생성하여 웹앱의 모든 내용을 PDF에 포함
+if (true) { // 항상 생성
   const sideReportContainer = document.createElement("div");
   sideReportContainer.id = "sideReportContainer";
   setPageContainerStyle(sideReportContainer);
@@ -11161,7 +11164,7 @@ if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외
       windowHeight: containerHeight,
       width: containerWidth,
       height: containerHeight,
-      scale: 1.5  // 품질 낮춤
+      scale: 2  // ✅ 원본 크기 유지 (사진과 dot가 잘 보이도록)
     });
     
     // ✅ 캔버스 크기 제한 + 압축
@@ -11409,7 +11412,7 @@ if (Object.keys(frontMetrics).length > 0 || frontAnalysis) {
       windowHeight: containerHeight,
       width: containerWidth,
       height: containerHeight,
-      scale: 1.5  // 품질 낮춤
+      scale: 2  // ✅ 원본 크기 유지 (사진과 dot가 잘 보이도록)
     });
     
     // ✅ 캔버스 크기 제한 + 압축
@@ -12563,7 +12566,7 @@ try {
   windowHeight: container5Height,
   width: container5Width,
     height: container5Height,
-    scale: 1.5  // ✅ 품질 낮춤
+    scale: 2  // ✅ 원본 크기 유지 (사진과 dot가 잘 보이도록)
 });
 } catch (err) {
   console.error('❌ canvas5 생성 실패:', err);
@@ -12891,7 +12894,7 @@ try {
   windowHeight: container7Height,
   width: container7Width,
   height: container7Height,
-  scale: 1.5  // ✅ 품질 낮춤
+  scale: 2  // ✅ 원본 크기 유지 (사진과 dot가 잘 보이도록)
 });
 } catch (err) {
   console.error('❌ canvas7 생성 실패:', err);
@@ -15216,9 +15219,9 @@ async function captureForPdf(elem) {
   await new Promise(res => setTimeout(res, 200)); // 100ms → 200ms로 증가
 
   // ✅ html2canvas 옵션 최적화 (A4 용지에 맞게 조정)
-  // scale을 1.5로 낮춰서 메모리 절약 및 PDF 크기 최적화
+  // ✅ scale을 2로 유지하여 원본 크기와 해상도 보장 (사진과 dot가 잘 보이도록)
   const canvas = await html2canvas(elem, {
-    scale: 1.5,  // 2 → 1.5로 낮춤 (메모리 절약 + PDF 크기 최적화)
+    scale: 2,  // ✅ 원본 크기 유지 (사진과 dot가 잘 보이도록)
     backgroundColor: "#ffffff",
     useCORS: true,
     allowTaint: false,
@@ -16319,8 +16322,12 @@ function initializeApp() {
     }
   }
   
+  // ✅ Before 세션의 방향을 옆모습으로 강제 설정
   if(!window.sessions.Before.poseData) {
     window.sessions.Before.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
+  } else {
+    // ✅ 기존 poseData가 있어도 방향을 옆모습으로 강제 설정
+    window.sessions.Before.poseData.orientation = "side";
   }
   if(!window.sessions.After.poseData) {
     window.sessions.After.poseData = { orientation: "side", landmarks: null, orientationMode: "auto" };
@@ -17537,7 +17544,7 @@ async function generateFinalPostureReportPDF() {
     const pdf = new jsPDF('p', 'pt', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 50;
+    const margin = 60; // ✅ 마진 증가 (글자/사진 잘림 방지)
     const contentWidth = pageWidth - 2 * margin;
     let yPos = margin;
 
@@ -17605,27 +17612,72 @@ async function generateFinalPostureReportPDF() {
             }
           }
           
-          // 여러 페이지로 나누어서 추가
+          // ✅ 여러 페이지로 나누어서 추가 (잘림 방지 강화)
           let heightLeft = imgHeight;
           let currentY = yPos;
+          let sourceY = 0; // 원본 캔버스에서의 Y 위치 (픽셀 단위)
           
           while (heightLeft > 0) {
-            if (currentY + 100 > pageHeight - margin && heightLeft > 100) {
+            // ✅ 현재 페이지에 사용 가능한 높이 계산 (여유 공간 확보)
+            const availableHeight = pageHeight - currentY - margin;
+            const minSliceHeight = 50; // 최소 슬라이스 높이 (너무 작은 조각 방지)
+            
+            // 공간이 부족하면 새 페이지 추가
+            if (availableHeight < minSliceHeight && heightLeft > minSliceHeight) {
               pdf.addPage();
               currentY = margin;
+              continue;
             }
-            const sliceH = Math.min(heightLeft, pageHeight - currentY - margin);
-            const sliceRatio = sliceH / imgHeight;
+            
+            // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산
+            const sliceH = Math.min(heightLeft, availableHeight);
+            
+            if (sliceH <= 0) {
+              // 슬라이스 높이가 0 이하면 새 페이지 추가
+              pdf.addPage();
+              currentY = margin;
+              continue;
+            }
+            
+            // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상)
+            const sourceSliceHeight = Math.ceil((sliceH / imgHeight) * canvas.height);
+            
+            // ✅ 캔버스 슬라이스 생성
             const sliceCanvas = document.createElement('canvas');
             sliceCanvas.width = canvas.width;
-            sliceCanvas.height = Math.floor(canvas.height * sliceRatio);
+            sliceCanvas.height = sourceSliceHeight;
             const ctx = sliceCanvas.getContext('2d');
-            const sourceY = (imgHeight - heightLeft) * (canvas.height / imgHeight);
-            ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
             
-            pdf.addImage(sliceCanvas.toDataURL('image/png', 1.0), 'PNG', margin, currentY, imgWidth, sliceH);
+            // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서, 잘림 방지)
+            ctx.drawImage(
+              canvas, 
+              0, sourceY, canvas.width, sourceSliceHeight,  // 원본 영역
+              0, 0, canvas.width, sourceSliceHeight         // 대상 영역
+            );
+            
+            // ✅ PDF에 추가 시 정확한 높이 사용 (잘림 방지)
+            const actualSliceH = Math.min(sliceH, availableHeight);
+            pdf.addImage(sliceCanvas.toDataURL('image/png', 1.0), 'PNG', margin, currentY, imgWidth, actualSliceH);
+            
+            // ✅ 다음 슬라이스 준비
             heightLeft -= sliceH;
-            currentY += sliceH + 10;
+            sourceY += sourceSliceHeight;
+            currentY += actualSliceH;
+            
+            // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
+            if (heightLeft > minSliceHeight) {
+              const nextAvailableHeight = pageHeight - currentY - margin;
+              if (nextAvailableHeight < minSliceHeight) {
+                pdf.addPage();
+                currentY = margin;
+              }
+            }
+            
+            // ✅ 메모리 정리
+            sliceCanvas.width = 1;
+            sliceCanvas.height = 1;
           }
           
           yPos = currentY;
@@ -17703,16 +17755,16 @@ async function generateFinalPostureReportPDF() {
           }
         }
         
-        // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 개선 버전)
+        // ✅ 여러 페이지로 나누어서 추가 (유동적 페이지 분할 - 잘림 방지 강화 버전)
         let heightLeft = imgHeight;
         let sourceY = 0; // 원본 캔버스에서의 Y 위치 (픽셀 단위)
 
         while (heightLeft > 0) {
-          // ✅ 현재 페이지에 사용 가능한 높이 계산
+          // ✅ 현재 페이지에 사용 가능한 높이 계산 (여유 공간 확보)
           const availableHeight = pageHeight - yPos - margin;
           
-          // ✅ 최소 슬라이스 높이 (너무 작은 조각 방지)
-          const minSliceHeight = 30;
+          // ✅ 최소 슬라이스 높이 (너무 작은 조각 방지, 글자/사진 잘림 방지)
+          const minSliceHeight = 50;
           
           // 공간이 부족하면 새 페이지 추가
           if (availableHeight < minSliceHeight && heightLeft > minSliceHeight) {
@@ -17721,7 +17773,7 @@ async function generateFinalPostureReportPDF() {
             continue;
           }
           
-          // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산
+          // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산 (정확도 향상)
           const sliceH = Math.min(heightLeft, availableHeight);
           
           if (sliceH <= 0) {
@@ -17731,8 +17783,16 @@ async function generateFinalPostureReportPDF() {
             continue;
           }
           
-          // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상)
-          const sourceSliceHeight = Math.ceil((sliceH / imgHeight) * canvas.height);
+          // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
+          const sourceSliceHeight = Math.min(
+            Math.ceil((sliceH / imgHeight) * canvas.height),
+            canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
+          );
+          
+          if (sourceSliceHeight <= 0) {
+            // 슬라이스할 높이가 없으면 종료
+            break;
+          }
           
           // ✅ 캔버스 슬라이스 생성
           const sliceCanvas = document.createElement('canvas');
@@ -17742,16 +17802,16 @@ async function generateFinalPostureReportPDF() {
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           
-          // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서)
+          // ✅ 원본 캔버스에서 슬라이스 추출 (정확한 위치에서, 잘림 방지)
           ctx.drawImage(
             canvas, 
             0, sourceY, canvas.width, sourceSliceHeight,  // 원본 영역
             0, 0, canvas.width, sourceSliceHeight         // 대상 영역
           );
 
-          // ✅ PDF에 추가 시 imgWidth 사용 (A4 용지에 맞게 조정된 너비)
+          // ✅ PDF에 추가 시 정확한 높이 사용 (잘림 방지)
           const actualSliceH = Math.min(sliceH, availableHeight);
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPos, imgWidth, actualSliceH, undefined, 'FAST');
           
           // ✅ 다음 슬라이스 준비
           heightLeft -= sliceH;
