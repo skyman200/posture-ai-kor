@@ -4363,9 +4363,21 @@ function computeAll() {
       if (sessions.After) {
         sessions.After.sideAnalysis = S.sideAnalysis;
         sessions.After.metrics = sessions.After.metrics || {};
-        sessions.After.metrics.sideMetrics = sideMetrics;
+        // ✅ mergedMetrics에서 측면 메트릭만 추출하여 저장 (sideMetrics는 status: "not_available"일 수 있음)
+        const sideOnlyMetrics = {};
+        Object.keys(mergedMetrics).forEach(key => {
+          if (key === 'orientation') return;
+          const code = METRIC_KEY_ALIASES[key] || key;
+          const sideKeys = ['CVA', 'CVA_S', 'HPD', 'HPD_S', 'TIA', 'TIA_S', 'SAA', 'SAA_S', 'PTA', 'PTA_S', 'KA', 'KA_S', 'GSB', 'GSB_S', 'PDS', 'PDS_S'];
+          if (sideKeys.includes(code) || sideKeys.includes(key)) {
+            sideOnlyMetrics[key] = mergedMetrics[key];
+          }
+        });
+        sideOnlyMetrics.orientation = "side";
+        sessions.After.metrics.sideMetrics = sideOnlyMetrics;
         sessions.After.metrics.frontMetrics = existingFrontMetrics; // 기존 정면 메트릭 보존
         sessions.After.score = score;
+        console.log('✅ 측면 메트릭 저장:', Object.keys(sideOnlyMetrics).length, '개');
       }
       
       updateDisplay();
@@ -12737,6 +12749,26 @@ try {
   page5Container.style.boxSizing = 'border-box';
   page5Container.style.overflow = 'hidden'; // 내용이 옆으로 튀어나가지 않도록
   
+  // ✅ 필라테스 내부 모든 요소의 너비 강제 설정 (여백 제거)
+  const pilatesInnerDiv = page5Container.querySelector('div[style*="width:764px"]');
+  if (pilatesInnerDiv) {
+    pilatesInnerDiv.style.width = '764px';
+    pilatesInnerDiv.style.maxWidth = '764px';
+    pilatesInnerDiv.style.marginLeft = '0';
+    pilatesInnerDiv.style.marginRight = '0';
+    pilatesInnerDiv.style.paddingLeft = '0';
+    pilatesInnerDiv.style.paddingRight = '0';
+  }
+  
+  // ✅ 필라테스 카드들의 너비도 강제 설정
+  const pilatesCards = page5Container.querySelectorAll('div[style*="width:764px"]');
+  pilatesCards.forEach(card => {
+    card.style.width = '764px';
+    card.style.maxWidth = '764px';
+    card.style.marginLeft = '0';
+    card.style.marginRight = '0';
+  });
+  
   // ✅ 강제 리플로우 (스타일 적용 보장)
   void page5Container.offsetHeight;
   
@@ -17986,15 +18018,19 @@ async function generateFinalPostureReportPDF() {
           // 필라테스 페이지는 더 작은 조각도 허용 (여러 페이지로 나눠도 됨)
           const minSliceHeight = isPilatesPage ? 20 : 50;
           
-          // 공간이 부족하면 새 페이지 추가
-          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight) {
+          // ✅ 마지막 슬라이스인지 먼저 확인 (남은 높이가 거의 없으면 마지막)
+          const isLastSliceNow = heightLeft <= minSliceHeight * 3;
+          
+          // 공간이 부족하면 새 페이지 추가 (마지막 슬라이스가 아니면)
+          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight && !isLastSliceNow) {
             pdf.addPage();
             yPos = margin;
             continue;
           }
           
           // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산 (정확도 향상)
-          const sliceH = Math.min(heightLeft, availableHeight);
+          // 마지막 슬라이스는 남은 높이 모두 포함
+          const sliceH = isLastSliceNow ? heightLeft : Math.min(heightLeft, availableHeight);
           
           if (sliceH <= 0) {
             // 슬라이스 높이가 0 이하면 새 페이지 추가
