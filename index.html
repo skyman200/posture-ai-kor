@@ -3370,16 +3370,40 @@ function setOrientation(orientation, options = {}) {
       }
     }
     
+    // ✅ orientation에 맞는 점수 가져오기
+    // sideAnalysis나 frontAnalysis에 점수가 있으면 우선 사용
+    let orientationScore = null;
+    if(orientation === "side" && session.sideAnalysis) {
+      // 측면 분석 결과에서 점수 가져오기
+      if(session.sideAnalysis.fullMetrics) {
+        orientationScore = computeScoreFromFullMetrics(session.sideAnalysis.fullMetrics);
+      } else if(session.sideAnalysis.score) {
+        orientationScore = session.sideAnalysis.score;
+      }
+    } else if(orientation === "front" && session.frontAnalysis) {
+      // 정면 분석 결과에서 점수 가져오기
+      if(session.frontAnalysis.fullMetrics) {
+        orientationScore = computeScoreFromFullMetrics(session.frontAnalysis.fullMetrics);
+      } else if(session.frontAnalysis.score) {
+        orientationScore = session.frontAnalysis.score;
+      }
+    }
+    
+    // orientation별 점수가 없으면 기존 scoreData 사용
+    if(!orientationScore) {
+      orientationScore = scoreData;
+    }
+    
     // orientation에 맞는 분석 결과 업데이트
     if(orientation === "side") {
       // 측면 분석 결과 표시
       const cva = session.metrics.cva;
       const pelvic = session.metrics.pelvic;
       const knee = session.metrics.knee;
-      updateScoreAndAnalysis(scoreData, cva, pelvic, knee, analysis);
+      updateScoreAndAnalysis(orientationScore, cva, pelvic, knee, analysis);
     } else if(orientation === "front") {
       // 정면 분석 결과 표시
-      updateScoreAndAnalysis(scoreData, null, null, null, analysis);
+      updateScoreAndAnalysis(orientationScore, null, null, null, analysis);
     }
   }
 }
@@ -3423,12 +3447,42 @@ function switchSession(s) {
   }
   
   // 세션 전환 시에는 기존 분석이 있으면 유지, 없으면 metrics만 계산
-  if(sessions[s].analysis) {
+  // ✅ orientation에 맞는 분석 결과와 점수 사용
+  const currentOrientation = sessions[s].poseData?.orientation || "side";
+  let analysis = null;
+  let orientationScore = null;
+  
+  if(currentOrientation === "side" && sessions[s].sideAnalysis) {
+    analysis = sessions[s].sideAnalysis;
+    if(analysis.fullMetrics) {
+      orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+    }
+  } else if(currentOrientation === "front" && sessions[s].frontAnalysis) {
+    analysis = sessions[s].frontAnalysis;
+    if(analysis.fullMetrics) {
+      orientationScore = computeScoreFromFullMetrics(analysis.fullMetrics);
+    }
+  } else if(sessions[s].analysis) {
+    // 하위 호환성: 기존 analysis 사용
+    analysis = sessions[s].analysis;
+  }
+  
+  // orientation별 점수가 없으면 기존 score 사용
+  if(!orientationScore) {
+    orientationScore = sessions[s].score;
+  }
+  
+  if(analysis || sessions[s].metrics) {
     // 기존 분석이 있으면 전체 업데이트
-    const score = sessions[s].score;
     const metrics = sessions[s].metrics;
-    const analysis = sessions[s].analysis;
-    updateScoreAndAnalysis(score, metrics.cva, metrics.pelvic, metrics.knee, analysis);
+    if(currentOrientation === "side") {
+      updateScoreAndAnalysis(orientationScore, metrics?.cva, metrics?.pelvic, metrics?.knee, analysis);
+    } else if(currentOrientation === "front") {
+      updateScoreAndAnalysis(orientationScore, null, null, null, analysis);
+    } else {
+      // orientation이 없으면 기존 방식
+      updateScoreAndAnalysis(orientationScore, metrics?.cva, metrics?.pelvic, metrics?.knee, analysis);
+    }
   } else {
     computeMetricsOnly(); // 분석이 없으면 metrics만 계산
   }
