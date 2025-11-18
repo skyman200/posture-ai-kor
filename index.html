@@ -18761,7 +18761,7 @@ function extractMuscleStatus(analysis) {
 
 // ✅ 측면/정면 분석 결과 통합 (근육 상태 강화)
 function getCombinedAnalysis() {
-  // ✅ 측면 분석: Before/After 세션에서 측면 분석 결과 찾기
+  // ✅ 측면 분석: Before/After 세션에서 측면 분석 결과 찾기 (독립적으로 추출)
   let sideAnalysis = null;
   let sideScore = 0;
   let sidePattern = '분석 중';
@@ -18769,47 +18769,90 @@ function getCombinedAnalysis() {
   // 1순위: After 세션의 sideAnalysis (측면 분석 결과)
   if (sessions.After?.sideAnalysis && sessions.After.sideAnalysis.orientation === "side") {
     sideAnalysis = sessions.After.sideAnalysis;
-    sideScore = sessions.After.score?.score || sessions.After.sideAnalysis?.score || 0;
+    // ✅ 측면 점수 우선순위: sessions.After.sideScore → sideAnalysis.score → sessions.After.score
+    const sideScoreObj = sessions.After.sideScore;
+    if (sideScoreObj && typeof sideScoreObj === 'object' && sideScoreObj.score != null) {
+      sideScore = sideScoreObj.score;
+    } else if (typeof sideScoreObj === 'number') {
+      sideScore = sideScoreObj;
+    } else {
+      sideScore = sessions.After.sideAnalysis?.score || sessions.After.score?.score || 0;
+    }
     sidePattern = sessions.After.sideAnalysis?.topRecommendations?.[0]?.name || 
                   sessions.After.sideAnalysis?.patterns?.[0]?.name || '분석 중';
   }
   // 2순위: Before 세션의 sideAnalysis
   else if (sessions.Before?.sideAnalysis && sessions.Before.sideAnalysis.orientation === "side") {
     sideAnalysis = sessions.Before.sideAnalysis;
-    sideScore = sessions.Before.score?.score || sessions.Before.sideAnalysis?.score || 0;
+    const sideScoreObj = sessions.Before.sideScore;
+    if (sideScoreObj && typeof sideScoreObj === 'object' && sideScoreObj.score != null) {
+      sideScore = sideScoreObj.score;
+    } else if (typeof sideScoreObj === 'number') {
+      sideScore = sideScoreObj;
+    } else {
+      sideScore = sessions.Before.sideAnalysis?.score || sessions.Before.score?.score || 0;
+    }
     sidePattern = sessions.Before.sideAnalysis?.topRecommendations?.[0]?.name || 
                   sessions.Before.sideAnalysis?.patterns?.[0]?.name || '분석 중';
   }
   // 3순위: 현재 세션의 sideAnalysis
   else if (sessions[cur]?.sideAnalysis && sessions[cur].sideAnalysis.orientation === "side") {
     sideAnalysis = sessions[cur].sideAnalysis;
-    sideScore = sessions[cur].score?.score || sessions[cur].sideAnalysis?.score || 0;
+    const sideScoreObj = sessions[cur].sideScore;
+    if (sideScoreObj && typeof sideScoreObj === 'object' && sideScoreObj.score != null) {
+      sideScore = sideScoreObj.score;
+    } else if (typeof sideScoreObj === 'number') {
+      sideScore = sideScoreObj;
+    } else {
+      sideScore = sessions[cur].sideAnalysis?.score || sessions[cur].score?.score || 0;
+    }
     sidePattern = sessions[cur].sideAnalysis?.topRecommendations?.[0]?.name || 
                   sessions[cur].sideAnalysis?.patterns?.[0]?.name || '분석 중';
   }
   // 4순위: After 세션의 analysis (orientation 확인)
   else if (sessions.After?.analysis && sessions.After.metrics?.orientation === "side") {
     sideAnalysis = sessions.After.analysis;
-    sideScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
+    const sideScoreObj = sessions.After.sideScore;
+    if (sideScoreObj && typeof sideScoreObj === 'object' && sideScoreObj.score != null) {
+      sideScore = sideScoreObj.score;
+    } else if (typeof sideScoreObj === 'number') {
+      sideScore = sideScoreObj;
+    } else {
+      sideScore = sessions.After.analysis?.score || sessions.After.score?.score || 0;
+    }
     sidePattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                   sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
   // 5순위: 현재 세션의 analysis (orientation 확인)
   else if (sessions[cur]?.analysis && sessions[cur].metrics?.orientation === "side") {
     sideAnalysis = sessions[cur].analysis;
-    sideScore = sessions[cur].score?.score || sessions[cur].analysis?.score || 0;
+    const sideScoreObj = sessions[cur].sideScore;
+    if (sideScoreObj && typeof sideScoreObj === 'object' && sideScoreObj.score != null) {
+      sideScore = sideScoreObj.score;
+    } else if (typeof sideScoreObj === 'number') {
+      sideScore = sideScoreObj;
+    } else {
+      sideScore = sessions[cur].analysis?.score || sessions[cur].score?.score || 0;
+    }
     sidePattern = sessions[cur].analysis?.topRecommendations?.[0]?.name || 
                   sessions[cur].analysis?.patterns?.[0]?.name || '분석 중';
   }
-  // 6순위: After 세션의 분석 (orientation 불명확)
+  // 6순위: After 세션의 분석 (orientation 불명확) - 하위 호환성
   else if (sessions.After?.analysis) {
     sideAnalysis = sessions.After.analysis;
-    sideScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
+    const sideScoreObj = sessions.After.sideScore;
+    if (sideScoreObj && typeof sideScoreObj === 'object' && sideScoreObj.score != null) {
+      sideScore = sideScoreObj.score;
+    } else if (typeof sideScoreObj === 'number') {
+      sideScore = sideScoreObj;
+    } else {
+      sideScore = sessions.After.analysis?.score || sessions.After.score?.score || 0;
+    }
     sidePattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                   sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
   
-  // ✅ 정면 분석: After 세션의 정면 분석 결과 찾기
+  // ✅ 정면 분석: After 세션의 정면 분석 결과 찾기 (독립적으로 추출)
   let frontAnalysis = null;
   let frontScore = 0;
   let frontPattern = '분석 중';
@@ -18817,42 +18860,85 @@ function getCombinedAnalysis() {
   // 1순위: After 세션의 frontAnalysis (정면 분석 결과)
   if (sessions.After?.frontAnalysis && sessions.After.frontAnalysis.orientation === "front") {
     frontAnalysis = sessions.After.frontAnalysis;
-    frontScore = sessions.After.score?.score || sessions.After.frontAnalysis?.score || 0;
+    // ✅ 정면 점수 우선순위: sessions.After.frontScore → frontAnalysis.score → sessions.After.score
+    const frontScoreObj = sessions.After.frontScore;
+    if (frontScoreObj && typeof frontScoreObj === 'object' && frontScoreObj.score != null) {
+      frontScore = frontScoreObj.score;
+    } else if (typeof frontScoreObj === 'number') {
+      frontScore = frontScoreObj;
+    } else {
+      frontScore = sessions.After.frontAnalysis?.score || sessions.After.score?.score || 0;
+    }
     frontPattern = sessions.After.frontAnalysis?.topRecommendations?.[0]?.name || 
                    sessions.After.frontAnalysis?.patterns?.[0]?.name || '분석 중';
   }
   // 2순위: Before 세션의 frontAnalysis
   else if (sessions.Before?.frontAnalysis && sessions.Before.frontAnalysis.orientation === "front") {
     frontAnalysis = sessions.Before.frontAnalysis;
-    frontScore = sessions.Before.score?.score || sessions.Before.frontAnalysis?.score || 0;
+    const frontScoreObj = sessions.Before.frontScore;
+    if (frontScoreObj && typeof frontScoreObj === 'object' && frontScoreObj.score != null) {
+      frontScore = frontScoreObj.score;
+    } else if (typeof frontScoreObj === 'number') {
+      frontScore = frontScoreObj;
+    } else {
+      frontScore = sessions.Before.frontAnalysis?.score || sessions.Before.score?.score || 0;
+    }
     frontPattern = sessions.Before.frontAnalysis?.topRecommendations?.[0]?.name || 
                    sessions.Before.frontAnalysis?.patterns?.[0]?.name || '분석 중';
   }
   // 3순위: 현재 세션의 frontAnalysis
   else if (sessions[cur]?.frontAnalysis && sessions[cur].frontAnalysis.orientation === "front") {
     frontAnalysis = sessions[cur].frontAnalysis;
-    frontScore = sessions[cur].score?.score || sessions[cur].frontAnalysis?.score || 0;
+    const frontScoreObj = sessions[cur].frontScore;
+    if (frontScoreObj && typeof frontScoreObj === 'object' && frontScoreObj.score != null) {
+      frontScore = frontScoreObj.score;
+    } else if (typeof frontScoreObj === 'number') {
+      frontScore = frontScoreObj;
+    } else {
+      frontScore = sessions[cur].frontAnalysis?.score || sessions[cur].score?.score || 0;
+    }
     frontPattern = sessions[cur].frontAnalysis?.topRecommendations?.[0]?.name || 
                    sessions[cur].frontAnalysis?.patterns?.[0]?.name || '분석 중';
   }
   // 4순위: After 세션의 analysis (orientation 확인)
   else if (sessions.After?.analysis && sessions.After.metrics?.orientation === "front") {
     frontAnalysis = sessions.After.analysis;
-    frontScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
+    const frontScoreObj = sessions.After.frontScore;
+    if (frontScoreObj && typeof frontScoreObj === 'object' && frontScoreObj.score != null) {
+      frontScore = frontScoreObj.score;
+    } else if (typeof frontScoreObj === 'number') {
+      frontScore = frontScoreObj;
+    } else {
+      frontScore = sessions.After.analysis?.score || sessions.After.score?.score || 0;
+    }
     frontPattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                    sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
   // 5순위: After 세션의 frontMetrics가 있는 경우
   else if (sessions.After?.metrics?.frontMetrics && sessions.After.analysis) {
     frontAnalysis = sessions.After.analysis;
-    frontScore = sessions.After.score?.score || sessions.After.analysis?.score || 0;
+    const frontScoreObj = sessions.After.frontScore;
+    if (frontScoreObj && typeof frontScoreObj === 'object' && frontScoreObj.score != null) {
+      frontScore = frontScoreObj.score;
+    } else if (typeof frontScoreObj === 'number') {
+      frontScore = frontScoreObj;
+    } else {
+      frontScore = sessions.After.analysis?.score || sessions.After.score?.score || 0;
+    }
     frontPattern = sessions.After.analysis?.topRecommendations?.[0]?.name || 
                    sessions.After.analysis?.patterns?.[0]?.name || '분석 중';
   }
   // 6순위: 현재 세션의 analysis (orientation 확인)
   else if (sessions[cur]?.analysis && sessions[cur].metrics?.orientation === "front") {
     frontAnalysis = sessions[cur].analysis;
-    frontScore = sessions[cur].score?.score || sessions[cur].analysis?.score || 0;
+    const frontScoreObj = sessions[cur].frontScore;
+    if (frontScoreObj && typeof frontScoreObj === 'object' && frontScoreObj.score != null) {
+      frontScore = frontScoreObj.score;
+    } else if (typeof frontScoreObj === 'number') {
+      frontScore = frontScoreObj;
+    } else {
+      frontScore = sessions[cur].analysis?.score || sessions[cur].score?.score || 0;
+    }
     frontPattern = sessions[cur].analysis?.topRecommendations?.[0]?.name || 
                    sessions[cur].analysis?.patterns?.[0]?.name || '분석 중';
   }
