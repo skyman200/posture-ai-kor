@@ -1874,9 +1874,21 @@ function analyzeBeforeAfterComparison() {
   const bMetrics = B.metrics?.fullMetrics || {};
   const aMetrics = A.metrics?.fullMetrics || {};
   
-  // 헬퍼 함수: 메트릭 값 가져오기
+  // 헬퍼 함수: 메트릭 값 가져오기 (키 별칭 포함)
   const getMetricValue = (metrics, key) => {
-    const metric = metrics[key];
+    // 원본 키 확인
+    let metric = metrics[key];
+    
+    // 키 별칭 확인 (정면 지표)
+    if (!metric) {
+      if (key === 'STA' && metrics['STA_F']) metric = metrics['STA_F'];
+      else if (key === 'POA' && metrics['POA_F']) metric = metrics['POA_F'];
+      else if (key === 'LLD' && metrics['LLD_F']) metric = metrics['LLD_F'];
+      else if (key === 'Q_Angle' && metrics['QAngle']) metric = metrics['QAngle'];
+      else if (key === 'Knee_Deviation' && metrics['KneeDev']) metric = metrics['KneeDev'];
+      else if (key === 'Tibial_Angle' && metrics['Tibial']) metric = metrics['Tibial'];
+    }
+    
     if(!metric) return null;
     return metric.value !== undefined ? metric.value : 
            (metric.value_deg !== undefined ? metric.value_deg : 
@@ -2005,6 +2017,142 @@ function analyzeBeforeAfterComparison() {
         if(delta > 2) return { status: 'worsened', comment: `전반적인 자세 점수가 ${delta.toFixed(1)}점 악화되었습니다.` };
         return { status: 'stable', comment: `전반적인 자세 점수는 일정하며, 안정적인 자세 패턴을 유지하고 있습니다.` };
       }
+    },
+    // ✅ 정면 지표 추가
+    'STA': {
+      name: 'STA(어깨기울기각)',
+      unit: '°',
+      normal: '≤3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `어깨 기울기는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `어깨 기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 어깨 대칭성이 개선되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `어깨 기울기가 ${Math.abs(delta).toFixed(1)}° 증가하여 어깨 비대칭이 악화되었습니다.` };
+        return { status: 'stable', comment: `어깨 기울기는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'POA': {
+      name: 'POA(골반기울기각)',
+      unit: '°',
+      normal: '≤3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `골반 기울기는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `골반 기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 골반 대칭성이 개선되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `골반 기울기가 ${Math.abs(delta).toFixed(1)}° 증가하여 골반 비대칭이 악화되었습니다.` };
+        return { status: 'stable', comment: `골반 기울기는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'LLD': {
+      name: 'LLD(하지길이차)',
+      unit: 'cm',
+      normal: '≤1cm',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 1;
+        if(inRange && Math.abs(delta) < 0.5) return { status: 'stable', comment: `하지 길이 차이는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(delta < -0.5) return { status: 'improved', comment: `하지 길이 차이가 ${Math.abs(delta).toFixed(1)}cm 감소하여 하지 대칭성이 개선되었습니다.` };
+        if(delta > 0.5) return { status: 'worsened', comment: `하지 길이 차이가 ${delta.toFixed(1)}cm 증가하여 하지 비대칭이 악화되었습니다.` };
+        return { status: 'stable', comment: `하지 길이 차이는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'Q_Angle': {
+      name: 'Q-Angle(Q각)',
+      unit: '°',
+      normal: '10-20°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = after >= 10 && after <= 20;
+        if(inRange && Math.abs(delta) < 2) return { status: 'stable', comment: `Q각은 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(!inRange && after < 10) return { status: 'worsened', comment: `Q각이 ${after.toFixed(1)}°로 정상 범위(10-20°)보다 낮아 무릎 정렬 문제가 있습니다.` };
+        if(!inRange && after > 20) return { status: 'worsened', comment: `Q각이 ${after.toFixed(1)}°로 정상 범위(10-20°)보다 높아 무릎 정렬 문제가 있습니다.` };
+        if(inRange && delta > 0 && before < 10) return { status: 'improved', comment: `Q각이 정상 범위로 개선되었습니다.` };
+        if(inRange && delta < 0 && before > 20) return { status: 'improved', comment: `Q각이 정상 범위로 개선되었습니다.` };
+        return { status: 'stable', comment: `Q각은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'Knee_Deviation': {
+      name: 'Knee Dev(무릎편위)',
+      unit: '°',
+      normal: '0-3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `무릎 편위는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `무릎 편위가 ${Math.abs(delta).toFixed(1)}° 감소하여 무릎 정렬이 개선되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `무릎 편위가 ${Math.abs(delta).toFixed(1)}° 증가하여 무릎 정렬이 악화되었습니다.` };
+        return { status: 'stable', comment: `무릎 편위는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'TD': {
+      name: 'TD(체간편위)',
+      unit: '°',
+      normal: '0-3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `체간 편위는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `체간 편위가 ${Math.abs(delta).toFixed(1)}° 감소하여 체간 정렬이 개선되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `체간 편위가 ${Math.abs(delta).toFixed(1)}° 증가하여 체간 정렬이 악화되었습니다.` };
+        return { status: 'stable', comment: `체간 편위는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'HTA': {
+      name: 'HTA(머리기울기각)',
+      unit: '°',
+      normal: '≤3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `머리 기울기는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `머리 기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 머리 대칭성이 개선되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `머리 기울기가 ${Math.abs(delta).toFixed(1)}° 증가하여 머리 비대칭이 악화되었습니다.` };
+        return { status: 'stable', comment: `머리 기울기는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'SPP': {
+      name: 'SPP(어깨골반평행도)',
+      unit: '°',
+      normal: '0-3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        // SPP는 절댓값으로 판단
+        const afterAbs = Math.abs(after);
+        const beforeAbs = Math.abs(before);
+        const inRange = afterAbs <= 3;
+        if(inRange && Math.abs(afterAbs - beforeAbs) < 1) return { status: 'stable', comment: `어깨-골반 평행도는 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(afterAbs < beforeAbs - 1) return { status: 'improved', comment: `어깨-골반 평행도가 ${(beforeAbs - afterAbs).toFixed(1)}° 개선되어 어깨-골반 정렬이 향상되었습니다.` };
+        if(afterAbs > beforeAbs + 1) return { status: 'worsened', comment: `어깨-골반 평행도가 ${(afterAbs - beforeAbs).toFixed(1)}° 악화되어 어깨-골반 정렬이 저하되었습니다.` };
+        return { status: 'stable', comment: `어깨-골반 평행도는 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'KAS': {
+      name: 'KAS(무릎정렬대칭성)',
+      unit: '°',
+      normal: '0-3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `무릎 정렬 대칭성은 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `무릎 정렬 대칭성이 ${Math.abs(delta).toFixed(1)}° 개선되어 무릎 대칭성이 향상되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `무릎 정렬 대칭성이 ${Math.abs(delta).toFixed(1)}° 악화되어 무릎 비대칭이 증가했습니다.` };
+        return { status: 'stable', comment: `무릎 정렬 대칭성은 안정적으로 유지되고 있습니다.` };
+      }
+    },
+    'LLAS': {
+      name: 'LLAS(하지축대칭성)',
+      unit: '°',
+      normal: '0-3°',
+      analyze: (before, after, delta) => {
+        if(before == null || after == null) return null;
+        const inRange = Math.abs(after) <= 3;
+        if(inRange && Math.abs(delta) < 1) return { status: 'stable', comment: `하지 축 대칭성은 정상 범위 내에서 안정적으로 유지되고 있습니다.` };
+        if(Math.abs(delta) < -1) return { status: 'improved', comment: `하지 축 대칭성이 ${Math.abs(delta).toFixed(1)}° 개선되어 하지 대칭성이 향상되었습니다.` };
+        if(Math.abs(delta) > 1) return { status: 'worsened', comment: `하지 축 대칭성이 ${Math.abs(delta).toFixed(1)}° 악화되어 하지 비대칭이 증가했습니다.` };
+        return { status: 'stable', comment: `하지 축 대칭성은 안정적으로 유지되고 있습니다.` };
+      }
     }
   };
   
@@ -2015,13 +2163,21 @@ function analyzeBeforeAfterComparison() {
   let highlightItem = null;
   let maxImprovement = 0;
   
-  // 각 지표 분석
+  // 각 지표 분석 (측면 + 정면 모두 포함)
   Object.keys(metricRules).forEach(key => {
     const rule = metricRules[key];
     const before = getMetricValue(bMetrics, key);
     const after = getMetricValue(aMetrics, key);
     
-    if(before == null || after == null) return;
+    // ✅ Before 또는 After 중 하나라도 있으면 분석 (둘 다 null이 아니어야 함)
+    if(before == null && after == null) return;
+    
+    // ✅ Before가 없으면 0으로, After가 없으면 0으로 처리하지 않고 건너뜀
+    // 실제로는 둘 다 있어야 비교 가능하지만, 사용자 요청에 따라 하나만 있어도 표시
+    if(before == null || after == null) {
+      // 하나만 있는 경우는 비교 불가이므로 건너뜀
+      return;
+    }
     
     const delta = after - before;
     const analysis = rule.analyze(before, after, delta);
@@ -11417,6 +11573,147 @@ if(comparison && comparison.results.length > 0) {
         return `① 종합 자세 개선 프로그램 강화 필요<br>② 코어 안정화 강화: 플랭크 45초 × 4세트<br>③ 전신 정렬 운동: 월 스쿼트 4세트 × 15회<br>④ 전문가 상담 권장`;
       } else {
         return `① 유지 운동: 코어 안정화 주 2회<br>② 전신 정렬 운동 주 1회`;
+      }
+    }
+    
+    // ✅ 정면 지표 운동 권장사항 추가
+    // STA (어깨기울기각)
+    if (name.includes('STA') || name.includes('어깨기울기')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 어깨 대칭성 개선 운동 지속: 사이드 레이즈 3세트 × 12회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 상부 승모근 스트레칭: 좌우 각 30초 × 3회<br>③ 어깨 안정화: 외회전 근육 강화 운동<br>④ 코어 안정화: 사이드 플랭크 30초 × 좌우 3회`;
+        } else {
+          return `① 어깨 대칭성 교정 운동: 사이드 레이즈 4세트 × 15회<br>② 상부 승모근 스트레칭: 좌우 각 30초 × 5회<br>③ 어깨 안정화 강화: 외회전 근육 강화 운동<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 사이드 레이즈 주 2회<br>② 어깨 스트레칭 주 1회`;
+      }
+    }
+    
+    // POA (골반기울기각) - 정면
+    if ((name.includes('POA') && name.includes('골반기울기')) || (name.includes('POA') && !name.includes('전후'))) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 골반 대칭성 개선 운동 지속: 사이드 레그 레이즈 3세트 × 15회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 중둔근 강화: 클램쉘 운동 3세트 × 12회<br>③ TFL-QL 스트레칭: 각 30초 × 3회<br>④ 코어 안정화: 사이드 플랭크 30초 × 좌우 3회`;
+        } else {
+          return `① 골반 대칭성 교정 운동: 사이드 레그 레이즈 4세트 × 20회<br>② 중둔근 긴급 강화: 클램쉘 운동 4세트 × 15회<br>③ TFL-QL 스트레칭: 각 30초 × 5회<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 사이드 레그 레이즈 주 2회<br>② 중둔근 강화 주 1회`;
+      }
+    }
+    
+    // LLD (하지길이차)
+    if (name.includes('LLD') || name.includes('하지길이')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 1) {
+        if (delta < 0) {
+          return `① 하지 대칭성 개선 운동 지속: 힐 리프트 운동 3세트 × 12회 (${absDelta.toFixed(1)}cm 개선 효과 유지)<br>② 골반 교정 운동: 클램쉘 운동 3세트 × 15회<br>③ 중둔근 강화: 사이드 레그 레이즈 3세트 × 12회<br>④ TFL-QL 스트레칭: 각 30초 × 3회`;
+        } else {
+          return `① 하지 대칭성 교정 운동: 힐 리프트 운동 4세트 × 15회<br>② 골반 교정 운동 강화: 클램쉘 운동 4세트 × 20회<br>③ 중둔근 긴급 강화: 사이드 레그 레이즈 4세트 × 15회<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}cm는 구조적 불균형 가능성)`;
+        }
+      } else {
+        return `① 유지 운동: 힐 리프트 운동 주 2회<br>② 골반 교정 운동 주 1회`;
+      }
+    }
+    
+    // Q_Angle (Q각)
+    if (name.includes('Q-Angle') || name.includes('Q각')) {
+      if (after < 10 || after > 20) {
+        if (after < 10) {
+          return `① 무릎 정렬 교정: 대퇴사두근 균형 강화 3세트 × 12회<br>② 무릎 안정화: 레그 익스텐션 3세트 × 10회<br>③ 내측 광근 강화: 발목 무게 사용한 레그 컬<br>④ 무릎 정렬 운동: 스텝업 운동 3세트 × 10회`;
+        } else {
+          return `① 무릎 정렬 교정: 대퇴사두근 스트레칭 30초 × 3회<br>② 외측 광근 강화: 레그 프레스 3세트 × 12회<br>③ 무릎 안정화: 발목 무게 사용한 레그 컬<br>④ 무릎 정렬 운동: 스텝업 운동 3세트 × 10회`;
+        }
+      } else {
+        return `① 유지 운동: 레그 익스텐션 주 2회<br>② 무릎 안정화 운동 주 1회`;
+      }
+    }
+    
+    // Knee_Deviation (무릎편위)
+    if (name.includes('Knee Dev') || name.includes('무릎편위')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 무릎 정렬 개선 운동 지속: 스텝업 운동 3세트 × 12회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 대퇴사두근 균형 강화: 레그 익스텐션 3세트 × 12회<br>③ 무릎 안정화: 발목 무게 사용한 레그 컬<br>④ 무릎 정렬 스트레칭: 서서 무릎 굽히기 30초 × 3회`;
+        } else {
+          return `① 무릎 정렬 교정 운동: 스텝업 운동 4세트 × 15회<br>② 대퇴사두근 균형 강화: 레그 익스텐션 4세트 × 15회<br>③ 무릎 안정화 강화: 발목 무게 사용한 레그 컬<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 스텝업 운동 주 2회<br>② 무릎 안정화 운동 주 1회`;
+      }
+    }
+    
+    // TD (체간편위)
+    if (name.includes('TD') || name.includes('체간편위')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 체간 정렬 개선 운동 지속: 척추 회전 스트레칭 10회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 코어 안정화: 사이드 플랭크 30초 × 좌우 3회<br>③ 등 근육 강화: 로우 운동 3세트 × 12회<br>④ 척추 정렬 운동: 척추 회전 스트레칭 10회`;
+        } else {
+          return `① 체간 정렬 교정 운동: 척추 회전 스트레칭 15회<br>② 코어 안정화 강화: 사이드 플랭크 45초 × 좌우 4회<br>③ 등 근육 강화: 로우 운동 4세트 × 15회<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 척추 회전 스트레칭 주 2회<br>② 코어 안정화 주 1회`;
+      }
+    }
+    
+    // HTA (머리기울기각)
+    if (name.includes('HTA') || name.includes('머리기울기')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 머리 대칭성 개선 운동 지속: 목 측면 스트레칭 30초 × 좌우 3회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 상부 승모근 스트레칭: 좌우 각 30초 × 3회<br>③ 경추 안정화: 턱당김 운동 3세트 × 10회<br>④ 목 근력 강화: 저항 밴드 사용한 경추 측면 운동`;
+        } else {
+          return `① 머리 대칭성 교정 운동: 목 측면 스트레칭 30초 × 좌우 5회<br>② 상부 승모근 스트레칭: 좌우 각 30초 × 5회<br>③ 경추 안정화 강화: 턱당김 운동 4세트 × 15회<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 목 측면 스트레칭 주 2회<br>② 경추 안정화 주 1회`;
+      }
+    }
+    
+    // SPP (어깨골반평행도)
+    if (name.includes('SPP') || name.includes('어깨골반평행')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        const beforeAbs = Math.abs(before);
+        if (afterAbs < beforeAbs - 1) {
+          return `① 어깨-골반 정렬 개선 운동 지속: 사이드 플랭크 30초 × 좌우 3회 (${(beforeAbs - afterAbs).toFixed(1)}° 개선 효과 유지)<br>② 코어 안정화: 플랭크 30초 × 3세트<br>③ 중둔근 강화: 클램쉘 운동 3세트 × 15회<br>④ 척추 정렬 운동: 척추 회전 스트레칭 10회`;
+        } else {
+          return `① 어깨-골반 정렬 교정 운동: 사이드 플랭크 45초 × 좌우 4회<br>② 코어 안정화 강화: 플랭크 45초 × 4세트<br>③ 중둔근 긴급 강화: 클램쉘 운동 4세트 × 20회<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 사이드 플랭크 주 2회<br>② 코어 안정화 주 1회`;
+      }
+    }
+    
+    // KAS (무릎정렬대칭성)
+    if (name.includes('KAS') || name.includes('무릎정렬대칭')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 무릎 대칭성 개선 운동 지속: 스텝업 운동 3세트 × 12회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 대퇴사두근 균형 강화: 레그 익스텐션 3세트 × 12회<br>③ 무릎 안정화: 발목 무게 사용한 레그 컬<br>④ 무릎 정렬 스트레칭: 서서 무릎 굽히기 30초 × 3회`;
+        } else {
+          return `① 무릎 대칭성 교정 운동: 스텝업 운동 4세트 × 15회<br>② 대퇴사두근 균형 강화: 레그 익스텐션 4세트 × 15회<br>③ 무릎 안정화 강화: 발목 무게 사용한 레그 컬<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 스텝업 운동 주 2회<br>② 무릎 안정화 운동 주 1회`;
+      }
+    }
+    
+    // LLAS (하지축대칭성)
+    if (name.includes('LLAS') || name.includes('하지축대칭')) {
+      const afterAbs = Math.abs(after);
+      if (afterAbs > 3) {
+        if (Math.abs(delta) < 0) {
+          return `① 하지 대칭성 개선 운동 지속: 힐 리프트 운동 3세트 × 12회 (${absDelta.toFixed(1)}° 개선 효과 유지)<br>② 골반 교정 운동: 클램쉘 운동 3세트 × 15회<br>③ 중둔근 강화: 사이드 레그 레이즈 3세트 × 12회<br>④ 무릎 정렬 운동: 스텝업 운동 3세트 × 10회`;
+        } else {
+          return `① 하지 대칭성 교정 운동: 힐 리프트 운동 4세트 × 15회<br>② 골반 교정 운동 강화: 클램쉘 운동 4세트 × 20회<br>③ 중둔근 긴급 강화: 사이드 레그 레이즈 4세트 × 15회<br>④ 전문가 상담 권장 (${afterAbs.toFixed(1)}°는 정상 범위 밖)`;
+        }
+      } else {
+        return `① 유지 운동: 힐 리프트 운동 주 2회<br>② 골반 교정 운동 주 1회`;
       }
     }
     
