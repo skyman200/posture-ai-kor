@@ -12750,23 +12750,22 @@ try {
   page5Container.style.overflow = 'hidden'; // 내용이 옆으로 튀어나가지 않도록
   
   // ✅ 필라테스 내부 모든 요소의 너비 강제 설정 (여백 제거)
-  const pilatesInnerDiv = page5Container.querySelector('div[style*="width:764px"]');
-  if (pilatesInnerDiv) {
-    pilatesInnerDiv.style.width = '764px';
-    pilatesInnerDiv.style.maxWidth = '764px';
-    pilatesInnerDiv.style.marginLeft = '0';
-    pilatesInnerDiv.style.marginRight = '0';
-    pilatesInnerDiv.style.paddingLeft = '0';
-    pilatesInnerDiv.style.paddingRight = '0';
-  }
-  
-  // ✅ 필라테스 카드들의 너비도 강제 설정
-  const pilatesCards = page5Container.querySelectorAll('div[style*="width:764px"]');
-  pilatesCards.forEach(card => {
-    card.style.width = '764px';
-    card.style.maxWidth = '764px';
-    card.style.marginLeft = '0';
-    card.style.marginRight = '0';
+  // 모든 div를 순회하며 width:764px 또는 width:100% 포함 요소 찾아 강제 설정
+  const allPilatesDivs = page5Container.querySelectorAll('div');
+  allPilatesDivs.forEach(div => {
+    const style = div.getAttribute('style') || '';
+    // width:764px 또는 width:100% 포함하는 요소 찾기
+    if (style.includes('width:764px') || style.includes('width:100%')) {
+      div.style.width = '764px';
+      div.style.maxWidth = '764px';
+      div.style.marginLeft = '0';
+      div.style.marginRight = '0';
+      // padding도 제거 (부모 패딩 고려)
+      if (div !== page5Container) {
+        div.style.paddingLeft = '0';
+        div.style.paddingRight = '0';
+      }
+    }
   });
   
   // ✅ 강제 리플로우 (스타일 적용 보장)
@@ -18018,11 +18017,11 @@ async function generateFinalPostureReportPDF() {
           // 필라테스 페이지는 더 작은 조각도 허용 (여러 페이지로 나눠도 됨)
           const minSliceHeight = isPilatesPage ? 20 : 50;
           
-          // ✅ 마지막 슬라이스인지 먼저 확인 (남은 높이가 거의 없으면 마지막)
-          const isLastSliceNow = heightLeft <= minSliceHeight * 3;
+          // ✅ 마지막 슬라이스인지 한 번만 확인 (남은 높이가 거의 없으면 마지막)
+          const isLastSlice = heightLeft <= minSliceHeight * 3;
           
           // 공간이 부족하면 새 페이지 추가 (마지막 슬라이스가 아니면)
-          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight && !isLastSliceNow) {
+          if (availableHeight < minSliceHeight && heightLeft > minSliceHeight && !isLastSlice) {
             pdf.addPage();
             yPos = margin;
             continue;
@@ -18030,7 +18029,7 @@ async function generateFinalPostureReportPDF() {
           
           // ✅ 현재 페이지에 들어갈 수 있는 최대 높이 계산 (정확도 향상)
           // 마지막 슬라이스는 남은 높이 모두 포함
-          const sliceH = isLastSliceNow ? heightLeft : Math.min(heightLeft, availableHeight);
+          const sliceH = isLastSlice ? heightLeft : Math.min(heightLeft, availableHeight);
           
           if (sliceH <= 0) {
             // 슬라이스 높이가 0 이하면 새 페이지 추가
@@ -18042,9 +18041,6 @@ async function generateFinalPostureReportPDF() {
           // ✅ 원본 캔버스에서 슬라이스할 높이 계산 (픽셀 단위, 정확도 향상, 오버플로우 방지)
           // 비율 기반 계산으로 정확도 향상
           const scaleRatio = canvas.height / imgHeight;
-          
-          // ✅ 마지막 슬라이스는 남은 부분 모두 포함 (잘림 방지)
-          const isLastSlice = heightLeft <= sliceH * 1.1; // 마지막 10% 범위
           let sourceSliceHeight;
           
           if (isLastSlice) {
@@ -18054,7 +18050,7 @@ async function generateFinalPostureReportPDF() {
           } else {
             // 일반 슬라이스: Math.round로 정확도 향상
             sourceSliceHeight = Math.min(
-              Math.round(sliceH * scaleRatio), // Math.round로 변경 (더 정확)
+              Math.round(sliceH * scaleRatio),
               canvas.height - sourceY // 원본 캔버스 범위를 벗어나지 않도록
             );
           }
@@ -18088,54 +18084,18 @@ async function generateFinalPostureReportPDF() {
           sourceY += sourceSliceHeight;
           yPos += actualSliceH;
           
-          // ✅ 마지막 슬라이스인지 확인 (남은 높이가 거의 없으면 마지막)
-          const isLastSliceCheck = heightLeft <= minSliceHeight * 2;
+          // ✅ 마지막 슬라이스면 종료 (이미 모든 높이 포함했으므로)
+          if (isLastSlice) {
+            break;
+          }
           
           // ✅ 다음 슬라이스가 남아있고 공간이 부족하면 새 페이지 추가
-          if (heightLeft > minSliceHeight && !isLastSliceCheck) {
+          if (heightLeft > minSliceHeight) {
             const nextAvailableHeight = pageHeight - yPos - margin;
             if (nextAvailableHeight < minSliceHeight) {
               pdf.addPage();
               yPos = margin;
             }
-          }
-          
-          // ✅ 마지막 슬라이스는 남은 모든 높이 포함 (잘림 방지)
-          if (isLastSliceCheck && heightLeft > 0) {
-            const finalAvailableHeight = pageHeight - yPos - margin;
-            if (finalAvailableHeight < heightLeft) {
-              // 마지막 슬라이스가 페이지에 다 안 들어가면 새 페이지에 추가
-              pdf.addPage();
-              yPos = margin;
-            }
-            // 마지막 슬라이스는 남은 높이 모두 포함
-            const finalSliceH = Math.min(heightLeft, pageHeight - yPos - margin);
-            const finalSourceSliceHeight = Math.min(
-              Math.round(finalSliceH * scaleRatio),
-              canvas.height - sourceY
-            );
-            
-            if (finalSourceSliceHeight > 0 && sourceY < canvas.height) {
-              const finalSliceCanvas = document.createElement('canvas');
-              finalSliceCanvas.width = canvas.width;
-              finalSliceCanvas.height = finalSourceSliceHeight;
-              const finalCtx = finalSliceCanvas.getContext('2d');
-              finalCtx.imageSmoothingEnabled = true;
-              finalCtx.imageSmoothingQuality = 'high';
-              
-              finalCtx.drawImage(
-                canvas,
-                0, sourceY, canvas.width, finalSourceSliceHeight,
-                0, 0, canvas.width, finalSourceSliceHeight
-              );
-              
-              pdf.addImage(finalSliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, yPos, imgWidth, finalSliceH, undefined, 'FAST');
-              yPos += finalSliceH;
-              
-              finalSliceCanvas.width = 1;
-              finalSliceCanvas.height = 1;
-            }
-            break; // 마지막 슬라이스 처리 완료
           }
           
           // ✅ 메모리 정리
