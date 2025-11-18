@@ -4245,10 +4245,14 @@ function computeAll() {
     // ✅ orientation을 mergedMetrics에 명시적으로 설정
     mergedMetrics.orientation = "front";
     
+    // ✅ 기존 측면 메트릭 보존 (이전 분석 결과 유지)
+    const existingSideMetrics = S.metrics?.sideMetrics || null;
+    
     S.metrics = { 
       fullMetrics: mergedMetrics,  // 정면 분석 결과만
       orientation: "front",
-      frontMetrics: frontMetrics
+      frontMetrics: frontMetrics,
+      sideMetrics: existingSideMetrics // ✅ 기존 측면 메트릭 보존
     };
     window.fullMetrics = mergedMetrics;
     
@@ -4305,13 +4309,17 @@ function computeAll() {
     const pelvic = sideMetrics.PTA?.value_deg || null;
     const knee = sideMetrics.KA?.value_deg || null;
     
+    // ✅ 기존 정면 메트릭 보존 (이전 분석 결과 유지)
+    const existingFrontMetrics = S.metrics?.frontMetrics || (frontMetrics.status !== "not_available" ? frontMetrics : null);
+    
     S.metrics = { 
       cva, 
       pelvic, 
       knee,
       fullMetrics: mergedMetrics,  // 측면 + 정면 통합 결과
       orientation: "side",
-      frontMetrics: frontMetrics.status !== "not_available" ? frontMetrics : null  // 정면 분석 결과 별도 저장
+      sideMetrics: sideMetrics, // ✅ 측면 메트릭 별도 저장
+      frontMetrics: existingFrontMetrics  // ✅ 정면 분석 결과 별도 저장 (기존 것 보존)
     };
     
     window.fullMetrics = mergedMetrics;
@@ -10220,7 +10228,7 @@ function setPageContainerStyle(container, { width = 794 } = {}) {
   if (container.id === 'page5Container') {
     container.style.padding = "30px 15px";
   } else {
-    container.style.padding = "30px 25px";
+  container.style.padding = "30px 25px";
   }
   container.style.paddingBottom = "140px";
   container.style.background = "#ffffff";
@@ -10895,40 +10903,57 @@ if (isMobile) {
 const sideMetrics = {};
 // 측면 분석 시 저장된 독립적인 측면 메트릭 사용
 // Before/After 세션 모두 확인하여 측면 메트릭 추출
+
 let sideMetricsSource = null;
+const sideMetricKeys = ['CVA', 'CVA_S', 'HPD', 'HPD_S', 'TIA', 'TIA_S', 'SAA', 'SAA_S', 'PTA', 'PTA_S', 'KA', 'KA_S', 'GSB', 'GSB_S', 'PDS', 'PDS_S'];
 
-// 1순위: After 세션의 측면 메트릭 (측면 분석 시 저장된 것)
-if (sessions.After?.metrics) {
-  // 측면 분석만 수행된 경우: fullMetrics가 측면 메트릭만 포함
-  if (sessions.After.metrics.orientation === "side" && sessions.After.metrics.fullMetrics) {
-    sideMetricsSource = sessions.After.metrics.fullMetrics;
-  }
-  // 측면과 정면 모두 분석된 경우: fullMetrics에서 측면 메트릭만 필터링
-  else if (sessions.After.metrics.fullMetrics) {
-    sideMetricsSource = sessions.After.metrics.fullMetrics;
-  }
+// ✅ 모든 세션에서 측면 메트릭 수집
+const allSideMetricsSources = [];
+
+// After 세션 확인
+if (sessions.After?.metrics?.sideMetrics) {
+  allSideMetricsSources.push({ source: sessions.After.metrics.sideMetrics, label: 'After.sideMetrics' });
+} else if (sessions.After?.metrics?.fullMetrics && sessions.After.metrics.orientation === "side") {
+  allSideMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics(side)' });
+} else if (sessions.After?.metrics?.fullMetrics) {
+  allSideMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics' });
 }
 
-// 2순위: Before 세션의 측면 메트릭
-if (!sideMetricsSource && sessions.Before?.metrics) {
-  if (sessions.Before.metrics.orientation === "side" && sessions.Before.metrics.fullMetrics) {
-    sideMetricsSource = sessions.Before.metrics.fullMetrics;
-  } else if (sessions.Before.metrics.fullMetrics) {
-    sideMetricsSource = sessions.Before.metrics.fullMetrics;
-  }
+// Before 세션 확인
+if (sessions.Before?.metrics?.sideMetrics) {
+  allSideMetricsSources.push({ source: sessions.Before.metrics.sideMetrics, label: 'Before.sideMetrics' });
+} else if (sessions.Before?.metrics?.fullMetrics && sessions.Before.metrics.orientation === "side") {
+  allSideMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics(side)' });
+} else if (sessions.Before?.metrics?.fullMetrics) {
+  allSideMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics' });
 }
 
-// 3순위: 현재 세션의 측면 메트릭
-if (!sideMetricsSource && sessions[cur]?.metrics) {
-  if (sessions[cur].metrics.orientation === "side" && sessions[cur].metrics.fullMetrics) {
-    sideMetricsSource = sessions[cur].metrics.fullMetrics;
-  } else if (sessions[cur].metrics.fullMetrics) {
-    sideMetricsSource = sessions[cur].metrics.fullMetrics;
-  }
+// 현재 세션 확인
+if (sessions[cur]?.metrics?.sideMetrics) {
+  allSideMetricsSources.push({ source: sessions[cur].metrics.sideMetrics, label: `${cur}.sideMetrics` });
+} else if (sessions[cur]?.metrics?.fullMetrics && sessions[cur].metrics.orientation === "side") {
+  allSideMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics(side)` });
+} else if (sessions[cur]?.metrics?.fullMetrics) {
+  allSideMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics` });
+}
+
+// ✅ 가장 많은 측면 메트릭을 가진 소스 선택
+if (allSideMetricsSources.length > 0) {
+  const sourcesWithCounts = allSideMetricsSources.map(({ source, label }) => {
+    const count = Object.keys(source).filter(key => {
+      if (key === 'orientation') return false;
+      const code = METRIC_KEY_ALIASES[key] || key;
+      return sideMetricKeys.includes(code) || sideMetricKeys.includes(key);
+    }).length;
+    return { source, label, count };
+  });
+  
+  const bestSource = sourcesWithCounts.sort((a, b) => b.count - a.count)[0];
+  sideMetricsSource = bestSource.source;
+  console.log(`✅ 측면 메트릭 소스 선택: ${bestSource.label} (${bestSource.count}개 메트릭)`);
 }
 
 // 측면 메트릭 키만 필터링 (HPA, Tibial 제외 - 정면 지표)
-const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
 if (sideMetricsSource) {
   Object.keys(sideMetricsSource).forEach(key => {
     // ✅ 키 별칭 확인 (METRIC_KEY_ALIASES 사용)
@@ -11381,37 +11406,57 @@ if (isMobile) {
 const frontMetrics = {};
 // 정면 분석 시 저장된 독립적인 정면 메트릭 사용
 // Before/After 세션 모두 확인하여 정면 메트릭 추출
+
 let frontMetricsSource = null;
+const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
 
-// 1순위: After 세션의 frontMetrics (정면 분석 시 별도 저장된 것)
+// ✅ 모든 세션에서 정면 메트릭 수집
+const allFrontMetricsSources = [];
+
+// After 세션 확인
 if (sessions.After?.metrics?.frontMetrics) {
-  frontMetricsSource = sessions.After.metrics.frontMetrics;
-}
-// 2순위: After 세션의 fullMetrics에서 정면 메트릭만 추출
-else if (sessions.After?.metrics) {
-  // 정면 분석만 수행된 경우: fullMetrics가 정면 메트릭만 포함
-  if (sessions.After.metrics.orientation === "front" && sessions.After.metrics.fullMetrics) {
-    frontMetricsSource = sessions.After.metrics.fullMetrics;
-  }
-  // 측면과 정면 모두 분석된 경우: fullMetrics에서 정면 메트릭만 필터링
-  else if (sessions.After.metrics.fullMetrics) {
-    frontMetricsSource = sessions.After.metrics.fullMetrics;
-  }
+  allFrontMetricsSources.push({ source: sessions.After.metrics.frontMetrics, label: 'After.frontMetrics' });
+} else if (sessions.After?.metrics?.fullMetrics && sessions.After.metrics.orientation === "front") {
+  allFrontMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics(front)' });
+} else if (sessions.After?.metrics?.fullMetrics) {
+  allFrontMetricsSources.push({ source: sessions.After.metrics.fullMetrics, label: 'After.fullMetrics' });
 }
 
-// 3순위: 현재 세션의 정면 메트릭
-if (!frontMetricsSource && sessions[cur]?.metrics) {
-  if (sessions[cur].metrics.frontMetrics) {
-    frontMetricsSource = sessions[cur].metrics.frontMetrics;
-  } else if (sessions[cur].metrics.orientation === "front" && sessions[cur].metrics.fullMetrics) {
-    frontMetricsSource = sessions[cur].metrics.fullMetrics;
-  } else if (sessions[cur].metrics.fullMetrics) {
-    frontMetricsSource = sessions[cur].metrics.fullMetrics;
-  }
+// Before 세션 확인
+if (sessions.Before?.metrics?.frontMetrics) {
+  allFrontMetricsSources.push({ source: sessions.Before.metrics.frontMetrics, label: 'Before.frontMetrics' });
+} else if (sessions.Before?.metrics?.fullMetrics && sessions.Before.metrics.orientation === "front") {
+  allFrontMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics(front)' });
+} else if (sessions.Before?.metrics?.fullMetrics) {
+  allFrontMetricsSources.push({ source: sessions.Before.metrics.fullMetrics, label: 'Before.fullMetrics' });
+}
+
+// 현재 세션 확인
+if (sessions[cur]?.metrics?.frontMetrics) {
+  allFrontMetricsSources.push({ source: sessions[cur].metrics.frontMetrics, label: `${cur}.frontMetrics` });
+} else if (sessions[cur]?.metrics?.fullMetrics && sessions[cur].metrics.orientation === "front") {
+  allFrontMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics(front)` });
+} else if (sessions[cur]?.metrics?.fullMetrics) {
+  allFrontMetricsSources.push({ source: sessions[cur].metrics.fullMetrics, label: `${cur}.fullMetrics` });
+}
+
+// ✅ 가장 많은 정면 메트릭을 가진 소스 선택
+if (allFrontMetricsSources.length > 0) {
+  const sourcesWithCounts = allFrontMetricsSources.map(({ source, label }) => {
+    const count = Object.keys(source).filter(key => {
+      if (key === 'orientation') return false;
+      const code = METRIC_KEY_ALIASES[key] || key;
+      return frontMetricKeys.includes(code) || frontMetricKeys.includes(key);
+    }).length;
+    return { source, label, count };
+  });
+  
+  const bestSource = sourcesWithCounts.sort((a, b) => b.count - a.count)[0];
+  frontMetricsSource = bestSource.source;
+  console.log(`✅ 정면 메트릭 소스 선택: ${bestSource.label} (${bestSource.count}개 메트릭)`);
 }
 
 // 정면 메트릭 키만 필터링 (HPA, Tibial 포함)
-const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
 if (frontMetricsSource) {
   Object.keys(frontMetricsSource).forEach(key => {
   const code = METRIC_KEY_ALIASES[key] || key;
@@ -12661,24 +12706,6 @@ try {
   page5Container.style.minWidth = `${container5Width}px`;
   page5Container.style.boxSizing = 'border-box';
   page5Container.style.overflow = 'hidden'; // 내용이 옆으로 튀어나가지 않도록
-  
-  // ✅ 내부 모든 요소의 너비도 제한 (필라테스 카드 일관성 유지)
-  const allChildren = page5Container.querySelectorAll('*');
-  allChildren.forEach(child => {
-    if (child.style) {
-      // ✅ 너비를 100%로 설정하여 여백 제거
-      child.style.width = '100%';
-      child.style.maxWidth = '100%';
-      child.style.boxSizing = 'border-box';
-      child.style.wordWrap = 'break-word';
-      child.style.overflowWrap = 'break-word';
-      // ✅ 마진/패딩 최소화
-      if (child.tagName === 'DIV' && child.classList.length === 0) {
-        child.style.marginLeft = '0';
-        child.style.marginRight = '0';
-      }
-    }
-  });
   
   // ✅ 강제 리플로우 (스타일 적용 보장)
   void page5Container.offsetHeight;
@@ -17852,14 +17879,14 @@ async function generateFinalPostureReportPDF() {
         console.log(`✅ ${id} 리포트 포함 (항상 생성)`);
       } else {
         // 다른 컨테이너는 내용 검증
-        const hasContent = el.textContent.trim().length > 0 || 
-                           el.querySelectorAll('img').length > 0 ||
-                           el.querySelectorAll('canvas').length > 0 ||
-                           el.innerHTML.trim().length > 50;
-        
-        if (!hasContent) {
-          console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
-          continue;
+      const hasContent = el.textContent.trim().length > 0 || 
+                         el.querySelectorAll('img').length > 0 ||
+                         el.querySelectorAll('canvas').length > 0 ||
+                         el.innerHTML.trim().length > 50;
+      
+      if (!hasContent) {
+        console.warn(`⚠️ 컨테이너가 비어있습니다: ${id}, 스킵합니다`);
+        continue;
         }
       }
 
