@@ -5660,6 +5660,42 @@ function analyzePostureType(metrics, orientation = null) {
     `);
   }
   
+  // === 1-1. 머리 돌출 (Head Protrusion Distance) 문제 ===
+  if(orientation === "side" && hpd != null && hpd > 2) {
+    issueCount++;
+    const severity = hpd > 10 ? '심각' : hpd > 6 ? '중등도' : '경미';
+    detailSections.push(`
+      <div style="border-left:3px solid #ff6b6b; padding-left:12px; margin-bottom:16px;">
+        <strong style="color:#ff6b6b; font-size:13px;">📍 머리 돌출 (Head Protrusion Distance) - ${severity}</strong>
+        <div style="margin-top:6px; font-size:11px; line-height:1.7; color:var(--muted);">
+          <strong>현재 상태:</strong> HPD ${hpd.toFixed(1)}cm (정상: ≤2cm)<br>
+          <strong>의미:</strong> 머리가 어깨(acromion)에서 얼마나 앞으로 돌출되어 있는지를 측정한 값입니다. ${hpd > 10 ? '매우 심각한 수준' : hpd > 6 ? '심각한 수준' : '경미한 수준'}의 머리 전방 변위가 확인되었습니다.<br>
+          <strong>주요 원인:</strong>
+          • 장시간 컴퓨터·스마트폰 사용으로 인한 전방 머리 자세
+          • 심부 경추 굴곡근(Longus colli, capitis) 약화
+          • 상부 승모근, 흉쇄유돌근 과긴장
+          • 흉추 후만 증가로 인한 보상 자세<br>
+          <strong>발생 증상:</strong>
+          • 목과 어깨 통증 (상부 승모근, 견갑거근 긴장)
+          • 두통 및 어지럼증
+          • 경추 디스크 압박 증가로 인한 목 통증
+          • 호흡 효율 감소 (흉곽 확장 제한)
+          • 턱관절 장애(TMJ disorder) 위험 증가<br>
+          <strong>근육 불균형:</strong>
+          • 긴장·단축된 근육: 상부 승모근, 흉쇄유돌근, 후두하근, 전거근
+          • 약화·신장된 근육: 심부 경추 굴곡근, 하부 승모근, 중부 승모근<br>
+          <strong>교정 방향:</strong>
+          ① 턱당김 운동(Chin tuck): 심부 경추 굴곡근 강화 (가장 중요)
+          ② 흉추 신전 운동: 등 윗부분 유연성 확보
+          ③ 상부 승모근·흉쇄유돌근 스트레칭
+          ④ 작업 환경 개선: 모니터 눈높이 조정, 의자 높이 조정
+          ⑤ 필라테스·요가 등 전신 균형 운동<br>
+          <strong>주의사항:</strong> ${hpd > 10 ? '매우 심각한 수준이므로 전문가(물리치료사, 카이로프랙터) 상담을 강력히 권장합니다. 급격한 교정은 경추 디스크에 무리를 줄 수 있으므로 점진적으로 접근해야 합니다.' : '점진적인 교정이 필요하며, 통증이 심하면 전문가 상담을 권장합니다.'}
+        </div>
+      </div>
+    `);
+  }
+  
   // === 2. 골반 경사 문제 (측면 분석만) ===
   if(orientation === "side" && pta != null && ptaSigned != null && (ptaSigned > 15 || ptaSigned < 0)) {
     issueCount++;
