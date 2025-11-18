@@ -264,6 +264,16 @@ canvas {
     <div class="muted" style="margin-bottom:8px; font-weight:600;">📏 캘리브레이션</div>
     <div class="muted" style="font-size:11px; margin-bottom:8px;">기준 마커 두 점을 찍고 실제 길이(cm)를 입력하세요</div>
     <div style="margin-bottom:8px;">
+      <div class="muted" style="font-size:11px; margin-bottom:4px;">확대 배율</div>
+      <select id="calibrationZoomLevel" class="btn" style="width:100%; padding:6px; margin-bottom:8px;">
+        <option value="1">원본 크기 (1배)</option>
+        <option value="2">2배 확대 (스크롤 가능)</option>
+        <option value="3">3배 확대 (스크롤 가능)</option>
+        <option value="4">4배 확대 (스크롤 가능)</option>
+      </select>
+      <div class="muted" style="font-size:10px; margin-top:4px; margin-bottom:8px; line-height:1.4;">확대 시 양손으로 드래그하여 이동 가능</div>
+    </div>
+    <div style="margin-bottom:8px;">
       <input type="number" id="calibrationLength" placeholder="실제 길이 (cm)" step="0.1" min="0.1" style="width:100%; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.3); color:var(--ink);">
     </div>
     <div class="muted" style="font-size:11px; margin-bottom:4px;">점 1: <span id="calPoint1">클릭하여 선택</span></div>
@@ -3681,8 +3691,8 @@ function resizeCanvasFor(img) {
     baseH = originalCanvasSize.height;
   }
   
-  // 확대 배율 적용 (비율 유지)
-  const zoomMultiplier = editMode ? currentZoom : 1;
+  // 확대 배율 적용 (비율 유지) - editMode 또는 calibrationMode일 때
+  const zoomMultiplier = (editMode || calibrationMode) ? currentZoom : 1;
   const finalW = baseW * zoomMultiplier;
   const finalH = baseH * zoomMultiplier;
   
@@ -3693,8 +3703,8 @@ function resizeCanvasFor(img) {
   cv.style.height = finalH + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   
-  // 확대된 경우 스크롤 가능하도록 설정
-  if(editMode && currentZoom > 1) {
+  // 확대된 경우 스크롤 가능하도록 설정 (editMode 또는 calibrationMode)
+  if((editMode || calibrationMode) && currentZoom > 1) {
     canvasWrap.classList.add("zoomed");
     canvasWrap.style.overflow = "auto";
     canvasWrap.style.overflowX = "auto";
@@ -3713,8 +3723,8 @@ function resizeCanvasFor(img) {
 function ensureDefaultPoints(session) {
   const S = sessions[session];
   // 원본 크기 기준으로 좌표 계산
-  const W = originalCanvasSize.width || (cv.width / DPR / (editMode ? currentZoom : 1));
-  const H = originalCanvasSize.height || (cv.height / DPR / (editMode ? currentZoom : 1));
+  const W = originalCanvasSize.width || (cv.width / DPR / ((editMode || calibrationMode) ? currentZoom : 1));
+  const H = originalCanvasSize.height || (cv.height / DPR / ((editMode || calibrationMode) ? currentZoom : 1));
   
   const orientation = S.poseData?.orientation || "side";
   const currentImg = orientation === "front" ? S.imgFront : S.imgSide;
@@ -3856,8 +3866,8 @@ function draw() {
   }
 
   // 확대 배율 적용
-  const scaleX = editMode ? currentZoom : 1;
-  const scaleY = editMode ? currentZoom : 1;
+  const scaleX = (editMode || calibrationMode) ? currentZoom : 1;
+  const scaleY = (editMode || calibrationMode) ? currentZoom : 1;
 
   // 보조선 그리기
   ctx.lineWidth = 2;
@@ -6989,11 +6999,12 @@ function applyZoom() {
   const orientation = S.poseData?.orientation || "side";
   const img = orientation === "front" ? S.imgFront : S.imgSide;
   
-  if(!editMode || !img) {
+  if((!editMode && !calibrationMode) || !img) {
     return;
   }
   
-  const zoomEl = document.getElementById("zoomLevel");
+  // editMode일 때는 zoomLevel, calibrationMode일 때는 calibrationZoomLevel 사용
+  const zoomEl = editMode ? document.getElementById("zoomLevel") : document.getElementById("calibrationZoomLevel");
   if(zoomEl) {
     const newZoom = parseInt(zoomEl.value) || 1;
     currentZoom = clamp(newZoom, 1, 4); // 1~4배로 제한
@@ -7019,6 +7030,16 @@ const zoomLevel = document.getElementById("zoomLevel");
 if(zoomLevel) {
   zoomLevel.addEventListener("change", () => {
     if(editMode) {
+      applyZoom();
+    }
+  });
+}
+
+// ✅ 캘리브레이션 모드 확대 배율 변경 이벤트
+const calibrationZoomLevel = document.getElementById("calibrationZoomLevel");
+if(calibrationZoomLevel) {
+  calibrationZoomLevel.addEventListener("change", () => {
+    if(calibrationMode) {
       applyZoom();
     }
   });
@@ -8452,6 +8473,8 @@ function setupCalibrateButton() {
       // 캘리브레이션 점 초기화
       S.calibrationPoint1 = null;
       S.calibrationPoint2 = null;
+      // ✅ 캘리브레이션 모드 비활성화 시 확대 배율 초기화
+      currentZoom = 1;
       draw();
       console.log("❌ 캘리브레이션 모드 비활성화");
     }
