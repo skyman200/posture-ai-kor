@@ -12131,12 +12131,67 @@ page4Container.innerHTML = `
       <div style="font-size:11px; color:#15803d; word-wrap:break-word; overflow-wrap:break-word; white-space:pre-wrap;">${scoreResult.reasons ? scoreResult.reasons.join(', ') : '데이터 누적 중'}</div>
     </div>` : ''}
 
-    ${(analysis.tight && analysis.tight.length) || (analysis.weak && analysis.weak.length) ? `
+    ${(() => {
+      // ✅ 측면 분석과 정면 분석의 근육 상태 통합
+      const allTight = [];
+      const allWeak = [];
+      
+      // 측면 분석 근육 상태
+      if(sideAnalysis) {
+        if(sideAnalysis.tight && Array.isArray(sideAnalysis.tight)) {
+          allTight.push(...sideAnalysis.tight);
+        } else if(sideAnalysis.tight && sideAnalysis.tight instanceof Set) {
+          allTight.push(...Array.from(sideAnalysis.tight));
+        }
+        if(sideAnalysis.weak && Array.isArray(sideAnalysis.weak)) {
+          allWeak.push(...sideAnalysis.weak);
+        } else if(sideAnalysis.weak && sideAnalysis.weak instanceof Set) {
+          allWeak.push(...Array.from(sideAnalysis.weak));
+        }
+      }
+      
+      // 정면 분석 근육 상태
+      if(frontAnalysisForPDF) {
+        if(frontAnalysisForPDF.tight && Array.isArray(frontAnalysisForPDF.tight)) {
+          allTight.push(...frontAnalysisForPDF.tight);
+        } else if(frontAnalysisForPDF.tight && frontAnalysisForPDF.tight instanceof Set) {
+          allTight.push(...Array.from(frontAnalysisForPDF.tight));
+        }
+        if(frontAnalysisForPDF.weak && Array.isArray(frontAnalysisForPDF.weak)) {
+          allWeak.push(...frontAnalysisForPDF.weak);
+        } else if(frontAnalysisForPDF.weak && frontAnalysisForPDF.weak instanceof Set) {
+          allWeak.push(...Array.from(frontAnalysisForPDF.weak));
+        }
+      }
+      
+      // 통합 분석 근육 상태
+      if(analysis) {
+        if(analysis.tight && Array.isArray(analysis.tight)) {
+          allTight.push(...analysis.tight);
+        } else if(analysis.tight && analysis.tight instanceof Set) {
+          allTight.push(...Array.from(analysis.tight));
+        }
+        if(analysis.weak && Array.isArray(analysis.weak)) {
+          allWeak.push(...analysis.weak);
+        } else if(analysis.weak && analysis.weak instanceof Set) {
+          allWeak.push(...Array.from(analysis.weak));
+        }
+      }
+      
+      // 중복 제거
+      const uniqueTight = [...new Set(allTight)];
+      const uniqueWeak = [...new Set(allWeak)];
+      
+      if(uniqueTight.length > 0 || uniqueWeak.length > 0) {
+        return `
     <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
-      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
-      ${analysis.tight?.length ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${analysis.tight.join(', ')}</div>` : ''}
-      ${analysis.weak?.length ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${analysis.weak.join(', ')}</div>` : ''}
-    </div>` : ''}
+      <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태 (측면 + 정면 통합)</div>
+      ${uniqueTight.length > 0 ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${uniqueTight.join(', ')}</div>` : ''}
+      ${uniqueWeak.length > 0 ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${uniqueWeak.join(', ')}</div>` : ''}
+    </div>`;
+      }
+      return '';
+    })()}
 
     ${analysis.comments?.length ? `
     <div style="padding:18px; background:#e0f2fe; border-radius:12px; border:1px solid #bae6fd;">
