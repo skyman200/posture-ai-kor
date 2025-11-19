@@ -10964,7 +10964,12 @@ else if (Object.keys(sideMetrics).length > 1) { // orientation 제외하고 실�
 }
 
 // 측면 리포트 페이지 생성
-if (Object.keys(sideMetrics).length > 1 || sideAnalysis) { // orientation 제외하고 실제 메트릭이 있는지 확인
+// ✅ 측면 분석 결과가 있거나 측면 메트릭이 있으면 생성
+const hasSideData = (Object.keys(sideMetrics).length > 1) || sideAnalysis || 
+                    (sessions.After?.sideAnalysis) || (sessions.Before?.sideAnalysis) ||
+                    (sessions.After?.metrics?.fullMetrics && Object.keys(sessions.After.metrics.fullMetrics).some(k => sideMetricKeys.includes(k))) ||
+                    (sessions.Before?.metrics?.fullMetrics && Object.keys(sessions.Before.metrics.fullMetrics).some(k => sideMetricKeys.includes(k)));
+if (hasSideData) {
   const sideReportContainer = document.createElement("div");
   sideReportContainer.id = "sideReportContainer";
   setPageContainerStyle(sideReportContainer);
@@ -11986,6 +11991,51 @@ page4Container.innerHTML = `
   </div>` : ''}
 
   ${(() => {
+    // ✅ 측면 메트릭 상세 정보 추가
+    const sideMetricsForCombined = sessions.After?.metrics?.fullMetrics || sessions.Before?.metrics?.fullMetrics || sideMetrics || {};
+    let sideMetricsDetailHtml = '';
+    const sideMetricsKeys = Object.keys(sideMetricsForCombined).filter(key => {
+      if (key === 'orientation') return false;
+      const code = METRIC_KEY_ALIASES[key] || key;
+      return sideMetricKeys.includes(code) || sideMetricKeys.includes(key);
+    });
+    
+    if (sideMetricsKeys.length > 0) {
+      sideMetricsDetailHtml = `
+        <div style="margin-top:20px; padding:15px; background:#e0f2fe; border-radius:12px; border:1px solid #bae6fd;">
+          <div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 측면 측정 지표 상세</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:12px; line-height:1.6;">
+            ${sideMetricsKeys.map(key => {
+              const metric = sideMetricsForCombined[key];
+              if (!metric || typeof metric !== 'object') return '';
+              const value = metric.value != null ? metric.value : 
+                           (metric.value_deg != null ? metric.value_deg : 
+                           (metric.value_cm != null ? metric.value_cm : null));
+              if (value == null || isNaN(value) || !isFinite(value)) return '';
+              const unit = metric.unit || (metric.value_deg != null ? '°' : (metric.value_cm != null ? 'cm' : ''));
+              const status = metric.status || 'unknown';
+              const normalRange = metric.normal || metric.normalRange || '';
+              const statusIcon = status === 'normal' ? '✔' : status === 'severe' ? '🔴' : status === 'moderate' ? '🟡' : '⚠️';
+              const statusText = status === 'normal' ? '정상' : status === 'severe' ? '심각' : status === 'moderate' ? '중등도' : status === 'mild' ? '경미' : '주의';
+              const statusColor = status === 'normal' ? '#15803d' : status === 'severe' ? '#dc2626' : status === 'moderate' ? '#f59e0b' : status === 'mild' ? '#eab308' : '#6b7280';
+              const metricName = METRIC_NAMES[key] || key;
+              return `
+                <div style="padding:10px; background:white; border-radius:8px; border:1px solid #e5e7eb;">
+                  <div style="font-weight:600; color:#0369a1; margin-bottom:4px; font-size:11px;">${metricName}</div>
+                  <div style="font-size:16px; font-weight:700; color:#0b0f14; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
+                  <div style="font-size:10px; color:${statusColor}; margin-bottom:2px;">${statusIcon} ${statusText}</div>
+                  ${normalRange ? `<div style="font-size:9px; color:#6b7280;">정상 범위: ${normalRange}</div>` : ''}
+                </div>
+              `;
+            }).filter(html => html.trim().length > 0).join('')}
+          </div>
+        </div>
+      `;
+    }
+    return sideMetricsDetailHtml;
+  })()}
+
+  ${(() => {
     // ✅ 정면 메트릭 상세 정보 추가
     const frontMetricsForCombined = sessions.After?.metrics?.frontMetrics || sessions[cur]?.metrics?.frontMetrics || {};
     let frontMetricsDetailHtml = '';
@@ -12025,6 +12075,55 @@ page4Container.innerHTML = `
       }
     }
     return frontMetricsDetailHtml;
+  })()}
+
+  ${(() => {
+    // ✅ Before-After 변화량 분석 추가
+    if (!comparison || !comparison.results || comparison.results.length === 0) {
+      return '';
+    }
+    
+    const improved = comparison.results.filter(r => r.status === 'improved').length;
+    const worsened = comparison.results.filter(r => r.status === 'worsened').length;
+    const maintained = comparison.results.filter(r => r.status === 'maintained').length;
+    
+    let comparisonHtml = `
+      <div style="margin-top:20px; padding:15px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
+        <div style="font-size:14px; font-weight:700; color:#15803d; margin-bottom:12px; word-wrap:break-word;">📊 Before-After 변화량 분석</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:15px;">
+          <div style="padding:10px; background:white; border-radius:8px; border:1px solid #86efac;">
+            <div style="font-size:12px; color:#15803d; margin-bottom:4px;">✅ 개선</div>
+            <div style="font-size:24px; font-weight:700; color:#15803d;">${improved}개</div>
+          </div>
+          <div style="padding:10px; background:white; border-radius:8px; border:1px solid #fde047;">
+            <div style="font-size:12px; color:#ca8a04; margin-bottom:4px;">➡️ 유지</div>
+            <div style="font-size:24px; font-weight:700; color:#ca8a04;">${maintained}개</div>
+          </div>
+          <div style="padding:10px; background:white; border-radius:8px; border:1px solid #fca5a5;">
+            <div style="font-size:12px; color:#dc2626; margin-bottom:4px;">⚠️ 악화</div>
+            <div style="font-size:24px; font-weight:700; color:#dc2626;">${worsened}개</div>
+          </div>
+        </div>
+        <div style="margin-top:15px; padding:12px; background:white; border-radius:8px; border:1px solid #e5e7eb;">
+          <div style="font-size:12px; font-weight:600; color:#1f2937; margin-bottom:8px;">주요 변화 지표</div>
+          <div style="font-size:11px; line-height:1.6; color:#4b5563;">
+            ${comparison.results.slice(0, 5).map(item => {
+              const change = item.after != null && item.before != null ? (item.after - item.before).toFixed(1) : '-';
+              const changeText = item.status === 'improved' ? `✅ ${change}${item.unit || ''}` : 
+                                item.status === 'worsened' ? `⚠️ ${change}${item.unit || ''}` : 
+                                `➡️ ${change}${item.unit || ''}`;
+              return `<div style="margin-bottom:4px;">${METRIC_NAMES[item.key] || item.name}: ${changeText}</div>`;
+            }).join('')}
+          </div>
+        </div>
+        ${comparison.summary?.overallComment ? `
+        <div style="margin-top:12px; padding:10px; background:#f0f9ff; border-radius:8px; border-left:3px solid #0369a1;">
+          <div style="font-size:11px; line-height:1.6; color:#1e40af;">${comparison.summary.overallComment}</div>
+        </div>
+        ` : ''}
+      </div>
+    `;
+    return comparisonHtml;
   })()}
 
   <div style="margin-top:15px; padding:12px; background:#f6fff7; border-radius:10px; border-left:4px solid #27ae60;">
@@ -12192,6 +12291,21 @@ if (combinedAnalysisForPilates && combinedAnalysisForPilates.combined) {
 // 필라테스 추천 카드 HTML 생성 (웹앱과 동일한 형식으로 + DB 상세 정보 포함)
 let pilatesHtml = '';
 
+// ✅ 웹앱 필라테스 추천이 없으면 생성 (기본적으로 포함)
+if (!window.PilatesRecommendations || !Array.isArray(window.PilatesRecommendations) || window.PilatesRecommendations.length === 0) {
+  // 웹앱에서 사용하는 것과 동일한 방식으로 필라테스 추천 생성
+  const combinedAnalysisForPilatesGen = getCombinedAnalysis();
+  if (combinedAnalysisForPilatesGen && combinedAnalysisForPilatesGen.combined) {
+    const tight = combinedAnalysisForPilatesGen.combined.tight || [];
+    const weak = combinedAnalysisForPilatesGen.combined.weak || [];
+    if ((Array.isArray(tight) && tight.length > 0) || (Array.isArray(weak) && weak.length > 0)) {
+      const tightArray = tight instanceof Set ? Array.from(tight) : (Array.isArray(tight) ? tight : []);
+      const weakArray = weak instanceof Set ? Array.from(weak) : (Array.isArray(weak) ? weak : []);
+      window.PilatesRecommendations = recommendPilatesFromMuscles(tightArray, weakArray);
+    }
+  }
+}
+
 // ✅ 1순위: 웹앱에서 생성된 필라테스 추천 (웹앱과 동일한 형식으로 표시)
 if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommendations) && window.PilatesRecommendations.length > 0) {
   // 웹앱 추천 데이터를 analysis.pilates 형식으로 변환
@@ -12230,11 +12344,16 @@ if (window.PilatesRecommendations && Array.isArray(window.PilatesRecommendations
   
   pilatesHtml = renderPilatesItemCard(pilatesData, { context: 'pdf', index: 0, limitPerTool: Infinity });
 } 
-// ✅ 2순위: 측면 분석 결과에서 필라테스 추천 가져오기
-if (!pilatesHtml && sideAnalysis?.pilates && Array.isArray(sideAnalysis.pilates) && sideAnalysis.pilates.length > 0) {
+// ✅ 2순위: 웹앱의 analysis.pilates (웹앱 UI에 표시되는 필라테스 추천)
+else if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
+  // PDF 생성 시에는 context: 'pdf'로 설정하여 인터랙티브 요소 제거
+  pilatesHtml = analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('');
+}
+// ✅ 3순위: 측면 분석 결과에서 필라테스 추천 가져오기
+else if (sideAnalysis?.pilates && Array.isArray(sideAnalysis.pilates) && sideAnalysis.pilates.length > 0) {
   pilatesHtml = sideAnalysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('');
 }
-// ✅ 3순위: AI 근육 상태 기반 추천 (웹앱과 동일한 형식으로 변환)
+// ✅ 4순위: AI 근육 상태 기반 추천 (웹앱과 동일한 형식으로 변환)
 else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
   console.log('📄 PDF 필라테스 추천 생성:', muscleBasedRecommendations.length, '개');
   
@@ -12270,19 +12389,70 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
   };
   
   pilatesHtml = renderPilatesItemCard(pilatesData, { context: 'pdf', index: 0, limitPerTool: Infinity });
-} else if (analysis?.pilates && Array.isArray(analysis.pilates) && analysis.pilates.length > 0) {
-  // PDF 생성 시에는 context: 'pdf'로 설정하여 인터랙티브 요소 제거
-  pilatesHtml = analysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('');
 } else {
   // 폴백: generatePilatesSessionText 사용
   pilatesHtml = generatePilatesSessionText(combinedMetrics, analysis?.pilates);
 }
 
 // ✅ 측면/정면 구분 필라테스 추천 생성
-const sidePilatesHtml = sideAnalysisForCombined?.pilates ? 
-  (Array.isArray(sideAnalysisForCombined.pilates) ? 
+let sidePilatesHtml = '';
+// 1순위: sideAnalysisForCombined의 pilates
+if (sideAnalysisForCombined?.pilates) {
+  sidePilatesHtml = Array.isArray(sideAnalysisForCombined.pilates) ? 
     sideAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
-    renderPilatesItemCard(sideAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity })) : '';
+    renderPilatesItemCard(sideAnalysisForCombined.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity });
+}
+// 2순위: 측면 근육 상태 기반 필라테스 추천
+else if (sideAnalysisForCombined && (sideAnalysisForCombined.muscles?.tight || sideAnalysisForCombined.muscles?.weak)) {
+  const sideTight = sideAnalysisForCombined.muscles?.tight ? 
+    (sideAnalysisForCombined.muscles.tight instanceof Set ? Array.from(sideAnalysisForCombined.muscles.tight) : 
+     Array.isArray(sideAnalysisForCombined.muscles.tight) ? sideAnalysisForCombined.muscles.tight : []) : [];
+  const sideWeak = sideAnalysisForCombined.muscles?.weak ? 
+    (sideAnalysisForCombined.muscles.weak instanceof Set ? Array.from(sideAnalysisForCombined.muscles.weak) : 
+     Array.isArray(sideAnalysisForCombined.muscles.weak) ? sideAnalysisForCombined.muscles.weak : []) : [];
+  
+  if (sideTight.length > 0 || sideWeak.length > 0) {
+    const sidePilatesRecommendations = recommendPilatesFromMuscles(sideTight, sideWeak);
+    if (sidePilatesRecommendations && sidePilatesRecommendations.length > 0) {
+      const toolMap = {
+        'Mat': '매트',
+        'Reformer': '리포머',
+        'Cadillac': '캐딜락',
+        'Chair': '체어',
+        'WundaChair': '체어',
+        'Barrel': '바렐'
+      };
+      
+      const groupedByTool = {};
+      sidePilatesRecommendations.forEach(rec => {
+        const toolKo = rec.equipment_ko || rec.equipment || 
+                       (rec.tool ? (toolMap[rec.tool] || toolMap['Mat'] || '매트') : '매트');
+        if (!groupedByTool[toolKo]) {
+          groupedByTool[toolKo] = [];
+        }
+        groupedByTool[toolKo].push({
+          exercise_ko: rec.exercise_ko || rec.Exercise_Name_KR || rec.name,
+          exercise_en: rec.exercise_en || rec.Exercise_Name_EN || '',
+          ...rec
+        });
+      });
+      
+      const sidePilatesData = {
+        name: '측면 자세 개선 필라테스 운동',
+        description: '측면 자세 분석 결과를 바탕으로 추천된 필라테스 운동입니다.',
+        pilates: groupedByTool
+      };
+      
+      sidePilatesHtml = renderPilatesItemCard(sidePilatesData, { context: 'pdf', index: 0, limitPerTool: Infinity });
+    }
+  }
+}
+// 3순위: sideAnalysis의 pilates
+else if (sideAnalysis?.pilates) {
+  sidePilatesHtml = Array.isArray(sideAnalysis.pilates) ? 
+    sideAnalysis.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
+    renderPilatesItemCard(sideAnalysis.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity });
+}
 
 // ✅ 정면 필라테스 추천 생성 (frontAnalysisForCombined.pilates가 없으면 정면 메트릭 기반으로 생성)
 let frontPilatesHtml = '';
@@ -12338,6 +12508,13 @@ if (frontAnalysisForCombined?.pilates) {
 
 page5Container.innerHTML = `
   <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px; word-wrap:break-word;">🧘 필라테스 세션 추천 (측면 + 정면)</h2>
+  ${pilatesHtml ? `
+  <div style="margin-bottom:25px;">
+    <div style="font-size:16px; font-weight:700; color:#5c44b8; margin-bottom:12px; padding:8px 12px; background:#f5f3ff; border-radius:8px; display:inline-block;">🧘 통합 필라테스 추천</div>
+    <div style="margin-top:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
+      ${pilatesHtml}
+    </div>
+  </div>` : ''}
   ${sidePilatesHtml ? `
   <div style="margin-bottom:25px;">
     <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; padding:8px 12px; background:#e0f2fe; border-radius:8px; display:inline-block;">📐 측면 자세 개선 운동</div>
@@ -12352,13 +12529,7 @@ page5Container.innerHTML = `
       ${frontPilatesHtml}
     </div>
   </div>` : ''}
-  ${pilatesHtml ? `
-  <div style="margin-bottom:25px;">
-    <div style="font-size:16px; font-weight:700; color:#5c44b8; margin-bottom:12px; padding:8px 12px; background:#f5f3ff; border-radius:8px; display:inline-block;">🧘 통합 필라테스 추천</div>
-    <div style="margin-top:12px; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word; max-width:100%;">
-      ${pilatesHtml}
-    </div>
-  </div>` : (!sidePilatesHtml && !frontPilatesHtml ? '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>' : '')}
+  ${!pilatesHtml && !sidePilatesHtml && !frontPilatesHtml ? '<div style="font-size:12px; color:#333;">추천 루틴 데이터를 불러오지 못했습니다.</div>' : ''}
   <div style="margin-top:20px; padding-top:10px; border-top:1px solid #e0e0e0;">
       <div style="display:flex; justify-content:space-between; font-size:9px; color:#666;">
         <span>Generated by ${appName} · ${REPORT_SIGNATURE}</span>
@@ -12518,8 +12689,12 @@ if (Object.keys(frontMetricsForPostureType).length > 0) {
 // ✅ 측면과 정면 분석 결과를 모두 포함한 통합 메트릭 사용
 let postureTypeHtml = '';
 if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length > 0) {
-  // 측면 메트릭이 있으면 측면 분석, 정면 메트릭만 있으면 정면 분석
-  const hasSideMetrics = Object.keys(sideMetrics).length > 1;
+  // ✅ 측면 메트릭 확인 (더 넓은 범위로 확인)
+  const hasSideMetrics = Object.keys(sideMetrics).length > 1 || 
+                         Object.keys(fullMetricsForPostureType).some(k => {
+                           const code = METRIC_KEY_ALIASES[k] || k;
+                           return sideMetricKeys.includes(code) || sideMetricKeys.includes(k);
+                         });
   const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
   
   // ✅ 측면과 정면 모두 있으면 항상 둘 다 표시
