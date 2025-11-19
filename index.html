@@ -1059,6 +1059,7 @@
 
     // 현재 세션 설정
     let cur = "Before";
+    window.cur = cur; // 전역 접근 가능하도록
 
     const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
     const rad2deg = r => r * 180 / Math.PI;
@@ -3464,6 +3465,7 @@
 
       console.log("initSessionButtons 완료");
     }
+    window.initSessionButtons = initSessionButtons; // 전역 접근 가능하도록
 
     // DOM 로드 후 버튼 이벤트 초기화 (주석 처리 - 아래 두 번째 스크립트 태그에서 통합 처리)
     // if(document.readyState === 'loading') {
@@ -3683,6 +3685,7 @@
 
     function switchSession(s) {
       cur = s;
+      window.cur = cur; // 전역 변수도 업데이트
 
       const btnBefore = document.getElementById("btnBefore");
       const btnAfter = document.getElementById("btnAfter");
@@ -8907,6 +8910,7 @@
         computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
       });
     }
+    window.setupResetButton = setupResetButton; // 전역 접근 가능하도록
 
     // DOM 준비 후 Reset 버튼 설정
     if (document.readyState === 'loading') {
@@ -8980,6 +8984,7 @@
       addMobileTouchSupport(btnCalibrate, calibrationButtonHandler);
       console.log("✅ 캘리브레이션 버튼 초기화 완료");
     }
+    window.setupCalibrateButton = setupCalibrateButton; // 전역 접근 가능하도록
 
     // ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
@@ -9058,6 +9063,7 @@
       cv.addEventListener('click', calibrationClickHandler, true);
       console.log("✅ 캘리브레이션 클릭 핸들러 초기화 완료");
     }
+    window.setupCalibrationClickHandler = setupCalibrationClickHandler; // 전역 접근 가능하도록
 
     // ✅ cv 캔버스가 준비된 후 호출
     if (typeof cv !== 'undefined' && cv) {
@@ -9224,6 +9230,7 @@
         };
       }
     }
+    window.setupCalibrationButtons = setupCalibrationButtons; // 전역 접근 가능하도록
 
     // ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
@@ -13572,10 +13579,6 @@
       }
 
       // ========== 페이지 7: 결론 (기존 페이지 6) ==========
-      const page7Container = document.createElement("div");
-      page7Container.id = "page7Container";
-      setPageContainerStyle(page7Container);
-
       const beforeAfterSummaryHtml = buildBeforeAfterSummaryHTML(comparison);
 
       // ✅ 측면/정면으로 구분된 12주 케어 로드맵 생성
@@ -16557,6 +16560,7 @@
         }
       });
     }
+    window.setupPDFButton = setupPDFButton; // 전역 접근 가능하도록
 
     // 그림으로 저장 (전체 내용 포함)
     function setupImageButton() {
@@ -16917,6 +16921,7 @@
         btn.disabled = false;
       }
     };
+    window.setupImageButton = setupImageButton; // 전역 접근 가능하도록
 
     // 실시간 분석 리스너 등록 (UI 업데이트)
     // 주석: updateLiveAnalysisUI 함수가 필요할 경우 여기에 구현
@@ -17139,6 +17144,7 @@
       }
 
       // orientation 버튼 상태 설정
+      const cur = window.cur || "Before";
       const orientation = window.sessions[cur].poseData?.orientation || "side";
       const btnSide = document.getElementById("btnOrientationSide");
       const btnFront = document.getElementById("btnOrientationFront");
