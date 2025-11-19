@@ -10289,6 +10289,38 @@ function createCoverPageContainer(params) {
   return container;
 }
 
+// ✅ 메트릭 이름 매핑 객체 (PDF 생성용)
+const METRIC_NAMES = {
+  // 측면 메트릭
+  'CVA': 'CVA(두개경추각)',
+  'HPD': 'HPD(두부전방이동)',
+  'TIA': 'TIA(체간경사각)',
+  'SAA': 'SAA(어깨전방각)',
+  'PTA': 'PTA(골반 전후경사각)',
+  'KA': 'KA(무릎각)',
+  'GSB': 'GSB(중력중심선)',
+  'PDS': 'PDS(자세점수)',
+  // 정면 메트릭
+  'STA': 'STA(어깨기울기각)',
+  'STA_F': 'STA(어깨기울기각)',
+  'POA': 'POA(골반기울기각)',
+  'POA_F': 'POA(골반기울기각)',
+  'LLD': 'LLD(하지길이차)',
+  'LLD_F': 'LLD(하지길이차)',
+  'Q_Angle': 'Q-Angle(Q각)',
+  'QAngle': 'Q-Angle(Q각)',
+  'Knee_Deviation': 'Knee Dev(무릎편위)',
+  'KneeDev': 'Knee Dev(무릎편위)',
+  'TD': 'TD(체간편위)',
+  'HTA': 'HTA(머리기울기각)',
+  'SPP': 'SPP(어깨골반평행도)',
+  'KAS': 'KAS(무릎정렬대칭성)',
+  'LLAS': 'LLAS(하지축대칭성)',
+  'HPA': 'HPA(골반 회전각)',
+  'Tibial_Angle': 'Tibial(경골 회전각)',
+  'Tibial': 'Tibial(경골 회전각)',
+  'FBA': 'FBA(전방체간각)'
+};
 
 async function captureReportCanvases({ centerName, memberName, appName, logoUrl }) {
   const S = sessions[cur];
