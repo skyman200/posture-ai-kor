@@ -1059,7 +1059,6 @@
 
     // 현재 세션 설정
     let cur = "Before";
-    window.cur = cur; // 전역 접근 가능하도록
 
     const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
     const rad2deg = r => r * 180 / Math.PI;
@@ -3465,7 +3464,6 @@
 
       console.log("initSessionButtons 완료");
     }
-    window.initSessionButtons = initSessionButtons; // 전역 접근 가능하도록
 
     // DOM 로드 후 버튼 이벤트 초기화 (주석 처리 - 아래 두 번째 스크립트 태그에서 통합 처리)
     // if(document.readyState === 'loading') {
@@ -3685,7 +3683,6 @@
 
     function switchSession(s) {
       cur = s;
-      window.cur = cur; // 전역 변수도 업데이트
 
       const btnBefore = document.getElementById("btnBefore");
       const btnAfter = document.getElementById("btnAfter");
@@ -8910,7 +8907,6 @@
         computeMetricsOnly(); // 리셋 시에는 AI 분석 안 함
       });
     }
-    window.setupResetButton = setupResetButton; // 전역 접근 가능하도록
 
     // DOM 준비 후 Reset 버튼 설정
     if (document.readyState === 'loading') {
@@ -8984,7 +8980,6 @@
       addMobileTouchSupport(btnCalibrate, calibrationButtonHandler);
       console.log("✅ 캘리브레이션 버튼 초기화 완료");
     }
-    window.setupCalibrateButton = setupCalibrateButton; // 전역 접근 가능하도록
 
     // ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
@@ -9063,7 +9058,6 @@
       cv.addEventListener('click', calibrationClickHandler, true);
       console.log("✅ 캘리브레이션 클릭 핸들러 초기화 완료");
     }
-    window.setupCalibrationClickHandler = setupCalibrationClickHandler; // 전역 접근 가능하도록
 
     // ✅ cv 캔버스가 준비된 후 호출
     if (typeof cv !== 'undefined' && cv) {
@@ -9230,7 +9224,6 @@
         };
       }
     }
-    window.setupCalibrationButtons = setupCalibrationButtons; // 전역 접근 가능하도록
 
     // ✅ initializeApp에서만 호출하도록 변경 (중복 호출 방지)
 
@@ -11728,30 +11721,29 @@
       </div>` : '')}
 
       ${(sideAnalysis?.muscles?.tight && (sideAnalysis.muscles.tight.size > 0 || sideAnalysis.muscles.tight.length > 0)) || (sideAnalysis?.muscles?.weak && (sideAnalysis.muscles.weak.size > 0 || sideAnalysis.muscles.weak.length > 0)) ? `
-      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
+      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
         <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
         ${(sideAnalysis.muscles.tight?.size > 0 || sideAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${sideAnalysis.muscles.tight instanceof Set ? Array.from(sideAnalysis.muscles.tight).join(', ') : (Array.isArray(sideAnalysis.muscles.tight) ? sideAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
         ${(sideAnalysis.muscles.weak?.size > 0 || sideAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${sideAnalysis.muscles.weak instanceof Set ? Array.from(sideAnalysis.muscles.weak).join(', ') : (Array.isArray(sideAnalysis.muscles.weak) ? sideAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
       </div>` : ''}
-
-      ${(sideAnalysis?.topRecommendations || []).length ? `
-      <div style="padding:18px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
-        <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
-        <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
-          ${(sideAnalysis.topRecommendations || []).slice(0, 3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
-            <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
-            ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
-            ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
-          </li>`).join('')}
-        </ul>
-      </div>` : ''}
     </div>
 
+    ${(sideAnalysis?.topRecommendations || []).length ? `
+    <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#5c44b8; margin-bottom:8px; word-wrap:break-word;">📌 측면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#312e81; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
+        ${(sideAnalysis.topRecommendations || []).slice(0, 3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
+          <strong>${idx + 1}. ${item.name || item.code}</strong> — ${item.abnormal || ''}
+          ${item.tight ? `<br><span style="color:#dc2626;">긴장:</span> ${item.tight}` : ''}
+          ${item.weak ? `<br><span style="color:#2563eb;">약화:</span> ${item.weak}` : ''}
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
 
     ${Object.keys(sideMetrics).length > 1 ? `
-    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:visible;">
+    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
       <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 측면 측정 지표 상세</div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6; overflow:visible; height:auto;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6;">
         ${Object.keys(sideMetrics).filter(key => key !== 'orientation').map(key => {
           const metric = sideMetrics[key];
           if (!metric || typeof metric !== 'object') return '';
@@ -11790,11 +11782,11 @@
           }
 
           return `
-          <div style="padding:14px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe; min-height:120px; height:auto; overflow:visible; box-sizing:border-box;">
-            <div style="font-weight:600; color:#0c4a6e; margin-bottom:6px; font-size:13px; word-wrap:break-word; overflow-wrap:break-word;">${desc}</div>
-            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:6px;">${value.toFixed(1)}${unit}</div>
-            <div style="font-size:12px; color:#64748b; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${statusText}</div>
-            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:4px; word-wrap:break-word; overflow-wrap:break-word;">정상 범위: ${normalRange}</div>` : ''}
+          <div style="padding:12px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:13px;">${desc}</div>
+            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
           </div>`;
         }).filter(html => html.trim().length > 0).join('')}
       </div>
@@ -11826,7 +11818,7 @@
             windowHeight: containerHeight,
             width: containerWidth,
             height: containerHeight,
-            scale: baseCanvasScale  // Device-specific scale
+            scale: 1.5  // 품질 낮춤
           });
 
           // ✅ 캔버스 크기 제한 + 압축
@@ -12035,12 +12027,22 @@
       </div>` : ''}
 
       ${(frontAnalysis?.muscles?.tight && (frontAnalysis.muscles.tight.size > 0 || frontAnalysis.muscles.tight.length > 0)) || (frontAnalysis?.muscles?.weak && (frontAnalysis.muscles.weak.size > 0 || frontAnalysis.muscles.weak.length > 0)) ? `
-      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
+      <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
         <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 근육 상태</div>
         ${(frontAnalysis.muscles.tight?.size > 0 || frontAnalysis.muscles.tight?.length > 0) ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${frontAnalysis.muscles.tight instanceof Set ? Array.from(frontAnalysis.muscles.tight).join(', ') : (Array.isArray(frontAnalysis.muscles.tight) ? frontAnalysis.muscles.tight.join(', ') : '')}</div>` : ''}
         ${(frontAnalysis.muscles.weak?.size > 0 || frontAnalysis.muscles.weak?.length > 0) ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${frontAnalysis.muscles.weak instanceof Set ? Array.from(frontAnalysis.muscles.weak).join(', ') : (Array.isArray(frontAnalysis.muscles.weak) ? frontAnalysis.muscles.weak.join(', ') : '')}</div>` : ''}
       </div>` : ''}
     </div>
+
+    ${(sideAnalysis?.topRecommendations || []).length ? `
+    <div style="margin-bottom:20px; padding:15px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+      <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px; word-wrap:break-word;">📌 참고: 측면 주요 패턴</div>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#0c4a6e; line-height:1.6; word-wrap:break-word; overflow-wrap:break-word;">
+        ${(sideAnalysis.topRecommendations || []).slice(0, 3).map((item, idx) => `<li style="margin-bottom:6px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;">
+          <strong>${item.name || item.code}</strong>
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
 
     ${(frontAnalysis?.topRecommendations || []).length ? `
     <div style="margin-bottom:20px; padding:15px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
@@ -12055,9 +12057,9 @@
     </div>` : ''}
 
     ${Object.keys(frontMetrics).length > 1 ? `
-    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:visible;">
+    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
       <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 정면 측정 지표 상세</div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6; overflow:visible; height:auto;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6;">
         ${Object.keys(frontMetrics).filter(key => key !== 'orientation').map(key => {
           const metric = frontMetrics[key];
           if (!metric || typeof metric !== 'object') return '';
@@ -12104,11 +12106,11 @@
           }
 
           return `
-          <div style="padding:14px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe; min-height:120px; height:auto; overflow:visible; box-sizing:border-box;">
-            <div style="font-weight:600; color:#0c4a6e; margin-bottom:6px; font-size:13px; word-wrap:break-word; overflow-wrap:break-word;">${desc}</div>
-            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:6px;">${value.toFixed(1)}${unit}</div>
-            <div style="font-size:12px; color:#64748b; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${statusText}</div>
-            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:4px; word-wrap:break-word; overflow-wrap:break-word;">정상 범위: ${normalRange}</div>` : ''}
+          <div style="padding:12px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:13px;">${desc}</div>
+            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
           </div>`;
         }).filter(html => html.trim().length > 0).join('')}
       </div>
@@ -12128,11 +12130,11 @@
         }
 
         try {
-          // ✅ 정면 리포트는 높이 제한 없이 전체 내용 렌더링 (페이지 확장 허용)
+          // ✅ 페이지 너비는 794px로 고정하고, 높이만 동적으로 계산
           const containerWidth = 794;  // PDF 표준 너비로 고정
-          const containerHeight = frontReportContainer.scrollHeight; // 전체 높이 사용 (제한 없음)
+          const containerHeight = Math.max(frontReportContainer.scrollHeight, frontReportContainer.offsetHeight);
 
-          console.log('📄 정면 리포트 캔버스 생성 (높이 제한 없음):', { width: containerWidth, height: containerHeight });
+          console.log('📄 정면 리포트 캔버스 생성:', { width: containerWidth, height: containerHeight });
 
           frontReportCanvas = await html2canvas(frontReportContainer, {
             ...html2canvasOptions,
@@ -12140,13 +12142,12 @@
             windowHeight: containerHeight,
             width: containerWidth,
             height: containerHeight,
-            scale: baseCanvasScale  // Device-specific scale
+            scale: 1.5  // 품질 낮춤
           });
 
-          // ✅ 캔버스 크기 제한 + 압축 (정면 리포트는 더 큰 제한 허용)
-          const FRONT_MAX_EDGE = isMobile ? 5000 : 8000; // 정면 리포트는 더 큰 캔버스 허용
-          if (frontReportCanvas && (frontReportCanvas.width > FRONT_MAX_EDGE || frontReportCanvas.height > FRONT_MAX_EDGE)) {
-            const ratio = Math.min(FRONT_MAX_EDGE / frontReportCanvas.width, FRONT_MAX_EDGE / frontReportCanvas.height);
+          // ✅ 캔버스 크기 제한 + 압축
+          if (frontReportCanvas && (frontReportCanvas.width > PDF_MAX_CANVAS_EDGE || frontReportCanvas.height > PDF_MAX_CANVAS_EDGE)) {
+            const ratio = Math.min(PDF_MAX_CANVAS_EDGE / frontReportCanvas.width, PDF_MAX_CANVAS_EDGE / frontReportCanvas.height);
             const newCanvas = document.createElement('canvas');
             newCanvas.width = Math.floor(frontReportCanvas.width * ratio);
             newCanvas.height = Math.floor(frontReportCanvas.height * ratio);
@@ -12686,7 +12687,7 @@
     </div>` : ''}
 
     ${(uniqueTight.length > 0 || uniqueWeak.length > 0) ? `
-    <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:hidden;">
+    <div style="padding:18px; background:#fff7ed; border-radius:12px; border:1px solid #fed7aa; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
       <div style="font-size:13px; font-weight:700; color:#c2410c; margin-bottom:8px; word-wrap:break-word;">💪 통합 근육 상태 (측면+정면)</div>
       ${uniqueTight.length > 0 ? `<div style="font-size:11px; margin-bottom:4px; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#dc2626;">긴장</strong> ${uniqueTight.join(', ')}</div>` : ''}
       ${uniqueWeak.length > 0 ? `<div style="font-size:11px; color:#334155; word-wrap:break-word; word-break:break-word; overflow-wrap:break-word; white-space:pre-wrap;"><strong style="color:#2563eb;">약화</strong> ${uniqueWeak.join(', ')}</div>` : ''}
@@ -12974,7 +12975,7 @@
           windowHeight: container4Height,
           width: container4Width,
           height: container4Height,
-          scale: baseCanvasScale  // Device-specific scale
+          scale: 1.5  // ✅ 품질 낮춤
         });
       } catch (err) {
         console.error('❌ 종합 리포트 캔버스 생성 실패:', err);
@@ -13040,8 +13041,9 @@
       let pilatesHtml = '';
 
       // ✅ 웹앱 필라테스 추천이 없으면 생성 (기본적으로 포함)
-      if (!window.PilatesRecommendations || !Array.isArray(window.PilatesRecommendations) || window.PilatesRecommendations.length === 0) {
-        // 웹앱에서 사용하는 것과 동일한 방식으로 필라테스 추천 생성
+      // ✅ 1순위: 웹앱에서 생성된 필라테스 추천 (웹앱과 동일한 형식으로 표시)
+      // 웹앱의 추천 로직을 강제로 실행하여 최신 상태 반영 (측면 + 정면)
+      if (!window.PilatesRecommendations || window.PilatesRecommendations.length === 0) {
         const combinedAnalysisForPilatesGen = getCombinedAnalysis();
         if (combinedAnalysisForPilatesGen && combinedAnalysisForPilatesGen.combined) {
           const tight = combinedAnalysisForPilatesGen.combined.tight || [];
@@ -13085,8 +13087,8 @@
 
         // renderPilatesItemCard가 기대하는 형식으로 변환
         const pilatesData = {
-          name: '필라테스 운동 추천',
-          description: '자세 분석 결과를 바탕으로 추천된 필라테스 운동입니다.',
+          name: '필라테스 운동 추천 (측면 + 정면 개선)',
+          description: '측면 및 정면 자세 분석 결과를 바탕으로 추천된 맞춤형 필라테스 운동입니다.',
           pilates: groupedByTool
         };
 
@@ -13306,7 +13308,7 @@
           windowHeight: container5Height,
           width: container5Width,
           height: container5Height,
-          scale: baseCanvasScale  // Device-specific scale
+          scale: 1.5  // ✅ 품질 낮춤
         });
       } catch (err) {
         console.error('❌ canvas5 생성 실패:', err);
@@ -13391,7 +13393,7 @@
           windowHeight: container6Height,
           width: container6Width,
           height: container6Height,
-          scale: baseCanvasScale  // Device-specific scale
+          scale: 1.5  // ✅ 품질 낮춤
         });
       } catch (err) {
         console.error('❌ canvas6 생성 실패:', err);
@@ -13435,87 +13437,43 @@
         Object.assign(fullMetricsForPostureType, frontMetricsForPostureType);
       }
 
-
-      // ========== 페이지 8: 체형 유형 분석 (측면 + 정면 + 통합) ==========
+      // ✅ 측면과 정면 분석 결과를 모두 포함한 통합 메트릭 사용
       let postureTypeHtml = '';
-      if (sideAnalysisForCombined || frontAnalysisForCombined || analysis) {
-        const sidePostureType = sideAnalysisForCombined?.postureType || sessions.After?.sideAnalysis?.postureType;
-        const frontPostureType = frontAnalysisForCombined?.postureType || sessions.After?.frontAnalysis?.postureType;
+      if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length > 0) {
+        // ✅ 측면 메트릭 확인 (더 넓은 범위로 확인)
+        const hasSideMetrics = Object.keys(sideMetrics).length > 1 ||
+          Object.keys(fullMetricsForPostureType).some(k => {
+            const code = METRIC_KEY_ALIASES[k] || k;
+            return sideMetricKeys.includes(code) || sideMetricKeys.includes(k);
+          });
+        const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
 
-        // ✅ 측면 체형 유형
-        const sideTypeHtml = sidePostureType || analyzePostureType(sessions.After?.metrics?.sideMetrics || {}, "side");
+        // ✅ 측면과 정면 모두 있으면 항상 둘 다 표시
+        if (hasSideMetrics && hasFrontMetrics) {
+          // 측면과 정면 모두 있으면 둘 다 분석
+          const sidePostureType = analyzePostureType(sideMetrics, "side");
+          const frontPostureType = analyzePostureType(frontMetricsForPostureType, "front");
 
-        // ✅ 정면 체형 유형
-        const frontTypeHtml = frontPostureType || analyzePostureType(sessions.After?.metrics?.frontMetrics || {}, "front");
-
-        // ✅ 통합 교정 권장사항 생성
-        const combinedRecommendations = [];
-        if (sideAnalysisForCombined?.topRecommendations) {
-          combinedRecommendations.push(...sideAnalysisForCombined.topRecommendations.slice(0, 2));
+          let combinedPostureType = '';
+          if (sidePostureType && !sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
+            combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>';
+          }
+          if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
+            combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>';
+          }
+          postureTypeHtml = combinedPostureType || (sidePostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>' : '') || (frontPostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>' : '') || analyzePostureType(fullMetricsForPostureType);
+        } else if (hasSideMetrics) {
+          const sidePostureType = analyzePostureType(sideMetrics, "side");
+          postureTypeHtml = sidePostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>' : analyzePostureType(fullMetricsForPostureType, "side");
+        } else if (hasFrontMetrics) {
+          const frontPostureType = analyzePostureType(frontMetricsForPostureType, "front");
+          postureTypeHtml = frontPostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>' : analyzePostureType(fullMetricsForPostureType, "front");
+        } else {
+          postureTypeHtml = analyzePostureType(fullMetricsForPostureType);
         }
-        if (frontAnalysisForCombined?.topRecommendations) {
-          combinedRecommendations.push(...frontAnalysisForCombined.topRecommendations.slice(0, 2));
-        }
-
-        postureTypeHtml = `
-          ${sideTypeHtml ? `
-          <div style="margin-bottom:25px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd;">
-            <div style="font-size:15px; font-weight:700; color:#0369a1; margin-bottom:12px; padding:8px 12px; background:#e0f2fe; border-radius:8px; display:inline-block;">📐 측면 체형 유형</div>
-            <div style="margin-top:12px; font-size:12px; line-height:1.8; color:#111;">${sideTypeHtml}</div>
-          </div>` : ''}
-          
-          ${frontTypeHtml ? `
-          <div style="margin-bottom:25px; padding:18px; background:#eff6ff; border-radius:12px; border:1px solid #bfdbfe;">
-            <div style="font-size:15px; font-weight:700; color:#1e40af; margin-bottom:12px; padding:8px 12px; background:#dbeafe; border-radius:8px; display:inline-block;">📐 정면 체형 유형</div>
-            <div style="margin-top:12px; font-size:12px; line-height:1.8; color:#111;">${frontTypeHtml}</div>
-          </div>` : ''}
-          
-          <div style="margin-bottom:20px; padding:20px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
-            <div style="font-size:15px; font-weight:700; color:#5c44b8; margin-bottom:15px; padding:8px 12px; background:#ede9fe; border-radius:8px; display:inline-block;">🎯 통합 교정 권장사항</div>
-            
-            <div style="margin-bottom:15px;">
-              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">우선순위 교정 항목</div>
-              <ul style="margin:0; padding-left:20px; font-size:11px; line-height:1.7; color:#4c1d95;">
-                ${combinedRecommendations.slice(0, 4).map((item, idx) => `
-                  <li style="margin-bottom:6px;"><strong>${item.name || item.code}</strong> — ${item.abnormal || '개선 필요'}</li>
-                `).join('')}
-              </ul>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">단계별 접근법</div>
-              <div style="font-size:11px; line-height:1.7; color:#4c1d95;">
-                <strong>1단계 (1-4주):</strong> 긴장된 근육 이완 및 기본 정렬 인식<br>
-                <strong>2단계 (5-8주):</strong> 약화된 근육 강화 및 균형 개선<br>
-                <strong>3단계 (9-12주):</strong> 통합 운동 및 일상 습관 정착
-              </div>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">생활습관 개선</div>
-              <ul style="margin:0; padding-left:20px; font-size:11px; line-height:1.7; color:#4c1d95;">
-                <li>30분마다 자세 변경 및 스트레칭</li>
-                <li>모니터 높이 조절 (눈높이와 수평)</li>
-                <li>의자 등받이 활용 및 발판 사용</li>
-                <li>수면 자세 개선 (적절한 베개 높이)</li>
-              </ul>
-            </div>
-            
-            <div>
-              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">전문가 상담 권장</div>
-              <div style="font-size:11px; line-height:1.7; color:#4c1d95;">
-                • 4주 후에도 개선이 없거나 통증이 지속되는 경우<br>
-                • 필라테스/요가 전문가의 1:1 교정 세션 권장<br>
-                • 필요시 정형외과 또는 재활의학과 상담
-              </div>
-            </div>
-          </div>
-        `;
-      } else {
-        postureTypeHtml = '<div style="padding:20px; background:#f3f4f6; border-radius:8px; text-align:center; color:#6b7280;">체형 유형 분석 데이터가 부족합니다.</div>';
       }
 
-      if (postureTypeHtml && postureTypeHtml.trim() !== '') {
+      if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분석 데이터가 충분하지 않습니다.') {
         const page8Container = document.createElement("div");
         page8Container.id = "page8Container";
         setPageContainerStyle(page8Container);
@@ -13548,7 +13506,7 @@
             windowHeight: container8Height,
             width: container8Width,
             height: container8Height,
-            scale: baseCanvasScale  // Device-specific scale
+            scale: 1.5  // ✅ 품질 낮춤
           });
         } catch (err) {
           console.error('❌ canvas8 생성 실패:', err);
@@ -13579,6 +13537,10 @@
       }
 
       // ========== 페이지 7: 결론 (기존 페이지 6) ==========
+      const page7Container = document.createElement("div");
+      page7Container.id = "page7Container";
+      setPageContainerStyle(page7Container);
+
       const beforeAfterSummaryHtml = buildBeforeAfterSummaryHTML(comparison);
 
       // ✅ 측면/정면으로 구분된 12주 케어 로드맵 생성
@@ -13676,23 +13638,24 @@
     </div>`;
       }
 
-      const page7Container = document.createElement("div");
-      page7Container.id = "page7Container";
-      setPageContainerStyle(page7Container);
-
       page7Container.innerHTML = `
-    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🗓️ 최종 분석 및 12주 케어 로드맵</h2>
+  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략 (측면 + 정면)</h2>
+  ${sideSummaryHtml}
+  ${frontSummaryHtml}
+  ${beforeAfterSummaryHtml}
   ${sidePlanHtml ? `
-  <div style="margin-bottom:25px;">
-    ${sidePlanHtml}
+  <div style="margin-top:12px; padding:18px; background:#e0f2fe; border-radius:12px; border-left:4px solid #0369a1;">
+    <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px;">🧭 12주 케어 로드맵 (측면)</div>
+    <div style="font-size:12px; line-height:1.7; color:#111;">${sidePlanHtml}</div>
   </div>` : ''}
   ${frontPlanHtml ? `
-  <div style="margin-bottom:25px;">
-    ${frontPlanHtml}
+  <div style="margin-top:12px; padding:18px; background:#dbeafe; border-radius:12px; border-left:4px solid #1e40af;">
+    <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:8px;">🧭 12주 케어 로드맵 (정면)</div>
+    <div style="font-size:12px; line-height:1.7; color:#111;">${frontPlanHtml}</div>
   </div>` : ''}
-  ${fullPlanHtml ? `
-  <div style="margin-bottom:20px;">
-    <div style="font-size:14px; font-weight:700; color:#5c44b8; margin-bottom:12px;">🎯 통합 관리 전략</div>
+  ${!sidePlanHtml && !frontPlanHtml && fullPlanHtml ? `
+  <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
+    <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
     <div style="font-size:12px; line-height:1.7; color:#111;">${fullPlanHtml}</div>
   </div>` : ''}
   ${!sidePlanHtml && !frontPlanHtml && !fullPlanHtml ? `
@@ -13728,7 +13691,7 @@
           windowHeight: container7Height,
           width: container7Width,
           height: container7Height,
-          scale: baseCanvasScale  // Device-specific scale
+          scale: 1.5  // ✅ 품질 낮춤
         });
       } catch (err) {
         console.error('❌ canvas7 생성 실패:', err);
@@ -16560,7 +16523,6 @@
         }
       });
     }
-    window.setupPDFButton = setupPDFButton; // 전역 접근 가능하도록
 
     // 그림으로 저장 (전체 내용 포함)
     function setupImageButton() {
@@ -16921,7 +16883,6 @@
         btn.disabled = false;
       }
     };
-    window.setupImageButton = setupImageButton; // 전역 접근 가능하도록
 
     // 실시간 분석 리스너 등록 (UI 업데이트)
     // 주석: updateLiveAnalysisUI 함수가 필요할 경우 여기에 구현
@@ -17144,7 +17105,6 @@
       }
 
       // orientation 버튼 상태 설정
-      const cur = window.cur || "Before";
       const orientation = window.sessions[cur].poseData?.orientation || "side";
       const btnSide = document.getElementById("btnOrientationSide");
       const btnFront = document.getElementById("btnOrientationFront");
