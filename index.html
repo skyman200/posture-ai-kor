@@ -13428,43 +13428,87 @@
         Object.assign(fullMetricsForPostureType, frontMetricsForPostureType);
       }
 
-      // ✅ 측면과 정면 분석 결과를 모두 포함한 통합 메트릭 사용
+
+      // ========== 페이지 8: 체형 유형 분석 (측면 + 정면 + 통합) ==========
       let postureTypeHtml = '';
-      if (fullMetricsForPostureType && Object.keys(fullMetricsForPostureType).length > 0) {
-        // ✅ 측면 메트릭 확인 (더 넓은 범위로 확인)
-        const hasSideMetrics = Object.keys(sideMetrics).length > 1 ||
-          Object.keys(fullMetricsForPostureType).some(k => {
-            const code = METRIC_KEY_ALIASES[k] || k;
-            return sideMetricKeys.includes(code) || sideMetricKeys.includes(k);
-          });
-        const hasFrontMetrics = Object.keys(frontMetricsForPostureType).length > 0;
+      if (sideAnalysisForCombined || frontAnalysisForCombined || analysis) {
+        const sidePostureType = sideAnalysisForCombined?.postureType || sessions.After?.sideAnalysis?.postureType;
+        const frontPostureType = frontAnalysisForCombined?.postureType || sessions.After?.frontAnalysis?.postureType;
 
-        // ✅ 측면과 정면 모두 있으면 항상 둘 다 표시
-        if (hasSideMetrics && hasFrontMetrics) {
-          // 측면과 정면 모두 있으면 둘 다 분석
-          const sidePostureType = analyzePostureType(sideMetrics, "side");
-          const frontPostureType = analyzePostureType(frontMetricsForPostureType, "front");
+        // ✅ 측면 체형 유형
+        const sideTypeHtml = sidePostureType || analyzePostureType(sessions.After?.metrics?.sideMetrics || {}, "side");
 
-          let combinedPostureType = '';
-          if (sidePostureType && !sidePostureType.includes('분석 데이터가 충분하지 않습니다')) {
-            combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>';
-          }
-          if (frontPostureType && !frontPostureType.includes('분석 데이터가 충분하지 않습니다')) {
-            combinedPostureType += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>';
-          }
-          postureTypeHtml = combinedPostureType || (sidePostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>' : '') || (frontPostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>' : '') || analyzePostureType(fullMetricsForPostureType);
-        } else if (hasSideMetrics) {
-          const sidePostureType = analyzePostureType(sideMetrics, "side");
-          postureTypeHtml = sidePostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#0369a1; margin-bottom:8px; padding:6px 10px; background:#e0f2fe; border-radius:6px; display:inline-block;">📐 측면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + sidePostureType + '</div></div>' : analyzePostureType(fullMetricsForPostureType, "side");
-        } else if (hasFrontMetrics) {
-          const frontPostureType = analyzePostureType(frontMetricsForPostureType, "front");
-          postureTypeHtml = frontPostureType ? '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:8px; padding:6px 10px; background:#dbeafe; border-radius:6px; display:inline-block;">📐 정면 체형 유형</div><div style="margin-top:8px; font-size:12px; line-height:1.7; color:#111;">' + frontPostureType + '</div></div>' : analyzePostureType(fullMetricsForPostureType, "front");
-        } else {
-          postureTypeHtml = analyzePostureType(fullMetricsForPostureType);
+        // ✅ 정면 체형 유형
+        const frontTypeHtml = frontPostureType || analyzePostureType(sessions.After?.metrics?.frontMetrics || {}, "front");
+
+        // ✅ 통합 교정 권장사항 생성
+        const combinedRecommendations = [];
+        if (sideAnalysisForCombined?.topRecommendations) {
+          combinedRecommendations.push(...sideAnalysisForCombined.topRecommendations.slice(0, 2));
         }
+        if (frontAnalysisForCombined?.topRecommendations) {
+          combinedRecommendations.push(...frontAnalysisForCombined.topRecommendations.slice(0, 2));
+        }
+
+        postureTypeHtml = `
+          ${sideTypeHtml ? `
+          <div style="margin-bottom:25px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd;">
+            <div style="font-size:15px; font-weight:700; color:#0369a1; margin-bottom:12px; padding:8px 12px; background:#e0f2fe; border-radius:8px; display:inline-block;">📐 측면 체형 유형</div>
+            <div style="margin-top:12px; font-size:12px; line-height:1.8; color:#111;">${sideTypeHtml}</div>
+          </div>` : ''}
+          
+          ${frontTypeHtml ? `
+          <div style="margin-bottom:25px; padding:18px; background:#eff6ff; border-radius:12px; border:1px solid #bfdbfe;">
+            <div style="font-size:15px; font-weight:700; color:#1e40af; margin-bottom:12px; padding:8px 12px; background:#dbeafe; border-radius:8px; display:inline-block;">📐 정면 체형 유형</div>
+            <div style="margin-top:12px; font-size:12px; line-height:1.8; color:#111;">${frontTypeHtml}</div>
+          </div>` : ''}
+          
+          <div style="margin-bottom:20px; padding:20px; background:#f5f3ff; border-radius:12px; border:1px solid #dcd3ff;">
+            <div style="font-size:15px; font-weight:700; color:#5c44b8; margin-bottom:15px; padding:8px 12px; background:#ede9fe; border-radius:8px; display:inline-block;">🎯 통합 교정 권장사항</div>
+            
+            <div style="margin-bottom:15px;">
+              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">우선순위 교정 항목</div>
+              <ul style="margin:0; padding-left:20px; font-size:11px; line-height:1.7; color:#4c1d95;">
+                ${combinedRecommendations.slice(0, 4).map((item, idx) => `
+                  <li style="margin-bottom:6px;"><strong>${item.name || item.code}</strong> — ${item.abnormal || '개선 필요'}</li>
+                `).join('')}
+              </ul>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">단계별 접근법</div>
+              <div style="font-size:11px; line-height:1.7; color:#4c1d95;">
+                <strong>1단계 (1-4주):</strong> 긴장된 근육 이완 및 기본 정렬 인식<br>
+                <strong>2단계 (5-8주):</strong> 약화된 근육 강화 및 균형 개선<br>
+                <strong>3단계 (9-12주):</strong> 통합 운동 및 일상 습관 정착
+              </div>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">생활습관 개선</div>
+              <ul style="margin:0; padding-left:20px; font-size:11px; line-height:1.7; color:#4c1d95;">
+                <li>30분마다 자세 변경 및 스트레칭</li>
+                <li>모니터 높이 조절 (눈높이와 수평)</li>
+                <li>의자 등받이 활용 및 발판 사용</li>
+                <li>수면 자세 개선 (적절한 베개 높이)</li>
+              </ul>
+            </div>
+            
+            <div>
+              <div style="font-size:13px; font-weight:600; color:#6d28d9; margin-bottom:8px;">전문가 상담 권장</div>
+              <div style="font-size:11px; line-height:1.7; color:#4c1d95;">
+                • 4주 후에도 개선이 없거나 통증이 지속되는 경우<br>
+                • 필라테스/요가 전문가의 1:1 교정 세션 권장<br>
+                • 필요시 정형외과 또는 재활의학과 상담
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        postureTypeHtml = '<div style="padding:20px; background:#f3f4f6; border-radius:8px; text-align:center; color:#6b7280;">체형 유형 분석 데이터가 부족합니다.</div>';
       }
 
-      if (postureTypeHtml && postureTypeHtml.trim() !== '' && postureTypeHtml !== '분석 데이터가 충분하지 않습니다.') {
+      if (postureTypeHtml && postureTypeHtml.trim() !== '') {
         const page8Container = document.createElement("div");
         page8Container.id = "page8Container";
         setPageContainerStyle(page8Container);
@@ -13629,24 +13673,23 @@
     </div>`;
       }
 
+      const page7Container = document.createElement("div");
+      page7Container.id = "page7Container";
+      setPageContainerStyle(page7Container);
+
       page7Container.innerHTML = `
-  <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">📌 최종 분석 & 전략 (측면 + 정면)</h2>
-  ${sideSummaryHtml}
-  ${frontSummaryHtml}
-  ${beforeAfterSummaryHtml}
+    <h2 style="margin:0; padding:0; font-size:20px; font-weight:700; color:#0b0f14; margin-bottom:20px;">🗓️ 최종 분석 및 12주 케어 로드맵</h2>
   ${sidePlanHtml ? `
-  <div style="margin-top:12px; padding:18px; background:#e0f2fe; border-radius:12px; border-left:4px solid #0369a1;">
-    <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px;">🧭 12주 케어 로드맵 (측면)</div>
-    <div style="font-size:12px; line-height:1.7; color:#111;">${sidePlanHtml}</div>
+  <div style="margin-bottom:25px;">
+    ${sidePlanHtml}
   </div>` : ''}
   ${frontPlanHtml ? `
-  <div style="margin-top:12px; padding:18px; background:#dbeafe; border-radius:12px; border-left:4px solid #1e40af;">
-    <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:8px;">🧭 12주 케어 로드맵 (정면)</div>
-    <div style="font-size:12px; line-height:1.7; color:#111;">${frontPlanHtml}</div>
+  <div style="margin-bottom:25px;">
+    ${frontPlanHtml}
   </div>` : ''}
-  ${!sidePlanHtml && !frontPlanHtml && fullPlanHtml ? `
-  <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
-    <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
+  ${fullPlanHtml ? `
+  <div style="margin-bottom:20px;">
+    <div style="font-size:14px; font-weight:700; color:#5c44b8; margin-bottom:12px;">🎯 통합 관리 전략</div>
     <div style="font-size:12px; line-height:1.7; color:#111;">${fullPlanHtml}</div>
   </div>` : ''}
   ${!sidePlanHtml && !frontPlanHtml && !fullPlanHtml ? `
