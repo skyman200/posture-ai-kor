@@ -4045,37 +4045,25 @@ function computeAll() {
   const S = sessions[cur];
   const pxPerCm = S.pxPerCm || 50.0;
   
-  // ✅ 현재 선택된 orientation 확인 (정면 분석만 할 때 측면 데이터 무시)
-  const btnSide = document.getElementById("btnOrientationSide");
-  const btnFront = document.getElementById("btnOrientationFront");
-  const currentOrientation = btnFront?.classList.contains("active") ? "front" 
-    : (btnSide?.classList.contains("active") ? "side" : S.poseData?.orientation || "side");
-  
-  // 측면 및 정면 키포인트를 Map 형태로 변환
+  // ✅ 측면과 정면 키포인트를 모두 수집 (둘 다 분석)
   const sidePoints = {};
   const frontPoints = {};
   
-  // ✅ 정면 분석만 할 때는 측면 포인트 무시
-  if (currentOrientation !== "front") {
-  // 측면 키포인트
+  // 측면 키포인트 수집
   for(const [key, value] of S.sidePoints.entries()) {
     if(value && value.x != null && value.y != null) {
       sidePoints[key] = { x: value.x, y: value.y };
-      }
     }
   }
   
-  // ✅ 측면 분석만 할 때는 정면 포인트 무시
-  if (currentOrientation !== "side") {
-  // 정면 키포인트
+  // 정면 키포인트 수집
   for(const [key, value] of S.frontPoints.entries()) {
     if(value && value.x != null && value.y != null) {
       frontPoints[key] = { x: value.x, y: value.y };
-      }
     }
   }
   
-  // 통합 분석 실행 (운동 추천 포함)
+  // 통합 분석 실행 (운동 추천 포함) - 측면과 정면 모두 전달
   const analysisResult = analyzePostureAutoWithRecommendation({
     sidePts: Object.keys(sidePoints).length > 0 ? sidePoints : null,
     frontPts: Object.keys(frontPoints).length > 0 ? frontPoints : null,
@@ -4085,116 +4073,16 @@ function computeAll() {
   // 통합 분석 결과 저장
   S.analysisResult = analysisResult;
   
-  // 기존 호환성을 위한 처리
+  // 기존 호환성을 위한 처리 - 측면과 정면 메트릭 모두 사용
   let sideMetrics = analysisResult.side;
   let frontMetrics = analysisResult.front;
-  
-  // ✅ 정면 분석만 할 때는 측면 메트릭 강제로 무시
-  if (currentOrientation === "front") {
-    sideMetrics = { status: "not_available" };
-  }
-  // ✅ 측면 분석만 할 때는 정면 메트릭 강제로 무시
-  if (currentOrientation === "side") {
-    frontMetrics = { status: "not_available" };
-  }
   
   // 측면 및 정면 분석 결과를 통합하여 fullMetrics에 저장
   // ✅ 정면 분석만 있을 때는 정면 메트릭만, 측면 분석만 있을 때는 측면 메트릭만 사용
   let mergedMetrics = {};
   
-  // ✅ 정면 분석만 있는 경우를 먼저 체크 (측면 분석 후 정면 분석 시 정면만 사용)
-  if(frontMetrics.status !== "not_available" && sideMetrics.status === "not_available") {
-    // 정면 분석만 있는 경우 - 정면 메트릭만 사용
-    mergedMetrics = { ...frontMetrics };
-    // ✅ orientation을 mergedMetrics에 명시적으로 설정
-    mergedMetrics.orientation = "front";
-    
-    // ✅ 정면 메트릭을 sessions.After.metrics.frontMetrics에 분리 저장
-    const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
-    const separatedFrontMetrics = { orientation: "front" };
-    Object.keys(frontMetrics).forEach(key => {
-      if (key === 'status' || key === 'orientation') return;
-      const code = METRIC_KEY_ALIASES[key] || key;
-      if (frontMetricKeys.includes(code) || frontMetricKeys.includes(key)) {
-        separatedFrontMetrics[key] = frontMetrics[key];
-      }
-    });
-    
-    S.metrics = { 
-      fullMetrics: mergedMetrics,  // 정면 분석 결과만
-      orientation: "front",
-      frontMetrics: separatedFrontMetrics,  // ✅ 정면 메트릭만 분리 저장
-      sideMetrics: null  // 측면 메트릭 없음
-    };
-    
-    // ✅ sessions.After에도 정면 메트릭 분리 저장
-    if (sessions.After) {
-      sessions.After.metrics = sessions.After.metrics || {};
-      sessions.After.metrics.frontMetrics = separatedFrontMetrics;
-      sessions.After.metrics.sideMetrics = sessions.After.metrics.sideMetrics || null; // 기존 측면 메트릭 보존
-    }
-    
-    window.fullMetrics = mergedMetrics;
-    
-    // 정면 분석 점수 계산 (정면 메트릭만 사용)
-    const scoreData = computeScoreFromFullMetrics(mergedMetrics);
-    S.score = scoreData;
-    
-    // ✅ 정면 분석 전에 이전 분석 결과 초기화하지 않음 (측면 분석 결과 보존)
-    
-    // 정면 분석에 대한 DB 기반 분석 실행 (정면 메트릭만 전달)
-    analyzeMusclesWithDB(mergedMetrics, "front").then(analysis => {
-      // ✅ 정면 분석 결과를 별도로 저장
-      S.frontAnalysis = {
-        ...analysis,
-        fullMetrics: mergedMetrics,
-        orientation: "front"
-      };
-      S.analysis = S.frontAnalysis; // 하위 호환성
-      
-      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
-      if (sessions.After) {
-        sessions.After.frontAnalysis = S.frontAnalysis;
-        sessions.After.frontScore = scoreData;
-        sessions.After.metrics = sessions.After.metrics || {};
-        sessions.After.metrics.frontMetrics = separatedFrontMetrics;
-      }
-      
-      updateDisplay();
-      updateCompare();
-      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
-      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출 (scoreData 객체 전체 전달)
-      updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
-    }).catch(err => {
-      console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
-      // ✅ 정면 분석 결과를 별도로 저장
-      S.frontAnalysis = { 
-        fullMetrics: mergedMetrics,
-        orientation: "front",
-        comments: [],
-        details: [],
-        exercises: []
-      };
-      S.analysis = S.frontAnalysis; // 하위 호환성
-      
-      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
-      if (sessions.After) {
-        sessions.After.frontAnalysis = S.frontAnalysis;
-        sessions.After.frontScore = scoreData;
-        sessions.After.metrics = sessions.After.metrics || {};
-        sessions.After.metrics.frontMetrics = separatedFrontMetrics;
-      }
-      
-      updateDisplay();
-      updateCompare();
-      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
-      updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
-    });
-    
-    // ✅ 정면 분석 시에는 골반 분석 실행하지 않음 (측면 지표 필요)
-    // analyzePelvicTiltAuto(); // 정면 분석에서는 PTA가 없으므로 제외
-    
-  } else if(sideMetrics.status !== "not_available") {
+  // ✅ 측면 분석 결과가 있으면 측면 분석 먼저 실행
+  if(sideMetrics.status !== "not_available") {
   // 측면 분석 결과가 있으면 기존 방식으로도 저장
     // 측면 분석 결과 통합
     mergedMetrics = { ...sideMetrics };
@@ -4264,7 +4152,10 @@ function computeAll() {
         fullMetrics: mergedMetrics,
         orientation: "side"
       };
-      S.analysis = S.sideAnalysis; // 하위 호환성
+      // 하위 호환성: 측면 분석이 있으면 기본 analysis로 설정
+      if (!S.frontAnalysis) {
+        S.analysis = S.sideAnalysis;
+      }
       
       // ✅ sessions.After에 측면 점수 및 분석 결과 저장
       if (sessions.After) {
@@ -4274,10 +4165,43 @@ function computeAll() {
         sessions.After.metrics.sideMetrics = separatedSideMetrics;
       }
       
-      updateDisplay();
-      updateCompare();
-      // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
-      updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+      // ✅ 정면 메트릭이 있으면 정면 분석도 실행
+      if (frontMetrics.status !== "not_available" && separatedFrontMetrics) {
+        // 정면 메트릭만으로 정면 분석 실행
+        const frontMetricsForAnalysis = { ...separatedFrontMetrics };
+        frontMetricsForAnalysis.orientation = "front";
+        
+        analyzeMusclesWithDB(frontMetricsForAnalysis, "front").then(frontAnalysis => {
+          // ✅ 정면 분석 결과를 별도로 저장
+          S.frontAnalysis = {
+            ...frontAnalysis,
+            fullMetrics: frontMetricsForAnalysis,
+            orientation: "front"
+          };
+          
+          // ✅ sessions.After에 정면 점수 및 분석 결과 저장
+          if (sessions.After) {
+            sessions.After.frontAnalysis = S.frontAnalysis;
+            const frontScore = computeScoreFromFullMetrics(frontMetricsForAnalysis);
+            sessions.After.frontScore = frontScore;
+            sessions.After.metrics = sessions.After.metrics || {};
+            sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+          }
+          
+          updateDisplay();
+          updateCompare();
+          // ✅ 측면과 정면 분석 결과 모두 표시
+          updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+        }).catch(frontErr => {
+          console.warn('정면 DB 기반 분석 실패:', frontErr);
+          // 정면 분석 실패 시에도 측면 분석 결과는 유지
+        });
+      } else {
+        updateDisplay();
+        updateCompare();
+        // ✅ 측면 분석 결과만 표시
+        updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+      }
     }).catch(err => {
       console.warn('DB 기반 분석 실패, 기존 방식 사용:', err);
       const analysis = analyzeMuscles(cva, pelvic, knee, mergedMetrics);
@@ -4287,7 +4211,10 @@ function computeAll() {
         fullMetrics: mergedMetrics,
         orientation: "side"
       };
-      S.analysis = S.sideAnalysis; // 하위 호환성
+      // 하위 호환성: 측면 분석이 있으면 기본 analysis로 설정
+      if (!S.frontAnalysis) {
+        S.analysis = S.sideAnalysis;
+      }
       
       // ✅ sessions.After에 측면 점수 및 분석 결과 저장
       if (sessions.After) {
@@ -4297,18 +4224,51 @@ function computeAll() {
         sessions.After.metrics.sideMetrics = separatedSideMetrics;
       }
       
-      updateDisplay();
-      updateCompare();
-      // ✅ 측면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
-      updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+      // ✅ 정면 메트릭이 있으면 정면 분석도 실행
+      if (frontMetrics.status !== "not_available" && separatedFrontMetrics) {
+        const frontMetricsForAnalysis = { ...separatedFrontMetrics };
+        frontMetricsForAnalysis.orientation = "front";
+        
+        analyzeMusclesWithDB(frontMetricsForAnalysis, "front").then(frontAnalysis => {
+          S.frontAnalysis = {
+            ...frontAnalysis,
+            fullMetrics: frontMetricsForAnalysis,
+            orientation: "front"
+          };
+          
+          if (sessions.After) {
+            sessions.After.frontAnalysis = S.frontAnalysis;
+            const frontScore = computeScoreFromFullMetrics(frontMetricsForAnalysis);
+            sessions.After.frontScore = frontScore;
+            sessions.After.metrics = sessions.After.metrics || {};
+            sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+          }
+          
+          updateDisplay();
+          updateCompare();
+          updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+        }).catch(frontErr => {
+          console.warn('정면 DB 기반 분석 실패:', frontErr);
+        });
+      } else {
+        updateDisplay();
+        updateCompare();
+        updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+      }
     });
     
     // 골반 분석 자동 실행
     analyzePelvicTiltAuto();
     
   } else if(frontMetrics.status !== "not_available") {
-    // 정면 분석만 있는 경우 - 정면 메트릭만 사용
+    // 정면 분석이 있는 경우 - 정면 메트릭 사용
     mergedMetrics = { ...frontMetrics };
+    
+    // ✅ 측면 메트릭도 있으면 병합
+    if(sideMetrics.status !== "not_available") {
+      Object.assign(mergedMetrics, sideMetrics);
+    }
+    
     // ✅ orientation을 mergedMetrics에 명시적으로 설정
     mergedMetrics.orientation = "front";
     
@@ -4323,18 +4283,32 @@ function computeAll() {
       }
     });
     
+    // ✅ 측면 메트릭도 분리 저장
+    let separatedSideMetrics = null;
+    if(sideMetrics.status !== "not_available") {
+      const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
+      separatedSideMetrics = { orientation: "side" };
+      Object.keys(sideMetrics).forEach(key => {
+        if (key === 'status' || key === 'orientation') return;
+        const code = METRIC_KEY_ALIASES[key] || key;
+        if (sideMetricKeys.includes(code) || sideMetricKeys.includes(key)) {
+          separatedSideMetrics[key] = sideMetrics[key];
+        }
+      });
+    }
+    
     S.metrics = { 
-      fullMetrics: mergedMetrics,  // 정면 분석 결과만
+      fullMetrics: mergedMetrics,  // 정면 + 측면 통합 결과
       orientation: "front",
       frontMetrics: separatedFrontMetrics,  // ✅ 정면 메트릭만 분리 저장
-      sideMetrics: null  // 측면 메트릭 없음
+      sideMetrics: separatedSideMetrics  // ✅ 측면 메트릭도 분리 저장
     };
     
-    // ✅ sessions.After에도 정면 메트릭 분리 저장
+    // ✅ sessions.After에도 정면/측면 메트릭 분리 저장
     if (sessions.After) {
       sessions.After.metrics = sessions.After.metrics || {};
       sessions.After.metrics.frontMetrics = separatedFrontMetrics;
-      sessions.After.metrics.sideMetrics = sessions.After.metrics.sideMetrics || null; // 기존 측면 메트릭 보존
+      sessions.After.metrics.sideMetrics = separatedSideMetrics || sessions.After.metrics.sideMetrics || null; // 기존 측면 메트릭 보존
     }
     
     window.fullMetrics = mergedMetrics;
@@ -4351,7 +4325,10 @@ function computeAll() {
         fullMetrics: mergedMetrics,
         orientation: "front"
       };
-      S.analysis = S.frontAnalysis; // 하위 호환성
+      // 하위 호환성: 정면 분석이 있으면 기본 analysis로 설정
+      if (!S.sideAnalysis) {
+        S.analysis = S.frontAnalysis;
+      }
       
       // ✅ sessions.After에 정면 점수 및 분석 결과 저장
       if (sessions.After) {
@@ -4361,11 +4338,45 @@ function computeAll() {
         sessions.After.metrics.frontMetrics = separatedFrontMetrics;
       }
       
-      updateDisplay();
-      updateCompare();
-      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
-      // 전체 항목 표시를 위해 updateScoreAndAnalysis 호출 (scoreData 객체 전체 전달)
-      updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+      // ✅ 측면 메트릭이 있으면 측면 분석도 실행
+      if (sideMetrics.status !== "not_available" && separatedSideMetrics) {
+        const sideMetricsForAnalysis = { ...separatedSideMetrics };
+        sideMetricsForAnalysis.orientation = "side";
+        
+        analyzeMusclesWithDB(sideMetricsForAnalysis, "side").then(sideAnalysis => {
+          // ✅ 측면 분석 결과를 별도로 저장
+          S.sideAnalysis = {
+            ...sideAnalysis,
+            fullMetrics: sideMetricsForAnalysis,
+            orientation: "side"
+          };
+          
+          // ✅ sessions.After에 측면 점수 및 분석 결과 저장
+          if (sessions.After) {
+            sessions.After.sideAnalysis = S.sideAnalysis;
+            const sideScore = computeScoreFromFullMetrics(sideMetricsForAnalysis);
+            sessions.After.sideScore = sideScore;
+            sessions.After.metrics = sessions.After.metrics || {};
+            sessions.After.metrics.sideMetrics = separatedSideMetrics;
+          }
+          
+          updateDisplay();
+          updateCompare();
+          // ✅ 정면과 측면 분석 결과 모두 표시
+          updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+        }).catch(sideErr => {
+          console.warn('측면 DB 기반 분석 실패:', sideErr);
+          // 측면 분석 실패 시에도 정면 분석 결과는 유지
+          updateDisplay();
+          updateCompare();
+          updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+        });
+      } else {
+        updateDisplay();
+        updateCompare();
+        // ✅ 정면 분석 결과만 표시
+        updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+      }
     }).catch(err => {
       console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
       // ✅ 정면 분석 결과를 별도로 저장
@@ -4376,7 +4387,10 @@ function computeAll() {
         details: [],
         exercises: []
       };
-      S.analysis = S.frontAnalysis; // 하위 호환성
+      // 하위 호환성: 정면 분석이 있으면 기본 analysis로 설정
+      if (!S.sideAnalysis) {
+        S.analysis = S.frontAnalysis;
+      }
       
       // ✅ sessions.After에 정면 점수 및 분석 결과 저장
       if (sessions.After) {
@@ -4386,14 +4400,43 @@ function computeAll() {
         sessions.After.metrics.frontMetrics = separatedFrontMetrics;
       }
       
-      updateDisplay();
-      updateCompare();
-      // ✅ 정면 분석 결과는 updateScoreAndAnalysis에서 통합 표시 (근육 DB + 필라테스 DB 연동 포함)
-      updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+      // ✅ 측면 메트릭이 있으면 측면 분석도 실행
+      if (sideMetrics.status !== "not_available" && separatedSideMetrics) {
+        const sideMetricsForAnalysis = { ...separatedSideMetrics };
+        sideMetricsForAnalysis.orientation = "side";
+        
+        analyzeMusclesWithDB(sideMetricsForAnalysis, "side").then(sideAnalysis => {
+          S.sideAnalysis = {
+            ...sideAnalysis,
+            fullMetrics: sideMetricsForAnalysis,
+            orientation: "side"
+          };
+          
+          if (sessions.After) {
+            sessions.After.sideAnalysis = S.sideAnalysis;
+            const sideScore = computeScoreFromFullMetrics(sideMetricsForAnalysis);
+            sessions.After.sideScore = sideScore;
+            sessions.After.metrics = sessions.After.metrics || {};
+            sessions.After.metrics.sideMetrics = separatedSideMetrics;
+          }
+          
+          updateDisplay();
+          updateCompare();
+          updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+        }).catch(sideErr => {
+          console.warn('측면 DB 기반 분석 실패:', sideErr);
+        });
+      } else {
+        updateDisplay();
+        updateCompare();
+        updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+      }
     });
     
-    // ✅ 정면 분석 시에는 골반 분석 실행하지 않음 (측면 지표 필요)
-    // analyzePelvicTiltAuto(); // 정면 분석에서는 PTA가 없으므로 제외
+    // ✅ 측면 메트릭이 있으면 골반 분석 실행, 없으면 실행하지 않음
+    if (sideMetrics.status !== "not_available") {
+      analyzePelvicTiltAuto();
+    }
   } else {
     // 분석 결과가 없는 경우
     S.metrics = {};
