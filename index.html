@@ -3475,9 +3475,16 @@ function switchSession(s) {
   let orientationScore = null;
   
   if(currentOrientation === "side") {
-    // 1순위: sessions.After.sideScore
+    // 1순위: 현재 세션의 sideScore (Before 또는 After)
     if(s === "After" && sessions.After?.sideScore) {
       const sideScoreObj = sessions.After.sideScore;
+      if(typeof sideScoreObj === 'object' && sideScoreObj !== null && sideScoreObj.score != null) {
+        orientationScore = sideScoreObj;
+      } else if(typeof sideScoreObj === 'number') {
+        orientationScore = { score: sideScoreObj, reasons: [], penalties: 0 };
+      }
+    } else if(s === "Before" && sessions.Before?.sideScore) {
+      const sideScoreObj = sessions.Before.sideScore;
       if(typeof sideScoreObj === 'object' && sideScoreObj !== null && sideScoreObj.score != null) {
         orientationScore = sideScoreObj;
       } else if(typeof sideScoreObj === 'number') {
@@ -3496,9 +3503,16 @@ function switchSession(s) {
       analysis = sessions[s].analysis;
     }
   } else if(currentOrientation === "front") {
-    // 1순위: sessions.After.frontScore
+    // 1순위: 현재 세션의 frontScore (Before 또는 After)
     if(s === "After" && sessions.After?.frontScore) {
       const frontScoreObj = sessions.After.frontScore;
+      if(typeof frontScoreObj === 'object' && frontScoreObj !== null && frontScoreObj.score != null) {
+        orientationScore = frontScoreObj;
+      } else if(typeof frontScoreObj === 'number') {
+        orientationScore = { score: frontScoreObj, reasons: [], penalties: 0 };
+      }
+    } else if(s === "Before" && sessions.Before?.frontScore) {
+      const frontScoreObj = sessions.Before.frontScore;
       if(typeof frontScoreObj === 'object' && frontScoreObj !== null && frontScoreObj.score != null) {
         orientationScore = frontScoreObj;
       } else if(typeof frontScoreObj === 'number') {
@@ -3521,7 +3535,7 @@ function switchSession(s) {
     analysis = sessions[s].analysis;
   }
   
-  // orientation별 점수가 없으면 기존 score 사용
+  // orientation별 점수가 없으면 기존 score 사용 (재계산하지 않음)
   if(!orientationScore) {
     orientationScore = sessions[s].score;
   }
@@ -4157,12 +4171,17 @@ function computeAll() {
         S.analysis = S.sideAnalysis;
       }
       
-      // ✅ sessions.After에 측면 점수 및 분석 결과 저장
-      if (sessions.After) {
+      // ✅ sessions.After 또는 sessions.Before에 측면 점수 및 분석 결과 저장
+      if (sessions.After && cur === "After") {
         sessions.After.sideAnalysis = S.sideAnalysis;
         sessions.After.sideScore = score;
         sessions.After.metrics = sessions.After.metrics || {};
         sessions.After.metrics.sideMetrics = separatedSideMetrics;
+      } else if (sessions.Before && cur === "Before") {
+        sessions.Before.sideAnalysis = S.sideAnalysis;
+        sessions.Before.sideScore = score;
+        sessions.Before.metrics = sessions.Before.metrics || {};
+        sessions.Before.metrics.sideMetrics = separatedSideMetrics;
       }
       
       // ✅ localStorage에 측면 분석 결과 저장 (모바일 호환)
@@ -4220,13 +4239,19 @@ function computeAll() {
             orientation: "front"
           };
           
-          // ✅ sessions.After에 정면 점수 및 분석 결과 저장
-          if (sessions.After) {
+          // ✅ sessions.After 또는 sessions.Before에 정면 점수 및 분석 결과 저장
+          if (sessions.After && cur === "After") {
             sessions.After.frontAnalysis = S.frontAnalysis;
             const frontScore = computeScoreFromFullMetrics(frontMetricsForAnalysis);
             sessions.After.frontScore = frontScore;
             sessions.After.metrics = sessions.After.metrics || {};
             sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+          } else if (sessions.Before && cur === "Before") {
+            sessions.Before.frontAnalysis = S.frontAnalysis;
+            const frontScore = computeScoreFromFullMetrics(frontMetricsForAnalysis);
+            sessions.Before.frontScore = frontScore;
+            sessions.Before.metrics = sessions.Before.metrics || {};
+            sessions.Before.metrics.frontMetrics = separatedFrontMetrics;
           }
           
           // ✅ localStorage에 정면 분석 결과 저장 (모바일 호환)
@@ -4298,12 +4323,17 @@ function computeAll() {
         S.analysis = S.sideAnalysis;
       }
       
-      // ✅ sessions.After에 측면 점수 및 분석 결과 저장
-      if (sessions.After) {
+      // ✅ sessions.After 또는 sessions.Before에 측면 점수 및 분석 결과 저장
+      if (sessions.After && cur === "After") {
         sessions.After.sideAnalysis = S.sideAnalysis;
         sessions.After.sideScore = score;
         sessions.After.metrics = sessions.After.metrics || {};
         sessions.After.metrics.sideMetrics = separatedSideMetrics;
+      } else if (sessions.Before && cur === "Before") {
+        sessions.Before.sideAnalysis = S.sideAnalysis;
+        sessions.Before.sideScore = score;
+        sessions.Before.metrics = sessions.Before.metrics || {};
+        sessions.Before.metrics.sideMetrics = separatedSideMetrics;
       }
       
       // ✅ localStorage에 측면 분석 결과 저장 (기본 분석 결과)
@@ -4427,12 +4457,17 @@ function computeAll() {
         S.analysis = S.frontAnalysis;
       }
       
-      // ✅ sessions.After에 정면 점수 및 분석 결과 저장
-      if (sessions.After) {
+      // ✅ sessions.After 또는 sessions.Before에 정면 점수 및 분석 결과 저장
+      if (sessions.After && cur === "After") {
         sessions.After.frontAnalysis = S.frontAnalysis;
         sessions.After.frontScore = scoreData;
         sessions.After.metrics = sessions.After.metrics || {};
         sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+      } else if (sessions.Before && cur === "Before") {
+        sessions.Before.frontAnalysis = S.frontAnalysis;
+        sessions.Before.frontScore = scoreData;
+        sessions.Before.metrics = sessions.Before.metrics || {};
+        sessions.Before.metrics.frontMetrics = separatedFrontMetrics;
       }
       
       // ✅ localStorage에 정면 분석 결과 저장 (모바일 호환)
@@ -4482,13 +4517,19 @@ function computeAll() {
             orientation: "side"
           };
           
-          // ✅ sessions.After에 측면 점수 및 분석 결과 저장
-          if (sessions.After) {
+          // ✅ sessions.After 또는 sessions.Before에 측면 점수 및 분석 결과 저장
+          if (sessions.After && cur === "After") {
             sessions.After.sideAnalysis = S.sideAnalysis;
             const sideScore = computeScoreFromFullMetrics(sideMetricsForAnalysis);
             sessions.After.sideScore = sideScore;
             sessions.After.metrics = sessions.After.metrics || {};
             sessions.After.metrics.sideMetrics = separatedSideMetrics;
+          } else if (sessions.Before && cur === "Before") {
+            sessions.Before.sideAnalysis = S.sideAnalysis;
+            const sideScore = computeScoreFromFullMetrics(sideMetricsForAnalysis);
+            sessions.Before.sideScore = sideScore;
+            sessions.Before.metrics = sessions.Before.metrics || {};
+            sessions.Before.metrics.sideMetrics = separatedSideMetrics;
           }
           
           // ✅ localStorage에 측면 분석 결과 저장 (모바일 호환)
@@ -4611,12 +4652,18 @@ function computeAll() {
             orientation: "side"
           };
           
-          if (sessions.After) {
+          if (sessions.After && cur === "After") {
             sessions.After.sideAnalysis = S.sideAnalysis;
             const sideScore = computeScoreFromFullMetrics(sideMetricsForAnalysis);
             sessions.After.sideScore = sideScore;
             sessions.After.metrics = sessions.After.metrics || {};
             sessions.After.metrics.sideMetrics = separatedSideMetrics;
+          } else if (sessions.Before && cur === "Before") {
+            sessions.Before.sideAnalysis = S.sideAnalysis;
+            const sideScore = computeScoreFromFullMetrics(sideMetricsForAnalysis);
+            sessions.Before.sideScore = sideScore;
+            sessions.Before.metrics = sessions.Before.metrics || {};
+            sessions.Before.metrics.sideMetrics = separatedSideMetrics;
           }
           
           // ✅ localStorage에 측면 분석 결과 저장 (모바일 호환)
@@ -4954,30 +5001,10 @@ function computeScoreFromFullMetrics(fullMetrics) {
       }
     }
     
-    // 9. Q-Angle - 정상 10-20° (남성 10-15°, 여성 15-20°) - 정면 항목이지만 측면 분석에도 포함될 수 있음
-    const qAngle = fullMetrics.Q_Angle?.value;
-    if(qAngle != null && !isNaN(qAngle) && isFinite(qAngle)) {
-      // Q-Angle이 비정상적으로 크면 (예: 90도 이상) 계산 오류로 간주하고 스킵
-      if(qAngle > 90) {
-        console.warn(`⚠️ Q-Angle이 비정상적으로 큼: ${qAngle.toFixed(1)}°, 점수 계산에서 제외`);
-      } else {
-        if(qAngle < 10) {
-          const delta = 10 - qAngle;
-          // ✅ 감점 기준 강화: delta * 1.5 → delta * 2.5
-          const penalty = Math.min(25, delta * 2.5);
-          penalties += penalty;
-          reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
-        } else if(qAngle > 20) {
-          const delta = qAngle - 20;
-          // ✅ 감점 기준 강화: delta * 2 → delta * 3
-          const penalty = Math.min(30, delta * 3);
-          penalties += penalty;
-          reasons.push(`Q-Angle ${qAngle.toFixed(1)}° (정상 10-20°) - ${penalty.toFixed(0)}점 감점`);
-        }
-      }
-    }
+    // 9. Q-Angle - 정면 분석 지표이므로 측면 분석에서는 제외
+    // (정면 분석 섹션에서만 계산)
     
-    // 10. Knee Deviation - 정상 0-3° - 정면 항목이지만 측면 분석에도 포함될 수 있음
+    // 10. Knee Deviation - 정면 항목이지만 측면 분석에도 포함될 수 있음
     const kneeDev = fullMetrics.Knee_Deviation?.value;
     if(kneeDev != null && kneeDev > 3) {
       const delta = kneeDev - 3;
@@ -7213,8 +7240,34 @@ function updateCompare() {
     }
   });
   
-  // 점수 비교 업데이트
-  const sB = B.score ? B.score.score : null, sA = A.score ? A.score.score : null;
+  // 점수 비교 업데이트 (orientation별 점수 사용)
+  // 현재 orientation 확인
+  const currentOrientation = sessions[cur]?.poseData?.orientation || "side";
+  
+  // Before 점수 가져오기 (orientation별)
+  let sB = null;
+  if (currentOrientation === "side") {
+    sB = B.sideScore ? (typeof B.sideScore === 'object' ? B.sideScore.score : B.sideScore) : 
+         (B.score ? (typeof B.score === 'object' ? B.score.score : B.score) : null);
+  } else if (currentOrientation === "front") {
+    sB = B.frontScore ? (typeof B.frontScore === 'object' ? B.frontScore.score : B.frontScore) : 
+         (B.score ? (typeof B.score === 'object' ? B.score.score : B.score) : null);
+  } else {
+    sB = B.score ? (typeof B.score === 'object' ? B.score.score : B.score) : null;
+  }
+  
+  // After 점수 가져오기 (orientation별)
+  let sA = null;
+  if (currentOrientation === "side") {
+    sA = A.sideScore ? (typeof A.sideScore === 'object' ? A.sideScore.score : A.sideScore) : 
+         (A.score ? (typeof A.score === 'object' ? A.score.score : A.score) : null);
+  } else if (currentOrientation === "front") {
+    sA = A.frontScore ? (typeof A.frontScore === 'object' ? A.frontScore.score : A.frontScore) : 
+         (A.score ? (typeof A.score === 'object' ? A.score.score : A.score) : null);
+  } else {
+    sA = A.score ? (typeof A.score === 'object' ? A.score.score : A.score) : null;
+  }
+  
   const scoreElB = document.getElementById("cmpScoreB");
   const scoreElA = document.getElementById("cmpScoreA");
   const scoreElD = document.getElementById("cmpScoreD");
@@ -9943,48 +9996,142 @@ function buildPlanTexts({ memberName = '회원', patterns = [], scoreResult = nu
   };
 }
 
-function buildBeforeAfterSummaryHTML(comparison) {
-  if (!comparison || !Array.isArray(comparison.results) || comparison.results.length === 0) {
+function buildBeforeAfterSummaryHTML(comparison, sideComparison = null, frontComparison = null) {
+  // 측면/정면 메트릭 키 정의
+  const sideMetricKeys = ['CVA', 'HPD', 'TIA', 'SAA', 'PTA', 'KA', 'GSB', 'PDS'];
+  const frontMetricKeys = ['STA', 'STA_F', 'POA', 'POA_F', 'LLD', 'LLD_F', 'TD', 'HTA', 'SPP', 'Q_Angle', 'QAngle', 'Knee_Deviation', 'KneeDev', 'KAS', 'LLAS', 'HPA', 'Tibial_Angle', 'Tibial'];
+  
+  // 측면/정면 비교 결과 분리
+  const sideResults = sideComparison?.results || (comparison?.results ? comparison.results.filter(r => {
+    const key = r.key || r.name || '';
+    return sideMetricKeys.some(sk => key.includes(sk) || key === sk);
+  }) : []);
+  const frontResults = frontComparison?.results || (comparison?.results ? comparison.results.filter(r => {
+    const key = r.key || r.name || '';
+    return frontMetricKeys.some(fk => key.includes(fk) || key === fk);
+  }) : []);
+  
+  // 측면 통계
+  const sideImproved = sideResults.filter(r => r.status === 'improved').length;
+  const sideWorsened = sideResults.filter(r => r.status === 'worsened').length;
+  const sideMaintained = sideResults.filter(r => r.status === 'maintained').length;
+  
+  // 정면 통계
+  const frontImproved = frontResults.filter(r => r.status === 'improved').length;
+  const frontWorsened = frontResults.filter(r => r.status === 'worsened').length;
+  const frontMaintained = frontResults.filter(r => r.status === 'maintained').length;
+  
+  // 측면 요약 HTML
+  let sideSummaryHtml = '';
+  if (sideResults.length > 0) {
+    const sideStats = [
+      { label: '개선', value: sideImproved, color: '#16a34a' },
+      { label: '유지', value: sideMaintained, color: '#2563eb' },
+      { label: '주의', value: sideWorsened, color: '#dc2626' }
+    ];
+    const sideStatsHtml = `<div style="display:flex; flex-wrap:wrap; gap:8px;">${sideStats.map(stat => `
+      <div style="flex:1 1 90px; min-width:90px; padding:10px; border-radius:10px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); text-align:center;">
+        <div style="font-size:12px; color:${stat.color}; font-weight:600;">${stat.label}</div>
+        <div style="font-size:20px; font-weight:700; color:#0b0f14;">${stat.value}</div>
+      </div>`).join('')}</div>`;
+    
+    const sideTopChanges = [...sideResults]
+      .sort((a, b) => Math.abs(b.delta || 0) - Math.abs(a.delta || 0))
+      .slice(0, 3)
+      .map(item => {
+        const decimals = item.unit === '점' ? 2 : 1;
+        const before = item.before != null ? item.before.toFixed(decimals) : '-';
+        const after = item.after != null ? item.after.toFixed(decimals) : '-';
+        const delta = item.delta != null ? `${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(decimals)}${item.unit}` : '';
+        const comment = item.comment ? `<div style="color:#475569; margin-top:2px; font-size:10px;">${escapeHtml(item.comment)}</div>` : '';
+        return `<li style="margin-bottom:6px; font-size:11px;"><strong>${escapeHtml(item.name)}</strong> : ${before}${item.unit} → ${after}${item.unit} (${delta})${comment}</li>`;
+      });
+    
+    const sideTopChangesHtml = sideTopChanges.length
+      ? `<div style="margin-top:10px;">
+          <div style="font-size:11px; font-weight:600; color:#111827; margin-bottom:6px;">변화 폭이 큰 지표</div>
+          <ul style="margin:0; padding-left:18px; font-size:11px; color:#0f172a; line-height:1.5;">${sideTopChanges.join('')}</ul>
+        </div>`
+      : '';
+    
+    sideSummaryHtml = `
+      <div style="margin-bottom:15px; padding:15px; background:#e0f2fe; border-radius:10px; border-left:4px solid #0369a1;">
+        <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px;">📐 측면 Before-After 비교</div>
+        ${sideStatsHtml}
+        ${sideTopChangesHtml}
+      </div>`;
+  }
+  
+  // 정면 요약 HTML
+  let frontSummaryHtml = '';
+  if (frontResults.length > 0) {
+    const frontStats = [
+      { label: '개선', value: frontImproved, color: '#16a34a' },
+      { label: '유지', value: frontMaintained, color: '#2563eb' },
+      { label: '주의', value: frontWorsened, color: '#dc2626' }
+    ];
+    const frontStatsHtml = `<div style="display:flex; flex-wrap:wrap; gap:8px;">${frontStats.map(stat => `
+      <div style="flex:1 1 90px; min-width:90px; padding:10px; border-radius:10px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); text-align:center;">
+        <div style="font-size:12px; color:${stat.color}; font-weight:600;">${stat.label}</div>
+        <div style="font-size:20px; font-weight:700; color:#0b0f14;">${stat.value}</div>
+      </div>`).join('')}</div>`;
+    
+    const frontTopChanges = [...frontResults]
+      .sort((a, b) => Math.abs(b.delta || 0) - Math.abs(a.delta || 0))
+      .slice(0, 3)
+      .map(item => {
+        const decimals = item.unit === '점' ? 2 : 1;
+        const before = item.before != null ? item.before.toFixed(decimals) : '-';
+        const after = item.after != null ? item.after.toFixed(decimals) : '-';
+        const delta = item.delta != null ? `${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(decimals)}${item.unit}` : '';
+        const comment = item.comment ? `<div style="color:#475569; margin-top:2px; font-size:10px;">${escapeHtml(item.comment)}</div>` : '';
+        return `<li style="margin-bottom:6px; font-size:11px;"><strong>${escapeHtml(item.name)}</strong> : ${before}${item.unit} → ${after}${item.unit} (${delta})${comment}</li>`;
+      });
+    
+    const frontTopChangesHtml = frontTopChanges.length
+      ? `<div style="margin-top:10px;">
+          <div style="font-size:11px; font-weight:600; color:#111827; margin-bottom:6px;">변화 폭이 큰 지표</div>
+          <ul style="margin:0; padding-left:18px; font-size:11px; color:#0f172a; line-height:1.5;">${frontTopChanges.join('')}</ul>
+        </div>`
+      : '';
+    
+    frontSummaryHtml = `
+      <div style="margin-bottom:15px; padding:15px; background:#dbeafe; border-radius:10px; border-left:4px solid #1e40af;">
+        <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:8px;">📐 정면 Before-After 비교</div>
+        ${frontStatsHtml}
+        ${frontTopChangesHtml}
+      </div>`;
+  }
+  
+  // 통합 요약 (측면/정면 모두 없을 때만)
+  let overallSummaryHtml = '';
+  if (sideResults.length === 0 && frontResults.length === 0 && comparison && Array.isArray(comparison.results) && comparison.results.length > 0) {
+    const improved = comparison.results.filter(r => r.status === 'improved').length;
+    const worsened = comparison.results.filter(r => r.status === 'worsened').length;
+    const maintained = comparison.results.filter(r => r.status === 'maintained').length;
+    const stats = [
+      { label: '개선', value: improved, color: '#16a34a' },
+      { label: '유지', value: maintained, color: '#2563eb' },
+      { label: '주의', value: worsened, color: '#dc2626' }
+    ];
+    const statsHtml = `<div style="display:flex; flex-wrap:wrap; gap:8px;">${stats.map(stat => `
+      <div style="flex:1 1 90px; min-width:90px; padding:10px; border-radius:10px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); text-align:center;">
+        <div style="font-size:12px; color:${stat.color}; font-weight:600;">${stat.label}</div>
+        <div style="font-size:20px; font-weight:700; color:#0b0f14;">${stat.value}</div>
+      </div>`).join('')}</div>`;
+    
+    const summaryText = comparison.summary?.overallComment
+      ? `<div style="margin-top:12px; font-size:11px; color:#1f2937; line-height:1.6;">${escapeHtml(comparison.summary.overallComment)}</div>`
+      : '';
+    
+    overallSummaryHtml = `<div style="margin-bottom:18px;">${statsHtml}${summaryText}</div>`;
+  }
+  
+  if (sideResults.length === 0 && frontResults.length === 0 && !comparison) {
     return '<div style="font-size:11px; color:#475569; line-height:1.6;">Before-After 비교 데이터가 없습니다.</div>';
   }
-  const improved = comparison.results.filter(r => r.status === 'improved').length;
-  const worsened = comparison.results.filter(r => r.status === 'worsened').length;
-  const maintained = comparison.results.filter(r => r.status === 'maintained').length;
-  const stats = [
-    { label: '개선', value: improved, color: '#16a34a' },
-    { label: '유지', value: maintained, color: '#2563eb' },
-    { label: '주의', value: worsened, color: '#dc2626' }
-  ];
-  const statsHtml = `<div style="display:flex; flex-wrap:wrap; gap:8px;">${stats.map(stat => `
-    <div style="flex:1 1 90px; min-width:90px; padding:10px; border-radius:10px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); text-align:center;">
-      <div style="font-size:12px; color:${stat.color}; font-weight:600;">${stat.label}</div>
-      <div style="font-size:20px; font-weight:700; color:#0b0f14;">${stat.value}</div>
-    </div>`).join('')}</div>`;
-
-  const summaryText = comparison.summary?.overallComment
-    ? `<div style="margin-top:12px; font-size:11px; color:#1f2937; line-height:1.6;">${escapeHtml(comparison.summary.overallComment)}</div>`
-    : '';
-
-  const topChanges = [...comparison.results]
-    .sort((a, b) => Math.abs(b.delta || 0) - Math.abs(a.delta || 0))
-    .slice(0, 4)
-    .map(item => {
-      const decimals = item.unit === '점' ? 2 : 1;
-      const before = item.before != null ? item.before.toFixed(decimals) : '-';
-      const after = item.after != null ? item.after.toFixed(decimals) : '-';
-      const delta = item.delta != null ? `${item.delta >= 0 ? '+' : ''}${item.delta.toFixed(decimals)}${item.unit}` : '';
-      const comment = item.comment ? `<div style="color:#475569; margin-top:2px;">${escapeHtml(item.comment)}</div>` : '';
-      return `<li style="margin-bottom:6px;"><strong>${escapeHtml(item.name)}</strong> : ${before}${item.unit} → ${after}${item.unit} (${delta})${comment}</li>`;
-    });
-
-  const topChangesHtml = topChanges.length
-    ? `<div style="margin-top:14px;">
-        <div style="font-size:11px; font-weight:600; color:#111827; margin-bottom:6px;">변화 폭이 큰 지표</div>
-        <ul style="margin:0; padding-left:18px; font-size:11px; color:#0f172a; line-height:1.5;">${topChanges.join('')}</ul>
-      </div>`
-    : '';
-
-  return `<div style="margin-bottom:18px;">${statsHtml}${summaryText}${topChangesHtml}</div>`;
+  
+  return `${sideSummaryHtml}${frontSummaryHtml}${overallSummaryHtml}`;
 }
 
 // ========== 100종 DB 기반 규칙 엔진 ==========
@@ -12158,9 +12305,13 @@ for (const sessionKey of sessionKeys) {
   }
 }
 
-// ✅ 측면 점수와 정면 점수 가져오기 (localStorage 포함)
-let sideScoreForCombined = sessions.After?.sideScore || (sideAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(sideAnalysisForCombined.fullMetrics) : null);
-let frontScoreForCombined = sessions.After?.frontScore || (frontAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(frontAnalysisForCombined.fullMetrics) : null);
+// ✅ 측면 점수와 정면 점수 가져오기 (Before/After 세션 및 localStorage 포함)
+// 측면 점수: After 우선, 없으면 Before, 없으면 분석 결과에서 계산
+let sideScoreForCombined = sessions.After?.sideScore || sessions.Before?.sideScore || 
+  (sideAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(sideAnalysisForCombined.fullMetrics) : null);
+// 정면 점수: After 우선, 없으면 Before, 없으면 분석 결과에서 계산
+let frontScoreForCombined = sessions.After?.frontScore || sessions.Before?.frontScore || 
+  (frontAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(frontAnalysisForCombined.fullMetrics) : null);
 
 // ✅ localStorage에서 점수 정보도 불러오기
 for (const sessionKey of sessionKeys) {
@@ -12745,7 +12896,7 @@ else if (muscleBasedRecommendations && muscleBasedRecommendations.length > 0) {
 
 // ✅ 측면/정면 구분 필라테스 추천 생성
 let sidePilatesHtml = '';
-// 1순위: sideAnalysisForCombined의 pilates
+// 1순위: sideAnalysisForCombined의 pilates (웹앱에서 생성된 측면 필라테스 추천)
 if (sideAnalysisForCombined?.pilates) {
   sidePilatesHtml = Array.isArray(sideAnalysisForCombined.pilates) ? 
     sideAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
@@ -12803,8 +12954,9 @@ else if (sideAnalysis?.pilates) {
     renderPilatesItemCard(sideAnalysis.pilates, { context: 'pdf', index: 0, limitPerTool: Infinity });
 }
 
-// ✅ 정면 필라테스 추천 생성 (frontAnalysisForCombined.pilates가 없으면 정면 메트릭 기반으로 생성)
+// ✅ 정면 필라테스 추천 생성 (웹앱에서 생성된 정면 필라테스 추천)
 let frontPilatesHtml = '';
+// 1순위: frontAnalysisForCombined의 pilates (웹앱에서 생성된 정면 필라테스 추천)
 if (frontAnalysisForCombined?.pilates) {
   frontPilatesHtml = Array.isArray(frontAnalysisForCombined.pilates) ? 
     frontAnalysisForCombined.pilates.map((item, idx) => renderPilatesItemCard(item, { context: 'pdf', index: idx, limitPerTool: Infinity })).join('') : 
@@ -13140,9 +13292,49 @@ page7Container.id = "page7Container";
 setPageContainerStyle(page7Container);
 
     const beforeAfterSummaryHtml = buildBeforeAfterSummaryHTML(comparison);
-const fullPlanHtml = planTexts.fullText
+    
+// ✅ 측면/정면으로 구분된 12주 케어 로드맵 생성
+let sidePlanHtml = '';
+let frontPlanHtml = '';
+if (sideAnalysisForCombined) {
+  const sidePlanTexts = buildPlanTexts({
+    memberName: memberNameForPDF1,
+    patterns: (sideAnalysisForCombined.topRecommendations || []).slice(0, 3).map(item => item.name || item.code),
+    scoreResult: sideScoreForCombined,
+    analysis: {
+      tight: sideAnalysisForCombined.muscles?.tight ? 
+        (sideAnalysisForCombined.muscles.tight instanceof Set ? Array.from(sideAnalysisForCombined.muscles.tight) : 
+         Array.isArray(sideAnalysisForCombined.muscles.tight) ? sideAnalysisForCombined.muscles.tight : []) : [],
+      weak: sideAnalysisForCombined.muscles?.weak ? 
+        (sideAnalysisForCombined.muscles.weak instanceof Set ? Array.from(sideAnalysisForCombined.muscles.weak) : 
+         Array.isArray(sideAnalysisForCombined.muscles.weak) ? sideAnalysisForCombined.muscles.weak : []) : []
+    },
+    comparisonSummary: ''
+  });
+  sidePlanHtml = sidePlanTexts.fullText ? formatMultilineText(sidePlanTexts.fullText) : '';
+}
+if (frontAnalysisForCombined) {
+  const frontPlanTexts = buildPlanTexts({
+    memberName: memberNameForPDF1,
+    patterns: (frontAnalysisForCombined.topRecommendations || []).slice(0, 3).map(item => item.name || item.code),
+    scoreResult: frontScoreForCombined,
+    analysis: {
+      tight: frontAnalysisForCombined.muscles?.tight ? 
+        (frontAnalysisForCombined.muscles.tight instanceof Set ? Array.from(frontAnalysisForCombined.muscles.tight) : 
+         Array.isArray(frontAnalysisForCombined.muscles.tight) ? frontAnalysisForCombined.muscles.tight : []) : [],
+      weak: frontAnalysisForCombined.muscles?.weak ? 
+        (frontAnalysisForCombined.muscles.weak instanceof Set ? Array.from(frontAnalysisForCombined.muscles.weak) : 
+         Array.isArray(frontAnalysisForCombined.muscles.weak) ? frontAnalysisForCombined.muscles.weak : []) : []
+    },
+    comparisonSummary: ''
+  });
+  frontPlanHtml = frontPlanTexts.fullText ? formatMultilineText(frontPlanTexts.fullText) : '';
+}
+
+// 통합 로드맵 (측면/정면 모두 없을 때만)
+const fullPlanHtml = (!sidePlanHtml && !frontPlanHtml && planTexts.fullText)
   ? formatMultilineText(planTexts.fullText)
-  : '<div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>';
+  : '';
 
 // ✅ 측면과 정면 분석 요약 생성
 let sideSummaryHtml = '';
@@ -13201,10 +13393,26 @@ page7Container.innerHTML = `
   ${sideSummaryHtml}
   ${frontSummaryHtml}
   ${beforeAfterSummaryHtml}
+  ${sidePlanHtml ? `
+  <div style="margin-top:12px; padding:18px; background:#e0f2fe; border-radius:12px; border-left:4px solid #0369a1;">
+    <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:8px;">🧭 12주 케어 로드맵 (측면)</div>
+    <div style="font-size:12px; line-height:1.7; color:#111;">${sidePlanHtml}</div>
+  </div>` : ''}
+  ${frontPlanHtml ? `
+  <div style="margin-top:12px; padding:18px; background:#dbeafe; border-radius:12px; border-left:4px solid #1e40af;">
+    <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:8px;">🧭 12주 케어 로드맵 (정면)</div>
+    <div style="font-size:12px; line-height:1.7; color:#111;">${frontPlanHtml}</div>
+  </div>` : ''}
+  ${!sidePlanHtml && !frontPlanHtml && fullPlanHtml ? `
   <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
     <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
     <div style="font-size:12px; line-height:1.7; color:#111;">${fullPlanHtml}</div>
-  </div>
+  </div>` : ''}
+  ${!sidePlanHtml && !frontPlanHtml && !fullPlanHtml ? `
+  <div style="margin-top:12px; padding:18px; background:#f6fff7; border-radius:12px; border-left:4px solid #27ae60;">
+    <div style="font-size:13px; font-weight:700; color:#1b5e20; margin-bottom:8px;">🧭 12주 케어 로드맵</div>
+    <div style="font-size:11px; color:#475569;">분석 데이터가 충분하지 않습니다.</div>
+  </div>` : ''}
       <div style="margin-top:16px; font-size:10px; color:#6b7280; line-height:1.6;">
         ※ 본 리포트는 교육용으로 제공되며, 의료 진단을 대체하지 않습니다. 통증이 지속되면 전문의와 상의하세요.
       </div>
