@@ -4863,7 +4863,41 @@
             // ✅ 정면 분석 결과만 표시
             updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
           }
-    }
+        }).catch(err => {
+          console.warn('정면 DB 기반 분석 실패, 기본 분석 사용:', err);
+
+          // ✅ 정면 분석 결과를 별도로 저장 (기본값)
+          S.frontAnalysis = {
+            fullMetrics: frontMetricsForAnalysis,
+            orientation: "front",
+            comments: [],
+            details: [],
+            exercises: []
+          };
+
+          // 점수 계산
+          const frontScore = computeScoreFromFullMetrics(frontMetricsForAnalysis);
+
+          // ✅ sessions.After 또는 sessions.Before에 정면 점수 및 분석 결과 저장
+          if (sessions.After && cur === "After") {
+            sessions.After.frontAnalysis = S.frontAnalysis;
+            sessions.After.frontScore = frontScore;
+            sessions.After.metrics = sessions.After.metrics || {};
+            sessions.After.metrics.frontMetrics = separatedFrontMetrics;
+          } else if (sessions.Before && cur === "Before") {
+            sessions.Before.frontAnalysis = S.frontAnalysis;
+            sessions.Before.frontScore = frontScore;
+            sessions.Before.metrics = sessions.Before.metrics || {};
+            sessions.Before.metrics.frontMetrics = separatedFrontMetrics;
+          }
+
+          updateDisplay();
+          updateCompare();
+          // ✅ 측면 분석 결과 표시 (정면 실패 시)
+          updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+        });
+      } // This closes the `if (frontMetricsForAnalysis)` block that was implicitly started before the `.catch`
+    } // This closes the `computeAll` function or a similar large block.
 
     // ✅ 정면 분석 결과 표시
     function displayFrontAnalysis(fullMetrics) {
