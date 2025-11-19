@@ -2256,6 +2256,119 @@
             if (delta > 2) return { status: 'worsened', comment: `전반적인 자세 점수가 ${delta.toFixed(1)}점 악화되었습니다.` };
             return { status: 'stable', comment: `전반적인 자세 점수는 일정하며, 안정적인 자세 패턴을 유지하고 있습니다.` };
           }
+        },
+        'STA': {
+          name: 'STA(어깨기울기각)',
+          unit: '°',
+          normal: '0-3°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.5) return { status: 'improved', comment: `어깨 기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 어깨 수평이 개선되었습니다.` };
+            if (delta > 0.5) return { status: 'worsened', comment: `어깨 기울기가 ${delta.toFixed(1)}° 증가하여 어깨 비대칭이 악화되었습니다.` };
+            return { status: 'stable', comment: `어깨 기울기는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'POA': {
+          name: 'POA(골반기울기각)',
+          unit: '°',
+          normal: '0-3°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.5) return { status: 'improved', comment: `골반 기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 골반 수평이 개선되었습니다.` };
+            if (delta > 0.5) return { status: 'worsened', comment: `골반 기울기가 ${delta.toFixed(1)}° 증가하여 골반 비대칭이 악화되었습니다.` };
+            return { status: 'stable', comment: `골반 기울기는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'LLD': {
+          name: 'LLD(하지길이차)',
+          unit: 'cm',
+          normal: '0-1cm',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.2) return { status: 'improved', comment: `하지 길이 차이가 ${Math.abs(delta).toFixed(1)}cm 감소하여 다리 길이 균형이 개선되었습니다.` };
+            if (delta > 0.2) return { status: 'worsened', comment: `하지 길이 차이가 ${delta.toFixed(1)}cm 증가하여 다리 길이 불균형이 악화되었습니다.` };
+            return { status: 'stable', comment: `하지 길이 차이는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'TD': {
+          name: 'TD(체간편위)',
+          unit: '°',
+          normal: '0-2°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.5) return { status: 'improved', comment: `체간 편위가 ${Math.abs(delta).toFixed(1)}° 감소하여 척추 정렬이 개선되었습니다.` };
+            if (delta > 0.5) return { status: 'worsened', comment: `체간 편위가 ${delta.toFixed(1)}° 증가하여 척추 측만 경향이 악화되었습니다.` };
+            return { status: 'stable', comment: `체간 편위는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'HTA': {
+          name: 'HTA(머리기울기각)',
+          unit: '°',
+          normal: '0-5°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -1) return { status: 'improved', comment: `머리 기울기가 ${Math.abs(delta).toFixed(1)}° 감소하여 두부 수평이 개선되었습니다.` };
+            if (delta > 1) return { status: 'worsened', comment: `머리 기울기가 ${delta.toFixed(1)}° 증가하여 두부 비대칭이 악화되었습니다.` };
+            return { status: 'stable', comment: `머리 기울기는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'SPP': {
+          name: 'SPP(어깨골반평행도)',
+          unit: '°',
+          normal: '0-5°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            // SPP는 0에 가까울수록 좋음 (절대값 비교 필요할 수 있음, 여기서는 단순 차이)
+            if (Math.abs(after) < Math.abs(before) - 1) return { status: 'improved', comment: `어깨-골반 평행도가 개선되어 체간 비틀림이 감소했습니다.` };
+            if (Math.abs(after) > Math.abs(before) + 1) return { status: 'worsened', comment: `어깨-골반 평행도가 악화되어 체간 비틀림이 증가했습니다.` };
+            return { status: 'stable', comment: `어깨-골반 평행도는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'Knee_Deviation': {
+          name: 'Knee Dev(무릎편위)',
+          unit: '°',
+          normal: '0-3°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.5) return { status: 'improved', comment: `무릎 편위가 ${Math.abs(delta).toFixed(1)}° 감소하여 하지 정렬이 개선되었습니다.` };
+            if (delta > 0.5) return { status: 'worsened', comment: `무릎 편위가 ${delta.toFixed(1)}° 증가하여 하지 정렬이 악화되었습니다.` };
+            return { status: 'stable', comment: `무릎 편위는 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'Q_Angle': {
+          name: 'Q-Angle',
+          unit: '°',
+          normal: '10-20°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            const inRange = after >= 10 && after <= 20;
+            const wasInRange = before >= 10 && before <= 20;
+            if (!wasInRange && inRange) return { status: 'improved', comment: `Q-Angle이 정상 범위로 개선되었습니다.` };
+            if (wasInRange && !inRange) return { status: 'worsened', comment: `Q-Angle이 정상 범위를 벗어났습니다.` };
+            return { status: 'stable', comment: `Q-Angle은 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'KAS': {
+          name: 'KAS(무릎정렬대칭성)',
+          unit: '°',
+          normal: '0-2°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.5) return { status: 'improved', comment: `무릎 정렬 대칭성이 ${Math.abs(delta).toFixed(1)}° 개선되었습니다.` };
+            if (delta > 0.5) return { status: 'worsened', comment: `무릎 정렬 대칭성이 ${delta.toFixed(1)}° 악화되었습니다.` };
+            return { status: 'stable', comment: `무릎 정렬 대칭성은 안정적으로 유지되고 있습니다.` };
+          }
+        },
+        'LLAS': {
+          name: 'LLAS(하지축대칭성)',
+          unit: '°',
+          normal: '0-2°',
+          analyze: (before, after, delta) => {
+            if (before == null || after == null) return null;
+            if (delta < -0.5) return { status: 'improved', comment: `하지 축 대칭성이 ${Math.abs(delta).toFixed(1)}° 개선되었습니다.` };
+            if (delta > 0.5) return { status: 'worsened', comment: `하지 축 대칭성이 ${delta.toFixed(1)}° 악화되었습니다.` };
+            return { status: 'stable', comment: `하지 축 대칭성은 안정적으로 유지되고 있습니다.` };
+          }
         }
       };
 
@@ -12499,9 +12612,16 @@
       // ✅ 전체 체형 점수 계산 (웹앱과 동일한 점수 사용)
       // 1순위: 웹앱에서 이미 계산된 점수 사용 (sessions[cur].score 또는 sessions.After?.score)
       let scoreResult = null;
-      if (sessions.After?.score && typeof sessions.After.score === 'object' && sessions.After.score.score != null) {
+      // 현재 세션이 After인 경우 우선 사용
+      if (cur === 'After' && sessions.After?.score && typeof sessions.After.score === 'object' && sessions.After.score.score != null) {
         scoreResult = sessions.After.score;
-      } else if (sessions[cur]?.score && typeof sessions[cur].score === 'object' && sessions[cur].score.score != null) {
+      }
+      // 현재 세션이 Before인 경우 우선 사용
+      else if (cur === 'Before' && sessions.Before?.score && typeof sessions.Before.score === 'object' && sessions.Before.score.score != null) {
+        scoreResult = sessions.Before.score;
+      }
+      // 그 외의 경우 (current 등)
+      else if (sessions[cur]?.score && typeof sessions[cur].score === 'object' && sessions[cur].score.score != null) {
         scoreResult = sessions[cur].score;
       } else {
         // 2순위: fullMetrics에서 점수 계산
