@@ -11741,9 +11741,9 @@
     </div>` : ''}
 
     ${Object.keys(sideMetrics).length > 1 ? `
-    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:visible;">
       <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 측면 측정 지표 상세</div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6; overflow:visible; height:auto;">
         ${Object.keys(sideMetrics).filter(key => key !== 'orientation').map(key => {
           const metric = sideMetrics[key];
           if (!metric || typeof metric !== 'object') return '';
@@ -11782,11 +11782,11 @@
           }
 
           return `
-          <div style="padding:12px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
-            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:13px;">${desc}</div>
-            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
-            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
-            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
+          <div style="padding:14px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe; min-height:120px; height:auto; overflow:visible; box-sizing:border-box;">
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:6px; font-size:13px; word-wrap:break-word; overflow-wrap:break-word;">${desc}</div>
+            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:6px;">${value.toFixed(1)}${unit}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:4px; word-wrap:break-word; overflow-wrap:break-word;">정상 범위: ${normalRange}</div>` : ''}
           </div>`;
         }).filter(html => html.trim().length > 0).join('')}
       </div>
@@ -11818,7 +11818,7 @@
             windowHeight: containerHeight,
             width: containerWidth,
             height: containerHeight,
-            scale: 1.5  // 품질 낮춤
+            scale: baseCanvasScale  // Device-specific scale
           });
 
           // ✅ 캔버스 크기 제한 + 압축
@@ -12047,9 +12047,9 @@
     </div>` : ''}
 
     ${Object.keys(frontMetrics).length > 1 ? `
-    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box;">
+    <div style="margin-bottom:20px; padding:18px; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; word-wrap:break-word; overflow-wrap:break-word; max-width:100%; box-sizing:border-box; overflow:visible;">
       <div style="font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; word-wrap:break-word;">📐 정면 측정 지표 상세</div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; font-size:13px; line-height:1.6; overflow:visible; height:auto;">
         ${Object.keys(frontMetrics).filter(key => key !== 'orientation').map(key => {
           const metric = frontMetrics[key];
           if (!metric || typeof metric !== 'object') return '';
@@ -12096,11 +12096,11 @@
           }
 
           return `
-          <div style="padding:12px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe;">
-            <div style="font-weight:600; color:#0c4a6e; margin-bottom:4px; font-size:13px;">${desc}</div>
-            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:4px;">${value.toFixed(1)}${unit}</div>
-            <div style="font-size:12px; color:#64748b; margin-bottom:4px;">${statusText}</div>
-            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">정상 범위: ${normalRange}</div>` : ''}
+          <div style="padding:14px; background:#ffffff; border-radius:8px; border:1px solid #e0f2fe; min-height:120px; height:auto; overflow:visible; box-sizing:border-box;">
+            <div style="font-weight:600; color:#0c4a6e; margin-bottom:6px; font-size:13px; word-wrap:break-word; overflow-wrap:break-word;">${desc}</div>
+            <div style="font-size:20px; font-weight:700; color:#0369a1; margin-bottom:6px;">${value.toFixed(1)}${unit}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:6px; word-wrap:break-word; overflow-wrap:break-word;">${statusText}</div>
+            ${normalRange ? `<div style="font-size:11px; color:#94a3b8; margin-top:4px; word-wrap:break-word; overflow-wrap:break-word;">정상 범위: ${normalRange}</div>` : ''}
           </div>`;
         }).filter(html => html.trim().length > 0).join('')}
       </div>
@@ -12132,7 +12132,7 @@
             windowHeight: containerHeight,
             width: containerWidth,
             height: containerHeight,
-            scale: 1.5  // 품질 낮춤
+            scale: baseCanvasScale  // Device-specific scale
           });
 
           // ✅ 캔버스 크기 제한 + 압축
@@ -12965,7 +12965,7 @@
           windowHeight: container4Height,
           width: container4Width,
           height: container4Height,
-          scale: 1.5  // ✅ 품질 낮춤
+          scale: baseCanvasScale  // Device-specific scale
         });
       } catch (err) {
         console.error('❌ 종합 리포트 캔버스 생성 실패:', err);
@@ -13297,7 +13297,7 @@
           windowHeight: container5Height,
           width: container5Width,
           height: container5Height,
-          scale: 1.5  // ✅ 품질 낮춤
+          scale: baseCanvasScale  // Device-specific scale
         });
       } catch (err) {
         console.error('❌ canvas5 생성 실패:', err);
@@ -13382,7 +13382,7 @@
           windowHeight: container6Height,
           width: container6Width,
           height: container6Height,
-          scale: 1.5  // ✅ 품질 낮춤
+          scale: baseCanvasScale  // Device-specific scale
         });
       } catch (err) {
         console.error('❌ canvas6 생성 실패:', err);
@@ -13495,7 +13495,7 @@
             windowHeight: container8Height,
             width: container8Width,
             height: container8Height,
-            scale: 1.5  // ✅ 품질 낮춤
+            scale: baseCanvasScale  // Device-specific scale
           });
         } catch (err) {
           console.error('❌ canvas8 생성 실패:', err);
@@ -13680,7 +13680,7 @@
           windowHeight: container7Height,
           width: container7Width,
           height: container7Height,
-          scale: 1.5  // ✅ 품질 낮춤
+          scale: baseCanvasScale  // Device-specific scale
         });
       } catch (err) {
         console.error('❌ canvas7 생성 실패:', err);
