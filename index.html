@@ -4165,6 +4165,47 @@ function computeAll() {
         sessions.After.metrics.sideMetrics = separatedSideMetrics;
       }
       
+      // ✅ localStorage에 측면 분석 결과 저장 (모바일 호환)
+      try {
+        // localStorage 사용 가능 여부 확인
+        if (typeof(Storage) !== "undefined" && localStorage) {
+          const sideAnalysisData = {
+            analysis: S.sideAnalysis,
+            score: sessions.After?.sideScore || score,
+            metrics: separatedSideMetrics,
+            session: cur,
+            timestamp: new Date().toISOString()
+          };
+          const dataStr = JSON.stringify(sideAnalysisData);
+          // 저장 용량 체크 (약 5MB 제한 대비)
+          if (dataStr.length < 4 * 1024 * 1024) {
+            localStorage.setItem(`posture_analysis_side_${cur}`, dataStr);
+            console.log('✅ 측면 분석 결과 localStorage 저장 완료');
+          } else {
+            console.warn('측면 분석 데이터가 너무 큼, localStorage 저장 생략');
+          }
+        } else {
+          console.warn('localStorage를 사용할 수 없습니다 (시크릿 모드 또는 오래된 브라우저)');
+        }
+      } catch (err) {
+        // QuotaExceededError 등 저장 실패 처리
+        if (err.name === 'QuotaExceededError') {
+          console.warn('localStorage 저장 용량 초과, 오래된 데이터 삭제 후 재시도');
+          try {
+            // 오래된 분석 데이터 삭제
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('posture_analysis_'));
+            if (keys.length > 10) {
+              keys.slice(0, keys.length - 10).forEach(k => localStorage.removeItem(k));
+              localStorage.setItem(`posture_analysis_side_${cur}`, JSON.stringify(sideAnalysisData));
+            }
+          } catch (retryErr) {
+            console.warn('측면 분석 localStorage 저장 실패 (재시도 후):', retryErr);
+          }
+        } else {
+          console.warn('측면 분석 localStorage 저장 실패:', err);
+        }
+      }
+      
       // ✅ 정면 메트릭이 있으면 정면 분석도 실행
       if (frontMetrics.status !== "not_available" && separatedFrontMetrics) {
         // 정면 메트릭만으로 정면 분석 실행
@@ -4188,10 +4229,51 @@ function computeAll() {
             sessions.After.metrics.frontMetrics = separatedFrontMetrics;
           }
           
-          updateDisplay();
-          updateCompare();
+          // ✅ localStorage에 정면 분석 결과 저장 (모바일 호환)
+          try {
+            // localStorage 사용 가능 여부 확인
+            if (typeof(Storage) !== "undefined" && localStorage) {
+              const frontAnalysisData = {
+                analysis: S.frontAnalysis,
+                score: sessions.After?.frontScore || computeScoreFromFullMetrics(frontMetricsForAnalysis),
+                metrics: separatedFrontMetrics,
+                session: cur,
+                timestamp: new Date().toISOString()
+              };
+              const dataStr = JSON.stringify(frontAnalysisData);
+              // 저장 용량 체크 (약 5MB 제한 대비)
+              if (dataStr.length < 4 * 1024 * 1024) {
+                localStorage.setItem(`posture_analysis_front_${cur}`, dataStr);
+                console.log('✅ 정면 분석 결과 localStorage 저장 완료');
+              } else {
+                console.warn('정면 분석 데이터가 너무 큼, localStorage 저장 생략');
+              }
+            } else {
+              console.warn('localStorage를 사용할 수 없습니다 (시크릿 모드 또는 오래된 브라우저)');
+            }
+          } catch (err) {
+            // QuotaExceededError 등 저장 실패 처리
+            if (err.name === 'QuotaExceededError') {
+              console.warn('localStorage 저장 용량 초과, 오래된 데이터 삭제 후 재시도');
+              try {
+                // 오래된 분석 데이터 삭제
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('posture_analysis_'));
+                if (keys.length > 10) {
+                  keys.slice(0, keys.length - 10).forEach(k => localStorage.removeItem(k));
+                  localStorage.setItem(`posture_analysis_front_${cur}`, JSON.stringify(frontAnalysisData));
+                }
+              } catch (retryErr) {
+                console.warn('정면 분석 localStorage 저장 실패 (재시도 후):', retryErr);
+              }
+            } else {
+              console.warn('정면 분석 localStorage 저장 실패:', err);
+            }
+      }
+      
+      updateDisplay();
+      updateCompare();
           // ✅ 측면과 정면 분석 결과 모두 표시
-          updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+      updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
         }).catch(frontErr => {
           console.warn('정면 DB 기반 분석 실패:', frontErr);
           // 정면 분석 실패 시에도 측면 분석 결과는 유지
@@ -4224,6 +4306,21 @@ function computeAll() {
         sessions.After.metrics.sideMetrics = separatedSideMetrics;
       }
       
+      // ✅ localStorage에 측면 분석 결과 저장 (기본 분석 결과)
+      try {
+        const sideAnalysisData = {
+          analysis: S.sideAnalysis,
+          score: sessions.After?.sideScore || score,
+          metrics: separatedSideMetrics,
+          session: cur,
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(`posture_analysis_side_${cur}`, JSON.stringify(sideAnalysisData));
+        console.log('✅ 측면 분석 결과 localStorage 저장 완료 (기본 분석)');
+      } catch (err) {
+        console.warn('측면 분석 localStorage 저장 실패:', err);
+      }
+      
       // ✅ 정면 메트릭이 있으면 정면 분석도 실행
       if (frontMetrics.status !== "not_available" && separatedFrontMetrics) {
         const frontMetricsForAnalysis = { ...separatedFrontMetrics };
@@ -4242,11 +4339,11 @@ function computeAll() {
             sessions.After.frontScore = frontScore;
             sessions.After.metrics = sessions.After.metrics || {};
             sessions.After.metrics.frontMetrics = separatedFrontMetrics;
-          }
-          
-          updateDisplay();
-          updateCompare();
-          updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
+      }
+      
+      updateDisplay();
+      updateCompare();
+      updateScoreAndAnalysis(score, cva, pelvic, knee, S.sideAnalysis);
         }).catch(frontErr => {
           console.warn('정면 DB 기반 분석 실패:', frontErr);
         });
@@ -4338,6 +4435,40 @@ function computeAll() {
         sessions.After.metrics.frontMetrics = separatedFrontMetrics;
       }
       
+      // ✅ localStorage에 정면 분석 결과 저장 (모바일 호환)
+      try {
+        if (typeof(Storage) !== "undefined" && localStorage) {
+          const frontAnalysisData = {
+            analysis: S.frontAnalysis,
+            score: sessions.After?.frontScore || scoreData,
+            metrics: separatedFrontMetrics,
+            session: cur,
+            timestamp: new Date().toISOString()
+          };
+          const dataStr = JSON.stringify(frontAnalysisData);
+          if (dataStr.length < 4 * 1024 * 1024) {
+            localStorage.setItem(`posture_analysis_front_${cur}`, dataStr);
+            console.log('✅ 정면 분석 결과 localStorage 저장 완료');
+          } else {
+            console.warn('정면 분석 데이터가 너무 큼, localStorage 저장 생략');
+          }
+        }
+      } catch (err) {
+        if (err.name === 'QuotaExceededError') {
+          try {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('posture_analysis_'));
+            if (keys.length > 10) {
+              keys.slice(0, keys.length - 10).forEach(k => localStorage.removeItem(k));
+              localStorage.setItem(`posture_analysis_front_${cur}`, JSON.stringify(frontAnalysisData));
+            }
+          } catch (retryErr) {
+            console.warn('정면 분석 localStorage 저장 실패 (재시도 후):', retryErr);
+          }
+        } else {
+          console.warn('정면 분석 localStorage 저장 실패:', err);
+        }
+      }
+      
       // ✅ 측면 메트릭이 있으면 측면 분석도 실행
       if (sideMetrics.status !== "not_available" && separatedSideMetrics) {
         const sideMetricsForAnalysis = { ...separatedSideMetrics };
@@ -4360,10 +4491,44 @@ function computeAll() {
             sessions.After.metrics.sideMetrics = separatedSideMetrics;
           }
           
-          updateDisplay();
-          updateCompare();
+          // ✅ localStorage에 측면 분석 결과 저장 (모바일 호환)
+          try {
+            if (typeof(Storage) !== "undefined" && localStorage) {
+              const sideAnalysisData = {
+                analysis: S.sideAnalysis,
+                score: sessions.After?.sideScore || computeScoreFromFullMetrics(sideMetricsForAnalysis),
+                metrics: separatedSideMetrics,
+                session: cur,
+                timestamp: new Date().toISOString()
+              };
+              const dataStr = JSON.stringify(sideAnalysisData);
+              if (dataStr.length < 4 * 1024 * 1024) {
+                localStorage.setItem(`posture_analysis_side_${cur}`, dataStr);
+                console.log('✅ 측면 분석 결과 localStorage 저장 완료');
+              } else {
+                console.warn('측면 분석 데이터가 너무 큼, localStorage 저장 생략');
+              }
+            }
+          } catch (err) {
+            if (err.name === 'QuotaExceededError') {
+              try {
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('posture_analysis_'));
+                if (keys.length > 10) {
+                  keys.slice(0, keys.length - 10).forEach(k => localStorage.removeItem(k));
+                  localStorage.setItem(`posture_analysis_side_${cur}`, JSON.stringify(sideAnalysisData));
+                }
+              } catch (retryErr) {
+                console.warn('측면 분석 localStorage 저장 실패 (재시도 후):', retryErr);
+              }
+            } else {
+              console.warn('측면 분석 localStorage 저장 실패:', err);
+            }
+      }
+      
+      updateDisplay();
+      updateCompare();
           // ✅ 정면과 측면 분석 결과 모두 표시
-          updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+      updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
         }).catch(sideErr => {
           console.warn('측면 DB 기반 분석 실패:', sideErr);
           // 측면 분석 실패 시에도 정면 분석 결과는 유지
@@ -4400,6 +4565,40 @@ function computeAll() {
         sessions.After.metrics.frontMetrics = separatedFrontMetrics;
       }
       
+      // ✅ localStorage에 정면 분석 결과 저장 (기본 분석 결과, 모바일 호환)
+      try {
+        if (typeof(Storage) !== "undefined" && localStorage) {
+          const frontAnalysisData = {
+            analysis: S.frontAnalysis,
+            score: sessions.After?.frontScore || scoreData,
+            metrics: separatedFrontMetrics,
+            session: cur,
+            timestamp: new Date().toISOString()
+          };
+          const dataStr = JSON.stringify(frontAnalysisData);
+          if (dataStr.length < 4 * 1024 * 1024) {
+            localStorage.setItem(`posture_analysis_front_${cur}`, dataStr);
+            console.log('✅ 정면 분석 결과 localStorage 저장 완료 (기본 분석)');
+          } else {
+            console.warn('정면 분석 데이터가 너무 큼, localStorage 저장 생략');
+          }
+        }
+      } catch (err) {
+        if (err.name === 'QuotaExceededError') {
+          try {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('posture_analysis_'));
+            if (keys.length > 10) {
+              keys.slice(0, keys.length - 10).forEach(k => localStorage.removeItem(k));
+              localStorage.setItem(`posture_analysis_front_${cur}`, JSON.stringify(frontAnalysisData));
+            }
+          } catch (retryErr) {
+            console.warn('정면 분석 localStorage 저장 실패 (재시도 후):', retryErr);
+          }
+        } else {
+          console.warn('정면 분석 localStorage 저장 실패:', err);
+        }
+      }
+      
       // ✅ 측면 메트릭이 있으면 측면 분석도 실행
       if (sideMetrics.status !== "not_available" && separatedSideMetrics) {
         const sideMetricsForAnalysis = { ...separatedSideMetrics };
@@ -4420,9 +4619,43 @@ function computeAll() {
             sessions.After.metrics.sideMetrics = separatedSideMetrics;
           }
           
-          updateDisplay();
-          updateCompare();
-          updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
+          // ✅ localStorage에 측면 분석 결과 저장 (모바일 호환)
+          try {
+            if (typeof(Storage) !== "undefined" && localStorage) {
+              const sideAnalysisData = {
+                analysis: S.sideAnalysis,
+                score: sessions.After?.sideScore || computeScoreFromFullMetrics(sideMetricsForAnalysis),
+                metrics: separatedSideMetrics,
+                session: cur,
+                timestamp: new Date().toISOString()
+              };
+              const dataStr = JSON.stringify(sideAnalysisData);
+              if (dataStr.length < 4 * 1024 * 1024) {
+                localStorage.setItem(`posture_analysis_side_${cur}`, dataStr);
+                console.log('✅ 측면 분석 결과 localStorage 저장 완료');
+              } else {
+                console.warn('측면 분석 데이터가 너무 큼, localStorage 저장 생략');
+              }
+            }
+          } catch (err) {
+            if (err.name === 'QuotaExceededError') {
+              try {
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('posture_analysis_'));
+                if (keys.length > 10) {
+                  keys.slice(0, keys.length - 10).forEach(k => localStorage.removeItem(k));
+                  localStorage.setItem(`posture_analysis_side_${cur}`, JSON.stringify(sideAnalysisData));
+                }
+              } catch (retryErr) {
+                console.warn('측면 분석 localStorage 저장 실패 (재시도 후):', retryErr);
+              }
+            } else {
+              console.warn('측면 분석 localStorage 저장 실패:', err);
+            }
+      }
+      
+      updateDisplay();
+      updateCompare();
+      updateScoreAndAnalysis(scoreData, null, null, null, S.frontAnalysis);
         }).catch(sideErr => {
           console.warn('측면 DB 기반 분석 실패:', sideErr);
         });
@@ -11882,14 +12115,87 @@ if (sessions.After?.score && typeof sessions.After.score === 'object' && session
 
 const memberNameForPDF1 = memberName || '회원';
 
-// ✅ 측면과 정면 분석 결과 가져오기
+// ✅ 측면과 정면 분석 결과 가져오기 (localStorage 포함)
 const combinedAnalysis = getCombinedAnalysis();
-const sideAnalysisForCombined = combinedAnalysis?.side || sessions.After?.sideAnalysis || sessions.Before?.sideAnalysis || null;
-const frontAnalysisForCombined = combinedAnalysis?.front || sessions.After?.frontAnalysis || sessions.Before?.frontAnalysis || null;
+let sideAnalysisForCombined = combinedAnalysis?.side || sessions.After?.sideAnalysis || sessions.Before?.sideAnalysis || null;
+let frontAnalysisForCombined = combinedAnalysis?.front || sessions.After?.frontAnalysis || sessions.Before?.frontAnalysis || null;
 
-// ✅ 측면 점수와 정면 점수 가져오기
-const sideScoreForCombined = sessions.After?.sideScore || (sideAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(sideAnalysisForCombined.fullMetrics) : null);
-const frontScoreForCombined = sessions.After?.frontScore || (frontAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(frontAnalysisForCombined.fullMetrics) : null);
+// ✅ localStorage에서 정면/측면 분석 결과 불러오기 (세션별로 확인)
+const sessionKeys = ['Before', 'After', 'current'];
+for (const sessionKey of sessionKeys) {
+  const sessionId = sessionKey === 'current' ? cur : sessionKey;
+  
+  // 측면 분석 결과 불러오기
+  if (!sideAnalysisForCombined) {
+    try {
+      const sideDataStr = localStorage.getItem(`posture_analysis_side_${sessionId}`);
+      if (sideDataStr) {
+        const sideData = JSON.parse(sideDataStr);
+        if (sideData.analysis) {
+          sideAnalysisForCombined = sideData.analysis;
+          console.log(`✅ localStorage에서 측면 분석 결과 불러옴: ${sessionId}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`측면 분석 localStorage 불러오기 실패 (${sessionId}):`, err);
+    }
+  }
+  
+  // 정면 분석 결과 불러오기
+  if (!frontAnalysisForCombined) {
+    try {
+      const frontDataStr = localStorage.getItem(`posture_analysis_front_${sessionId}`);
+      if (frontDataStr) {
+        const frontData = JSON.parse(frontDataStr);
+        if (frontData.analysis) {
+          frontAnalysisForCombined = frontData.analysis;
+          console.log(`✅ localStorage에서 정면 분석 결과 불러옴: ${sessionId}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`정면 분석 localStorage 불러오기 실패 (${sessionId}):`, err);
+    }
+  }
+}
+
+// ✅ 측면 점수와 정면 점수 가져오기 (localStorage 포함)
+let sideScoreForCombined = sessions.After?.sideScore || (sideAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(sideAnalysisForCombined.fullMetrics) : null);
+let frontScoreForCombined = sessions.After?.frontScore || (frontAnalysisForCombined?.fullMetrics ? computeScoreFromFullMetrics(frontAnalysisForCombined.fullMetrics) : null);
+
+// ✅ localStorage에서 점수 정보도 불러오기
+for (const sessionKey of sessionKeys) {
+  const sessionId = sessionKey === 'current' ? cur : sessionKey;
+  
+  // 측면 점수 불러오기
+  if (!sideScoreForCombined) {
+    try {
+      const sideDataStr = localStorage.getItem(`posture_analysis_side_${sessionId}`);
+      if (sideDataStr) {
+        const sideData = JSON.parse(sideDataStr);
+        if (sideData.score) {
+          sideScoreForCombined = sideData.score;
+        }
+      }
+    } catch (err) {
+      // 무시
+    }
+  }
+  
+  // 정면 점수 불러오기
+  if (!frontScoreForCombined) {
+    try {
+      const frontDataStr = localStorage.getItem(`posture_analysis_front_${sessionId}`);
+      if (frontDataStr) {
+        const frontData = JSON.parse(frontDataStr);
+        if (frontData.score) {
+          frontScoreForCombined = frontData.score;
+        }
+      }
+    } catch (err) {
+      // 무시
+    }
+  }
+}
 
 // ✅ 통합 근육 상태 (측면 + 정면)
 const combinedTight = [];
