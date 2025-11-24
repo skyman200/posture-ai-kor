@@ -16868,29 +16868,30 @@
 
           console.log("✅ 데이터 검증 통과, 사용자 입력 받기 시작...");
 
-          // 센터명/회원명 입력 (팝업이 보이도록 먼저 실행)
-          let centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", localStorage.getItem('centerName') || "") || null;
+          // ✅ 센터명/회원명 입력 (선택사항 - 기본값 사용)
+          let centerName = prompt("센터 이름을 입력하세요 (선택사항, 취소 가능):", localStorage.getItem('centerName') || "");
           console.log("센터명 입력:", centerName);
 
-          if (centerName) {
+          // 취소하면 null이 반환되므로 기본값 설정
+          if (centerName === null || centerName.trim() === "") {
+            centerName = localStorage.getItem('centerName') || "DIT 센터";
+            console.log("센터명 기본값 사용:", centerName);
+          } else {
             localStorage.setItem('centerName', centerName);
           }
 
-          let memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", localStorage.getItem('memberName') || "") || null;
+          let memberName = prompt("회원 이름을 입력하세요 (선택사항, 취소 가능):", localStorage.getItem('memberName') || "");
           console.log("회원명 입력:", memberName);
 
-          if (memberName) {
+          // 취소하면 null이 반환되므로 기본값 설정
+          if (memberName === null || memberName.trim() === "") {
+            memberName = localStorage.getItem('memberName') || "회원";
+            console.log("회원명 기본값 사용:", memberName);
+          } else {
             localStorage.setItem('memberName', memberName);
           }
 
-          // 둘 다 입력되지 않으면 경고
-          if (!centerName || !memberName) {
-            const confirmContinue = confirm("센터 이름 또는 회원 이름이 입력되지 않았습니다. 계속하시겠습니까?");
-            if (!confirmContinue) {
-              console.log("❌ 사용자가 PDF 생성을 취소했습니다.");
-              return;
-            }
-          }
+          console.log(`📋 최종 정보: ${centerName} / ${memberName}`);
 
           // 이제 로딩 표시
           console.log("⏳ PDF 생성 시작...");
