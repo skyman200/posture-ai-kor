@@ -11309,68 +11309,125 @@
       const captureSessionSnapshot = async (sessionName, orientation) => {
         const session = sessions[sessionName];
         if (!session || !hasOrientationData(session, orientation)) return null;
+
+        // ✅ 전역 상태 저장 (나중에 복원용)
         const originalSession = cur;
         const originalOrientation = session.poseData?.orientation || "side";
 
-        if (cur !== sessionName) {
-          switchSession(sessionName);
-          await wait(80);
-        }
-        if (originalOrientation !== orientation) {
-          setOrientation(orientation);
-          await wait(80);
-        } else {
-          draw();
-          await wait(50);
+        // ✅ 임시 캔버스 생성 (전역 canvas를 사용하지 않음 - 다중 사용자 충돌 방지)
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // ✅ 이미지 데이터 가져오기
+        const imgRef = orientation === "front" ? session.imgFront : session.imgSide;
+        const pointsMap = orientation === "front" ? session.frontPoints : session.sidePoints;
+
+        if (!imgRef || !imgRef.src) {
+          console.warn(`❌ ${sessionName} ${orientation} 이미지가 없습니다.`);
+          return null;
         }
 
-        // ✅ Canvas 렌더링 완료 보장 (모바일 PDF 저장 시 사진 및 점 누락 방지)
-        // 여러 번 렌더링하여 모든 점과 선이 그려지도록 보장
-        if (cv && typeof draw === 'function') {
-          draw(); // 첫 번째 렌더링
-          await new Promise(res => requestAnimationFrame(res));
-          draw(); // 두 번째 렌더링 (모바일에서 렌더링 지연 보정)
-          await new Promise(res => requestAnimationFrame(res));
-          await wait(100); // 추가 대기 시간 (모바일 렌더링 완료 보장)
-        }
-
-        // ✅ Canvas 내용 검증 (빈 캔버스 방지)
-        let snapshot = null;
-        if (cv && cv.toDataURL) {
-          snapshot = cv.toDataURL("image/png", 1.0);
-          // 빈 이미지 확인 (DataURL이 기본값인지 확인)
-          if (snapshot && snapshot !== 'data:,') {
-            // Canvas에 실제 내용이 있는지 확인 (작은 영역 샘플링)
-            try {
-              const ctx = cv.getContext('2d');
-              if (ctx) {
-                const imageData = ctx.getImageData(0, 0, Math.min(cv.width, 10), Math.min(cv.height, 10));
-                const hasContent = imageData.data.some((val, idx) => idx % 4 !== 3 || val < 255);
-                if (!hasContent) {
-                  console.warn(`⚠️ Canvas가 비어있습니다. 다시 렌더링합니다: ${sessionName} ${orientation}`);
-                  draw();
-                  await new Promise(res => requestAnimationFrame(res));
-                  await wait(100);
-                  snapshot = cv.toDataURL("image/png", 1.0);
-                }
-              }
-            } catch (err) {
-              // Canvas 접근 오류는 무시하고 계속 진행
-              console.warn('Canvas 내용 검증 중 오류:', err);
-            }
+        // ✅ 이미지 로드 대기
+        await new Promise((resolve, reject) => {
+          if (imgRef.complete && imgRef.naturalWidth > 0) {
+            resolve();
+          } else {
+            imgRef.onload = resolve;
+            imgRef.onerror = () => reject(new Error(`이미지 로드 실패: ${sessionName} ${orientation}`));
+            setTimeout(() => reject(new Error(`이미지 로드 타임아웃: ${sessionName} ${orientation}`)), 5000);
           }
+        });
+
+        // ✅ 임시 캔버스에 이미지 그리기
+        const imgWidth = imgRef.naturalWidth || imgRef.width;
+        const imgHeight = imgRef.naturalHeight || imgRef.height;
+
+        if (imgWidth === 0 || imgHeight === 0) {
+          console.warn(`❌ ${sessionName} ${orientation} 이미지 크기가 0입니다.`);
+          return null;
         }
 
-        if (originalOrientation !== orientation) {
-          setOrientation(originalOrientation);
-          await wait(60);
+        tempCanvas.width = imgWidth;
+        tempCanvas.height = imgHeight;
+        tempCtx.drawImage(imgRef, 0, 0, imgWidth, imgHeight);
+
+        // ✅ 키포인트 그리기 (점과 선)
+        if (pointsMap && (pointsMap.size > 0 || Object.keys(pointsMap).length > 0)) {
+          // 점과 선을 그리는 로직 (orientation에 따라 다름)
+          const points = pointsMap instanceof Map ? Object.fromEntries(pointsMap) : pointsMap;
+
+          // 선 그리기
+          tempCtx.strokeStyle = '#7c9cff';
+          tempCtx.lineWidth = 3;
+
+          if (orientation === "side") {
+            // 측면 선 연결
+            const sideConnections = [
+              ['tragus', 'c7'],
+              ['c7', 'acromion'],
+              ['acromion', 'psis'],
+              ['psis', 'asis'],
+              ['asis', 'hip'],
+              ['hip', 'knee'],
+              ['knee', 'ankle']
+            ];
+
+            sideConnections.forEach(([from, to]) => {
+              const p1 = points[from] || points[from.toUpperCase()] || points[from.toLowerCase()];
+              const p2 = points[to] || points[to.toUpperCase()] || points[to.toLowerCase()];
+              if (p1 && p2) {
+                tempCtx.beginPath();
+                tempCtx.moveTo(p1.x, p1.y);
+                tempCtx.lineTo(p2.x, p2.y);
+                tempCtx.stroke();
+              }
+            });
+          } else {
+            // 정면 선 연결
+            const frontConnections = [
+              ['L_acromion', 'R_acromion'],
+              ['L_asis', 'R_asis'],
+              ['L_acromion', 'L_asis'],
+              ['R_acromion', 'R_asis'],
+              ['L_asis', 'L_knee'],
+              ['R_asis', 'R_knee'],
+              ['L_knee', 'L_ankle'],
+              ['R_knee', 'R_ankle']
+            ];
+
+            frontConnections.forEach(([from, to]) => {
+              const p1 = points[from] || points[from.toLowerCase()];
+              const p2 = points[to] || points[to.toLowerCase()];
+              if (p1 && p2) {
+                tempCtx.beginPath();
+                tempCtx.moveTo(p1.x, p1.y);
+                tempCtx.lineTo(p2.x, p2.y);
+                tempCtx.stroke();
+              }
+            });
+          }
+
+          // 점 그리기
+          tempCtx.fillStyle = '#ffb86c';
+          Object.values(points).forEach(point => {
+            if (point && point.x != null && point.y != null) {
+              tempCtx.beginPath();
+              tempCtx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+              tempCtx.fill();
+              tempCtx.strokeStyle = '#fff';
+              tempCtx.lineWidth = 2;
+              tempCtx.stroke();
+            }
+          });
         }
-        if (cur !== originalSession) {
-          switchSession(originalSession);
-          await wait(60);
-        } else {
-          draw();
-        }
+
+        // ✅ Canvas 데이터 URL로 변환
+        const snapshot = tempCanvas.toDataURL("image/png", 1.0);
+
+        // ✅ 임시 캔버스 메모리 정리
+        tempCanvas.width = 1;
+        tempCanvas.height = 1;
+
         return snapshot;
       };
 
@@ -17216,14 +17273,26 @@
 
       console.log("=== initializeApp 시작 ===");
 
+      // ✅ 고유 세션 ID 생성 (사용자마다 다른 ID로 데이터 격리)
+      const generateSessionId = () => {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 15);
+        return `session_${timestamp}_${random}`;
+      };
+
       // sessions 객체 초기화 (안전하게 - 구조가 없거나 불완전하면 무조건 초기화)
       if (typeof window.sessions === 'undefined' ||
         !window.sessions ||
         !window.sessions.Before ||
         !window.sessions.After) {
         console.log("🔄 sessions 객체 초기화 중...");
+
+        // ✅ 세션 ID 생성 (사용자별 격리를 위한 고유 ID)
+        const sessionId = generateSessionId();
+
         // sessions를 전역으로 노출
         const sessions = {
+          _sessionId: sessionId, // ✅ 세션 고유 ID 저장
           Before: {
             imgSide: null,
             imgFront: null,
@@ -17247,9 +17316,14 @@
         // sessions를 window에 명시적으로 할당 (전역 접근 가능하도록)
         if (typeof window !== 'undefined') {
           window.sessions = sessions;
-          console.log("✅ sessions 객체 초기화 완료");
+          console.log(`✅ sessions 객체 초기화 완료 (세션 ID: ${sessionId})`);
         }
       } else {
+        // ✅ 기존 세션에 ID가 없으면 추가
+        if (!window.sessions._sessionId) {
+          window.sessions._sessionId = generateSessionId();
+          console.log(`✅ 기존 세션에 ID 추가 (세션 ID: ${window.sessions._sessionId})`);
+        }
         console.log("ℹ️ sessions 객체가 이미 초기화되어 있습니다.");
       }
 
