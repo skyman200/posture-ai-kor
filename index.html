@@ -262,7 +262,6 @@
       background: #0a0e13;
       cursor: crosshair;
       touch-action: none;
-      /* 드래그와 스크롤을 JavaScript로 제어 */
       display: block;
       flex-shrink: 0;
       image-rendering: -webkit-optimize-contrast;
@@ -271,11 +270,146 @@
       user-select: none;
       -webkit-user-select: none;
     }
+
+    /* ✅ 커스텀 모달 스타일 */
+    .custom-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .custom-modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--panel);
+      backdrop-filter: blur(20px);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      min-width: 320px;
+      max-width: 90%;
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .modal-input-group {
+      margin-bottom: 16px;
+    }
+
+    .modal-label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: var(--font-body);
+    }
+
+    .modal-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .modal-btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .modal-btn-primary:hover {
+      background: #6a8aef;
+      transform: translateY(-1px);
+    }
+
+    .modal-btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--ink);
+    }
+
+    .modal-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
   </style>
   <script type="module" crossorigin src="/posture-ai-kor/assets/main-B5Qt9EMX.js"></script>
 </head>
 
 <body>
+  <!-- ✅ 정보 입력 모달 -->
+  <div id="infoModal" class="custom-modal">
+    <div class="modal-content">
+      <div class="modal-title">📄 리포트 정보 입력</div>
+
+      <div class="modal-input-group">
+        <label class="modal-label">센터 이름</label>
+        <input type="text" id="modalCenterName" class="modal-input" placeholder="예: 레드코어운동센터">
+      </div>
+
+      <div class="modal-input-group">
+        <label class="modal-label">회원 이름</label>
+        <input type="text" id="modalMemberName" class="modal-input" placeholder="예: 홍길동">
+      </div>
+
+      <div class="modal-buttons">
+        <button id="modalCancelBtn" class="modal-btn modal-btn-secondary">취소</button>
+        <button id="modalConfirmBtn" class="modal-btn modal-btn-primary">PDF 생성</button>
+      </div>
+    </div>
+  </div>
   <aside class="panel sidebar" style="order: 1;">
     <div class="title">📸 DIT 자세 분석 AI</div>
     <div class="muted">파일 업로드 → 점을 드래그로 조정 → 각도 자동 계산</div>
@@ -16868,29 +17002,70 @@
 
           console.log("✅ 데이터 검증 통과, 사용자 입력 받기 시작...");
 
-          // ✅ 센터명/회원명 입력 (선택사항 - 기본값 사용)
-          let centerName = prompt("센터 이름을 입력하세요 (선택사항, 취소 가능):", localStorage.getItem('centerName') || "");
-          console.log("센터명 입력:", centerName);
+          // ✅ 커스텀 모달로 정보 입력 받기
+          const modal = document.getElementById('infoModal');
+          const centerInput = document.getElementById('modalCenterName');
+          const memberInput = document.getElementById('modalMemberName');
+          const confirmBtn = document.getElementById('modalConfirmBtn');
+          const cancelBtn = document.getElementById('modalCancelBtn');
 
-          // 취소하면 null이 반환되므로 기본값 설정
-          if (centerName === null || centerName.trim() === "") {
-            centerName = localStorage.getItem('centerName') || "DIT 센터";
-            console.log("센터명 기본값 사용:", centerName);
-          } else {
-            localStorage.setItem('centerName', centerName);
+          // 이전 값 불러오기
+          centerInput.value = localStorage.getItem('centerName') || "";
+          memberInput.value = localStorage.getItem('memberName') || "";
+
+          // 모달 표시
+          modal.classList.add('active');
+          centerInput.focus();
+
+          // 사용자 입력 대기 (Promise)
+          const getUserInput = () => {
+            return new Promise((resolve) => {
+              const handleConfirm = () => {
+                const center = centerInput.value.trim() || "DIT 센터";
+                const member = memberInput.value.trim() || "회원";
+
+                localStorage.setItem('centerName', center);
+                localStorage.setItem('memberName', member);
+
+                cleanup();
+                resolve({ centerName: center, memberName: member, cancelled: false });
+              };
+
+              const handleCancel = () => {
+                cleanup();
+                resolve({ cancelled: true });
+              };
+
+              const handleKeydown = (e) => {
+                if (e.key === 'Enter') handleConfirm();
+                if (e.key === 'Escape') handleCancel();
+              };
+
+              const cleanup = () => {
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+                centerInput.removeEventListener('keydown', handleKeydown);
+                memberInput.removeEventListener('keydown', handleKeydown);
+                modal.classList.remove('active');
+              };
+
+              confirmBtn.addEventListener('click', handleConfirm);
+              cancelBtn.addEventListener('click', handleCancel);
+              centerInput.addEventListener('keydown', handleKeydown);
+              memberInput.addEventListener('keydown', handleKeydown);
+            });
+          };
+
+          const inputResult = await getUserInput();
+
+          if (inputResult.cancelled) {
+            console.log("❌ 사용자가 PDF 생성을 취소했습니다.");
+            btn.textContent = originalText;
+            btn.disabled = false;
+            return;
           }
 
-          let memberName = prompt("회원 이름을 입력하세요 (선택사항, 취소 가능):", localStorage.getItem('memberName') || "");
-          console.log("회원명 입력:", memberName);
-
-          // 취소하면 null이 반환되므로 기본값 설정
-          if (memberName === null || memberName.trim() === "") {
-            memberName = localStorage.getItem('memberName') || "회원";
-            console.log("회원명 기본값 사용:", memberName);
-          } else {
-            localStorage.setItem('memberName', memberName);
-          }
-
+          const { centerName, memberName } = inputResult;
           console.log(`📋 최종 정보: ${centerName} / ${memberName}`);
 
           // 이제 로딩 표시
