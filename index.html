@@ -17009,64 +17009,84 @@
           const confirmBtn = document.getElementById('modalConfirmBtn');
           const cancelBtn = document.getElementById('modalCancelBtn');
 
-          // 이전 값 불러오기
-          centerInput.value = localStorage.getItem('centerName') || "";
-          memberInput.value = localStorage.getItem('memberName') || "";
+          // 모달 요소 확인
+          let centerName, memberName;
+          
+          if (!modal || !centerInput || !memberInput || !confirmBtn || !cancelBtn) {
+            console.error("❌ 모달 요소를 찾을 수 없습니다. prompt로 대체합니다.");
+            // 모달이 없으면 prompt로 대체
+            const centerPrompt = prompt("센터 이름을 입력하세요:", localStorage.getItem('centerName') || "DIT 센터");
+            const memberPrompt = prompt("회원 이름을 입력하세요:", localStorage.getItem('memberName') || "회원");
+            
+            centerName = centerPrompt || localStorage.getItem('centerName') || "DIT 센터";
+            memberName = memberPrompt || localStorage.getItem('memberName') || "회원";
+            
+            localStorage.setItem('centerName', centerName);
+            localStorage.setItem('memberName', memberName);
+            
+            // PDF 생성 계속 진행
+            console.log(`📋 최종 정보: ${centerName} / ${memberName}`);
+          } else {
+            // 이전 값 불러오기
+            centerInput.value = localStorage.getItem('centerName') || "";
+            memberInput.value = localStorage.getItem('memberName') || "";
 
-          // 모달 표시
-          modal.classList.add('active');
-          centerInput.focus();
+            // 모달 표시
+            modal.classList.add('active');
+            centerInput.focus();
 
-          // 사용자 입력 대기 (Promise)
-          const getUserInput = () => {
-            return new Promise((resolve) => {
-              const handleConfirm = () => {
-                const center = centerInput.value.trim() || "DIT 센터";
-                const member = memberInput.value.trim() || "회원";
+            // 사용자 입력 대기 (Promise)
+            const getUserInput = () => {
+              return new Promise((resolve) => {
+                const handleConfirm = () => {
+                  const center = centerInput.value.trim() || "DIT 센터";
+                  const member = memberInput.value.trim() || "회원";
 
-                localStorage.setItem('centerName', center);
-                localStorage.setItem('memberName', member);
+                  localStorage.setItem('centerName', center);
+                  localStorage.setItem('memberName', member);
 
-                cleanup();
-                resolve({ centerName: center, memberName: member, cancelled: false });
-              };
+                  cleanup();
+                  resolve({ centerName: center, memberName: member, cancelled: false });
+                };
 
-              const handleCancel = () => {
-                cleanup();
-                resolve({ cancelled: true });
-              };
+                const handleCancel = () => {
+                  cleanup();
+                  resolve({ cancelled: true });
+                };
 
-              const handleKeydown = (e) => {
-                if (e.key === 'Enter') handleConfirm();
-                if (e.key === 'Escape') handleCancel();
-              };
+                const handleKeydown = (e) => {
+                  if (e.key === 'Enter') handleConfirm();
+                  if (e.key === 'Escape') handleCancel();
+                };
 
-              const cleanup = () => {
-                confirmBtn.removeEventListener('click', handleConfirm);
-                cancelBtn.removeEventListener('click', handleCancel);
-                centerInput.removeEventListener('keydown', handleKeydown);
-                memberInput.removeEventListener('keydown', handleKeydown);
-                modal.classList.remove('active');
-              };
+                const cleanup = () => {
+                  confirmBtn.removeEventListener('click', handleConfirm);
+                  cancelBtn.removeEventListener('click', handleCancel);
+                  centerInput.removeEventListener('keydown', handleKeydown);
+                  memberInput.removeEventListener('keydown', handleKeydown);
+                  modal.classList.remove('active');
+                };
 
-              confirmBtn.addEventListener('click', handleConfirm);
-              cancelBtn.addEventListener('click', handleCancel);
-              centerInput.addEventListener('keydown', handleKeydown);
-              memberInput.addEventListener('keydown', handleKeydown);
-            });
-          };
+                confirmBtn.addEventListener('click', handleConfirm);
+                cancelBtn.addEventListener('click', handleCancel);
+                centerInput.addEventListener('keydown', handleKeydown);
+                memberInput.addEventListener('keydown', handleKeydown);
+              });
+            };
 
-          const inputResult = await getUserInput();
+            const inputResult = await getUserInput();
 
-          if (inputResult.cancelled) {
-            console.log("❌ 사용자가 PDF 생성을 취소했습니다.");
-            btn.textContent = originalText;
-            btn.disabled = false;
-            return;
+            if (inputResult.cancelled) {
+              console.log("❌ 사용자가 PDF 생성을 취소했습니다.");
+              btn.textContent = originalText;
+              btn.disabled = false;
+              return;
+            }
+
+            centerName = inputResult.centerName;
+            memberName = inputResult.memberName;
+            console.log(`📋 최종 정보: ${centerName} / ${memberName}`);
           }
-
-          const { centerName, memberName } = inputResult;
-          console.log(`📋 최종 정보: ${centerName} / ${memberName}`);
 
           // 이제 로딩 표시
           console.log("⏳ PDF 생성 시작...");
