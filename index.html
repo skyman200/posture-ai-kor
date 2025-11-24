@@ -11307,128 +11307,172 @@
       };
 
       const captureSessionSnapshot = async (sessionName, orientation) => {
-        const session = sessions[sessionName];
-        if (!session || !hasOrientationData(session, orientation)) return null;
-
-        // ✅ 전역 상태 저장 (나중에 복원용)
-        const originalSession = cur;
-        const originalOrientation = session.poseData?.orientation || "side";
-
-        // ✅ 임시 캔버스 생성 (전역 canvas를 사용하지 않음 - 다중 사용자 충돌 방지)
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-
-        // ✅ 이미지 데이터 가져오기
-        const imgRef = orientation === "front" ? session.imgFront : session.imgSide;
-        const pointsMap = orientation === "front" ? session.frontPoints : session.sidePoints;
-
-        if (!imgRef || !imgRef.src) {
-          console.warn(`❌ ${sessionName} ${orientation} 이미지가 없습니다.`);
-          return null;
-        }
-
-        // ✅ 이미지 로드 대기
-        await new Promise((resolve, reject) => {
-          if (imgRef.complete && imgRef.naturalWidth > 0) {
-            resolve();
-          } else {
-            imgRef.onload = resolve;
-            imgRef.onerror = () => reject(new Error(`이미지 로드 실패: ${sessionName} ${orientation}`));
-            setTimeout(() => reject(new Error(`이미지 로드 타임아웃: ${sessionName} ${orientation}`)), 5000);
-          }
-        });
-
-        // ✅ 임시 캔버스에 이미지 그리기
-        const imgWidth = imgRef.naturalWidth || imgRef.width;
-        const imgHeight = imgRef.naturalHeight || imgRef.height;
-
-        if (imgWidth === 0 || imgHeight === 0) {
-          console.warn(`❌ ${sessionName} ${orientation} 이미지 크기가 0입니다.`);
-          return null;
-        }
-
-        tempCanvas.width = imgWidth;
-        tempCanvas.height = imgHeight;
-        tempCtx.drawImage(imgRef, 0, 0, imgWidth, imgHeight);
-
-        // ✅ 키포인트 그리기 (점과 선)
-        if (pointsMap && (pointsMap.size > 0 || Object.keys(pointsMap).length > 0)) {
-          // 점과 선을 그리는 로직 (orientation에 따라 다름)
-          const points = pointsMap instanceof Map ? Object.fromEntries(pointsMap) : pointsMap;
-
-          // 선 그리기
-          tempCtx.strokeStyle = '#7c9cff';
-          tempCtx.lineWidth = 3;
-
-          if (orientation === "side") {
-            // 측면 선 연결
-            const sideConnections = [
-              ['tragus', 'c7'],
-              ['c7', 'acromion'],
-              ['acromion', 'psis'],
-              ['psis', 'asis'],
-              ['asis', 'hip'],
-              ['hip', 'knee'],
-              ['knee', 'ankle']
-            ];
-
-            sideConnections.forEach(([from, to]) => {
-              const p1 = points[from] || points[from.toUpperCase()] || points[from.toLowerCase()];
-              const p2 = points[to] || points[to.toUpperCase()] || points[to.toLowerCase()];
-              if (p1 && p2) {
-                tempCtx.beginPath();
-                tempCtx.moveTo(p1.x, p1.y);
-                tempCtx.lineTo(p2.x, p2.y);
-                tempCtx.stroke();
-              }
-            });
-          } else {
-            // 정면 선 연결
-            const frontConnections = [
-              ['L_acromion', 'R_acromion'],
-              ['L_asis', 'R_asis'],
-              ['L_acromion', 'L_asis'],
-              ['R_acromion', 'R_asis'],
-              ['L_asis', 'L_knee'],
-              ['R_asis', 'R_knee'],
-              ['L_knee', 'L_ankle'],
-              ['R_knee', 'R_ankle']
-            ];
-
-            frontConnections.forEach(([from, to]) => {
-              const p1 = points[from] || points[from.toLowerCase()];
-              const p2 = points[to] || points[to.toLowerCase()];
-              if (p1 && p2) {
-                tempCtx.beginPath();
-                tempCtx.moveTo(p1.x, p1.y);
-                tempCtx.lineTo(p2.x, p2.y);
-                tempCtx.stroke();
-              }
-            });
+        try {
+          const session = sessions[sessionName];
+          if (!session || !hasOrientationData(session, orientation)) {
+            console.warn(`⚠️ ${sessionName} ${orientation} 데이터가 없습니다.`);
+            return null;
           }
 
-          // 점 그리기
-          tempCtx.fillStyle = '#ffb86c';
-          Object.values(points).forEach(point => {
-            if (point && point.x != null && point.y != null) {
-              tempCtx.beginPath();
-              tempCtx.arc(point.x, point.y, 6, 0, Math.PI * 2);
-              tempCtx.fill();
-              tempCtx.strokeStyle = '#fff';
-              tempCtx.lineWidth = 2;
-              tempCtx.stroke();
+          // ✅ 전역 상태 저장
+          const originalSession = cur;
+          const originalOrientation = session.poseData?.orientation || "side";
+
+          // ✅ 임시 캔버스 생성
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+
+          // ✅ 이미지 데이터 가져오기
+          const imgRef = orientation === "front" ? session.imgFront : session.imgSide;
+          const pointsMap = orientation === "front" ? session.frontPoints : session.sidePoints;
+
+          if (!imgRef) {
+            console.warn(`❌ ${sessionName} ${orientation} 이미지 참조가 없습니다.`);
+            return null;
+          }
+
+          // ✅ 이미지가 Image 객체인지 확인하고, src가 있는지 확인
+          let imageElement = imgRef;
+
+          // imgRef가 Image 객체가 아니면 새로 생성
+          if (!(imgRef instanceof Image)) {
+            if (imgRef.src) {
+              imageElement = new Image();
+              imageElement.src = imgRef.src;
+            } else {
+              console.warn(`❌ ${sessionName} ${orientation} 이미지 src가 없습니다.`);
+              return null;
             }
-          });
+          }
+
+          // src가 없으면 실패
+          if (!imageElement.src || imageElement.src === 'data:,' || imageElement.src === '') {
+            console.warn(`❌ ${sessionName} ${orientation} 이미지 src가 유효하지 않습니다:`, imageElement.src);
+            return null;
+          }
+
+          // ✅ 이미지 로드 대기
+          try {
+            await new Promise((resolve, reject) => {
+              if (imageElement.complete && imageElement.naturalWidth > 0) {
+                resolve();
+              } else {
+                const timeout = setTimeout(() => {
+                  reject(new Error(`이미지 로드 타임아웃: ${sessionName} ${orientation}`));
+                }, 5000);
+
+                imageElement.onload = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+
+                imageElement.onerror = () => {
+                  clearTimeout(timeout);
+                  reject(new Error(`이미지 로드 실패: ${sessionName} ${orientation}`));
+                };
+              }
+            });
+          } catch (loadError) {
+            console.error(`❌ 이미지 로드 에러:`, loadError);
+            return null;
+          }
+
+          // ✅ 임시 캔버스에 이미지 그리기
+          const imgWidth = imageElement.naturalWidth || imageElement.width;
+          const imgHeight = imageElement.naturalHeight || imageElement.height;
+
+          if (imgWidth === 0 || imgHeight === 0) {
+            console.warn(`❌ ${sessionName} ${orientation} 이미지 크기가 0입니다.`);
+            return null;
+          }
+
+          tempCanvas.width = imgWidth;
+          tempCanvas.height = imgHeight;
+          tempCtx.drawImage(imageElement, 0, 0, imgWidth, imgHeight);
+
+          // ✅ 키포인트 그리기 (점과 선)
+          if (pointsMap && (pointsMap.size > 0 || Object.keys(pointsMap).length > 0)) {
+            const points = pointsMap instanceof Map ? Object.fromEntries(pointsMap) : pointsMap;
+
+            // 선 그리기
+            tempCtx.strokeStyle = '#7c9cff';
+            tempCtx.lineWidth = 3;
+
+            if (orientation === "side") {
+              // 측면 선 연결
+              const sideConnections = [
+                ['tragus', 'c7'],
+                ['c7', 'acromion'],
+                ['acromion', 'psis'],
+                ['psis', 'asis'],
+                ['asis', 'hip'],
+                ['hip', 'knee'],
+                ['knee', 'ankle']
+              ];
+
+              sideConnections.forEach(([from, to]) => {
+                const p1 = points[from] || points[from.toUpperCase()] || points[from.toLowerCase()];
+                const p2 = points[to] || points[to.toUpperCase()] || points[to.toLowerCase()];
+                if (p1 && p2) {
+                  tempCtx.beginPath();
+                  tempCtx.moveTo(p1.x, p1.y);
+                  tempCtx.lineTo(p2.x, p2.y);
+                  tempCtx.stroke();
+                }
+              });
+            } else {
+              // 정면 선 연결
+              const frontConnections = [
+                ['L_acromion', 'R_acromion'],
+                ['L_asis', 'R_asis'],
+                ['L_acromion', 'L_asis'],
+                ['R_acromion', 'R_asis'],
+                ['L_asis', 'L_knee'],
+                ['R_asis', 'R_knee'],
+                ['L_knee', 'L_ankle'],
+                ['R_knee', 'R_ankle']
+              ];
+
+              frontConnections.forEach(([from, to]) => {
+                const p1 = points[from] || points[from.toLowerCase()];
+                const p2 = points[to] || points[to.toLowerCase()];
+                if (p1 && p2) {
+                  tempCtx.beginPath();
+                  tempCtx.moveTo(p1.x, p1.y);
+                  tempCtx.lineTo(p2.x, p2.y);
+                  tempCtx.stroke();
+                }
+              });
+            }
+
+            // 점 그리기
+            tempCtx.fillStyle = '#ffb86c';
+            Object.values(points).forEach(point => {
+              if (point && point.x != null && point.y != null) {
+                tempCtx.beginPath();
+                tempCtx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+                tempCtx.fill();
+                tempCtx.strokeStyle = '#fff';
+                tempCtx.lineWidth = 2;
+                tempCtx.stroke();
+              }
+            });
+          }
+
+          // ✅ Canvas 데이터 URL로 변환
+          const snapshot = tempCanvas.toDataURL("image/png", 1.0);
+
+          // ✅ 임시 캔버스 메모리 정리
+          tempCanvas.width = 1;
+          tempCanvas.height = 1;
+
+          console.log(`✅ ${sessionName} ${orientation} 스냅샷 생성 완료`);
+          return snapshot;
+
+        } catch (error) {
+          console.error(`❌ captureSessionSnapshot 에러 (${sessionName} ${orientation}):`, error);
+          return null;
         }
-
-        // ✅ Canvas 데이터 URL로 변환
-        const snapshot = tempCanvas.toDataURL("image/png", 1.0);
-
-        // ✅ 임시 캔버스 메모리 정리
-        tempCanvas.width = 1;
-        tempCanvas.height = 1;
-
-        return snapshot;
       };
 
       const beforeViews = {};
@@ -16781,20 +16825,60 @@
       btnPDF.parentNode.replaceChild(newBtn, btnPDF);
 
       newBtn.addEventListener('click', async () => {
+        console.log("🖱️ PDF 버튼 클릭됨!");
+
         try {
           // 모바일에서 로딩 표시
           const btn = document.getElementById("btnPDF");
-          const originalText = btn.textContent;
-          btn.textContent = "⏳ PDF 생성 중...";
-          btn.disabled = true;
+          if (!btn) {
+            console.error("❌ PDF 버튼을 찾을 수 없습니다!");
+            return;
+          }
 
-          // 센터명/회원명 입력 (항상 입력받기)
+          console.log("✅ PDF 버튼 찾음, 이벤트 핸들러 실행 중...");
+          const originalText = btn.textContent;
+
+          // 세션 데이터 확인 (먼저 확인)
+          console.log("📊 세션 데이터 확인 중...");
+          console.log("현재 세션:", cur);
+          console.log("sessions 객체:", sessions);
+
+          const S = sessions[cur];
+          if (!S) {
+            console.error("❌ 현재 세션을 찾을 수 없습니다:", cur);
+            alert("세션 데이터를 찾을 수 없습니다. 페이지를 새로고침해주세요.");
+            return;
+          }
+
+          console.log("현재 세션 데이터:", S);
+          console.log("sidePoints:", S.sidePoints);
+          console.log("frontPoints:", S.frontPoints);
+
+          const hasSidePoints = S.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
+          const hasFrontPoints = S.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
+
+          console.log("hasSidePoints:", hasSidePoints);
+          console.log("hasFrontPoints:", hasFrontPoints);
+
+          if (!hasSidePoints && !hasFrontPoints) {
+            console.warn("⚠️ 측정 데이터가 없습니다!");
+            alert("먼저 이미지를 업로드하고 분석을 완료해주세요.");
+            return;
+          }
+
+          console.log("✅ 데이터 검증 통과, 사용자 입력 받기 시작...");
+
+          // 센터명/회원명 입력 (팝업이 보이도록 먼저 실행)
           let centerName = prompt("센터 이름을 입력하세요 (예: 레드코어운동센터):", localStorage.getItem('centerName') || "") || null;
+          console.log("센터명 입력:", centerName);
+
           if (centerName) {
             localStorage.setItem('centerName', centerName);
           }
 
           let memberName = prompt("회원 이름을 입력하세요 (예: 김강훈):", localStorage.getItem('memberName') || "") || null;
+          console.log("회원명 입력:", memberName);
+
           if (memberName) {
             localStorage.setItem('memberName', memberName);
           }
@@ -16803,13 +16887,18 @@
           if (!centerName || !memberName) {
             const confirmContinue = confirm("센터 이름 또는 회원 이름이 입력되지 않았습니다. 계속하시겠습니까?");
             if (!confirmContinue) {
-              btn.textContent = originalText;
-              btn.disabled = false;
+              console.log("❌ 사용자가 PDF 생성을 취소했습니다.");
               return;
             }
           }
 
+          // 이제 로딩 표시
+          console.log("⏳ PDF 생성 시작...");
+          btn.textContent = "⏳ PDF 생성 중...";
+          btn.disabled = true;
+
           // 라이브러리 로드 대기 (최대 3초)
+          console.log("📚 라이브러리 확인 중...");
           let retryCount = 0;
           while ((typeof html2canvas === 'undefined' || !window.jspdf) && retryCount < 30) {
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -16818,22 +16907,15 @@
 
           // 라이브러리 확인
           if (typeof html2canvas === 'undefined') {
+            console.error("❌ html2canvas 라이브러리가 로드되지 않았습니다!");
             throw new Error("html2canvas 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
           }
           if (!window.jspdf || !window.jspdf.jsPDF) {
+            console.error("❌ jsPDF 라이브러리가 로드되지 않았습니다!");
             throw new Error("jsPDF 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.");
           }
 
-          // 세션 데이터 확인
-          const S = sessions[cur];
-          const hasSidePoints = S.sidePoints && (S.sidePoints.size > 0 || Object.keys(S.sidePoints).length > 0);
-          const hasFrontPoints = S.frontPoints && (S.frontPoints.size > 0 || Object.keys(S.frontPoints).length > 0);
-          if (!S || (!hasSidePoints && !hasFrontPoints)) {
-            alert("먼저 이미지를 업로드하고 분석을 완료해주세요.");
-            btn.textContent = originalText;
-            btn.disabled = false;
-            return;
-          }
+          console.log("✅ 라이브러리 로드 완료");
 
           // 기존 사용자명 (하위 호환성)
           let userName = localStorage.getItem('userName');
@@ -16843,7 +16925,9 @@
           }
 
           // ✅ 새로운 8페이지 전문 리포트 함수 사용
+          console.log("📄 generateFinalPostureReportPDF 호출...");
           await generateFinalPostureReportPDF();
+          console.log("✅ PDF 생성 완료!");
 
           btn.textContent = originalText;
           btn.disabled = false;
